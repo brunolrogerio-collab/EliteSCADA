@@ -99,6 +99,10 @@ public interface IRuntimeTagValueSnapshotRestorer
         IReadOnlyCollection<TagValue> values,
         CancellationToken cancellationToken = default);
 
+    Task<int> RestoreAuthoritativeValuesForTakeoverAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default);
+
     Task<int> ApplyPassiveAuthoritativeValuesAsync(
         IReadOnlyCollection<TagValue> values,
         CancellationToken cancellationToken = default);
@@ -232,6 +236,29 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     public async Task<int> RestoreAuthoritativeValuesAsync(
         IReadOnlyCollection<TagValue> values,
         CancellationToken cancellationToken = default)
+        => await RestoreAuthoritativeValuesCoreAsync(
+            values,
+            reconcileAlarmsLocally: false,
+            cancellationToken);
+
+    public async Task<int> RestoreAuthoritativeValuesForTakeoverAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+    {
+        if (_industrialEffectAuthority())
+            throw new InvalidOperationException(
+                "HA authoritative values must be reconciled before industrial effects are released.");
+
+        return await RestoreAuthoritativeValuesCoreAsync(
+            values,
+            reconcileAlarmsLocally: true,
+            cancellationToken);
+    }
+
+    private async Task<int> RestoreAuthoritativeValuesCoreAsync(
+        IReadOnlyCollection<TagValue> values,
+        bool reconcileAlarmsLocally,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(values);
         await _activationGate.WaitAsync(cancellationToken);
@@ -272,6 +299,9 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 await state.Cache.UpdateAsync(tag, value, cancellationToken);
                 restored++;
             }
+
+            if (reconcileAlarmsLocally)
+                await EvaluateCurrentAlarmsAsync(state, cancellationToken, locallyOnly: true);
 
             return restored;
         }
@@ -1251,16 +1281,19 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
     private static async Task EvaluateCurrentAlarmsAsync(
         RuntimeState state,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool locallyOnly = false)
     {
         foreach (var current in state.Cache.Snapshot())
         {
             if (!state.Registry.TryGet(current.TagId, out var tag) || tag is null)
                 continue;
 
-            await state.EventGate.PublishAsync(
-                new TagValueChanged(tag, null, current, DateTimeOffset.UtcNow),
-                cancellationToken);
+            var change = new TagValueChanged(tag, null, current, DateTimeOffset.UtcNow);
+            if (locallyOnly)
+                await state.EventGate.PublishLocallyAsync(change, cancellationToken);
+            else
+                await state.EventGate.PublishAsync(change, cancellationToken);
         }
     }
 

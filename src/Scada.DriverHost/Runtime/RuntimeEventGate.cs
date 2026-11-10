@@ -42,4 +42,10 @@ public sealed class RuntimeEventGate : IScadaEventBus
         if (ForwardingEnabled)
             await _external.PublishAsync(scadaEvent, cancellationToken);
     }
+
+    internal ValueTask PublishLocallyAsync<TEvent>(
+        TEvent scadaEvent,
+        CancellationToken cancellationToken = default)
+        where TEvent : IScadaEvent =>
+        _local.PublishAsync(scadaEvent, cancellationToken);
 }

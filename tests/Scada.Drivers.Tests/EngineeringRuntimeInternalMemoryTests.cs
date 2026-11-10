@@ -136,6 +136,67 @@ public sealed class EngineeringRuntimeInternalMemoryTests
     }
 
     [Fact]
+    public async Task RestoreAuthoritativeValuesForTakeoverAsync_ReconcilesAlarmLocallyWhileEffectsAreFenced()
+    {
+        var tagId = Guid.NewGuid();
+        var alarmId = Guid.NewGuid();
+        var effectAuthority = false;
+        var bus = new InMemoryScadaEventBus();
+        var tagEvents = 0;
+        var alarmEvents = 0;
+        using var tagSubscription = bus.Subscribe<TagValueChanged>(_ =>
+        {
+            Interlocked.Increment(ref tagEvents);
+            return ValueTask.CompletedTask;
+        });
+        using var alarmSubscription = bus.Subscribe<AlarmStateChanged>(_ =>
+        {
+            Interlocked.Increment(ref alarmEvents);
+            return ValueTask.CompletedTask;
+        });
+
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            bus,
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(1),
+            industrialEffectAuthority: () => Volatile.Read(ref effectAuthority));
+
+        var activation = await runtime.ActivateAsync(
+            "memory-project",
+            1,
+            ServerPackage(tagId, alarmId, "Plant.Counter", 5));
+        Assert.True(activation.Activated);
+        Assert.DoesNotContain(runtime.Alarms(activeOnly: true), alarm => alarm.DefinitionId == alarmId);
+
+        var restored = await runtime.RestoreAuthoritativeValuesForTakeoverAsync(new[]
+        {
+            new TagValue(
+                tagId,
+                JsonSerializer.SerializeToElement(33),
+                DateTimeOffset.UtcNow,
+                TagQuality.Good,
+                "node-a")
+        });
+
+        Assert.Equal(1, restored);
+        Assert.True(runtime.TryGetCurrent(tagId, out var current));
+        Assert.Equal(33, current!.Value);
+        Assert.Contains(runtime.Alarms(activeOnly: true), alarm => alarm.DefinitionId == alarmId);
+        Assert.Equal(0, Volatile.Read(ref tagEvents));
+        Assert.Equal(0, Volatile.Read(ref alarmEvents));
+
+        Volatile.Write(ref effectAuthority, true);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            runtime.RestoreAuthoritativeValuesForTakeoverAsync(Array.Empty<TagValue>()));
+        await runtime.WriteAsync(tagId, 0);
+
+        Assert.Contains(runtime.Alarms(activeOnly: true), alarm =>
+            alarm.DefinitionId == alarmId && alarm.State == AlarmState.Returned);
+        Assert.True(Volatile.Read(ref tagEvents) > 0);
+        Assert.Equal(1, Volatile.Read(ref alarmEvents));
+    }
+
+    [Fact]
     public async Task MaterializePassiveAsync_ProjectsExactRuntimeWithoutStartingServerMemoryOrAlarmEffects()
     {
         var tagId = Guid.NewGuid();

@@ -70,6 +70,7 @@ builder.Services.AddSingleton(sp =>
 });
 builder.Services.AddRuntimeHighAvailabilityPeerTransport();
 builder.Services.AddRuntimeHighAvailabilityProtection();
+builder.Services.AddRuntimeHaActiveRequestProxy();
 
 
 builder.Services.AddSingleton(_ => new EngineeringWorkspace(seedDemo: false));
@@ -249,12 +250,13 @@ if (app.Services.GetService<AssetProcessIntelligenceActivationStore>() is { } in
 }
 
 app.UseMiddleware<TimingCorrelationMiddleware>();
-app.UseMiddleware<DatabaseMaintenanceMiddleware>();
 app.UseCors();
+app.UseWebSockets();
+app.UseMiddleware<RuntimeHaActiveRequestProxyMiddleware>();
+app.UseMiddleware<DatabaseMaintenanceMiddleware>();
 app.MapConfiguredNativeWeb();
 if (authenticationEnabled) app.UseAuthentication();
 app.UseRateLimiter();
-app.UseWebSockets();
 app.MapOpenApi();
 app.MapTimingPolicyV1Endpoints();
 app.MapProjectPackageEndpoints();

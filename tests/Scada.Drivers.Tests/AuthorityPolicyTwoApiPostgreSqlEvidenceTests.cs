@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -508,6 +509,9 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
         ApiProcess? nodeA = null;
         ApiProcess? nodeB = null;
+        TcpClusterIngress? clusterIngress = null;
+        ClusterBrowser? clusterBrowser = null;
+        ClusterBrowser? staleClusterBrowser = null;
         var databasesCreated = new List<(string AdminConnectionString, string Name)>();
         var rolesCreated = new List<(string AdminConnectionString, string Name)>();
         try
@@ -564,7 +568,11 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 await nodeB.BootstrapAsync();
             }
 
-            await PrepareProjectAsync(nodeA, activate: true);
+            await PrepareProjectAsync(
+                nodeA,
+                activate: true,
+                writableEvidenceTag: verifyRuntimeSessionContinuity,
+                simulationScanIntervalMilliseconds: verifyRuntimeSessionContinuity ? 2_000 : 100);
             if (sharedDatabase)
             {
                 // Start the shared-database standby only after the published project
@@ -579,7 +587,11 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             }
             else
             {
-                await PrepareProjectAsync(nodeB!, activate: false);
+                await PrepareProjectAsync(
+                    nodeB!,
+                    activate: false,
+                    writableEvidenceTag: verifyRuntimeSessionContinuity,
+                    simulationScanIntervalMilliseconds: verifyRuntimeSessionContinuity ? 2_000 : 100);
                 // In the separate-database case, publish its local copy without
                 // activating it, then restart so D2 begins from a loaded standby.
                 await nodeB!.DisposeAsync();
@@ -615,6 +627,12 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 await MirrorProjectToStandbyAsync(nodeA, nodeB!);
             }
 
+            if (verifyRuntimeSessionContinuity)
+            {
+                clusterIngress = TcpClusterIngress.Start(urlA, urlB);
+                clusterBrowser = new ClusterBrowser(clusterIngress.Address);
+            }
+
             var initialA = await WaitForHaTopologyAsync(
                 nodeA,
                 topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
@@ -635,7 +653,7 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             RuntimeSessionLeaseEvidence? standbySession = null;
             RuntimeSessionLeaseEvidence? promotedSession = null;
             RuntimeSessionLeaseEvidence? failedBackSession = null;
-            ApiProcess? originalSessionNode = null;
+            int[]? initialOriginIngressPorts = null;
             var reauthenticationRequiredAfterPromotion = false;
             if (verifyRuntimeSessionContinuity)
             {
@@ -673,13 +691,35 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     "/api/auth/authority-backup/apply",
                     backupRequest);
                 Assert.True(backupApplied["applied"]!.GetValue<bool>());
-                // Exercise the shared cluster origin while this API process is still
-                // Standby. Login must be handled by the current Active and the cookie
-                // returned through the gateway must remain usable on the same origin.
-                await nodeB.LoginViaClusterAsync();
+                var ingress = clusterIngress ?? throw new InvalidOperationException("The process test TCP ingress was not started.");
+                var browser = clusterBrowser ?? throw new InvalidOperationException("The stable-origin browser client was not started.");
+
+                // Repeated connections through one local TCP ingress alternate between
+                // the two real API processes. Both must serve the same Runtime while
+                // preserving this external origin.
+                ingress.SetBackends(urlB);
+                await browser.LoginAsync();
+                ingress.SetBackends(urlA, urlB);
+                ingress.ResetSelectedBackendHistory();
+                for (var request = 0; request < 4; request++)
+                {
+                    var application = await browser.GetAsync("/api/runtime/application");
+                    Assert.Equal(ProjectKey, application["projectKey"]?.GetValue<string>());
+                }
+                initialOriginIngressPorts = ingress.SelectedBackendPorts;
+                Assert.Equal(
+                    new[] { new Uri(urlA).Port, new Uri(urlB).Port, new Uri(urlA).Port, new Uri(urlB).Port },
+                    initialOriginIngressPorts);
+
+                // Pin the ingress to the Ready Standby. Login must reach the current
+                // Active through its gateway and set the cookie on the shared origin.
+                ingress.SetBackends(urlB);
+                await browser.LoginAsync();
+                await WaitForRuntimeViewCapabilityAsync(browser, TimeSpan.FromSeconds(20));
+                staleClusterBrowser = browser.Clone();
 
                 runtimeSessionClientInstanceId = "w15-ha-d2-client-" + suffix;
-                var admitted = await nodeB.SendViaClusterAsync(
+                var admitted = await browser.SendAsync(
                     HttpMethod.Post,
                     "/api/runtime/sessions",
                     new JsonObject
@@ -692,6 +732,14 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 runtimeSessionSubjectId = admitted["userId"]!.GetValue<string>();
                 Assert.Equal(runtimeSessionClientInstanceId, admitted["clientInstanceId"]!.GetValue<string>());
                 Assert.Equal("interactive", admitted["grantedClass"]!.GetValue<string>());
+
+                runtimeSessionId = admitted["sessionId"]!.GetValue<Guid>();
+                await AssertSingleClusterWriteAndRealtimeEventAsync(
+                    browser,
+                    Guid.Parse("b3100000-0000-0000-0000-000000000202"),
+                    runtimeSessionId.Value,
+                    runtimeSessionClientInstanceId,
+                    137.25d);
 
                 standbySession = await WaitForRuntimeSessionLeaseAsync(
                     appConnectionB.ConnectionString,
@@ -706,16 +754,14 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
             // OS-process loss: the standby must use the fresh pre-failure witness and
             // reference fence to claim a strictly newer authority epoch.
-            if (verifyRuntimeSessionContinuity)
-                originalSessionNode = nodeA;
             await nodeA.DisposeAsync();
             nodeA = null;
             if (verifyRuntimeSessionContinuity)
             {
-                // The cluster-origin cookie was issued by node-a. Independent
-                // Authorities intentionally reject it after node-b promotes; use an
-                // explicit node-local admin login only for the topology probe below.
-                // The retained originalSessionNode cookie is still tested as stale.
+                // Keep the direct node-local admin session for topology probes; the
+                // separate stable-origin browser retains its node-a cookie for the
+                // stale-cookie check below.
+                clusterIngress!.SetBackends(urlB);
                 await nodeB.LoginAsync();
             }
             var promoted = await WaitForHaTopologyAsync(
@@ -729,12 +775,12 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
             if (verifyRuntimeSessionContinuity)
             {
-                // Simulate the stable same-origin proxy forwarding the existing
-                // browser cookie to the promoted node. If the independently restored
-                // Authority has a different current lifecycle epoch, the old token
-                // must be rejected and the browser must explicitly sign in again.
-                nodeB.ForwardAuthenticationCookiesFrom(originalSessionNode!);
-                var staleAdmission = await nodeB.PostRawAsync(
+                // The external ingress now targets the promoted process. Its independent
+                // Authority must reject the browser's old node-a cookie; explicit login
+                // is required before a fresh Runtime lease can be admitted.
+                var browser = clusterBrowser!;
+                var staleBrowser = staleClusterBrowser!;
+                var staleAdmission = await staleBrowser.PostRawAsync(
                     "/api/runtime/sessions",
                     new JsonObject
                     {
@@ -744,11 +790,31 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 Assert.Equal(HttpStatusCode.Unauthorized, staleAdmission.StatusCode);
                 reauthenticationRequiredAfterPromotion = true;
 
-                // Restore the node-local administrative client for later HA
-                // topology/failback probes. The stale browser cookie is kept on
-                // originalSessionNode and is exercised separately through the cluster
-                // ingress after node-a rejoins as Standby.
-                await nodeB.LoginAsync();
+                await browser.LoginAsync();
+                await WaitForRuntimeViewCapabilityAsync(browser, TimeSpan.FromSeconds(20));
+                var promotedThroughIngress = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    browser,
+                    runtimeSessionClientInstanceId!,
+                    expectedActiveNode: "node-b",
+                    TimeSpan.FromSeconds(20));
+                Assert.Equal(runtimeSessionSubjectId, promotedThroughIngress["userId"]!.GetValue<string>());
+                Assert.Equal(runtimeSessionClientInstanceId, promotedThroughIngress["clientInstanceId"]!.GetValue<string>());
+                runtimeSessionId = promotedThroughIngress["sessionId"]!.GetValue<Guid>();
+                promotedSession = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionB.ConnectionString,
+                    runtimeSessionId.Value,
+                    runtimeSessionSubjectId!,
+                    runtimeSessionClientInstanceId!,
+                    expectedServerNode: "node-b",
+                    minimumGeneration: 1,
+                    TimeSpan.FromSeconds(20));
+                Assert.Equal(1, promotedSession.ActiveLogicalLeaseCount);
+                await AssertSingleClusterWriteAndRealtimeEventAsync(
+                    browser,
+                    Guid.Parse("b3100000-0000-0000-0000-000000000202"),
+                    runtimeSessionId.Value,
+                    runtimeSessionClientInstanceId!,
+                    248.5d);
             }
 
             // Rejoin the old node with the same NodeId. It must reconcile the newer
@@ -777,12 +843,10 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
             if (verifyRuntimeSessionContinuity)
             {
-                // The old active's cookie is stale on the promoted independent Authority.
-                // Send it through the restarted Standby's cluster-origin route, then
-                // reauthenticate through that same route and prove Runtime reads reach
-                // the new Active instead of being answered by the local Standby.
-                nodeA.ForwardAuthenticationCookiesFrom(originalSessionNode!);
-                var staleClusterRequest = await nodeA.PostRawViaClusterAsync(
+                // Force the actual TCP ingress to select the restarted Standby. It must
+                // forward the old browser cookie to the promoted Active, which rejects it.
+                clusterIngress!.SetBackends(urlA);
+                var staleClusterRequest = await staleClusterBrowser!.PostRawAsync(
                     "/api/runtime/sessions",
                     new JsonObject
                     {
@@ -791,19 +855,18 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     });
                 Assert.Equal(HttpStatusCode.Unauthorized, staleClusterRequest.StatusCode);
 
-                await nodeA.LoginViaClusterAsync();
-                var applicationThroughStandby = await nodeA.GetViaClusterAsync("/api/runtime/application");
+                await clusterBrowser!.LoginAsync();
+                await WaitForRuntimeViewCapabilityAsync(clusterBrowser, TimeSpan.FromSeconds(20));
+                var applicationThroughStandby = await clusterBrowser.GetAsync("/api/runtime/application");
                 Assert.Equal(ProjectKey, applicationThroughStandby["projectKey"]?.GetValue<string>());
 
-                // Reauthentication and admission through the Standby ingress must
-                // recover the same logical seat on the promoted Active. The lease
-                // mirror in node-b's independent database must still show one owner.
+                // Reauthentication and admission through the real TCP ingress and
+                // restarted Standby recover one logical seat on the promoted Active.
                 var promotedThroughCluster = await AdmitRuntimeSessionAfterHaActivationAsync(
-                    nodeA,
+                    clusterBrowser,
                     runtimeSessionClientInstanceId!,
                     expectedActiveNode: "node-b",
-                    TimeSpan.FromSeconds(20),
-                    throughClusterIngress: true);
+                    TimeSpan.FromSeconds(20));
                 Assert.Equal(runtimeSessionSubjectId, promotedThroughCluster["userId"]!.GetValue<string>());
                 Assert.Equal(runtimeSessionClientInstanceId, promotedThroughCluster["clientInstanceId"]!.GetValue<string>());
                 var promotedSessionId = promotedThroughCluster["sessionId"]!.GetValue<Guid>();
@@ -817,7 +880,12 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     TimeSpan.FromSeconds(20));
                 Assert.Equal(1, promotedSession.ActiveLogicalLeaseCount);
                 runtimeSessionId = promotedSessionId;
-                nodeB.ForwardAuthenticationCookiesFrom(nodeA);
+                await AssertSingleClusterWriteAndRealtimeEventAsync(
+                    clusterBrowser,
+                    Guid.Parse("b3100000-0000-0000-0000-000000000202"),
+                    runtimeSessionId.Value,
+                    runtimeSessionClientInstanceId!,
+                    359.75d);
             }
 
             // This request traverses the authenticated API endpoint with the temporary
@@ -848,20 +916,16 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
             if (verifyRuntimeSessionContinuity)
             {
-                // Keep using the same stable cluster origin after controlled failback.
-                // The request lands on the Standby process and must reach node-a, now
-                // the effective Active, before admitting the resumed logical seat.
-                await nodeB.LoginViaClusterAsync();
-                await WaitForRuntimeViewCapabilityAsync(
-                    nodeB,
-                    TimeSpan.FromSeconds(20),
-                    throughClusterIngress: true);
+                // Keep the same external origin after explicit failback; pin the test
+                // ingress to node-b Standby and verify HTTP plus WebSocket reach node-a.
+                clusterIngress!.SetBackends(urlB);
+                await clusterBrowser!.LoginAsync();
+                await WaitForRuntimeViewCapabilityAsync(clusterBrowser, TimeSpan.FromSeconds(20));
                 var resumedAfterFailback = await AdmitRuntimeSessionAfterHaActivationAsync(
-                    nodeB,
+                    clusterBrowser,
                     runtimeSessionClientInstanceId!,
                     expectedActiveNode: "node-a",
-                    TimeSpan.FromSeconds(20),
-                    throughClusterIngress: true);
+                    TimeSpan.FromSeconds(20));
                 Assert.Equal(runtimeSessionSubjectId, resumedAfterFailback["userId"]!.GetValue<string>());
                 Assert.Equal(runtimeSessionClientInstanceId, resumedAfterFailback["clientInstanceId"]!.GetValue<string>());
                 var failedBackSessionId = resumedAfterFailback["sessionId"]!.GetValue<Guid>();
@@ -875,6 +939,12 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     TimeSpan.FromSeconds(20));
                 Assert.Equal(1, failedBackSession.ActiveLogicalLeaseCount);
                 runtimeSessionId = failedBackSessionId;
+                await AssertSingleClusterWriteAndRealtimeEventAsync(
+                    clusterBrowser,
+                    Guid.Parse("b3100000-0000-0000-0000-000000000202"),
+                    failedBackSessionId,
+                    runtimeSessionClientInstanceId!,
+                    461.125d);
             }
 
             Console.WriteLine(JsonSerializer.Serialize(new
@@ -895,9 +965,13 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 clusterIngress = verifyRuntimeSessionContinuity
                     ? new
                     {
-                        initialStandbyToActive = "login and one Runtime session admission through node-b to effective Active node-a",
-                        afterPromotion = "old cookie rejected through node-a Standby; reauthentication, Runtime read, and one seat admission reached effective Active node-b",
-                        afterFailback = "reauthentication and one seat admission through node-b Standby reached effective Active node-a"
+                        topology = "one local TCP ingress alternated real HTTP requests across both API processes while preserving one browser origin",
+                        initialOriginIngressPorts,
+                        initialStandbyToActive = "login, one Runtime session, one TAG write, and TAG WebSocket through node-b Standby reached effective Active node-a",
+                        afterPromotion = "old cookie rejected; reauthentication, TAG write, and TAG WebSocket reached effective Active node-b",
+                        afterRejoin = "old cookie rejected through restarted node-a Standby; reauthentication, Runtime read, TAG write, and TAG WebSocket reached node-b Active",
+                        afterFailback = "reauthentication, TAG write, and TAG WebSocket through node-b Standby reached node-a Active",
+                        writeRealtimeEvents = "four distinct Runtime writes each produced exactly one matching realtime TAG event"
                     }
                     : null,
                 runtimeSessionContinuity = verifyRuntimeSessionContinuity
@@ -928,6 +1002,9 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         }
         finally
         {
+            clusterBrowser?.Dispose();
+            staleClusterBrowser?.Dispose();
+            if (clusterIngress is not null) await clusterIngress.DisposeAsync();
             if (nodeB is not null) await nodeB.DisposeAsync();
             if (nodeA is not null) await nodeA.DisposeAsync();
             foreach (var database in databasesCreated.AsEnumerable().Reverse())
@@ -971,8 +1048,7 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         ApiProcess node,
         string clientInstanceId,
         string expectedActiveNode,
-        TimeSpan timeout,
-        bool throughClusterIngress = false)
+        TimeSpan timeout)
     {
         var deadline = DateTimeOffset.UtcNow + timeout;
         JsonNode? lastResponse = null;
@@ -983,9 +1059,7 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 ["clientInstanceId"] = clientInstanceId,
                 ["connectionClass"] = "interactive"
             };
-            var response = throughClusterIngress
-                ? await node.PostRawViaClusterAsync("/api/runtime/sessions", requestBody)
-                : await node.PostRawAsync("/api/runtime/sessions", requestBody);
+            var response = await node.PostRawAsync("/api/runtime/sessions", requestBody);
             if (response.StatusCode == HttpStatusCode.Created)
                 return response.Body as JsonObject
                     ?? throw new InvalidOperationException("Runtime session admission returned an empty response.");
@@ -1027,16 +1101,13 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
     private static async Task WaitForRuntimeViewCapabilityAsync(
         ApiProcess node,
-        TimeSpan timeout,
-        bool throughClusterIngress = false)
+        TimeSpan timeout)
     {
         var deadline = DateTimeOffset.UtcNow + timeout;
         JsonObject? lastCapabilities = null;
         while (DateTimeOffset.UtcNow < deadline)
         {
-            lastCapabilities = (throughClusterIngress
-                ? await node.GetViaClusterAsync("/api/auth/effective-capabilities")
-                : await node.GetAsync("/api/auth/effective-capabilities")) as JsonObject;
+            lastCapabilities = await node.GetAsync("/api/auth/effective-capabilities") as JsonObject;
             if (lastCapabilities?["runtime"] is JsonArray runtimeCapabilities &&
                 runtimeCapabilities.Any(value => string.Equals(
                     value?.GetValue<string>(),
@@ -1052,6 +1123,167 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         throw new TimeoutException(
             $"Runtime View capability did not become resolvable on {node.NodeId} after HA activation. " +
             $"Last effective-capabilities response: {lastCapabilities?.ToJsonString() ?? "<unavailable>"}.");
+    }
+
+    private static async Task<JsonObject> AdmitRuntimeSessionAfterHaActivationAsync(
+        ClusterBrowser browser,
+        string clientInstanceId,
+        string expectedActiveNode,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        JsonNode? lastResponse = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var response = await browser.PostRawAsync(
+                "/api/runtime/sessions",
+                new JsonObject
+                {
+                    ["clientInstanceId"] = clientInstanceId,
+                    ["connectionClass"] = "interactive"
+                });
+            if (response.StatusCode == HttpStatusCode.Created)
+                return response.Body as JsonObject
+                    ?? throw new InvalidOperationException("Runtime session admission returned an empty response.");
+
+            lastResponse = response.Body;
+            var authorityTransitionPending = response.StatusCode == HttpStatusCode.Conflict &&
+                string.Equals(response.Body?["capacityReasonCode"]?.GetValue<string>(), "AuthorityTransitionPending", StringComparison.Ordinal);
+            var activeAuthorityNotReady = response.StatusCode == HttpStatusCode.Conflict &&
+                string.Equals(response.Body?["code"]?.GetValue<string>(), "ha-effective-active-required", StringComparison.Ordinal);
+            if (!authorityTransitionPending && !activeAuthorityNotReady)
+                throw new InvalidOperationException(
+                    $"Cluster ingress Runtime session admission returned unexpected HTTP {(int)response.StatusCode}: {response.RawBody}");
+
+            var effectiveActiveNode = response.Body?["effectiveActiveNodeId"]?.GetValue<string>();
+            if (activeAuthorityNotReady && !string.Equals(effectiveActiveNode, expectedActiveNode, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    $"Runtime session admission stayed fenced because effective Active is '{effectiveActiveNode ?? "<none>"}', expected '{expectedActiveNode}'.");
+
+            await Task.Delay(TimeSpan.FromMilliseconds(200));
+        }
+
+        throw new TimeoutException(
+            $"Runtime session admission through the stable origin did not open on {expectedActiveNode}. " +
+            $"Last response: {lastResponse?.ToJsonString() ?? "<none>"}.");
+    }
+
+    private static async Task WaitForRuntimeViewCapabilityAsync(ClusterBrowser browser, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        JsonObject? lastCapabilities = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastCapabilities = (await browser.GetAsync("/api/auth/effective-capabilities")) as JsonObject;
+            if (lastCapabilities?["runtime"] is JsonArray runtimeCapabilities &&
+                runtimeCapabilities.Any(value => string.Equals(value?.GetValue<string>(), "View", StringComparison.Ordinal)))
+                return;
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+        }
+
+        throw new TimeoutException(
+            $"Runtime View capability did not become resolvable through the stable origin. " +
+            $"Last response: {lastCapabilities?.ToJsonString() ?? "<unavailable>"}.");
+    }
+
+    private static async Task AssertSingleClusterWriteAndRealtimeEventAsync(
+        ClusterBrowser browser,
+        Guid tagId,
+        Guid sessionId,
+        string clientInstanceId,
+        double value)
+    {
+        using var socket = await browser.ConnectTagsAsync(sessionId, clientInstanceId);
+
+        using (var baselineTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(8)))
+        {
+            while (true)
+            {
+                using var baseline = await ReceiveWebSocketMessageAsync(socket, baselineTimeout.Token);
+                if (IsTagValueEvent(baseline, tagId)) break;
+            }
+        }
+
+        var write = await browser.PostRuntimeRawAsync(
+            $"/api/tags/{tagId:D}/write",
+            new JsonObject { ["value"] = value },
+            sessionId,
+            clientInstanceId);
+        Assert.True(
+            write.StatusCode == HttpStatusCode.Accepted,
+            $"Runtime TAG write expected HTTP {(int)HttpStatusCode.Accepted}, got {(int)write.StatusCode}: {write.RawBody}");
+
+        var matchingEvents = 0;
+        using (var firstEventTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(8)))
+        {
+            while (matchingEvents == 0)
+            {
+                using var message = await ReceiveWebSocketMessageAsync(socket, firstEventTimeout.Token);
+                if (!IsMatchingTagValueEvent(message, tagId, value)) continue;
+                matchingEvents++;
+            }
+        }
+
+        using (var quietWindow = new CancellationTokenSource(TimeSpan.FromMilliseconds(400)))
+        {
+            try
+            {
+                while (true)
+                {
+                    using var message = await ReceiveWebSocketMessageAsync(socket, quietWindow.Token);
+                    if (IsTagValueEvent(message, tagId)) matchingEvents++;
+                }
+            }
+            catch (OperationCanceledException) when (quietWindow.IsCancellationRequested)
+            {
+                // No second matching event arrived during the observation window.
+            }
+        }
+
+        Assert.Equal(1, matchingEvents);
+    }
+
+    private static async Task<JsonDocument> ReceiveWebSocketMessageAsync(ClientWebSocket socket, CancellationToken cancellationToken)
+    {
+        using var message = new MemoryStream();
+        var buffer = new byte[4096];
+        ValueWebSocketReceiveResult result;
+        do
+        {
+            result = await socket.ReceiveAsync(buffer.AsMemory(), cancellationToken);
+            if (result.MessageType == WebSocketMessageType.Close)
+                throw new WebSocketException($"Runtime TAG WebSocket closed unexpectedly: {socket.CloseStatus} {socket.CloseStatusDescription}");
+            if (result.MessageType != WebSocketMessageType.Text)
+                throw new WebSocketException($"Runtime TAG WebSocket returned unexpected message type {result.MessageType}.");
+            message.Write(buffer, 0, result.Count);
+        }
+        while (!result.EndOfMessage);
+
+        message.Position = 0;
+        return await JsonDocument.ParseAsync(message, cancellationToken: cancellationToken);
+    }
+
+    private static bool IsMatchingTagValueEvent(JsonDocument message, Guid tagId, double expectedValue)
+    {
+        var root = message.RootElement;
+        if (!IsTagValueEvent(message, tagId) ||
+            !root.TryGetProperty("value", out var actualValue) ||
+            !actualValue.TryGetDouble(out var numericValue))
+            return false;
+
+        Assert.Equal(expectedValue, numericValue, precision: 6);
+        return true;
+    }
+
+    private static bool IsTagValueEvent(JsonDocument message, Guid tagId)
+    {
+        var root = message.RootElement;
+        return root.TryGetProperty("type", out var type) &&
+               string.Equals(type.GetString(), "tagValueChanged", StringComparison.Ordinal) &&
+               root.TryGetProperty("tag", out var tag) &&
+               tag.TryGetProperty("id", out var id) &&
+               Guid.TryParse(id.GetString(), out var actualId) && actualId == tagId;
     }
 
     private static async Task<RuntimeSessionLeaseEvidence> WaitForRuntimeSessionLeaseAsync(
@@ -1191,7 +1423,12 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         return new LicenseFiles(licensePath, publicKeyPath, keyId);
     }
 
-    private static async Task PrepareProjectAsync(ApiProcess node, bool activate, bool twoScopes = false)
+    private static async Task PrepareProjectAsync(
+        ApiProcess node,
+        bool activate,
+        bool twoScopes = false,
+        bool writableEvidenceTag = false,
+        int simulationScanIntervalMilliseconds = 100)
     {
         var first = await node.SendAsync(
             HttpMethod.Post,
@@ -1208,7 +1445,10 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             ["name"] = "Stage 1 evidence simulation",
             ["driver"] = "builtin.simulation",
             ["enabled"] = true,
-            ["settings"] = new JsonObject { ["scanIntervalMilliseconds"] = "100" }
+            ["settings"] = new JsonObject
+            {
+                ["scanIntervalMilliseconds"] = simulationScanIntervalMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            }
         };
         if (package["dataSources"] is JsonArray dataSources)
             dataSources.Add(simulationSource);
@@ -1224,7 +1464,7 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             ["source"] = simulationSourceKey,
             ["dataSourceId"] = "b3100000-0000-0000-0000-000000000200",
             ["engineeringUnit"] = "bar",
-            ["readOnly"] = true
+            ["readOnly"] = !writableEvidenceTag
         });
         package["equipment"]!.AsArray().Add(new JsonObject
         {
@@ -1752,22 +1992,295 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
     private sealed record ApiResponse(HttpStatusCode StatusCode, JsonNode? Body, string RawBody);
 
+    private sealed class TcpClusterIngress : IAsyncDisposable
+    {
+        private readonly TcpListener _listener;
+        private readonly CancellationTokenSource _shutdown = new();
+        private readonly ConcurrentDictionary<int, Task> _connections = new();
+        private readonly ConcurrentQueue<int> _selectedBackendPorts = new();
+        private readonly object _backendsLock = new();
+        private Uri[] _backends;
+        private readonly Task _acceptLoop;
+        private int _nextBackend = -1;
+        private int _connectionId;
+
+        private TcpClusterIngress(TcpListener listener, Uri[] backends)
+        {
+            _listener = listener;
+            _backends = backends;
+            Address = "http://127.0.0.1:" + ((IPEndPoint)listener.LocalEndpoint).Port;
+            _acceptLoop = AcceptLoopAsync();
+        }
+
+        public string Address { get; }
+
+        public int[] SelectedBackendPorts => _selectedBackendPorts.ToArray();
+
+        public void ResetSelectedBackendHistory()
+        {
+            while (_selectedBackendPorts.TryDequeue(out _)) { }
+        }
+
+        public static TcpClusterIngress Start(params string[] backends)
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            try
+            {
+                return new TcpClusterIngress(listener, ParseBackends(backends));
+            }
+            catch
+            {
+                listener.Stop();
+                throw;
+            }
+        }
+
+        public void SetBackends(params string[] backends)
+        {
+            var parsed = ParseBackends(backends);
+            lock (_backendsLock) _backends = parsed;
+            Interlocked.Exchange(ref _nextBackend, -1);
+        }
+
+        private static Uri[] ParseBackends(string[] backends)
+        {
+            if (backends.Length == 0) throw new ArgumentException("At least one TCP ingress backend is required.", nameof(backends));
+            var parsed = backends.Select(value => new Uri(value, UriKind.Absolute)).ToArray();
+            if (parsed.Any(uri => uri.Scheme != Uri.UriSchemeHttp || uri.Host != "127.0.0.1"))
+                throw new ArgumentException("The test ingress accepts only local plain-HTTP API backends.", nameof(backends));
+            return parsed;
+        }
+
+        private async Task AcceptLoopAsync()
+        {
+            while (!_shutdown.IsCancellationRequested)
+            {
+                TcpClient client;
+                try
+                {
+                    client = await _listener.AcceptTcpClientAsync(_shutdown.Token);
+                }
+                catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException) when (_shutdown.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (SocketException) when (_shutdown.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var id = Interlocked.Increment(ref _connectionId);
+                var connection = ForwardAsync(client, SelectBackend());
+                _connections[id] = connection;
+                _ = ForgetConnectionAsync(id, connection);
+            }
+        }
+
+        private Uri SelectBackend()
+        {
+            Uri[] backends;
+            lock (_backendsLock) backends = _backends;
+            var index = (uint)Interlocked.Increment(ref _nextBackend);
+            var backend = backends[index % (uint)backends.Length];
+            _selectedBackendPorts.Enqueue(backend.Port);
+            return backend;
+        }
+
+        private async Task ForgetConnectionAsync(int id, Task connection)
+        {
+            try { await connection; }
+            catch (Exception exception) when (exception is IOException or SocketException or OperationCanceledException or ObjectDisposedException) { }
+            finally { _connections.TryRemove(id, out _); }
+        }
+
+        private async Task ForwardAsync(TcpClient client, Uri backend)
+        {
+            using (client)
+            using (var target = new TcpClient())
+            {
+                try
+                {
+                    await target.ConnectAsync(backend.Host, backend.Port, _shutdown.Token);
+                    using var connectionCancellation = CancellationTokenSource.CreateLinkedTokenSource(_shutdown.Token);
+                    var clientToTarget = client.GetStream().CopyToAsync(target.GetStream(), connectionCancellation.Token);
+                    var targetToClient = target.GetStream().CopyToAsync(client.GetStream(), connectionCancellation.Token);
+                    await Task.WhenAny(clientToTarget, targetToClient);
+                    connectionCancellation.Cancel();
+                    client.Close();
+                    target.Close();
+                    await Task.WhenAll(clientToTarget, targetToClient);
+                }
+                catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { }
+                catch (IOException) { }
+                catch (SocketException) { }
+                catch (ObjectDisposedException) { }
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            _shutdown.Cancel();
+            _listener.Stop();
+            try { await _acceptLoop; }
+            catch (OperationCanceledException) { }
+
+            var activeConnections = _connections.Values.ToArray();
+            try { await Task.WhenAll(activeConnections).WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (Exception exception) when (exception is OperationCanceledException or IOException or SocketException or ObjectDisposedException or TimeoutException) { }
+
+            _shutdown.Dispose();
+        }
+    }
+
+    private sealed class ClusterBrowser : IDisposable
+    {
+        private readonly CookieContainer _cookies;
+        private readonly HttpClient _client;
+
+        public ClusterBrowser(string address)
+        {
+            Address = new Uri(address, UriKind.Absolute);
+            _cookies = new CookieContainer();
+            _client = new HttpClient(new HttpClientHandler
+            {
+                CookieContainer = _cookies,
+                UseCookies = true
+            })
+            {
+                BaseAddress = Address,
+                Timeout = TimeSpan.FromSeconds(60)
+            };
+        }
+
+        private ClusterBrowser(Uri address, IEnumerable<Cookie> cookies)
+            : this(address.AbsoluteUri)
+        {
+            foreach (var cookie in cookies)
+            {
+                var copy = new Cookie(cookie.Name, cookie.Value, cookie.Path, Address.Host)
+                {
+                    HttpOnly = cookie.HttpOnly,
+                    Secure = cookie.Secure,
+                    Expires = cookie.Expires,
+                    Discard = cookie.Discard
+                };
+                _cookies.Add(Address, copy);
+            }
+        }
+
+        public Uri Address { get; }
+
+        public ClusterBrowser Clone() => new(Address, _cookies.GetCookies(Address).Cast<Cookie>().ToArray());
+
+        public async Task LoginAsync()
+        {
+            _ = await SendAsync(HttpMethod.Post, "/api/auth/login", new JsonObject
+            {
+                ["username"] = AdminUsername,
+                ["password"] = AdminPassword
+            });
+        }
+
+        public async Task<JsonNode> GetAsync(string path) => await SendAsync(HttpMethod.Get, path, null);
+
+        public async Task<JsonNode> SendAsync(
+            HttpMethod method,
+            string path,
+            JsonNode? body,
+            HttpStatusCode expectedStatus = HttpStatusCode.OK)
+        {
+            var response = await SendRawAsync(method, path, body);
+            if (response.StatusCode != expectedStatus)
+                throw new InvalidOperationException(
+                    $"Stable-origin client {method} {path}: expected {(int)expectedStatus}, got {(int)response.StatusCode}; " +
+                    $"body={(string.IsNullOrWhiteSpace(response.RawBody) ? "<empty>" : response.RawBody)}.");
+            return response.Body ?? new JsonObject();
+        }
+
+        public async Task<ApiResponse> PostRawAsync(string path, JsonNode body) =>
+            await SendRawAsync(HttpMethod.Post, path, body);
+
+        public async Task<ApiResponse> PostRuntimeRawAsync(string path, JsonNode body, Guid sessionId, string clientInstanceId) =>
+            await SendRawAsync(HttpMethod.Post, path, body, sessionId, clientInstanceId);
+
+        private async Task<ApiResponse> SendRawAsync(
+            HttpMethod method,
+            string path,
+            JsonNode? body,
+            Guid? sessionId = null,
+            string? clientInstanceId = null)
+        {
+            using var request = new HttpRequestMessage(method, path);
+            request.Headers.ConnectionClose = true;
+            if (sessionId.HasValue)
+            {
+                request.Headers.TryAddWithoutValidation("X-EliteSCADA-Runtime-Session", sessionId.Value.ToString("D"));
+                request.Headers.TryAddWithoutValidation("X-EliteSCADA-Runtime-Client-Instance", clientInstanceId);
+            }
+            if (body is not null)
+                request.Content = new StringContent(body.ToJsonString(Json), Encoding.UTF8, "application/json");
+
+            using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            var text = await response.Content.ReadAsStringAsync();
+            JsonNode? payload = null;
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                try { payload = JsonNode.Parse(text); }
+                catch (JsonException) { payload = JsonValue.Create(text); }
+            }
+            return new ApiResponse(response.StatusCode, payload, text);
+        }
+
+        public async Task<ClientWebSocket> ConnectTagsAsync(Guid sessionId, string clientInstanceId)
+        {
+            var socket = new ClientWebSocket();
+            var cookieHeader = _cookies.GetCookieHeader(Address);
+            if (!string.IsNullOrWhiteSpace(cookieHeader))
+                socket.Options.SetRequestHeader("Cookie", cookieHeader);
+
+            var scheme = Address.Scheme == Uri.UriSchemeHttps ? "wss" : "ws";
+            var endpoint = new UriBuilder(Address)
+            {
+                Scheme = scheme,
+                Path = "/ws/tags",
+                Query = "runtimeSessionId=" + Uri.EscapeDataString(sessionId.ToString("D")) +
+                        "&clientInstanceId=" + Uri.EscapeDataString(clientInstanceId)
+            }.Uri;
+
+            try
+            {
+                await socket.ConnectAsync(endpoint, CancellationToken.None);
+                return socket;
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
+
+        public void Dispose() => _client.Dispose();
+    }
+
     private sealed class ApiProcess : IAsyncDisposable
     {
         private readonly Process _process;
         private readonly HttpClient _client;
-        private readonly CookieContainer _cookies;
         private readonly ConcurrentQueue<string> _output = new();
         private readonly string _logPath;
 
-        private ApiProcess(string nodeId, Process process, HttpClient client, CookieContainer cookies, string logPath)
+        private ApiProcess(string nodeId, Process process, HttpClient client, string logPath)
         {
             NodeId = nodeId;
             _process = process;
             _client = client;
-            _cookies = cookies;
-            BaseAddress = client.BaseAddress
-                ?? throw new InvalidOperationException("API process requires a base address.");
+            if (client.BaseAddress is null)
+                throw new InvalidOperationException("API process requires a base address.");
             _logPath = logPath;
             _process.OutputDataReceived += (_, eventArgs) => { if (eventArgs.Data is not null) _output.Enqueue(eventArgs.Data); };
             _process.ErrorDataReceived += (_, eventArgs) => { if (eventArgs.Data is not null) _output.Enqueue(eventArgs.Data); };
@@ -1776,8 +2289,6 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         }
 
         public string NodeId { get; }
-
-        private Uri BaseAddress { get; }
 
         public string LastOutput() => string.Join(Environment.NewLine, _output.TakeLast(30));
 
@@ -1878,7 +2389,7 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 BaseAddress = new Uri(url),
                 Timeout = TimeSpan.FromSeconds(60)
             };
-            return new ApiProcess(nodeId, process, client, cookies, Path.Combine(directory, nodeId + ".log"));
+            return new ApiProcess(nodeId, process, client, Path.Combine(directory, nodeId + ".log"));
 
             void Set(string name, string value) => start.Environment[name] = value;
         }
@@ -1916,48 +2427,6 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 ["password"] = AdminPassword
             });
 
-        public async Task LoginViaClusterAsync() =>
-            _ = await SendViaClusterAsync(HttpMethod.Post, "/api/auth/login", new JsonObject
-            {
-                ["username"] = AdminUsername,
-                ["password"] = AdminPassword
-            });
-
-        public async Task<JsonNode> GetViaClusterAsync(string path) =>
-            await SendViaClusterAsync(HttpMethod.Get, path, null);
-
-        public void ForwardAuthenticationCookiesFrom(ApiProcess source)
-        {
-            ArgumentNullException.ThrowIfNull(source);
-            var sourceUri = source.BaseAddress;
-            var targetUri = BaseAddress;
-            var sourceCookies = source._cookies.GetCookies(sourceUri).Cast<Cookie>().ToArray();
-            if (sourceCookies.Length == 0)
-                throw new InvalidOperationException("The source browser session has no authentication cookie to forward.");
-
-            // The target API's own login cookie must not make this proof pass. Replace
-            // its same-name cookies with the one captured from the original browser.
-            foreach (Cookie cookie in _cookies.GetCookies(targetUri))
-            {
-                _cookies.Add(targetUri, new Cookie(cookie.Name, string.Empty, cookie.Path, targetUri.Host)
-                {
-                    Expires = DateTime.UtcNow.AddDays(-1)
-                });
-            }
-
-            foreach (var cookie in sourceCookies)
-            {
-                var forwarded = new Cookie(cookie.Name, cookie.Value, cookie.Path, targetUri.Host)
-                {
-                    HttpOnly = cookie.HttpOnly,
-                    Secure = cookie.Secure,
-                    Expires = cookie.Expires,
-                    Discard = cookie.Discard
-                };
-                _cookies.Add(targetUri, forwarded);
-            }
-        }
-
         public async Task<JsonNode> GetAsync(string path) =>
             await SendAsync(HttpMethod.Get, path, null);
 
@@ -1974,34 +2443,12 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             return response.Body ?? new JsonObject();
         }
 
-        public async Task<JsonNode> SendViaClusterAsync(
-            HttpMethod method,
-            string path,
-            JsonNode? body,
-            HttpStatusCode expectedStatus = HttpStatusCode.OK)
-        {
-            var response = await SendRawAsync(method, path, body, useClusterIngressHost: true);
-            if (response.StatusCode != expectedStatus)
-                throw new InvalidOperationException(
-                    $"Scada.Api {NodeId} cluster ingress {method} {path}: expected {(int)expectedStatus}, got {(int)response.StatusCode}; body={(string.IsNullOrWhiteSpace(response.RawBody) ? "<empty>" : response.RawBody)}. {_logPath}: {LastOutput()}");
-            return response.Body ?? new JsonObject();
-        }
-
         public async Task<ApiResponse> PostRawAsync(string path, JsonNode body) =>
             await SendRawAsync(HttpMethod.Post, path, body);
 
-        public async Task<ApiResponse> PostRawViaClusterAsync(string path, JsonNode body) =>
-            await SendRawAsync(HttpMethod.Post, path, body, useClusterIngressHost: true);
-
-        private async Task<ApiResponse> SendRawAsync(
-            HttpMethod method,
-            string path,
-            JsonNode? body,
-            bool useClusterIngressHost = false)
+        private async Task<ApiResponse> SendRawAsync(HttpMethod method, string path, JsonNode? body)
         {
             using var request = new HttpRequestMessage(method, path);
-            if (useClusterIngressHost)
-                request.Headers.Host = "w15-cluster-ingress.example.test";
             if (body is not null)
                 request.Content = new StringContent(body.ToJsonString(Json), Encoding.UTF8, "application/json");
             using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);

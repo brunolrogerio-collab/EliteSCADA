@@ -186,6 +186,8 @@ public sealed class EngineeringRuntimeInternalMemoryTests
         Assert.Equal(0, Volatile.Read(ref alarmEvents));
 
         Volatile.Write(ref effectAuthority, true);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            runtime.RestoreAuthoritativeValuesForTakeoverAsync(Array.Empty<TagValue>()));
         await runtime.WriteAsync(tagId, 0);
 
         Assert.Contains(runtime.Alarms(activeOnly: true), alarm =>

@@ -1247,15 +1247,18 @@ public sealed class RuntimeHaProtectionCoordinator
                             if (suppressionRestoreFailure is not null)
                                 return suppressionRestoreFailure;
 
-                            // The target has fenced authority and its active runtime is
-                            // ready. Commit the local runtime fence before restoring values.
-                            if (!MarkTakeoverCommitted(reference, "authority-runtime-promotion-in-progress"))
-                                return "takeover-reference-changed-before-state-restore";
-                            var restoreFailure = await RestoreAuthoritativeValuesAsync(
+                            // Keep industrial effects fenced while importing the peer's
+                            // authoritative values. The Runtime reconciles alarm state
+                            // locally, without forwarding the restored samples to scripts,
+                            // historian, or alarm-history persistence.
+                            var restoreFailure = await RestoreAuthoritativeValuesForTakeoverAsync(
                                 authoritativeState,
                                 takeoverToken);
                             if (restoreFailure is not null)
                                 return restoreFailure;
+
+                            if (!MarkTakeoverCommitted(reference, "authority-runtime-promotion-in-progress"))
+                                return "takeover-reference-changed-before-state-restore";
 
                             try
                             {
@@ -1802,13 +1805,14 @@ public sealed class RuntimeHaProtectionCoordinator
                 if (suppressionRestoreFailure is not null)
                     return suppressionRestoreFailure;
 
-                if (!MarkTakeoverCommitted(authority, "takeover-state-restoration-in-progress"))
-                    return "takeover-reference-changed-before-state-restore";
-                var restoreFailure = await RestoreAuthoritativeValuesAsync(
+                var restoreFailure = await RestoreAuthoritativeValuesForTakeoverAsync(
                     state,
                     takeoverToken);
                 if (restoreFailure is not null)
                     return restoreFailure;
+
+                if (!MarkTakeoverCommitted(authority, "takeover-state-restoration-in-progress"))
+                    return "takeover-reference-changed-before-state-restore";
 
                 try
                 {
@@ -2037,13 +2041,13 @@ public sealed class RuntimeHaProtectionCoordinator
         return (latestAuthority, renewalFailure ?? takeoverFailure);
     }
 
-    private async Task<string?> RestoreAuthoritativeValuesAsync(
+    private async Task<string?> RestoreAuthoritativeValuesForTakeoverAsync(
         RuntimeHaAuthoritativeStateSnapshot state,
         CancellationToken cancellationToken)
     {
         try
         {
-            await _runtime.RestoreAuthoritativeValuesAsync(
+            await _runtime.RestoreAuthoritativeValuesForTakeoverAsync(
                 state.Tags.Select(value => new TagValue(
                     value.TagId,
                     value.Value,

@@ -199,6 +199,7 @@ HA_TWO_PROCESS_FRAGMENTS = (
 )
 
 HA_D2_ACCEPTANCE_FRAGMENTS = (
+    "src/scada.api/runtime/runtimehaactiverequestproxy",
     "src/scada.api/runtime/runtimehighavailabilityapi.cs",
     "src/scada.api/runtime/runtimehighavailabilityprotection.cs",
     "tests/scada.drivers.tests/authoritypolicytwoapipostgresqlevidencetests.cs",

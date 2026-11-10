@@ -386,6 +386,11 @@
           "fields": null
         },
         {
+          "heading": "Acessar o Runtime Web pelo endereço do cluster",
+          "body": "Para abrir o Runtime Web, use uma única URL do cluster, configurada pelo responsável da rede em um balanceador, VIP ou gateway de entrada que aceite WebSocket. Esse endereço precisa alcançar os dois serviços e retirar um servidor indisponível da entrada. A infraestrutura de entrada não escolhe nem promove o Active.\n\nQuando uma solicitação chega ao Standby, a API encaminha HTTP e WebSocket de TAGs ao Active que a autoridade HA reconhece. O navegador continua na mesma origem; isso preserva cookies e o armazenamento da sessão. Uma mudança de Authority ainda pode exigir novo login.\n\nAbra o Runtime pela URL compartilhada do cluster para seguir o Active. Se usar o endereço direto de um nó, você ficará conectado àquele nó. Nos campos desta tela, informe o endereço direto da API de cada nó, alcançável pelo parceiro; não repita a URL compartilhada do cluster. Use HTTPS entre hosts. HTTP só é aceito para endereços de loopback, como localhost. Se a autoridade estiver ausente, antiga, ambígua, em transferência ou sem proteção válida, o Runtime responde como indisponível e não executa no Standby.",
+          "fields": null
+        },
+        {
           "heading": "Escolha a operação certa",
           "body": "Escolha a ação conforme a situação. Switchover é a transferência planejada do Active efetivo para um parceiro elegível. Failback solicita retorno ao preferencial quando permitido. Recovery serve para reconciliar uma falha ou bloqueio.\n\nForçar ressincronização tem uma condição específica: não pode haver Active e a autoridade anterior precisa estar cercada, isto é, impedida de continuar executando. A ação não declara um parceiro pronto por decisão do operador.\n\nAntes de confirmar, leia ação e alvo. Depois, confira o resultado, o histórico e quem ficou Active. Se a solicitação for recusada, investigue a causa antes de tentar novamente.",
           "fields": null
@@ -7439,6 +7444,11 @@
           "fields": null
         },
         {
+          "heading": "Open Runtime Web through the cluster address",
+          "body": "Open Runtime Web using one cluster URL configured by the network administrator on a load balancer, VIP or ingress gateway that accepts WebSockets. That address must reach both services and remove an unavailable server from the entry pool. The ingress does not choose or promote the Active node.\n\nWhen a request reaches Standby, the API forwards HTTP and TAG WebSocket traffic to the Active recognized by HA authority. The browser stays on the same origin, preserving cookies and session storage. An Authority change may still require a new sign-in.\n\nOpen Runtime through the shared cluster URL to follow the Active. If you use a node’s direct address, you stay connected to that node. Enter each node’s direct API address in this screen, reachable by its partner; do not repeat the shared cluster URL. Use HTTPS between hosts. HTTP is accepted only for loopback addresses such as localhost. If authority is absent, stale, ambiguous, transferring or lacks valid protection, Runtime returns unavailable and does not execute on Standby.",
+          "fields": null
+        },
+        {
           "heading": "Choose the right operation",
           "body": "Choose the action for the situation. Switchover is a planned transfer from effective Active to an eligible partner. Failback requests return to the preferred server when allowed. Recovery reconciles a failure or blocked condition.\n\nForce resynchronization has a specific condition: there must be no Active, and the previous authority must be fenced, meaning prevented from continuing execution. The action does not let the operator declare a partner ready.\n\nBefore confirming, read action and target. Afterwards check result, history and which node is Active. If the request is refused, investigate the cause before trying again.",
           "fields": null
@@ -14489,6 +14499,11 @@
         {
           "heading": "Lea estados antes de operar",
           "body": "Active efectivo es el servidor autorizado a ejecutar ahora. Puede no ser el preferido. El asociado puede estar solo en Standby, esperando, o en Ready Standby, con preparación evaluada por el servidor. Lea esa diferencia antes de transferir.\n\nSynchronizing indica sincronización en curso. Promoting y Demoting son transiciones: espere el resultado. Stale avisa de observación antigua. Isolated, Faulted, degradación o autoridad ambigua requieren diagnóstico.\n\nCompruebe por separado disponibilidad de base y comunicación con el asociado. Alcanzar el asociado no demuestra que la base funcione. Aumentar tolerancias de red para ocultar una falla de base no la resuelve.",
+          "fields": null
+        },
+        {
+          "heading": "Acceder a Runtime Web por la dirección del clúster",
+          "body": "Abra Runtime Web con una única URL del clúster, configurada por el responsable de red en un balanceador, VIP o gateway de entrada que acepte WebSocket. Esa dirección debe alcanzar ambos servicios y retirar de la entrada un servidor no disponible. La infraestructura de entrada no elige ni promueve el Active.\n\nSi una solicitud llega al Standby, la API reenvía HTTP y WebSocket de TAGs al Active reconocido por la autoridad HA. El navegador permanece en el mismo origen, conservando cookies y almacenamiento de sesión. Un cambio de Authority aún puede requerir volver a iniciar sesión.\n\nAbra Runtime desde la URL compartida del clúster para seguir al Active. Si usa la dirección directa de un nodo, permanecerá conectado a ese nodo. En esta pantalla indique la dirección directa de la API de cada nodo, accesible por el asociado; no repita la URL compartida del clúster. Use HTTPS entre hosts. HTTP solo se admite en direcciones de loopback, como localhost. Si la autoridad no existe, está antigua, es ambigua, está en transferencia o carece de protección válida, Runtime responde como no disponible y no ejecuta en Standby.",
           "fields": null
         },
         {

@@ -136,6 +136,14 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertIn("HA_DISTRIBUTED", result["effective_profiles"])
         self.assertTrue(result["run_ha_d2_acceptance"])
 
+    def test_runtime_ha_active_proxy_runs_the_ha_d2_acceptance_gates(self):
+        result = self.classify(
+            ["src/Scada.Api/Runtime/RuntimeHaActiveRequestProxy.cs"],
+            "VALIDATION_PROFILE: HA_DISTRIBUTED",
+        )
+        self.assertIn("HA_DISTRIBUTED", result["effective_profiles"])
+        self.assertTrue(result["run_ha_d2_acceptance"])
+
     def test_ha_d1_script_remains_its_own_gate(self):
         result = self.classify(
             ["scripts/ci/ha_d1_two_process_evidence.py"],

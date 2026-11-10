@@ -28,11 +28,22 @@ internal sealed class RuntimeHaProxyDecisionSource(
     {
         ArgumentNullException.ThrowIfNull(context);
         var diagnostics = protection.Diagnostics();
+        var reference = diagnostics.Reference;
+        var topology = diagnostics.Topology;
+        var localActiveReferenceIsCurrent = reference is not null &&
+            reference.IsLiveAt(DateTimeOffset.UtcNow) &&
+            reference.ActiveNodeId?.Equals(topology.LocalNodeId, StringComparison.OrdinalIgnoreCase) == true &&
+            reference.ClusterId.Equals(topology.ClusterId, StringComparison.OrdinalIgnoreCase) &&
+            reference.TopologyVersion == topology.TopologyVersion &&
+            reference.Epoch == topology.AuthorityEpoch;
         return RuntimeHaActiveRequestProxyPolicy.Resolve(
-            diagnostics.Topology,
+            topology,
             diagnostics.Status,
             context.Request.Scheme,
-            context.Request.Host);
+            context.Request.Host,
+            context.Request.Path,
+            localActiveReferenceIsCurrent,
+            diagnostics.ReasonCode);
     }
 }
 
@@ -42,7 +53,10 @@ internal static class RuntimeHaActiveRequestProxyPolicy
         RuntimeHaTopologySnapshot topology,
         string protectionStatus,
         string requestScheme,
-        HostString requestHost)
+        HostString requestHost,
+        PathString requestPath = default,
+        bool localActiveReferenceIsCurrent = false,
+        string? protectionReasonCode = null)
     {
         ArgumentNullException.ThrowIfNull(topology);
 
@@ -53,6 +67,7 @@ internal static class RuntimeHaActiveRequestProxyPolicy
             return Unavailable("ambiguous-authority");
         if (topology.PendingTransfer is not null)
             return Unavailable("transfer-in-progress");
+
         if (string.IsNullOrWhiteSpace(topology.EffectiveActiveNodeId))
             return Unavailable("active-not-established");
 
@@ -64,7 +79,31 @@ internal static class RuntimeHaActiveRequestProxyPolicy
         if (activeNodes.Length != 1)
             return Unavailable("active-node-not-unique");
 
+        // Per-node API addresses remain local for node-level diagnosis and administration.
+        // The shared cluster URL differs from these direct endpoints and follows the Active.
+        if (IsDirectLocalNodeEndpoint(topology, requestScheme, requestHost))
+            return Local("direct-node-endpoint");
+
         var active = activeNodes[0];
+        var isLocalActive = active.NodeId.Equals(
+            topology.LocalNodeId,
+            StringComparison.OrdinalIgnoreCase);
+        var localAuthoritySetupAvailable =
+            protectionStatus.Equals("active", StringComparison.OrdinalIgnoreCase) ||
+            (protectionStatus.Equals("degraded", StringComparison.OrdinalIgnoreCase) && localActiveReferenceIsCurrent) ||
+            (protectionStatus.Equals("blocked", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(protectionReasonCode, "host-configuration-restart-required", StringComparison.OrdinalIgnoreCase));
+        if (isLocalActive &&
+            (active.State is RuntimeHaState.Active or RuntimeHaState.Synchronizing) &&
+            localAuthoritySetupAvailable &&
+            IsLocalAuthoritySetupSurface(requestPath))
+        {
+            // Initial authority setup and Engineering configuration must remain reachable
+            // on the unique effective Active while HA readiness is being established. The
+            // Runtime APIs still fail closed until the active Runtime is ready.
+            return Local("local-active-authority-setup");
+        }
+
         if (active.State != RuntimeHaState.Active ||
             !active.Ready ||
             !active.Healthy ||
@@ -74,15 +113,20 @@ internal static class RuntimeHaActiveRequestProxyPolicy
             return Unavailable("active-not-ready");
         }
 
-        var isLocalActive = active.NodeId.Equals(
-            topology.LocalNodeId,
-            StringComparison.OrdinalIgnoreCase);
         var expectedProtectionStatus = isLocalActive ? "active" : "standby";
-        if (!protectionStatus.Equals(expectedProtectionStatus, StringComparison.OrdinalIgnoreCase))
+        var activeEffectsRemainFenced = isLocalActive &&
+            protectionStatus.Equals("degraded", StringComparison.OrdinalIgnoreCase) &&
+            localActiveReferenceIsCurrent;
+        if (!protectionStatus.Equals(expectedProtectionStatus, StringComparison.OrdinalIgnoreCase) &&
+            !activeEffectsRemainFenced)
             return Unavailable("protection-not-authoritative");
 
         if (isLocalActive)
+        {
+            // Routing to a ready effective Active does not grant industrial-effect authority.
+            // Runtime write paths keep enforcing the independent HA fencing decision.
             return Local("local-node-is-effective-active");
+        }
 
         var localNodes = topology.Nodes
             .Where(node => node.NodeId.Equals(
@@ -159,6 +203,42 @@ internal static class RuntimeHaActiveRequestProxyPolicy
         (IPAddress.TryParse(host, out var address) && IPAddress.IsLoopback(address)) ||
         host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
         host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsLocalAuthoritySetupSurface(PathString path) =>
+        path.Equals("/api/auth/config", StringComparison.OrdinalIgnoreCase) ||
+        path.Equals("/api/auth/me", StringComparison.OrdinalIgnoreCase) ||
+        path.Equals("/api/auth/local-session", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWithSegments("/api/auth/bootstrap", StringComparison.OrdinalIgnoreCase) ||
+        (path.StartsWithSegments("/api/engineering", StringComparison.OrdinalIgnoreCase) &&
+         !IsRuntimeControlRequest(path));
+
+    private static bool IsDirectLocalNodeEndpoint(
+        RuntimeHaTopologySnapshot topology,
+        string requestScheme,
+        HostString requestHost)
+    {
+        if (!requestHost.HasValue || string.IsNullOrWhiteSpace(topology.LocalNodeId))
+            return false;
+
+        var localNodes = topology.Nodes
+            .Where(node => node.NodeId.Equals(
+                topology.LocalNodeId,
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (localNodes.Length != 1)
+            return false;
+
+        var localEndpoints = localNodes[0].Endpoints
+            .Where(endpoint => endpoint.Kind == RuntimeHaEndpointKind.Local)
+            .ToArray();
+        return localEndpoints.Length == 1 &&
+               TryGetDestination(localEndpoints[0].Address, out var destination) &&
+               HasSameOrigin(destination, requestScheme, requestHost);
+    }
+
+    private static bool IsRuntimeControlRequest(PathString path) =>
+        (path.Value ?? string.Empty).Contains("/runtime/stop", StringComparison.OrdinalIgnoreCase) ||
+        (path.Value ?? string.Empty).Contains("/runtime/start", StringComparison.OrdinalIgnoreCase);
 
     private static RuntimeHaProxyDecision Local(string reason) =>
         new(RuntimeHaProxyDisposition.ContinueLocally, reason);

@@ -78,6 +78,15 @@ public sealed class RuntimeHaActiveRequestProxyTests
 
             Assert.Equal(RuntimeHaProxyDisposition.Unavailable, decision.Disposition);
         }
+
+        var directNodeWithoutActive = RuntimeHaActiveRequestProxyPolicy.Resolve(
+            topology with { EffectiveActiveNodeId = null },
+            "standby",
+            "http",
+            new HostString("127.0.0.1:5081"),
+            "/api/runtime/application");
+        Assert.Equal(RuntimeHaProxyDisposition.Unavailable, directNodeWithoutActive.Disposition);
+        Assert.Equal("active-not-established", directNodeWithoutActive.ReasonCode);
     }
 
     [Fact]
@@ -130,6 +139,58 @@ public sealed class RuntimeHaActiveRequestProxyTests
 
         Assert.Equal(RuntimeHaProxyDisposition.ForwardToActive, decision.Disposition);
         Assert.Equal("http://127.0.0.1:5081/", decision.DestinationPrefix);
+    }
+
+    [Fact]
+    public void Policy_AllowsReadyEffectiveActiveToServeRequestsWhileIndustrialEffectsRemainFenced()
+    {
+        var decision = RuntimeHaActiveRequestProxyPolicy.Resolve(
+            CreateTopology(localNodeId: "node-a"),
+            "degraded",
+            "https",
+            new HostString("cluster.example.test"),
+            "/api/tags/by-path/Plant.Pump.Pressure",
+            localActiveReferenceIsCurrent: true);
+
+        Assert.Equal(RuntimeHaProxyDisposition.ContinueLocally, decision.Disposition);
+        Assert.Equal("local-node-is-effective-active", decision.ReasonCode);
+    }
+
+    [Fact]
+    public void Policy_DoesNotRouteToDegradedActiveWithoutCurrentReferenceEvidence()
+    {
+        var decision = RuntimeHaActiveRequestProxyPolicy.Resolve(
+            CreateTopology(localNodeId: "node-a"),
+            "degraded",
+            "https",
+            new HostString("cluster.example.test"),
+            "/api/tags/by-path/Plant.Pump.Pressure");
+
+        Assert.Equal(RuntimeHaProxyDisposition.Unavailable, decision.Disposition);
+        Assert.Equal("protection-not-authoritative", decision.ReasonCode);
+    }
+
+    [Fact]
+    public void Policy_KeepsDirectNodeRequestsLocalAndClusterIngressFollowsEffectiveActive()
+    {
+        var topology = CreateTopology();
+        var directNode = RuntimeHaActiveRequestProxyPolicy.Resolve(
+            topology,
+            "standby",
+            "http",
+            new HostString("127.0.0.1:5081"),
+            "/api/auth/authority-policy");
+        var clusterIngress = RuntimeHaActiveRequestProxyPolicy.Resolve(
+            topology,
+            "standby",
+            "https",
+            new HostString("cluster.example.test"),
+            "/api/runtime/application");
+
+        Assert.Equal(RuntimeHaProxyDisposition.ContinueLocally, directNode.Disposition);
+        Assert.Equal("direct-node-endpoint", directNode.ReasonCode);
+        Assert.Equal(RuntimeHaProxyDisposition.ForwardToActive, clusterIngress.Disposition);
+        Assert.Equal("http://127.0.0.1:5080/", clusterIngress.DestinationPrefix);
     }
 
     [Fact]
@@ -189,6 +250,70 @@ public sealed class RuntimeHaActiveRequestProxyTests
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.Contains("ambiguous-authority", body, StringComparison.Ordinal);
         Assert.Equal(0, nextCalls);
+    }
+
+    [Fact]
+    public async Task Middleware_LeavesInitialAuthorityBootstrapLocalUntilTheActiveIsReady()
+    {
+        var topology = CreateTopology(localNodeId: "node-a") with
+        {
+            Nodes = CreateTopology().Nodes.Select(node => node.NodeId == "node-a"
+                ? node with { State = RuntimeHaState.Synchronizing, Ready = false }
+                : node).ToArray()
+        };
+        var bootstrapCalls = 0;
+        var engineeringSetupCalls = 0;
+        var runtimeControlCalls = 0;
+        var runtimeCalls = 0;
+        await using var gateway = await StartGatewayAsync(
+            new RuntimeHaProxyDecision(RuntimeHaProxyDisposition.Unavailable, "unused"),
+            configureEndpoints: app =>
+            {
+                app.MapPost("/api/auth/bootstrap", () =>
+                {
+                    Interlocked.Increment(ref bootstrapCalls);
+                    return Results.Ok("bootstrap-local");
+                });
+                app.MapPost("/api/engineering/persistence/projects/first", () =>
+                {
+                    Interlocked.Increment(ref engineeringSetupCalls);
+                    return Results.Created("/api/engineering/persistence/projects/first", new { projectKey = "setup" });
+                });
+                app.MapPost("/api/engineering/persistence/setup/runtime/stop", () =>
+                {
+                    Interlocked.Increment(ref runtimeControlCalls);
+                    return Results.Ok("must-wait-for-active-readiness");
+                });
+                app.MapGet("/api/runtime/application", () =>
+                {
+                    Interlocked.Increment(ref runtimeCalls);
+                    return Results.Ok("must-wait-for-active-readiness");
+                });
+            },
+            decisionSource: new TopologyDecisionSource(
+                topology,
+                "degraded",
+                localActiveReferenceIsCurrent: true));
+        using var client = new HttpClient { BaseAddress = new Uri(gateway.Address) };
+
+        using var bootstrap = await client.PostAsync("/api/auth/bootstrap", content: null);
+        using var engineeringSetup = await client.PostAsync(
+            "/api/engineering/persistence/projects/first",
+            content: null);
+        using var runtimeControl = await client.PostAsync(
+            "/api/engineering/persistence/setup/runtime/stop",
+            content: null);
+        using var runtime = await client.GetAsync("/api/runtime/application");
+
+        Assert.Equal(HttpStatusCode.OK, bootstrap.StatusCode);
+        Assert.Contains("bootstrap-local", await bootstrap.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.Created, engineeringSetup.StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, runtimeControl.StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, runtime.StatusCode);
+        Assert.Equal(1, bootstrapCalls);
+        Assert.Equal(1, engineeringSetupCalls);
+        Assert.Equal(0, runtimeControlCalls);
+        Assert.Equal(0, runtimeCalls);
     }
 
     [Fact]
@@ -432,6 +557,23 @@ public sealed class RuntimeHaActiveRequestProxyTests
     {
         public RuntimeHaProxyDecision Resolve(HttpContext context) =>
             throw new InvalidOperationException("synthetic authority observation failure");
+    }
+
+    private sealed class TopologyDecisionSource(
+        RuntimeHaTopologySnapshot topology,
+        string protectionStatus,
+        bool localActiveReferenceIsCurrent = false,
+        string? protectionReasonCode = null) : IRuntimeHaProxyDecisionSource
+    {
+        public RuntimeHaProxyDecision Resolve(HttpContext context) =>
+            RuntimeHaActiveRequestProxyPolicy.Resolve(
+                topology,
+                protectionStatus,
+                context.Request.Scheme,
+                context.Request.Host,
+                context.Request.Path,
+                localActiveReferenceIsCurrent,
+                protectionReasonCode);
     }
 
     private sealed class RunningServer(WebApplication app, string address) : IAsyncDisposable

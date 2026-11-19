@@ -218,3 +218,9 @@ Review and future integration remain through the draft PR and umbrella issue #74
 ### Administrative indicators
 
 The **Administration → Indicators** view uses UTC days and a filter of up to 90 days. Site and Portal page loads increment separate daily counters. This is a count of reported page views, including reloads, and is not suitable for counting unique users. The counters store day, surface and total only. Download starts come from successful catalog redirects and are attributed to the catalog record. Profile totals cover current confirmed, active accounts with a complete profile. Affiliation names are grouped case-insensitively and shown only for groups of at least three accounts.
+
+### Delivery returns after SMTP acceptance
+
+The Portal matches final RFC 3464 delivery failures to new outbox sends using the original Message-ID and a per-message recipient fingerprint. Matched messages are recorded as bounced without resending. The administration overview counts these failures separately, and the VPS monitor queues one alert per original send, grouping new failures seen in a single check. Earlier sends without a stored fingerprint and reports without the original Message-ID cannot be matched.
+
+Deploy the API migration before updating the VPS monitor. Enable retrieval with `PORTAL_EMAIL_BOUNCES_ENABLED=true` and `PORTAL_IMAP_HOST` in the private deployment configuration. The worker uses the existing SMTP account, which must match the sender and receive the delivery reports. It opens the inbox read-only with IMAP over TLS on port 993 and stores its position in the persistent Portal key directory. On first start it looks back seven days. The monitor discovers failures recorded in the last 24 hours and persists pending alerts across SMTP failures.

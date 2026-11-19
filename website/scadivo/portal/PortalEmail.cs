@@ -156,6 +156,7 @@ public sealed class PortalEmailDispatcher(
                 using var message = CreateTemplateMessage(settings.Value, item.Id, recipient!, template!, locale, data, item.ReplyToAddress);
                 await transport.SendAsync(message, cancellationToken);
                 item.Status = "sent";
+                item.DeliveryRecipientFingerprint = PortalEmailBounceProcessor.Fingerprint(item.Id, message.To.Mailboxes.Single().Address);
                 item.SentAtUtc = DateTimeOffset.UtcNow;
                 item.NextAttemptAtUtc = null;
                 item.LastErrorCode = null;

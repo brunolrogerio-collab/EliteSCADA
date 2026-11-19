@@ -13,7 +13,7 @@ spec.loader.exec_module(monitor)
 
 CONFIG = {"portal_url": "https://portal.example.test", "smtp_user": "monitor@example.test",
           "recipient": "owner@example.test"}
-DATABASE = {"email_failed": 0, "email_retry": 0, "email_stale": 0, "renewal_overdue": 0}
+DATABASE = {"email_failed": 0, "email_retry": 0, "email_stale": 0, "renewal_overdue": 0, "email_bounces": []}
 SESSION = (200, {"authenticated": False, "emailDeliveryConfigured": True})
 RENEWAL = (401, {"error": "invalid-credentials"})
 
@@ -22,7 +22,7 @@ class MonitorTests(unittest.TestCase):
     def test_live_probe_requires_the_expected_unauthenticated_response(self):
         with patch.object(monitor, "http_json", side_effect=[SESSION, RENEWAL]) as http, \
                 patch.object(monitor, "database_snapshot", return_value=DATABASE):
-            self.assertEqual(monitor.check(CONFIG, True), {name: "" for name in monitor.COMPONENTS})
+            self.assertEqual(monitor.check(CONFIG, True), {**dict.fromkeys(monitor.COMPONENTS, ""), monitor.BOUNCES: []})
         args = http.call_args.args
         self.assertTrue(args[0].endswith("/renew"))
         self.assertEqual(len(args[1]["nextRefreshCredential"]), 43)
@@ -77,6 +77,33 @@ class MonitorTests(unittest.TestCase):
             self.assertIn("API · Falha", message.get_content())
             self.assertIn("API · Sinal normalizado", message.get_content())
             self.assertFalse(json.loads(state.read_text(encoding="utf-8"))["pending"])
+
+    def test_bounces_survive_smtp_failure_and_report_each_original_once(self):
+        healthy = dict.fromkeys(monitor.COMPONENTS, "")
+        healthy[monitor.BOUNCES] = ["first"]
+        with TemporaryDirectory() as directory:
+            config = Path(directory) / "config.json"
+            config.write_text(json.dumps(CONFIG), encoding="utf-8")
+            state = Path(directory) / "state.json"
+            cli = ["monitor", "--config", str(config), "--state", str(state)]
+            with patch("sys.argv", cli), patch.object(monitor, "check", return_value=healthy), \
+                    patch.object(monitor, "open_smtp", side_effect=smtplib.SMTPException):
+                with self.assertRaises(RuntimeError):
+                    monitor.main()
+
+            client = Mock()
+            healthy[monitor.BOUNCES] = ["first", "first", "second"]
+            with patch("sys.argv", cli), patch.object(monitor, "check", return_value=healthy), \
+                    patch.object(monitor, "open_smtp", return_value=client):
+                self.assertEqual(monitor.main(), 0)
+                self.assertEqual(monitor.main(), 0)
+                self.assertEqual(client.send_message.call_count, 1)
+                message = client.send_message.call_args.args[0]
+                self.assertIn("Devoluções após o aceite SMTP: 2.", message.get_content())
+                healthy[monitor.BOUNCES] = ["first", "second", "third"]
+                self.assertEqual(monitor.main(), 0)
+                self.assertEqual(client.send_message.call_count, 2)
+                self.assertIn("Devoluções após o aceite SMTP: 1.", client.send_message.call_args.args[0].get_content())
 
     def test_simulated_email_has_four_components_without_changing_status(self):
         with TemporaryDirectory() as directory:

@@ -53,6 +53,8 @@ services:
       Portal__Email__PasswordFile: /run/secrets/portal-mail/smtp-password
       Portal__Email__FromAddress: noreply@scadivo.com
       Portal__Email__ReplyToAddress: support@scadivo.com
+      Portal__Email__Bounces__Enabled: ${PORTAL_EMAIL_BOUNCES_ENABLED:-false}
+      Portal__Email__Bounces__Host: ${PORTAL_IMAP_HOST:-mail.scadivo.com}
       Portal__Licensing__Online__Enabled: ${PORTAL_ONLINE_LEASE_SIGNING_ENABLED:-false}
       Portal__Licensing__Online__PrivateKeyFile: /run/scadivo-signing/online-lease.pem
       Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning

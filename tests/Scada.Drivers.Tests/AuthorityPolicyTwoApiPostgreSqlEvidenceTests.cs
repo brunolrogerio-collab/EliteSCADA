@@ -1046,6 +1046,73 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 Assert.NotNull(activeAlarmAfterFailback);
                 Assert.Equal(1, activeAlarmAfterFailback!["state"]!.GetValue<int>());
                 Assert.Equal(248.5d, activeAlarmAfterFailback["lastValue"]!.GetValue<double>(), precision: 6);
+
+                // Repeat after failback: loss of B lets A advance its local session
+                // revision while B is offline. Logical seats still have to mirror on rejoin.
+                var repeatedSwitch = await nodeA.PostRawAsync(
+                    "/api/runtime/ha/actions/switchover",
+                    new JsonObject { ["targetNodeId"] = "node-b" });
+                Assert.Equal(HttpStatusCode.Accepted, repeatedSwitch.StatusCode);
+                var beforeSecondLoss = await WaitForHaTopologyAsync(
+                    nodeB, topology => IsEffectiveActive(topology, "node-b") && IsReadyStandby(topology, "node-a"),
+                    TimeSpan.FromSeconds(30), "A did not become Ready Standby before the second Active loss");
+                clusterIngress.SetBackends(urlB);
+                await clusterBrowser.LoginAsync();
+                var repeatedClient = "w15-ha-d2-repeat-" + suffix;
+                var repeatedSeat = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    clusterBrowser, repeatedClient, "node-b", TimeSpan.FromSeconds(20));
+                var repeatedSubject = repeatedSeat["userId"]!.GetValue<string>();
+                await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString, repeatedSeat["sessionId"]!.GetValue<Guid>(),
+                    repeatedSubject, repeatedClient, "node-b", 1, TimeSpan.FromSeconds(20));
+                using var secondStaleBrowser = clusterBrowser.Clone();
+                await nodeB.DisposeAsync();
+                nodeB = null;
+
+                var secondPromotion = await WaitForHaTopologyAsync(
+                    nodeA, topology => IsEffectiveActive(topology, "node-a") &&
+                        topology["authorityEpoch"]!.GetValue<long>() >
+                        beforeSecondLoss["authorityEpoch"]!.GetValue<long>(),
+                    TimeSpan.FromSeconds(90), "A did not promote after B was stopped");
+                AssertOneActive(secondPromotion, "node-a");
+                clusterIngress.SetBackends(urlA);
+                await clusterBrowser.LoginAsync();
+                var secondReadmission = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    clusterBrowser, repeatedClient, "node-a", TimeSpan.FromSeconds(20));
+                // Verify stale authentication after the Runtime opens, so a pre-admission
+                // HA conflict cannot be mistaken for rejection of an obsolete cookie.
+                var secondStaleAdmission = await secondStaleBrowser.PostRawAsync(
+                    "/api/runtime/sessions",
+                    new JsonObject { ["clientInstanceId"] = repeatedClient, ["connectionClass"] = "interactive" });
+                Assert.True(secondStaleAdmission.StatusCode == HttpStatusCode.Unauthorized,
+                    $"The old login was not rejected after the second promotion: HTTP {(int)secondStaleAdmission.StatusCode}.");
+                Assert.Equal(repeatedSubject, secondReadmission["userId"]!.GetValue<string>());
+                await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString, secondReadmission["sessionId"]!.GetValue<Guid>(),
+                    repeatedSubject, repeatedClient, "node-a", 1, TimeSpan.FromSeconds(20));
+
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
+                await nodeB.LoginAsync();
+                await WaitForHaTopologyAsync(
+                    nodeB, topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
+                    TimeSpan.FromSeconds(60), "B did not rejoin as a standby after the second promotion");
+
+                var afterRejoinClient = "w15-ha-d2-rejoin-" + suffix;
+                var afterRejoin = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    clusterBrowser, afterRejoinClient, "node-a", TimeSpan.FromSeconds(20));
+                var afterRejoinSession = afterRejoin["sessionId"]!.GetValue<Guid>();
+                await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString, afterRejoinSession, repeatedSubject,
+                    afterRejoinClient, "node-a", 1, TimeSpan.FromSeconds(20));
+                await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionB.ConnectionString, afterRejoinSession, repeatedSubject,
+                    afterRejoinClient, "node-a", 1, TimeSpan.FromSeconds(20));
+                var finalEffectsA = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                var finalEffectsB = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                Assert.Equal(1, finalEffectsA.AlarmTransitions + finalEffectsB.AlarmTransitions);
             }
 
             Console.WriteLine(JsonSerializer.Serialize(new
@@ -2597,6 +2664,8 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             Set("DatabaseTopology__Secrets__MasterKeyBase64", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
             Set("Historian__Provider", "timescaledb");
             Set("HistoricalQuery__Enabled", "true");
+            // Leave time for the evidence script and its PostgreSQL effects on loaded hosts.
+            Set("ServerScripts__HandlerTimeoutMs", "2000");
             Set("HistoricalQuery__CursorKeyBase64", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
             Set("Licensing__LicenseFile", license.LicensePath);
             Set("Licensing__VerificationKeys__" + license.KeyId, license.PublicKeyPath);

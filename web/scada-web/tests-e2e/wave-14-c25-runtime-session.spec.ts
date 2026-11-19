@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type WebSocketRoute } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
 
@@ -193,7 +193,8 @@ async function installEngineeringRuntimeProjection(
   branding?: unknown,
   visualAssets: unknown[] = [],
   runtimePresentation?: unknown,
-  onRequest?: (headers: Record<string, string>) => void
+  onRequest?: (headers: Record<string, string>) => void,
+  screenElements: unknown[] = []
 ) {
   await page.context().route('**/api/runtime/application', route => {
     onRequest?.(route.request().headers());
@@ -211,7 +212,7 @@ async function installEngineeringRuntimeProjection(
           id: 'screen-home-id',
           key: 'home',
           name: 'Home',
-          elements: []
+          elements: screenElements
         }],
         popups: [],
         dynamos: [],
@@ -792,6 +793,47 @@ test('Runtime renews each window lease and binds its application projection to t
   await page.clock.fastForward(20_000);
   await expect.poll(() => heartbeatRequests).toBe(1);
   await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+});
+
+test('a Runtime screen resumes TAG events on the same session after a WebSocket drop', async ({ page }) => {
+  const session = await installSessionContract(page, administrator);
+  const tag = { id: '00000000-0000-0000-0000-000000000783', name: 'Pressure', path: 'Test.Pressure' };
+  await installEngineeringRuntimeProjection(page, undefined, [], undefined, undefined, [{
+    id: 'pressure-display',
+    key: 'pressure-display',
+    type: 'core.text',
+    properties: { x: 20, y: 20, width: 160, height: 40 },
+    bindings: [{ key: 'text', kind: 'Tag', target: tag.path, tagReference: { tagId: tag.id } }]
+  }]);
+  // The screen can only receive either test value from its own WebSocket.
+  await page.route('**/api/tags', route => route.fulfill({ json: [] }));
+  const connections: WebSocketRoute[] = [];
+  await page.routeWebSocket('**/ws/tags*', socket => { connections.push(socket); });
+
+  let navigations = 0;
+  page.on('framenavigated', frame => { if (frame === page.mainFrame()) navigations++; });
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => connections.length).toBe(1);
+  const field = page.locator('[data-object-id="pressure-display"][data-dynamic-reference="Test.Pressure"]');
+  const sample = (value: number) => JSON.stringify({
+    type: 'tagValueChanged', tag, value, quality: 'Good', timestamp: new Date().toISOString()
+  });
+  connections[0].send(sample(41));
+  await expect(field).toHaveText('41');
+
+  await connections[0].close({ code: 1011 });
+  await expect.poll(() => connections.length).toBe(2);
+  const originalLease = new URL(connections[0].url()).searchParams;
+  const replacementLease = new URL(connections[1].url()).searchParams;
+  expect(originalLease.get('runtimeSessionId')).toBeTruthy();
+  expect(originalLease.get('clientInstanceId')).toBeTruthy();
+  expect(replacementLease.toString()).toBe(originalLease.toString());
+  connections[1].send(sample(42));
+  await expect(field).toHaveText('42');
+  expect(session.runtimeSessionAdmissions).toBe(1);
+  expect(session.loginRequests).toBe(0);
+  expect(navigations).toBe(1);
 });
 
 test('Runtime closes the projection after lease renewal fails and can reacquire a seat', async ({ page }) => {

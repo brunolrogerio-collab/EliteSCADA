@@ -15,6 +15,8 @@ import {
 } from '../../runtime/liveTagTransport';
 import { visualTagSampleKey, type VisualDynamicSample } from './visualDynamicRuntime';
 
+const TAG_SOCKET_RECONNECT_INTERVALS_MS = [1000, 2000, 5000] as const;
+
 export type VisualLiveScalarSample = VisualDynamicSample;
 
 type RuntimeSourceRequest = Readonly<{
@@ -96,8 +98,12 @@ export function useVisualBindingSamples(
 
     void refresh();
     const refreshTimer = window.setInterval(() => void refresh(), 3000);
-    const socket = openRuntimeTagSocket();
-    socket.addEventListener('message', event => {
+    let socket: WebSocket | undefined;
+    let reconnectTimer: number | undefined;
+    let reconnectAttempt = 0;
+
+    const onMessage = (event: MessageEvent) => {
+      if (cancelled || event.currentTarget !== socket) return;
       const message = parseRuntimeTagRealtimeMessage(String(event.data));
       if (!message) return;
       const id = message.tag.id.trim().toLocaleLowerCase();
@@ -118,15 +124,38 @@ export function useVisualBindingSamples(
         next.set(visualTagSampleKey(message.tag.id), sample);
         return next;
       });
-    });
-    socket.addEventListener('close', () => {
-      if (!cancelled) markRequestsUnavailable(setSamples, tagRequests, bindings, true);
-    });
+    };
+
+    const scheduleReconnect = () => {
+      const delay = TAG_SOCKET_RECONNECT_INTERVALS_MS[reconnectAttempt];
+      reconnectAttempt = Math.min(reconnectAttempt + 1, TAG_SOCKET_RECONNECT_INTERVALS_MS.length - 1);
+      reconnectTimer = window.setTimeout(connect, delay);
+    };
+
+    const connect = () => {
+      try {
+        const connection = openRuntimeTagSocket();
+        socket = connection;
+        connection.addEventListener('open', () => { reconnectAttempt = 0; });
+        connection.addEventListener('message', onMessage);
+        connection.addEventListener('close', () => {
+          if (cancelled || socket !== connection) return;
+          socket = undefined;
+          markRequestsUnavailable(setSamples, tagRequests, bindings, true);
+          scheduleReconnect();
+        });
+      } catch {
+        scheduleReconnect();
+      }
+    };
+
+    connect();
 
     return () => {
       cancelled = true;
       window.clearInterval(refreshTimer);
-      socket.close();
+      window.clearTimeout(reconnectTimer);
+      socket?.close();
     };
   }, [tagRequests, bindings]);
 

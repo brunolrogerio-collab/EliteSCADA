@@ -19,8 +19,10 @@ import { HistoricalTimeRangeControls } from '../../runtime/HistoricalTimeRangeCo
 import {
   loadReadableRuntimeTags,
   openRuntimeTagSocket,
-  parseRuntimeTagRealtimeMessage
+  parseRuntimeTagRealtimeMessage,
+  RuntimeTagSessionRequiredContext
 } from '../../runtime/liveTagTransport';
+import { getActiveRuntimeSession } from '../../runtime/runtimeSessionAdmissionApi';
 import {
   appendTrendLiveSample,
   buildTrendLiveSeries,
@@ -152,6 +154,7 @@ export function TrendVisualElement({
   onClick
 }: TrendVisualElementProps) {
   const text = COPY[locale];
+  const requireRuntimeSession = React.useContext(RuntimeTagSessionRequiredContext);
   const pens = React.useMemo(() => readTrendPens(element), [element]);
   const persistedPenSignature = pens.map(pen => `${pen.id}:${pen.visible}`).join('|');
   const [operatorPenVisibility, setOperatorPenVisibility] = React.useState<Readonly<Record<string, boolean>>>({});
@@ -255,7 +258,7 @@ export function TrendVisualElement({
 
       const refreshSnapshots = async () => {
         try {
-          const tags = await loadReadableRuntimeTags(controller.signal);
+          const tags = await loadReadableRuntimeTags(controller.signal, requireRuntimeSession);
           if (disposed || controller.signal.aborted) return;
           const byId = new Map(tags.map(tag => [normalizeId(tag.id), tag]));
           const now = Date.now();
@@ -282,8 +285,10 @@ export function TrendVisualElement({
       const interval = window.setInterval(() => { void refreshSnapshots(); }, Math.max(1, refreshSeconds) * 1000);
 
       try {
-        socket = openRuntimeTagSocket();
+        socket = openRuntimeTagSocket(requireRuntimeSession);
+        const socketSessionId = getActiveRuntimeSession()?.sessionId;
         socket.addEventListener('message', event => {
+          if (disposed || (requireRuntimeSession && getActiveRuntimeSession()?.sessionId !== socketSessionId)) return;
           const message = parseRuntimeTagRealtimeMessage(String(event.data));
           if (!message) return;
           const pen = visiblePens.find(candidate => normalizeId(candidate.tagId) === normalizeId(message.tag.id));
@@ -352,7 +357,7 @@ export function TrendVisualElement({
       active?.abort();
       window.clearInterval(interval);
     };
-  }, [activeDurationSeconds, activeTimeRange, dataQueriesEnabled, refreshRevision, refreshSeconds, visiblePens]);
+  }, [activeDurationSeconds, activeTimeRange, dataQueriesEnabled, refreshRevision, refreshSeconds, requireRuntimeSession, visiblePens]);
 
   const series = state.series;
   const hasSamples = series.some(item => item.samples.some(sample => isUsableTrendQuality(sample.quality) && sample.value !== null));

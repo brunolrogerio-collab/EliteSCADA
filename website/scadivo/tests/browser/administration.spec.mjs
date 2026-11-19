@@ -12,6 +12,8 @@ test.beforeAll(async () => {
     const target = resolve(root, path || 'index.html');
     if (!target.startsWith(resolve(root) + sep) && target !== resolve(root, 'index.html')) { response.writeHead(404).end(); return; }
     try {
+      if (target === resolve(root, 'index.html')) response.setHeader('Content-Security-Policy',
+        "default-src 'self'; script-src 'self'; style-src 'self'; frame-ancestors 'none'; form-action 'self'");
       response.setHeader('Content-Type', target.endsWith('.js') ? 'application/javascript' : target.endsWith('.css') ? 'text/css' : target.endsWith('.svg') ? 'image/svg+xml' : 'text/html');
       response.end(await readFile(target));
     } catch { response.writeHead(404).end(); }
@@ -64,8 +66,14 @@ async function fixture(page, { locale = 'en', administrator = true } = {}) {
       key: 'account.invitation', subjectPt: 'Convite', bodyPt: 'Mensagem do convite',
       subjectEn: 'Invitation', bodyEn: 'Invitation message', subjectEs: 'Invitación', bodyEs: 'Mensaje de invitación'
     }];
-    else if (path === '/admin/templates/account.invitation/preview' && method === 'POST')
-      result = { html: `<!doctype html><html lang="${body.locale}"><head></head><body><h1>Invitación de prueba</h1></body></html>` };
+    else if (path === '/admin/templates/account.invitation/preview' && method === 'POST') {
+      await route.fulfill({
+        contentType: 'text/html; charset=utf-8',
+        headers: { 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'self'; sandbox" },
+        body: `<!doctype html><html lang="${body.locale}"><head></head><body style="background:#edf2f5"><h1>Invitación de prueba</h1></body></html>`
+      });
+      return;
+    }
     await route.fulfill({ json: result });
   });
   await page.goto(`${baseUrl}/portal/#admin`);
@@ -87,10 +95,12 @@ test('email preview renders the selected language from unsaved fields without sa
   const frame = page.locator('iframe[title="Email preview"]');
   await expect(frame).toBeVisible();
   await expect(frame).toHaveAttribute('sandbox', '');
-  await expect(page.frameLocator('iframe[title="Email preview"]').getByRole('heading', { name: 'Invitación de prueba' })).toBeVisible();
+  const frameDocument = page.frameLocator('iframe[title="Email preview"]');
+  await expect(frameDocument.getByRole('heading', { name: 'Invitación de prueba' })).toBeVisible();
+  await expect(frameDocument.locator('body')).toHaveCSS('background-color', 'rgb(237, 242, 245)');
   expect(calls).toEqual([{
-    path: '/admin/templates/account.invitation/preview', method: 'POST', csrf: 'synthetic-csrf',
-    body: { locale: 'es', subject: 'Invitación pendiente', body: 'Hola {{name}}' }
+    path: '/admin/templates/account.invitation/preview', method: 'POST', csrf: undefined,
+    body: { locale: 'es', subject: 'Invitación pendiente', body: 'Hola {{name}}', __RequestVerificationToken: 'synthetic-csrf' }
   }]);
   await expect(subject).toHaveValue('Invitación pendiente');
   await expect(body).toHaveValue('Hola {{name}}');

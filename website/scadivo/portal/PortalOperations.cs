@@ -33,7 +33,6 @@ public sealed record TicketInput(string? Subject, string? Category, string? Body
 public sealed record MessageInput(string? Body);
 public sealed record TicketStatusInput(string? Status);
 public sealed record TemplateInput(string? SubjectPt, string? SubjectEn, string? SubjectEs, string? BodyPt, string? BodyEn, string? BodyEs);
-public sealed record TemplatePreviewInput(string? Locale, string? Subject, string? Body);
 public sealed record FaqInput(string? Slug, string? Category, string? TitlePt, string? TitleEn, string? TitleEs, string? BodyPt, string? BodyEn, string? BodyEs, bool Published);
 public sealed record PublicContactInput(string? Name, string? Email, string? Category, string? SubjectKey,
     string? OtherSubject, string? Message, string? Locale, string? Website);
@@ -675,13 +674,15 @@ public sealed class PortalOperations(
         return Results.Ok(new { account.Id, account.IsSuspended });
     }
 
-    public async Task<IResult> PreviewTemplate(string key, TemplatePreviewInput input, HttpContext context)
+    public async Task<IResult> PreviewTemplate(string key, HttpContext context)
     {
-        if (!ValidLocale(input.Locale) || !Valid(input.Subject, 1, 200) || !Valid(input.Body, 1, 8000)) return Invalid();
+        if (!context.Request.HasFormContentType) return Invalid();
+        var fields = await context.Request.ReadFormAsync(context.RequestAborted);
+        var locale = fields["locale"].ToString();
+        var subject = fields["subject"].ToString().Trim();
+        var body = fields["body"].ToString().Trim();
+        if (!ValidLocale(locale) || !Valid(subject, 1, 200) || !Valid(body, 1, 8000)) return Invalid();
         if (!await db.EmailTemplates.AnyAsync(x => x.Key == key, context.RequestAborted)) return Results.NotFound();
-        var locale = input.Locale!;
-        var subject = input.Subject!.Trim();
-        var body = input.Body!.Trim();
 
         // No account, token, outbox item or audit mutation is created by a preview.
         var preview = new EmailTemplate
@@ -708,7 +709,8 @@ public sealed class PortalOperations(
         // Keep the rendered link styling while making every preview link inert.
         var html = Regex.Replace(message.HtmlBody!, " href=\"[^\"]*\"", string.Empty);
         context.Response.Headers.CacheControl = "no-store";
-        return Results.Ok(new { html });
+        context.Response.Headers.ContentSecurityPolicy = "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'; sandbox";
+        return Results.Content(html, "text/html; charset=utf-8");
     }
 
     public async Task<IResult> UpdateTemplate(string key, TemplateInput input, HttpContext context)

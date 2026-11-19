@@ -253,6 +253,74 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
     }
 
     [Fact]
+    public async Task PostgreSqlLeaseStore_AdoptsAndRenewsReplicaWhenPreviousLocalSeatExpired()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var subject = $"ha-rejoin-{Guid.NewGuid():N}";
+        const string client = "runtime-client";
+        const string cluster = "ha-rejoin";
+        var runtime = Runtime("project-a", 7);
+        await using var store = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await store.InitializeAsync();
+
+        try
+        {
+            var previous = await store.AdmitAsync(
+                Admission(subject, client, runtime, TimeSpan.FromMilliseconds(2)) with
+                {
+                    ServerNode = "node-b",
+                    ClusterId = cluster
+                });
+            await Task.Delay(TimeSpan.FromMilliseconds(25));
+            var now = DateTimeOffset.UtcNow;
+            Assert.True(previous.ExpiresAtUtc <= now);
+            var incoming = previous with
+            {
+                SessionId = Guid.NewGuid(),
+                Generation = 1,
+                IssuedAtUtc = now,
+                LastHeartbeatUtc = now,
+                ExpiresAtUtc = now.AddMinutes(1),
+                ServerNode = "node-a"
+            };
+
+            var adopted = await store.AdoptReplicatedAsync(
+                incoming, cluster, "node-a", runtime, incoming.AuthorityRevision);
+            Assert.True(adopted.Accepted, adopted.ReasonCode);
+            Assert.Equal(incoming.SessionId, adopted.Lease!.SessionId);
+
+            var renewed = incoming with
+            {
+                Generation = 2,
+                LastHeartbeatUtc = now.AddSeconds(2),
+                ExpiresAtUtc = now.AddMinutes(1).AddSeconds(2)
+            };
+            var updated = await store.AdoptReplicatedAsync(
+                renewed, cluster, "node-a", runtime, incoming.AuthorityRevision);
+            Assert.True(updated.Accepted, updated.ReasonCode);
+            Assert.Equal(incoming.SessionId, updated.Lease!.SessionId);
+            Assert.Equal(renewed.Generation, updated.Lease.Generation);
+
+            var conflicting = await store.AdoptReplicatedAsync(
+                incoming with { SessionId = Guid.NewGuid() },
+                cluster, "node-a", runtime, incoming.AuthorityRevision);
+            Assert.False(conflicting.Accepted);
+            Assert.Equal("replicated-logical-session-conflict", conflicting.ReasonCode);
+
+            var oldHeartbeat = await store.HeartbeatAsync(previous.SessionId, subject, client, runtime);
+            Assert.False(oldHeartbeat.IsValid);
+            Assert.Equal("session-not-found", oldHeartbeat.FailureCode);
+        }
+        finally
+        {
+            await DeleteSubjectAsync(connectionString, subject);
+        }
+    }
+
+    [Fact]
     public async Task PostgreSqlLeaseStore_AdoptsReplicatedLeaseAsOneSeat_AndPersistsTombstone()
     {
         var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??

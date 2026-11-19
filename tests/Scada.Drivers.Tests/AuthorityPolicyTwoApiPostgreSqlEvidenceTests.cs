@@ -1116,6 +1116,14 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     nodeB, topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
                     TimeSpan.FromSeconds(60), "B did not rejoin as a standby after the second promotion");
 
+                // Returning B must also reject the exact cookie it issued before the loss.
+                clusterIngress.SetBackends(urlB);
+                var oldCookieOnRejoinedStandby = await secondStaleBrowser.PostRawAsync(
+                    "/api/runtime/sessions",
+                    new JsonObject { ["clientInstanceId"] = repeatedClient, ["connectionClass"] = "interactive" });
+                Assert.Equal(HttpStatusCode.Unauthorized, oldCookieOnRejoinedStandby.StatusCode);
+                clusterIngress.SetBackends(urlA);
+
                 var afterRejoinClient = "w15-ha-d2-rejoin-" + suffix;
                 var afterRejoin = await AdmitRuntimeSessionAfterHaActivationAsync(
                     clusterBrowser, afterRejoinClient, "node-a", TimeSpan.FromSeconds(20));

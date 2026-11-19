@@ -12,6 +12,7 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
     private readonly Dictionary<Guid, AlarmInstance> _instances = [];
     private readonly Dictionary<Guid, AlarmState> _shelvedUnderlyingStates = [];
     private readonly Dictionary<Guid, TagValue> _latestValues = [];
+    private readonly Dictionary<Guid, (IReadOnlySet<Guid> Dependencies, Func<(TagValue Value, bool Active)?> Evaluate)> _conditional = [];
     private readonly Dictionary<Guid, PendingActivation> _pendingActivations = [];
     private readonly object _sync = new();
     private readonly IScadaEventBus _eventBus;
@@ -31,12 +32,26 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
         _subscription = eventBus.Subscribe<TagValueChanged>(EvaluateAsync);
     }
 
-    public AlarmDefinition Register(AlarmDefinition definition)
+    public AlarmDefinition Register(AlarmDefinition definition) => Register(definition, null);
+
+    public AlarmDefinition RegisterConditional(
+        AlarmDefinition definition,
+        IReadOnlySet<Guid> dependencies,
+        Func<(TagValue Value, bool Active)?> evaluate) =>
+        Register(definition, (dependencies, evaluate));
+
+    private AlarmDefinition Register(
+        AlarmDefinition definition,
+        (IReadOnlySet<Guid> Dependencies, Func<(TagValue Value, bool Active)?> Evaluate)? conditional)
     {
         lock (_sync)
         {
             CancelPendingActivationLocked(definition.Id);
             _definitions[definition.Id] = definition;
+            if (conditional.HasValue)
+                _conditional[definition.Id] = conditional.Value;
+            else
+                _conditional.Remove(definition.Id);
             if (_instances.TryGetValue(definition.Id, out var current))
             {
                 _instances[definition.Id] = current with
@@ -74,6 +89,7 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
             _instances.Remove(definitionId);
             _shelvedUnderlyingStates.Remove(definitionId);
             _latestValues.Remove(definitionId);
+            _conditional.Remove(definitionId);
         }
 
         _definitionsChanged?.Invoke();
@@ -199,6 +215,7 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
             _instances.Clear();
             _shelvedUnderlyingStates.Clear();
             _latestValues.Clear();
+            _conditional.Clear();
         }
 
         _definitionsChanged?.Invoke();
@@ -212,15 +229,25 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
             if (_disposed) return;
 
             var definitions = _definitions.Values
-                .Where(x => x.TagId == evt.Tag.Id && x.Enabled)
+                .Where(x => x.Enabled && (x.TagId == evt.Tag.Id ||
+                    _conditional.TryGetValue(x.Id, out var condition) && condition.Dependencies.Contains(evt.Tag.Id)))
                 .ToArray();
             foreach (var definition in definitions)
             {
-                _latestValues[definition.Id] = evt.Current;
+                var reading = _conditional.TryGetValue(definition.Id, out var condition)
+                    ? condition.Evaluate()
+                    : (evt.Current, IsActive(definition, evt.Current));
+                if (reading is not { } evaluated)
+                {
+                    CancelPendingActivationLocked(definition.Id);
+                    continue;
+                }
+
+                var (value, active) = evaluated;
+                _latestValues[definition.Id] = value;
                 var current = _instances.TryGetValue(definition.Id, out var found)
                     ? found
                     : _instances[definition.Id] = NewNormal(definition, _timeProvider.GetUtcNow());
-                var active = IsActive(definition, evt.Current);
                 var isShelved = current.State == AlarmState.Shelved;
                 var underlyingState = isShelved
                     ? _shelvedUnderlyingStates.GetValueOrDefault(definition.Id, AlarmState.Normal)
@@ -230,7 +257,7 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
                 {
                     if (!_pendingActivations.ContainsKey(definition.Id))
                         StartPendingActivationLocked(definition);
-                    _instances[definition.Id] = current with { LastValue = evt.Current.Value };
+                    _instances[definition.Id] = current with { LastValue = value.Value };
                     continue;
                 }
 
@@ -244,7 +271,7 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
                     _shelvedUnderlyingStates[definition.Id] = nextState;
                     _instances[definition.Id] = current with
                     {
-                        LastValue = evt.Current.Value,
+                        LastValue = value.Value,
                         ActivatedAt = beginsNewActivation ? _timeProvider.GetUtcNow() : current.ActivatedAt,
                         AcknowledgedAt = beginsNewActivation ? null : current.AcknowledgedAt,
                         AcknowledgedBy = beginsNewActivation ? null : current.AcknowledgedBy
@@ -254,7 +281,7 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
 
                 if (nextState == current.State)
                 {
-                    _instances[definition.Id] = current with { LastValue = evt.Current.Value };
+                    _instances[definition.Id] = current with { LastValue = value.Value };
                     continue;
                 }
 
@@ -263,7 +290,7 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
                 {
                     State = nextState,
                     LastTransition = now,
-                    LastValue = evt.Current.Value,
+                    LastValue = value.Value,
                     ActivatedAt = beginsNewActivation ? now : active && current.ActivatedAt is null ? now : current.ActivatedAt,
                     AcknowledgedAt = beginsNewActivation ? null : current.AcknowledgedAt,
                     AcknowledgedBy = beginsNewActivation ? null : current.AcknowledgedBy
@@ -305,8 +332,7 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
                     !_definitions.TryGetValue(definitionId, out var definition) ||
                     !definition.Enabled ||
                     !_instances.TryGetValue(definitionId, out var current) ||
-                    !_latestValues.TryGetValue(definitionId, out var latestValue) ||
-                    !IsActive(definition, latestValue))
+                    ReadLatestActivation(definition) is not { } latestValue)
                     return;
 
                 var isShelved = current.State == AlarmState.Shelved;
@@ -374,6 +400,15 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
             : current is AlarmState.Active or AlarmState.Acknowledged || (current == AlarmState.Returned && !acknowledged)
                 ? AlarmState.Returned
                 : AlarmState.Normal;
+
+    private TagValue? ReadLatestActivation(AlarmDefinition definition)
+    {
+        if (_conditional.TryGetValue(definition.Id, out var condition))
+            return condition.Evaluate() is { Active: true } evaluation ? evaluation.Value : null;
+        return _latestValues.TryGetValue(definition.Id, out var latest) && IsActive(definition, latest)
+            ? latest
+            : null;
+    }
 
     private static bool IsActive(AlarmDefinition definition, TagValue value)
     {

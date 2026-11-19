@@ -118,6 +118,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     private readonly ITransientEventRuntimeIngress? _transientEventIngress;
     private readonly TimeSpan _activationTimeout;
     private readonly Func<bool> _industrialEffectAuthority;
+    private readonly Func<string, long, Guid, bool>? _intelligenceAlarmPermit;
     private readonly SemaphoreSlim _activationGate = new(1, 1);
     private RuntimeState _active;
 
@@ -129,7 +130,8 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         CommunicationDriverRuntimeComponentRegistry? communicationComponents = null,
         ICommunicationDriverProtectedMaterialResolver? protectedMaterialResolver = null,
         Func<bool>? industrialEffectAuthority = null,
-        ITransientEventRuntimeIngress? transientEventIngress = null)
+        ITransientEventRuntimeIngress? transientEventIngress = null,
+        Func<string, long, Guid, bool>? intelligenceAlarmPermit = null)
     {
         _externalEventBus = externalEventBus ?? throw new ArgumentNullException(nameof(externalEventBus));
         _compiler = compiler ?? throw new ArgumentNullException(nameof(compiler));
@@ -139,6 +141,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         _protectedMaterialResolver = protectedMaterialResolver;
         _transientEventIngress = transientEventIngress;
         _industrialEffectAuthority = industrialEffectAuthority ?? (() => true);
+        _intelligenceAlarmPermit = intelligenceAlarmPermit;
         _activationTimeout = activationTimeout ?? TimeSpan.FromSeconds(10);
         if (_activationTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(activationTimeout));
@@ -431,6 +434,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 // started and no alarm input is evaluated on Standby.
                 RegisterPassiveTagProjection(candidate);
                 RegisterAlarms(effectivePackage, candidate, runtimeIssues);
+                RegisterIntelligenceDeviationAlarms(effectivePackage, candidate);
                 RegisterCommands(effectivePackage, candidate, runtimeIssues);
                 if (runtimeIssues.Any(issue => issue.IsError))
                 {
@@ -767,6 +771,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 }
 
                 RegisterAlarms(effectivePackage, candidate, runtimeIssues);
+                RegisterIntelligenceDeviationAlarms(effectivePackage, candidate);
                 RegisterCommands(effectivePackage, candidate, runtimeIssues);
                 if (runtimeIssues.Any(x => x.IsError))
                 {
@@ -1184,6 +1189,41 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 dto.SoundProfile,
                 ResolveAlarmLocationId(dto, package),
                 dto.EquipmentId));
+        }
+    }
+
+    private void RegisterIntelligenceDeviationAlarms(EngineeringPackage package, RuntimeState state)
+    {
+        if (_intelligenceAlarmPermit is null || state.ProjectKey is not { } projectKey ||
+            state.Revision is not { } revision ||
+            package.AssetProcessIntelligence is not { Version: 3, OperatingContextProfiles: { } contexts } configuration)
+            return;
+
+        foreach (var context in contexts.Where(item => item.DeviationAlarm is not null))
+        {
+            var alarm = context.DeviationAlarm!;
+            var assignment = configuration.Assignments?.FirstOrDefault(item => item.Id == context.AssignmentId);
+            var equipment = package.Equipment?.FirstOrDefault(item => item.Id == assignment?.EquipmentId);
+            if (equipment?.Id is not { } equipmentId || !state.Registry.TryGet(alarm.TagId, out var target) || target is null ||
+                context.Predicates is not { Count: > 0 } predicates)
+                continue;
+
+            var id = IntelligenceDeviationAlarm.GetId(context.Id);
+            if (package.Alarms.Any(item => item.Id == id))
+                throw new InvalidOperationException($"Alarm ID collision for Intelligence context '{context.Key}'.");
+
+            var definition = new AlarmDefinition(id, $"{equipment.Name} · {context.DisplayLabel} · {target.Name}",
+                target.Id, AlarmType.Digital, AlarmPriority.Medium, Area: "Intelligence",
+                Message: FormattableString.Invariant($"{target.Name}: [{alarm.Minimum:G}, {alarm.Maximum:G}]"),
+                AlarmClass: "Intelligence",
+                ActivationDelay: TimeSpan.FromSeconds(alarm.PersistenceSeconds),
+                LocationId: equipment.LocationId, EquipmentId: equipment.Id);
+
+            state.Alarms.RegisterConditional(definition, predicates.Select(item => item.TagId).ToHashSet(),
+                () => state.EventGate.ForwardingEnabled && _industrialEffectAuthority() &&
+                    _intelligenceAlarmPermit(projectKey, revision, equipmentId)
+                    ? IntelligenceDeviationAlarm.Evaluate(state.Cache, alarm, predicates, DateTimeOffset.UtcNow)
+                    : null);
         }
     }
 

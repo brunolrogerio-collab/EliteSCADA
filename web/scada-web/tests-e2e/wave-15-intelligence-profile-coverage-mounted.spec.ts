@@ -428,6 +428,7 @@ test('two measurements can generate performance and coverage without contextual 
   await performance.getByLabel('Regra de desempenho').selectOption('specific-active-energy-at-recorded-production-rate.v1');
   const generator = page.getByTestId('intelligence-dashboard-generator');
   await generator.getByTestId('intelligence-dashboard-source').selectOption(`equipment-profile:${assignmentId}`);
+  await generator.getByTestId('intelligence-dashboard-options').locator(':scope > summary').click();
   await expect(generator.getByRole('checkbox', { name: 'Desempenho', exact: true })).toBeChecked();
   await expect(generator.getByRole('checkbox', { name: 'Desvio contextual', exact: true })).toBeDisabled();
   await expect(generator.getByText(/Este desvio precisa de pelo menos quatro medições distintas/)).toBeVisible();
@@ -447,6 +448,7 @@ test('central stage composer creates coverage and partial member analyses withou
   await performance.getByLabel('Regra de desempenho').selectOption('specific-active-energy-at-recorded-production-rate.v1');
   const generator = page.getByTestId('intelligence-dashboard-generator');
   await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+  await generator.getByTestId('intelligence-dashboard-options').locator(':scope > summary').click();
   await expect(generator.getByRole('checkbox', { name: 'Cobertura por equipamento', exact: true })).toBeChecked();
   await expect(generator.getByRole('checkbox', { name: 'Análises por equipamento', exact: true })).toBeChecked();
   await expect(generator.getByText(/Desempenho: Disponível · Desvio contextual: Não configurado/)).toBeVisible();
@@ -1045,6 +1047,7 @@ test('stage composer creates reference-only member reports independently of perf
   await openIntelligence(page);
   const generator = page.getByTestId('intelligence-dashboard-generator');
   await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+  await generator.getByTestId('intelligence-dashboard-options').locator(':scope > summary').click();
   await expect(generator.getByRole('checkbox', { name: 'Análises por equipamento', exact: true })).toBeDisabled();
   await generator.getByRole('checkbox', { name: 'Dados da referência por equipamento', exact: true }).check();
   await generator.getByTestId('intelligence-dashboard-generate').click();
@@ -1078,6 +1081,7 @@ test('composer offers saved context conditions independently and keeps authoring
 test('composer explains missing saved context without blocking the basic dashboard', async ({ page }) => {
   await installWorkspace(page); await openIntelligence(page);
   const generator = page.getByTestId('intelligence-dashboard-generator');
+  await generator.getByTestId('intelligence-dashboard-options').locator(':scope > summary').click();
   await expect(generator.getByRole('checkbox', { name: 'Condições de operação', exact: true })).toBeDisabled();
   await expect(generator.getByText(/Salve um contexto operacional/)).toBeVisible();
   await expect(generator.getByTestId('intelligence-dashboard-generate')).toBeEnabled();
@@ -1089,6 +1093,7 @@ test('stage composer generates saved conditions alone without requiring other me
   await openIntelligence(page);
   const generator = page.getByTestId('intelligence-dashboard-generator');
   await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+  await generator.getByTestId('intelligence-dashboard-options').locator(':scope > summary').click();
   await expect(generator.getByRole('checkbox', { name: 'Análises por equipamento', exact: true })).toBeDisabled();
   await generator.getByRole('checkbox', { name: 'Condições de operação por equipamento', exact: true }).check();
   await generator.getByTestId('intelligence-dashboard-generate').click();
@@ -1105,6 +1110,7 @@ test('stage composer explains contexts absent from every member without blocking
   await installWorkspace(page, { stageReady: true }); await openIntelligence(page);
   const generator = page.getByTestId('intelligence-dashboard-generator');
   await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+  await generator.getByTestId('intelligence-dashboard-options').locator(':scope > summary').click();
   await expect(generator.getByRole('checkbox', { name: 'Condições de operação por equipamento', exact: true })).toBeDisabled();
   await expect(generator.getByText(/Salve um contexto na associação de pelo menos um/)).toBeVisible();
   await expect(generator.getByTestId('intelligence-dashboard-generate')).toBeEnabled();
@@ -1127,6 +1133,7 @@ test('composer generates experimental joint deviation independently with named r
 test('stage composer generates joint-only member analyses independently of context conditions',async({page})=>{
  const fixture=await installWorkspace(page,{stageReady:true,jointReady:true});await openIntelligence(page);
  const generator=page.getByTestId('intelligence-dashboard-generator');await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+ await generator.getByTestId('intelligence-dashboard-options').locator(':scope > summary').click();
  await generator.getByRole('checkbox',{name:'Desvio conjunto experimental por equipamento',exact:true}).check();
  await expect(generator.getByRole('checkbox',{name:'Condições de operação por equipamento',exact:true})).not.toBeChecked();
  await generator.getByTestId('intelligence-dashboard-generate').click();const editor=page.getByTestId('visual-editor-workspace');
@@ -1140,6 +1147,7 @@ test('stage composer generates joint-only member analyses independently of conte
 test('stage composer explains missing joint requirements while keeping other views available',async({page})=>{
  await installWorkspace(page,{stageReady:true,operatingContexts:true});await openIntelligence(page);
  const generator=page.getByTestId('intelligence-dashboard-generator');await generator.getByTestId('intelligence-dashboard-source').selectOption('process-stage:15000000-0000-0000-0000-000000000204');
+ await generator.getByTestId('intelligence-dashboard-options').locator(':scope > summary').click();
  await expect(generator.getByRole('checkbox',{name:'Desvio conjunto experimental por equipamento',exact:true})).toBeDisabled();
  await expect(generator.getByText(/Ao menos um equipamento precisa/)).toBeVisible();await expect(generator.getByTestId('intelligence-dashboard-generate')).toBeEnabled();
 });
@@ -1334,6 +1342,7 @@ for(const stage of [false,true])test(`single-target central composer generates $
 
 test('single-target unavailable condition does not block the central basic dashboard',async({page})=>{
  const fixture=await installWorkspace(page);await openIntelligence(page);const composer=page.getByTestId('intelligence-dashboard-generator');
+ await composer.getByTestId('intelligence-dashboard-options').locator(':scope > summary').click();
  await expect(composer.getByRole('checkbox',{name:'Medições sob uma condição',exact:true})).toBeDisabled();
  await expect(composer.getByTestId('intelligence-dashboard-generate')).toBeEnabled();await composer.getByTestId('intelligence-dashboard-generate').click();
  await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();expect(fixture.requests).toEqual([]);expect(fixture.otherWrites).toEqual([]);

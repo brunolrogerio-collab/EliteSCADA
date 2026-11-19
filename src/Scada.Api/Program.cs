@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Scada.Core.Persistence;
@@ -8,6 +9,7 @@ using Scada.Api.Historian;
 using Scada.Api.Engineering;
 using Scada.Api.HostedServices;
 using Scada.Api.Licensing;
+using Scada.Core.Product.Licensing;
 using Scada.Api.Persistence;
 using Scada.Api.ProjectPackages;
 using Scada.Api.Product;
@@ -54,7 +56,11 @@ builder.AddTimingPolicyV1();
 var databaseConnections = builder.AddDatabaseTopologyCore();
 
 builder.Services.AddSingleton<IScadaEventBus, InMemoryScadaEventBus>();
-builder.Services.Configure<JsonOptions>(options => options.SerializerOptions.Converters.Add(new SecurityCapabilityJsonConverter()));
+builder.Services.Configure<JsonOptions>(options =>
+{
+    options.SerializerOptions.Converters.Add(new SecurityCapabilityJsonConverter());
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<AssetProcessIntelligenceOperatingContextPredicateKind>());
+});
 builder.Services.AddSingleton<TagRealtimeHub>();
 builder.AddConfiguredHistorian(databaseConnections);
 builder.AddConfiguredServerMemoryRetention(databaseConnections);
@@ -152,7 +158,11 @@ builder.Services.AddSingleton<GatewayEngineeringRuntimeCoordinator>(sp =>
             protectedMaterialResolver: sp.GetService<ICommunicationDriverProtectedMaterialResolver>(),
             industrialEffectAuthority: () =>
                 sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects(),
-            transientEventIngress: sp.GetRequiredService<ITransientEventRuntimeIngress>()),
+            transientEventIngress: sp.GetRequiredService<ITransientEventRuntimeIngress>(),
+            intelligenceAlarmPermit: (projectKey, revision, equipmentId) =>
+                sp.GetRequiredService<IProductLicenseService>().CurrentVerification.HasAssetProcessIntelligence &&
+                sp.GetRequiredService<AssetProcessIntelligenceExecutionGate>()
+                    .Describe(projectKey, AssetProcessIntelligenceScopeKind.Equipment, equipmentId)?.Revision == revision),
         sp.GetRequiredService<IScadaEventBus>()));
 builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
     sp.GetRequiredService<GatewayEngineeringRuntimeCoordinator>());

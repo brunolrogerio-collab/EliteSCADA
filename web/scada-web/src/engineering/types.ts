@@ -346,6 +346,13 @@ export type AssetProcessIntelligenceOperatingContextPredicateEngineering = {
   engineeringUnitConfirmed?: boolean;
 };
 
+export type AssetProcessIntelligenceDeviationAlarmEngineering = {
+  tagId: string;
+  minimum: number | null;
+  maximum: number | null;
+  persistenceSeconds: number;
+};
+
 export type AssetProcessIntelligenceOperatingContextProfileEngineering = {
   id: string;
   key: string;
@@ -353,6 +360,7 @@ export type AssetProcessIntelligenceOperatingContextProfileEngineering = {
   assignmentId: string;
   version: number;
   predicates: AssetProcessIntelligenceOperatingContextPredicateEngineering[];
+  deviationAlarm?: AssetProcessIntelligenceDeviationAlarmEngineering | null;
 };
 
 export type AlarmEngineering = {

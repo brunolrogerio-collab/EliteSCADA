@@ -316,6 +316,19 @@ public static class AssetProcessIntelligenceEngineeringValidator
                     if (tag is not null)
                         ValidateOperatingContextPredicate(predicate, tag, context.Id, issues);
                 }
+
+                if (context.DeviationAlarm is { } alarm)
+                {
+                    var target = tags?.FirstOrDefault(item => item.Id == alarm.TagId);
+                    if (!signalTagIds.Contains(alarm.TagId) || predicateTagIds.Contains(alarm.TagId) ||
+                        tagIds?.Contains(alarm.TagId) == false ||
+                        target is not null && target.DataType is not (Scada.Core.Tags.TagDataType.Int16 or Scada.Core.Tags.TagDataType.Int32 or Scada.Core.Tags.TagDataType.Int64 or Scada.Core.Tags.TagDataType.Float or Scada.Core.Tags.TagDataType.Double) ||
+                        !double.IsFinite(alarm.Minimum) || !double.IsFinite(alarm.Maximum) || alarm.Minimum >= alarm.Maximum ||
+                        alarm.PersistenceSeconds is < 0 or > 300)
+                    {
+                        issues.Add(new("INTELLIGENCE_DEVIATION_ALARM_INVALID", "Select a numeric measurement distinct from the contextual signals, an increasing expected range, and a persistence from 0 to 300 seconds.", AssetProcessIntelligenceIssueEntity.OperatingContextProfile, context.Id));
+                    }
+                }
             }
         }
 

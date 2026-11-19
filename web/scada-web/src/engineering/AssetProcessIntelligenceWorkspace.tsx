@@ -47,6 +47,7 @@ import { AssetProcessIntelligenceCoveragePanel } from './AssetProcessIntelligenc
 import { IntelligenceSingleTargetDeviationPanel, resolveSingleTargetSignals } from './IntelligenceSingleTargetDeviationPanel';
 import { IntelligenceCurrentFrequencyPanel } from './IntelligenceCurrentFrequencyPanel';
 import { currentFrequencySignals, readCurrentFrequencySignals } from './intelligenceCurrentFrequencySignals';
+import { IntelligenceDeviationAlarmEditor, isCompleteDeviationAlarm } from './IntelligenceDeviationAlarmEditor';
 import { IntelligenceReferenceEvidencePanel } from './IntelligenceReferenceEvidencePanel';
 import { IntelligenceContextEligibilityPanel } from './IntelligenceContextEligibilityPanel';
 import { IntelligenceExperimentalJointPanel } from './IntelligenceExperimentalJointPanel';
@@ -237,7 +238,7 @@ export function AssetProcessIntelligenceWorkspace({
           semanticContractVersion: Math.max(semanticContractVersion, profiles.flatMap(profile => profile.signals)
             .reduce((version, signal) => Math.max(version, signal.semanticBinding?.catalogVersion ?? 1), 1)),
           profiles, assignments, processStages,
-          operatingContextProfiles: operatingContextProfiles.map(({ id, key, displayLabel, assignmentId, predicates }) => ({ id, key, displayLabel, assignmentId, predicates })),
+          operatingContextProfiles: operatingContextProfiles.map(({ id, key, displayLabel, assignmentId, predicates, deviationAlarm }) => ({ id, key, displayLabel, assignmentId, predicates, deviationAlarm, updateDeviationAlarm: true })),
           expectedOperatingContextProfileVersions: (snapshot?.configuration.operatingContextProfiles ?? []).map(({ id, version }) => ({ id, version }))
         })
       });
@@ -299,6 +300,7 @@ export function AssetProcessIntelligenceWorkspace({
     return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
   }, [dirtyConfiguration, dirtySelection]);
 
+  const deviationAlarmsComplete = operatingContextProfiles.every(isCompleteDeviationAlarm);
   const semanticAnnotationsComplete = profiles.every(profile => profile.signals.every(signal =>
     !signal.semanticBinding || isSemanticBindingComplete(signal.semanticBinding, semanticCatalog?.semanticCatalogs ?? [])));
   const semanticRoles = (semanticCatalog?.semanticCatalogs ?? []).flatMap(catalog =>
@@ -336,7 +338,6 @@ export function AssetProcessIntelligenceWorkspace({
     .map(signal => tagsById.get(signal.tagId.toLowerCase()))
     .filter((tag): tag is TagEngineering => Boolean(tag));
   const selectedPredicateTag = tagsById.get(contextPredicateTagId.toLowerCase());
-  const availablePredicateKinds = contextPredicateKinds(selectedPredicateTag?.dataType);
 
   const createDashboardSourceForAssignment = (assignmentId: string): IntelligenceDashboardSource | null => {
     const matchingAssignments = assignments.filter(item => item.id.toLowerCase() === assignmentId.toLowerCase());
@@ -807,11 +808,12 @@ export function AssetProcessIntelligenceWorkspace({
   };
 
   const addSignal = () => {
-    if (!selectedProfile || !newSignalTagId || !newSignalRole.trim()) return;
+    if (!selectedProfile || !newSignalTagId) return;
     const tag = tagsById.get(newSignalTagId.toLowerCase());
+    const signalRole = newSignalRole.trim() || tag?.name || copy.defaultSignal;
     const signal: AssetProcessIntelligenceSignalEngineering = {
-      id: crypto.randomUUID(), key: uniqueStableKey(slug(newSignalRole.trim() || tag?.name || copy.defaultSignal), selectedProfile.signals.map(item => item.key)),
-      signalRole: newSignalRole.trim(), tagId: newSignalTagId, required: newSignalRequired
+      id: crypto.randomUUID(), key: uniqueStableKey(slug(signalRole), selectedProfile.signals.map(item => item.key)),
+      signalRole, tagId: newSignalTagId, required: newSignalRequired
     };
     updateProfile({ signals: [...selectedProfile.signals, signal] });
     setNewSignalRole('');
@@ -1069,7 +1071,7 @@ export function AssetProcessIntelligenceWorkspace({
       <section className="eng-panel asset-process-intelligence__authoring" data-testid="intelligence-stage2-authoring">
         <header className="asset-process-intelligence__authoring-header">
           <div><h2>{copy.stage2Title}</h2><p>{copy.stage2Hint}</p></div>
-          <button type="button" disabled={!canEngineer || !dirtyConfiguration || configSaving || !semanticAnnotationsComplete} onClick={() => void saveConfiguration()}>
+          <button type="button" disabled={!canEngineer || !dirtyConfiguration || configSaving || !semanticAnnotationsComplete || !deviationAlarmsComplete} onClick={() => void saveConfiguration()}>
             {configSaving ? copy.saving : copy.saveConfiguration}
           </button>
         </header>
@@ -1092,7 +1094,7 @@ export function AssetProcessIntelligenceWorkspace({
                   const tag = tagsById.get(signal.tagId.toLowerCase());
                   const binding = signal.semanticBinding;
                   return <article className="asset-process-intelligence__row" key={signal.id}>
-                    <span><strong>{signal.signalRole || tag?.name || copy.defaultSignal}</strong><small>{tag ? `${tag.path} · ${tag.dataType}${tag.engineeringUnit ? ` · ${tag.engineeringUnit}` : ''}${tag.controlledEngineeringUnit ? ` · ${tag.controlledEngineeringUnit.code}` : ''}` : copy.missingTag}</small></span>
+                    <span><strong>{signal.signalRole || tag?.name || copy.defaultSignal}</strong><small>{tag ? `${tag.path}${tag.engineeringUnit ? ` · ${tag.engineeringUnit}` : ''}` : copy.missingTag}</small></span>
                     <span className={tag ? '' : 'asset-process-intelligence__missing'}>{signal.required ? copy.required : copy.optional}</span>
                     <div className="asset-process-intelligence__semantic-fields">
                       <label><span>{copy.semanticRole}</span><select
@@ -1126,13 +1128,13 @@ export function AssetProcessIntelligenceWorkspace({
                 })}
               </div>}
               <div className="asset-process-intelligence__signal-form">
-                <label>{copy.signalRole}<input value={newSignalRole} required disabled={!canEngineer} onChange={event => setNewSignalRole(event.currentTarget.value)} placeholder={copy.signalRolePlaceholder}/></label>
+                <label>{copy.signalRole}<input value={newSignalRole} disabled={!canEngineer} onChange={event => setNewSignalRole(event.currentTarget.value)} placeholder={tagsById.get(newSignalTagId.toLowerCase())?.name || copy.signalRolePlaceholder}/></label>
                 <label>{copy.tagReference}<select value={newSignalTagId} disabled={!canEngineer || tags.length === 0} onChange={event => setNewSignalTagId(event.currentTarget.value)}>
                   <option value="">{tags.length ? copy.chooseTag : copy.noTags}</option>
-                  {tags.filter(tag => tag.id).map(tag => <option key={tag.id} value={tag.id}>{tag.path} · {tag.dataType}{tag.engineeringUnit ? ` · ${tag.engineeringUnit}` : ''}</option>)}
+                  {tags.filter(tag => tag.id).map(tag => <option key={tag.id} value={tag.id}>{tag.name}{tag.engineeringUnit ? ` · ${tag.engineeringUnit}` : ''}</option>)}
                 </select></label>
                 <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={newSignalRequired} disabled={!canEngineer} onChange={event => setNewSignalRequired(event.currentTarget.checked)}/>{copy.required}</label>
-                <button type="button" className="secondary" disabled={!canEngineer || !newSignalRole.trim() || !newSignalTagId} onClick={addSignal}>{copy.addSignal}</button>
+                <button type="button" className="secondary" disabled={!canEngineer || !newSignalTagId} onClick={addSignal}>{copy.addSignal}</button>
               </div>
               <button type="button" className="secondary asset-process-intelligence__danger" disabled={!canEngineer} onClick={deleteProfile}>{copy.deleteProfile}</button>
             </div> : null}
@@ -1333,12 +1335,9 @@ export function AssetProcessIntelligenceWorkspace({
                   if (nextKinds.length) setContextPredicateKind(nextKinds[0]);
                 }}>
                   <option value="">{copy.choosePredicateTag}</option>
-                  {contextSignalTags.filter(tag => !selectedContextProfile.predicates.some(predicate => predicate.tagId.toLowerCase() === tag.id?.toLowerCase()) && contextPredicateKinds(tag.dataType).length > 0).map(tag => <option key={tag.id} value={tag.id}>{tag.path} · {tag.dataType}{tag.engineeringUnit ? ` · ${tag.engineeringUnit}` : ''}</option>)}
+                  {contextSignalTags.filter(tag => !selectedContextProfile.predicates.some(predicate => predicate.tagId.toLowerCase() === tag.id?.toLowerCase()) && contextPredicateKinds(tag.dataType).length > 0).map(tag => <option key={tag.id} value={tag.id}>{tag.name}{tag.engineeringUnit ? ` · ${tag.engineeringUnit}` : ''}</option>)}
                 </select></label>
                 {selectedPredicateTag ? <>
-                  <label>{copy.predicateKind}<select value={contextPredicateKind} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onChange={event => setContextPredicateKind(event.currentTarget.value as AssetProcessIntelligenceOperatingContextPredicateKind)}>
-                    {availablePredicateKinds.map(kind => <option key={kind} value={kind}>{copy[kind]}</option>)}
-                  </select></label>
                   {contextPredicateKind === 'NumericInterval' ? <>
                     <label>{copy.minimumInclusive}<input type="number" value={contextPredicateMinimum} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onChange={event => setContextPredicateMinimum(event.currentTarget.value)}/></label>
                     <label>{copy.maximumInclusive}<input type="number" value={contextPredicateMaximum} disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onChange={event => setContextPredicateMaximum(event.currentTarget.value)}/></label>
@@ -1346,6 +1345,17 @@ export function AssetProcessIntelligenceWorkspace({
                 </> : null}
                 <button type="button" className="secondary" disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '') || !selectedPredicateTag || selectedContextProfile.predicates.length >= 16} onClick={addContextPredicate}>{copy.addPredicate}</button>
               </div>
+              <IntelligenceDeviationAlarmEditor
+                key={selectedContextProfile.id}
+                locale={locale}
+                context={selectedContextProfile}
+                targets={contextSignalTags.filter(tag => contextPredicateKinds(tag.dataType).includes('NumericInterval') &&
+                  !selectedContextProfile.predicates.some(predicate => predicate.tagId.toLowerCase() === tag.id?.toLowerCase()))}
+                disabled={!canEngineer || !canManageAssignment(selectedContextProfile.assignmentId)}
+                scopeId={selectedContextAssignment?.equipmentId}
+                projectKey={snapshot?.execution.projectKey}
+                revision={snapshot?.execution.activeRevision}
+                onChange={deviationAlarm => updateContextProfile({ deviationAlarm })}/>
               <button type="button" className="secondary asset-process-intelligence__danger" disabled={!canEngineer || !canManageAssignment(selectedContextProfile?.assignmentId ?? '')} onClick={removeContextProfile}>{copy.deleteContextProfile}</button>
             </div> : null}
           </div>}
@@ -1404,7 +1414,7 @@ export function AssetProcessIntelligenceWorkspace({
         </section>
         <footer className="asset-process-intelligence__authoring-footer">
           <span>{copy.staticOnly}</span>
-          <button type="button" disabled={!canEngineer || !dirtyConfiguration || configSaving || !semanticAnnotationsComplete} onClick={() => void saveConfiguration()}>
+          <button type="button" disabled={!canEngineer || !dirtyConfiguration || configSaving || !semanticAnnotationsComplete || !deviationAlarmsComplete} onClick={() => void saveConfiguration()}>
             {configSaving ? copy.saving : copy.saveConfiguration}
           </button>
         </footer>

@@ -166,6 +166,8 @@ The Compose file mounts the optional SMTP password directory read-only. On the e
 
 Database migrations run before serving traffic. Review any subsequent destructive migration separately. An image rollback alone is not a database rollback. Initial schema is additive and does not touch the product database.
 
+To open offline machine license requests, first validate submission, administrative approval, offline signing and customer retrieval in homologation. Set `PORTAL_OFFLINE_MACHINE_LICENSE_REQUESTS_ENABLED=true` in the private production `.env` and run `docker compose -f compose.yml up -d --no-deps --wait --wait-timeout 180 scadivo-portal-api`. Confirm that `/portal/api/session` reports `offlineMachineLicenseRequestsEnabled: true`. The offline signing key stays with the separate generator. To suspend access to requests and deliveries, set the same variable to `false` and recreate the API. Existing request and delivery records are retained.
+
 After deployment, run the read-only check `node deploy/check-public-services.mjs` from this directory. It verifies the site, portal session, demo API, optional sign-in configuration, anonymous Runtime permissions, and actual demo screen package without credentials. An HTTP 200 for `/demo` or the demo index alone does not verify its API connectivity. Check the portal API's shared-network DNS aliases for generic names before declaring the demo unaffected.
 
 If Node requires the operating system's trusted CA store on Windows, run `node --use-system-ca deploy/check-public-services.mjs`; certificate verification remains enabled.

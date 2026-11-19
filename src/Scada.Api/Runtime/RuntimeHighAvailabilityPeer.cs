@@ -265,6 +265,14 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
 
         lock (_gate)
         {
+            if (envelope.AuthorityRevision < _minimumAuthorityRevision)
+            {
+                return new RuntimeSessionContinuityImportResult(
+                    false,
+                    "session-authority-revision-stale",
+                    null);
+            }
+
             ExpireLocked(now);
             var key = LogicalKey(
                 envelope.ClusterId,

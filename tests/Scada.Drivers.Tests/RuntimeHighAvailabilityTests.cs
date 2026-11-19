@@ -786,6 +786,36 @@ public sealed class RuntimeHighAvailabilityTests
 
 
     [Fact]
+    public void RuntimeSessionContinuity_AdvancingAuthorityDiscardsOldProjectionWithoutWaitingForExpiry()
+    {
+        var now = DateTimeOffset.Parse("2026-09-24T18:00:00Z");
+        var registry = new RuntimeSessionLeaseContinuityRegistry(() => now);
+        var previous = Lease(Guid.NewGuid(), RuntimeConnectionClass.Interactive, now, now.AddMinutes(1));
+        var previousEnvelope = registry.CaptureOrRetain(previous, "cluster-a", "node-b");
+
+        registry.AdvanceAuthorityRevision(2);
+
+        Assert.Empty(registry.Snapshot());
+        Assert.Empty(registry.TombstoneSnapshot("cluster-a"));
+        Assert.Equal("session-authority-revision-stale",
+            registry.ImportPeerEnvelope(previousEnvelope, "cluster-a", "node-b").ReasonCode);
+        registry.CaptureOrRetain(previous, "cluster-a", "node-b");
+        Assert.Empty(registry.Snapshot());
+
+        var replacement = previous with
+        {
+            SessionId = Guid.NewGuid(),
+            IssuedAtUtc = now.AddSeconds(1),
+            LastHeartbeatUtc = now.AddSeconds(1),
+            AuthorityRevision = 2
+        };
+        registry.CaptureOrRetain(replacement, "cluster-a", "node-a");
+        registry.AdvanceAuthorityRevision(1);
+        registry.CaptureOrRetain(previous, "cluster-a", "node-b");
+        Assert.Equal(replacement.SessionId, Assert.Single(registry.Snapshot()).SessionId);
+    }
+
+    [Fact]
     public void ReferencedAuthority_LocalPromotionRequiresPreFailureReadyStandbyWitness()
     {
         var coordinator = CreateCoordinator("node-b", out var clock);

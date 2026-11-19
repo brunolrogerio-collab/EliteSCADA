@@ -994,6 +994,26 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
     public RuntimeSessionLeaseContinuityRegistry(Func<DateTimeOffset>? utcNow = null) =>
         _utcNow = utcNow ?? (() => DateTimeOffset.UtcNow);
 
+    private long _minimumAuthorityRevision;
+
+    internal void AdvanceAuthorityRevision(long revision)
+    {
+        lock (_gate)
+        {
+            if (revision <= _minimumAuthorityRevision)
+                return;
+
+            _minimumAuthorityRevision = revision;
+            // The durable ledger already fenced or rebound these leases.
+            // A rebound lease may keep its ID, so this eviction is not a tombstone.
+            foreach (var key in _leases.Where(pair => pair.Value.AuthorityRevision < revision)
+                         .Select(pair => pair.Key).ToArray())
+            {
+                _leases.Remove(key);
+            }
+        }
+    }
+
     public RuntimeSessionLeaseContinuityEnvelope CaptureOrRetain(
         RuntimeSessionLease lease,
         string clusterId,
@@ -1029,6 +1049,9 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
         {
             ExpireLocked(now);
             var key = LogicalKey(candidate.ClusterId, candidate.UserId, candidate.ClientInstanceId);
+            if (candidate.AuthorityRevision < _minimumAuthorityRevision)
+                return _leases.GetValueOrDefault(key) ?? candidate;
+
             ClearPeerTombstoneForLocalAdmissionLocked(key);
             if (_leases.TryGetValue(key, out var current) &&
                 current.ExpiresAtUtc > now &&

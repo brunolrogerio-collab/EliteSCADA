@@ -2163,6 +2163,7 @@ public sealed class RuntimeHaProtectionCoordinator
             transition.TransitionId,
             authority.AuthorityRevision,
             cancellationToken);
+        _highAvailability.SessionContinuity.AdvanceAuthorityRevision(authority.AuthorityRevision);
     }
 
     private async Task FenceLocalSessionsIfNeededAsync(
@@ -2201,6 +2202,7 @@ public sealed class RuntimeHaProtectionCoordinator
             transition.TransitionId,
             committed.AuthorityRevision,
             cancellationToken);
+        _highAvailability.SessionContinuity.AdvanceAuthorityRevision(committed.AuthorityRevision);
     }
 
     private bool CanOwnIndustrialEffects(RuntimeHaTopologySnapshot topology)

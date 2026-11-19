@@ -1062,9 +1062,25 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 var repeatedSeat = await AdmitRuntimeSessionAfterHaActivationAsync(
                     clusterBrowser, repeatedClient, "node-b", TimeSpan.FromSeconds(20));
                 var repeatedSubject = repeatedSeat["userId"]!.GetValue<string>();
-                await WaitForRuntimeSessionLeaseAsync(
-                    appConnectionA.ConnectionString, repeatedSeat["sessionId"]!.GetValue<Guid>(),
+                var repeatedSessionId = repeatedSeat["sessionId"]!.GetValue<Guid>();
+                var mirroredBeforeRenewal = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString, repeatedSessionId,
                     repeatedSubject, repeatedClient, "node-b", 1, TimeSpan.FromSeconds(20));
+
+                // PostgreSQL reloads the lease at microsecond precision during a heartbeat.
+                // Its renewal must update the same logical lease on A before B is lost.
+                var heartbeat = await clusterBrowser.PostRawAsync(
+                    $"/api/runtime/sessions/{repeatedSessionId:D}/heartbeat",
+                    new JsonObject { ["clientInstanceId"] = repeatedClient });
+                Assert.Equal(HttpStatusCode.OK, heartbeat.StatusCode);
+                var renewedOnActive = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionB.ConnectionString, repeatedSessionId,
+                    repeatedSubject, repeatedClient, "node-b", mirroredBeforeRenewal.Generation + 1,
+                    TimeSpan.FromSeconds(10));
+                await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString, repeatedSessionId,
+                    repeatedSubject, repeatedClient, "node-b", renewedOnActive.Generation,
+                    TimeSpan.FromSeconds(10));
                 using var secondStaleBrowser = clusterBrowser.Clone();
                 await nodeB.DisposeAsync();
                 nodeB = null;

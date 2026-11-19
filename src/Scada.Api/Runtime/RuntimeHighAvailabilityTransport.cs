@@ -872,6 +872,8 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                 var now = _timeProvider.GetUtcNow();
                 var authority = await _sessionLeaseStore.GetAuthorityStateAsync(cancellationToken);
                 var runtimeIdentity = RuntimeHaRuntimeIdentity.From(descriptor);
+                var sessionRuntime = new RuntimeSessionRuntimeIdentity(
+                    descriptor.Mode, descriptor.ProjectKey, descriptor.Revision, descriptor.ActivatedAtUtc);
                 RuntimeSessionLeaseContinuityEnvelope[] sessions = [];
                 RuntimeSessionLeaseContinuityTombstoneEnvelope[] tombstones = [];
                 if (!authority.TransitionPending)
@@ -879,8 +881,9 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                     sessions = _highAvailability.SessionContinuity.Snapshot()
                         .Where(lease => lease.AuthorityRevision == authority.AuthorityRevision &&
                             lease.SourceNodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) &&
-                            lease.Runtime.CompatibleWith(runtimeIdentity) &&
-                            lease.RuntimeActivatedAtUtc == descriptor.ActivatedAtUtc)
+                            new RuntimeSessionRuntimeIdentity(
+                                lease.Runtime.Mode, lease.Runtime.ProjectKey, lease.Runtime.Revision,
+                                lease.RuntimeActivatedAtUtc).Matches(sessionRuntime))
                         .Select(lease => lease with { ReplicatedAtUtc = now })
                         .ToArray();
                     tombstones = _highAvailability.SessionContinuity

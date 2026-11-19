@@ -553,11 +553,9 @@ async function templatesAdmin() {
     const templatePath = `/admin/templates/${encodeURIComponent(template.key)}`;
     const previewTitle = tr('Prévia do e-mail', 'Email preview', 'Vista previa del correo');
     const languageLabel = tr('Idioma da prévia', 'Preview language', 'Idioma de la vista previa');
-    const frame = h('iframe', { class: 'template-preview-frame', title: previewTitle, hidden: true });
-    frame.setAttribute('sandbox', '');
+    const previewDocument = h('div');
     const locale = select('previewLocale', localeOptions(), state.lang, { 'aria-label': languageLabel });
-    let revision = 0;
-    const preview = button(tr('Gerar prévia', 'Preview email', 'Ver vista previa'), async () => {
+    const preview = button(tr('Gerar prévia', 'Preview email', 'Ver vista previa'), () => {
       const data = values(node);
       const suffix = { 'pt-BR': 'Pt', en: 'En', es: 'Es' }[locale.value];
       const subject = data[`subject${suffix}`]?.trim();
@@ -566,16 +564,14 @@ async function templatesAdmin() {
         feedback(tr('Preencha o assunto e a mensagem no idioma selecionado.', 'Enter the subject and message in the selected language.', 'Introduce el asunto y el mensaje en el idioma seleccionado.'), true);
         return;
       }
-      const requestedRevision = revision;
-      preview.disabled = true;
-      frame.hidden = true;
-      try {
-        const { html } = await api(`${templatePath}/preview`, 'POST', { locale: locale.value, subject, body });
-        if (requestedRevision !== revision) return;
-        frame.srcdoc = html.replace('<head>', `<head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">`);
-        frame.hidden = false;
-      } catch (error) { feedback(error.message, true); }
-      finally { preview.disabled = false; }
+      // Loading a document gives the preview its own CSP. A srcdoc would inherit the editor's style policy.
+      const frame = h('iframe', { name: 'email-template-preview', class: 'template-preview-frame', title: previewTitle });
+      frame.setAttribute('sandbox', '');
+      const fields = { locale: locale.value, subject, body, __RequestVerificationToken: state.session?.csrfToken || '' };
+      const request = h('form', { method: 'post', action: `/portal/api${templatePath}/preview`, target: frame.name, hidden: true },
+        Object.entries(fields).map(([name, value]) => h('input', { type: 'hidden', name, value })));
+      previewDocument.replaceChildren(frame, request);
+      request.submit();
     });
     const node = form([
       h('div', { class: 'content-grid' }, [h('div', {}, [h('h3', {}, 'Português'), field('Assunto', input('subjectPt', 'text', template.subjectPt, { maxLength: 200 })), field('Mensagem', textarea('bodyPt', template.bodyPt, { maxLength: 8000, rows: 8 }))]), h('div', {}, [h('h3', {}, 'English'), field('Subject', input('subjectEn', 'text', template.subjectEn, { maxLength: 200 })), field('Message', textarea('bodyEn', template.bodyEn, { maxLength: 8000, rows: 8 }))]), h('div', {}, [h('h3', {}, 'Español'), field('Asunto', input('subjectEs', 'text', template.subjectEs, { maxLength: 200 })), field('Mensaje', textarea('bodyEs', template.bodyEs, { maxLength: 8000, rows: 8 }))])]),
@@ -585,14 +581,14 @@ async function templatesAdmin() {
       Object.assign(template, data);
       feedback(tr('Modelo salvo.', 'Template saved.', 'Plantilla guardada.'));
     });
-    const clearPreview = () => { revision++; frame.hidden = true; };
+    const clearPreview = () => { previewDocument.replaceChildren(); };
     node.addEventListener('input', clearPreview);
     locale.addEventListener('change', clearPreview);
     editor.replaceChildren(h('h3', {}, template.key), node, h('section', { class: 'small-space' }, [
       h('h3', {}, previewTitle),
       p(tr('A prévia usa dados de exemplo. Nenhum e-mail é enviado e o rascunho continua no editor.', 'The preview uses sample data. It leaves the draft in the editor and sends no email.', 'La vista previa usa datos de ejemplo. El borrador sigue en el editor y no se envía ningún correo.')),
       h('div', { class: 'form-actions' }, [field(languageLabel, locale), preview]),
-      frame
+      previewDocument
     ]));
   }
   const picker = select('template', templates.map(x => [x.key, x.key]), templates[0].key); picker.addEventListener('change', () => edit(templates.find(x => x.key === picker.value))); edit(templates[0]);

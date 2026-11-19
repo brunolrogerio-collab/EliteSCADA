@@ -758,22 +758,31 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             var previewInput = new { locale = "en", subject = "Welcome {{name}}", body = "Hello {{name}}, your invitation is ready." };
             var outboxCount = await db.EmailOutbox.CountAsync();
             var originalSubject = template.SubjectEn;
-            using var previewResponse = await owner.Raw(previewPath, HttpMethod.Post, previewInput);
+            using var previewResponse = await PostPreview(owner, previewPath, previewInput.locale, previewInput.subject, previewInput.body);
             Assert.Equal(HttpStatusCode.OK, previewResponse.StatusCode);
             Assert.True(previewResponse.Headers.CacheControl!.NoStore);
-            var previewHtml = (await previewResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("html").GetString()!;
+            Assert.Equal("text/html", previewResponse.Content.Headers.ContentType!.MediaType);
+            var framePolicy = previewResponse.Headers.GetValues("Content-Security-Policy").Single();
+            Assert.Contains("default-src 'none'", framePolicy);
+            Assert.Contains("style-src 'unsafe-inline'", framePolicy);
+            Assert.Contains("frame-ancestors 'self'", framePolicy);
+            Assert.EndsWith("sandbox", framePolicy);
+            var previewHtml = await previewResponse.Content.ReadAsStringAsync();
             Assert.DoesNotContain("href=", previewHtml);
             Assert.Contains("Open secure link", previewHtml);
-            var spanishPreview = await owner.Send("/admin/templates/account.password-reset/preview", HttpMethod.Post,
-                new { locale = "es", subject = "Restablecer contraseña", body = "<em>{{name}}</em>" });
-            var spanishHtml = spanishPreview.GetProperty("html").GetString()!;
+            using var spanishPreview = await PostPreview(owner, "/admin/templates/account.password-reset/preview",
+                "es", "Restablecer contraseña", "<em>{{name}}</em>");
+            Assert.Equal(HttpStatusCode.OK, spanishPreview.StatusCode);
+            var spanishHtml = await spanishPreview.Content.ReadAsStringAsync();
             Assert.Contains("lang=\"es\"", spanishHtml);
             Assert.Contains("caduca en 24 horas", spanishHtml);
             Assert.Contains("&lt;em&gt;Alex&lt;/em&gt;", spanishHtml);
             Assert.DoesNotContain("<em>", spanishHtml);
-            using (var invalidLocale = await owner.Raw(previewPath, HttpMethod.Post, new { locale = "fr", previewInput.subject, previewInput.body }))
+            using (var invalidLocale = await PostPreview(owner, previewPath, "fr", previewInput.subject, previewInput.body))
                 Assert.Equal(HttpStatusCode.BadRequest, invalidLocale.StatusCode);
-            using (var missingTemplate = await owner.Raw("/admin/templates/missing/preview", HttpMethod.Post, previewInput))
+            using (var invalidCsrf = await PostPreview(new Session(owner.Client, "invalid-token"), previewPath, previewInput.locale, previewInput.subject, previewInput.body))
+                Assert.Equal(HttpStatusCode.BadRequest, invalidCsrf.StatusCode);
+            using (var missingTemplate = await PostPreview(owner, "/admin/templates/missing/preview", previewInput.locale, previewInput.subject, previewInput.body))
                 Assert.Equal(HttpStatusCode.NotFound, missingTemplate.StatusCode);
             Assert.Equal(outboxCount, await db.EmailOutbox.CountAsync());
             Assert.Empty(transport.Messages);
@@ -832,7 +841,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             var payload = Invitation(JsonSerializer.SerializeToElement(new { invitationUrl = link }));
             using var anonymous = Client(factory);
             var invited = new Session(anonymous, await Csrf(anonymous));
-            using (var denied = await invited.Raw(previewPath, HttpMethod.Post, previewInput))
+            using (var denied = await PostPreview(invited, previewPath, previewInput.locale, previewInput.subject, previewInput.body))
                 Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
             await invited.Send("/auth/accept-invitation", HttpMethod.Post, new { payload.UserId, payload.Token, password = Password,
                 locale = "en",
@@ -843,7 +852,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.False(await dispatcher.ProcessNextAsync(CancellationToken.None));
 
             var member = await Login(factory, "mail-" + marker);
-            using (var denied = await member.Raw(previewPath, HttpMethod.Post, previewInput))
+            using (var denied = await PostPreview(member, previewPath, previewInput.locale, previewInput.subject, previewInput.body))
                 Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
             var ticket = await member.Send("/support", HttpMethod.Post, new { subject = "Email test", category = "technical", body = "A private support request for delivery verification." });
             Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
@@ -1994,6 +2003,15 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
     private static HttpClient Client(WebApplicationFactory<Program> factory) => factory.CreateClient(new WebApplicationFactoryClientOptions
         { BaseAddress = new Uri("https://localhost/portal/"), AllowAutoRedirect = false, HandleCookies = true });
     private static async Task<string> Csrf(HttpClient client) => (await client.GetFromJsonAsync<JsonElement>("api/session")).GetProperty("csrfToken").GetString()!;
+    private static async Task<HttpResponseMessage> PostPreview(Session session, string path, string locale, string subject, string body)
+    {
+        using var form = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = session.Token, ["locale"] = locale, ["subject"] = subject, ["body"] = body
+        });
+        return await session.Client.PostAsync("api" + path, form);
+    }
+
     private static async Task<Session> Login(WebApplicationFactory<Program> factory, string username)
     {
         var client = Client(factory);

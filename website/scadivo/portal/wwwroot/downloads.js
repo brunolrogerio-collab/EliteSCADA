@@ -81,7 +81,8 @@ const portalDownloads = (() => {
       editor.replaceChildren(panel(release.id ? tr('Editar download', 'Edit download', 'Editar descarga') : tr('Novo download', 'New download', 'Nueva descarga'), node));
     }
     const cards = releases.map(release => h('article', { class: 'download-admin-card' }, [
-      h('div', {}, [h('h3', {}, `${platformName(release.platform)} · ${release.version}`), badge(publishedName(release.published)), h('p', { class: 'muted' }, `${tr('Criado em', 'Created', 'Creado el')}: ${date(release.createdAtUtc)}`)]),
+      h('div', {}, [h('h3', {}, `${platformName(release.platform)} · ${release.version}`), badge(publishedName(release.published)),
+        p(tr(`${release.downloadStarts ?? 0} downloads iniciados`, `${release.downloadStarts ?? 0} download starts`, `${release.downloadStarts ?? 0} descargas iniciadas`)), h('p', { class: 'muted' }, `${tr('Criado em', 'Created', 'Creado el')}: ${date(release.createdAtUtc)}`)]),
       button(tr('Editar', 'Edit', 'Editar'), () => { edit(release); editor.scrollIntoView({ behavior: 'smooth', block: 'start' }); })
     ]));
     edit(releases.find(release => release.id === selectedReleaseId));

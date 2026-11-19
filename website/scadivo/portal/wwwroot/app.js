@@ -163,7 +163,8 @@ function errorText(code) {
     'slug-already-exists': tr('Esse endereço de artigo já existe.', 'This article slug already exists.'),
     ...portalLicensing.errors(),
     ...portalOfflineLicensing.errors(),
-    ...portalDownloads.errors()
+    ...portalDownloads.errors(),
+    'invalid-indicators-period': tr('Selecione um período de até 90 dias, sem datas futuras.', 'Choose a period of up to 90 days, with no future dates.', 'Elige un periodo de hasta 90 días, sin fechas futuras.')
   };
   return errors[code] || tr('Não foi possível concluir. Tente novamente.', 'Unable to complete. Please try again.');
 }
@@ -476,10 +477,10 @@ async function admin() {
       : tr('Ativação e renovação online desativadas.', 'Online activation and renewal disabled.', 'Activación y renovación en línea deshabilitadas.');
   const metrics = h('div', { class: 'metrics' }, [[tr('Contas', 'Accounts'), overview.accounts], [tr('Chamados abertos', 'Open requests'), overview.openTickets], [tr('Aguardando ativação', 'Awaiting activation'), overview.pendingInvitations]].map(([label, value]) => h('div', { class: 'metric' }, [h('strong', {}, value), h('span', {}, label)])));
   const body = h('div');
-  const items = { accounts: tr('Contas e convites', 'Accounts and invitations'), licensing: tr('Licenças', 'Licenses', 'Licencias'), downloads: tr('Downloads', 'Downloads', 'Descargas'), templates: tr('Mensagens', 'Messages'), articles: 'FAQ', audit: tr('Auditoria', 'Audit') };
+  const items = { accounts: tr('Contas e convites', 'Accounts and invitations'), licensing: tr('Licenças', 'Licenses', 'Licencias'), downloads: tr('Downloads', 'Downloads', 'Descargas'), indicators: tr('Indicadores', 'Indicators', 'Indicadores'), templates: tr('Mensagens', 'Messages'), articles: 'FAQ', audit: tr('Auditoria', 'Audit') };
   if (overview.offlineMachineLicenseRequestsEnabled) items.licenseRequests = tr('Pedidos offline', 'Offline requests', 'Solicitudes sin conexión');
   const tabs = h('nav', { class: 'admin-subnav', 'aria-label': tr('Administração', 'Administration') }, Object.entries(items).map(([key, label]) => button(label, () => { state.adminTab = key; render(); }, `button ${state.adminTab === key ? 'primary' : 'secondary'}`)));
-  const views = { accounts: accountsAdmin, licensing: portalLicensing.admin, downloads: portalDownloads.admin, templates: templatesAdmin, articles: faqAdmin, audit: auditAdmin };
+  const views = { accounts: accountsAdmin, licensing: portalLicensing.admin, downloads: portalDownloads.admin, indicators: portalIndicators.admin, templates: templatesAdmin, articles: faqAdmin, audit: auditAdmin };
   if (overview.offlineMachineLicenseRequestsEnabled) views.licenseRequests = portalOfflineLicensing.admin;
   const node = await (views[state.adminTab] || accountsAdmin)(); body.append(node);
   const emailStatus = overview.emailDeliveryConfigured
@@ -649,3 +650,4 @@ async function start() {
   }
 }
 start();
+fetch('/portal/api/page-views/portal', { method: 'POST', credentials: 'omit', keepalive: true }).catch(() => {});

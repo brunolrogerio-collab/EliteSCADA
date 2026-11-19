@@ -489,6 +489,23 @@ namespace Scadivo.Portal.Data.Migrations
                     b.ToTable("Audit");
                 });
 
+            modelBuilder.Entity("Scadivo.Portal.Data.PortalDailyView", b =>
+                {
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Surface")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<long>("Count")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Day", "Surface");
+
+                    b.ToTable("PortalDailyViews", (string)null);
+                });
+
             modelBuilder.Entity("Scadivo.Portal.Data.PortalUser", b =>
                 {
                     b.Property<string>("Id")

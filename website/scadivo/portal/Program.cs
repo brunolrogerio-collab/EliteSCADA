@@ -105,6 +105,9 @@ builder.Services.AddRateLimiter(options =>
         return RateLimitPartition.GetFixedWindowLimiter(partition,
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 12, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
     });
+    options.AddPolicy("page-views", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     options.AddPolicy("writes", context => HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method)
         ? RateLimitPartition.GetNoLimiter("read")
         : RateLimitPartition.GetFixedWindowLimiter(
@@ -112,6 +115,7 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 40, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 builder.Services.AddScoped<PortalOperations>();
+builder.Services.AddScoped<PortalIndicators>();
 builder.Services.AddScoped<PortalLicensingOperations>();
 builder.Services.AddScoped<PortalLicenseOperations>();
 builder.Services.AddSingleton<OfflineLicenseVerifier>();
@@ -170,7 +174,8 @@ app.UseRateLimiter();
 app.Use(async (context, next) =>
 {
     var isProductDeviceLicenseCall = context.GetEndpoint()?.Metadata.GetMetadata<PortalDeviceLicenseEndpoint>() is not null;
-    if (!isProductDeviceLicenseCall && context.Request.Path.StartsWithSegments("/api") && !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method))
+    var isPageView = context.GetEndpoint()?.Metadata.GetMetadata<PortalPageViewEndpoint>() is not null;
+    if (!isProductDeviceLicenseCall && !isPageView && context.Request.Path.StartsWithSegments("/api") && !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method))
     {
         try { await context.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(context); }
         catch (AntiforgeryValidationException)

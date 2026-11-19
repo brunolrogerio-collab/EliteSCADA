@@ -5,3 +5,18 @@
 @media(max-width:1050px){.portal-content{padding:29px 24px}.intro-features{grid-template-columns:1fr}}
 @media(max-width:760px){.portal-content{padding:25px 18px 45px}#account-actions>.account-chip{display:none}.portal-sidebar>p{display:none}.intro-features{grid-template-columns:1fr 1fr}.intro-features .panel{padding:13px}.intro-features h2{font-size:14px}.intro-features p{font-size:11px}.portal-nav{max-width:calc(100vw - 26px)}.content-grid{grid-template-columns:minmax(0,1fr)}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+.indicator-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 1rem;
+}
+.indicator-grid > .panel { min-width: 0; }
+.indicator-chart { max-height: 22rem; overflow: auto; }
+.indicator-chart-row {
+  display: grid;
+  grid-template-columns: 5rem minmax(2rem, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block: 0.25rem;
+}
+.indicator-chart-row meter { width: 100%; }

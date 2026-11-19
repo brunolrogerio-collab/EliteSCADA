@@ -149,8 +149,16 @@ public sealed class OfflineMachineLicenseRequest
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public sealed class PortalDailyView
+{
+    public DateOnly Day { get; set; }
+    public string Surface { get; set; } = "";
+    public long Count { get; set; }
+}
+
 public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbContext<PortalUser>(options)
 {
+    public DbSet<PortalDailyView> DailyViews => Set<PortalDailyView>();
     public DbSet<ProductLicensePreparation> ProductLicensePreparations => Set<ProductLicensePreparation>();
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<Membership> Memberships => Set<Membership>();
@@ -243,6 +251,8 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
         builder.Entity<EmailOutbox>().Property(x => x.TemplateDataJson).HasColumnType("text");
         builder.Entity<DownloadRelease>().HasIndex(x => new { x.Version, x.Platform }).IsUnique();
         builder.Entity<DownloadRelease>().Property(x => x.Sha256).HasMaxLength(64);
+        builder.Entity<PortalDailyView>().ToTable("PortalDailyViews").HasKey(x => new { x.Day, x.Surface });
+        builder.Entity<PortalDailyView>().Property(x => x.Surface).HasMaxLength(8);
         builder.Entity<PortalAudit>().HasIndex(x => x.CreatedAtUtc);
         builder.Entity<PortalAudit>().Property(x => x.Action).HasMaxLength(100);
         builder.Entity<OfflineMachineLicenseRequest>().HasOne<PortalUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);

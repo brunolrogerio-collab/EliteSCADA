@@ -59,10 +59,7 @@ public static class PortalEndpoints
             var id = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
             var users = http.RequestServices.GetRequiredService<UserManager<PortalUser>>();
             var user = id is null ? null : await users.FindByIdAsync(id);
-            if (user is null) return Results.Unauthorized();
-            return user.ProfileComplete
-                ? await next(context)
-                : Results.Json(new { error = "profile-incomplete" }, statusCode: StatusCodes.Status428PreconditionRequired);
+            return user is null ? Results.Unauthorized() : await next(context);
         });
         members.MapGet("/faq", (string? q, string? lang, PortalOperations operations) => operations.Faq(q, lang));
         members.MapGet("/support", (HttpContext context, PortalOperations operations) => operations.Tickets(context));

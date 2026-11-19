@@ -372,8 +372,6 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                     InvitationAccepted = true,
                     DisplayName = "Private Legal Name",
                     Locale = "es",
-                    ProfileType = "student",
-                    ActivityArea = "education-research",
                     OrganizationOrSchool = "Private School Name"
                 };
                 var created = await users.CreateAsync(user, password);
@@ -958,16 +956,16 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.True((await registrationClient.GetFromJsonAsync<JsonElement>("api/session")).GetProperty("publicRegistrationEnabled").GetBoolean());
             var registrationEmail = $"signup-{Guid.NewGuid():N}@example.test";
             var registrationUsername = "signup-" + Guid.NewGuid().ToString("N")[..12];
-            using (var missingProfileResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
+            using (var invalidProfileResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
             {
                 username = registrationUsername, displayName = "New Portal User", email = registrationEmail, password = Password,
                 locale = "es",
-                profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
+                profileType = "student", activityArea = "other", activityAreaOther = (string?)null,
                 organizationOrSchool = (string?)null, phoneNumber = (string?)null, address = (string?)null,
                 dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false
             }))
             {
-                Assert.Equal(HttpStatusCode.BadRequest, missingProfileResponse.StatusCode);
+                Assert.Equal(HttpStatusCode.BadRequest, invalidProfileResponse.StatusCode);
                 Assert.False(await db.Users.AnyAsync(x => x.Email == registrationEmail));
             }
             using (var shortPasswordResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
@@ -987,10 +985,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             using var registrationResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
             {
                 username = registrationUsername, displayName = "New Portal User", email = registrationEmail, password = Password,
-                locale = "es",
-                profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
-                organizationOrSchool = "Technical University", phoneNumber = (string?)null, address = (string?)null,
-                dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false
+                locale = "es"
             });
             Assert.Equal(HttpStatusCode.Accepted, registrationResponse.StatusCode);
             var pendingAccount = await db.Users.SingleAsync(x => x.Email == registrationEmail);
@@ -1044,10 +1039,25 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             var registered = await Login(factory, registrationEmail);
             var registeredProfile = await registered.Get("/profile");
             Assert.Equal(registrationUsername, registeredProfile.GetProperty("userName").GetString());
-            Assert.True(registeredProfile.GetProperty("profileComplete").GetBoolean());
-            Assert.Equal("student", registeredProfile.GetProperty("profileType").GetString());
-            Assert.Equal("Technical University", registeredProfile.GetProperty("organizationOrSchool").GetString());
+            Assert.False(registeredProfile.GetProperty("profileComplete").GetBoolean());
+            Assert.Equal("", registeredProfile.GetProperty("profileType").GetString());
+            Assert.Equal("", registeredProfile.GetProperty("organizationOrSchool").GetString());
             Assert.False(registeredProfile.GetProperty("marketingEmailOptIn").GetBoolean());
+            await registered.Get("/downloads");
+            await registered.Get("/support");
+            await registered.Send("/licensing/organizations", HttpMethod.Post, new { name = "Organization with optional profile" });
+            var updatedProfile = await registered.Send("/profile", HttpMethod.Put, new
+            {
+                displayName = "New Portal User", profileType = "student", organizationOrSchool = "Technical University"
+            });
+            Assert.Equal("student", updatedProfile.GetProperty("profileType").GetString());
+            Assert.Equal("", updatedProfile.GetProperty("activityArea").GetString());
+            var clearedProfile = await registered.Send("/profile", HttpMethod.Put, new
+            {
+                displayName = "New Portal User", profileType = "", organizationOrSchool = ""
+            });
+            Assert.Equal("", clearedProfile.GetProperty("profileType").GetString());
+            Assert.Equal("", clearedProfile.GetProperty("organizationOrSchool").GetString());
             var registeredByUsername = await Login(factory, registrationUsername);
             Assert.Equal(registrationEmail, (await registeredByUsername.Get("/profile")).GetProperty("email").GetString());
             var legacyRecoveryTemplate = await db.EmailTemplates.SingleAsync(x => x.Key == "account.password-reset");

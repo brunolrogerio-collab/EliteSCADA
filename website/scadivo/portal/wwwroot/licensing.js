@@ -127,14 +127,13 @@ const portalLicensing = (() => {
 
   async function organizationWorkspace(organizations) {
     const host = h('div', { class: 'organization-workspace' });
-    const canCreate = state.session.user.profileComplete;
-    const create = canCreate ? form([
+    const create = form([
       field(text('Nome da organização ou titular', 'Organization or account holder name', 'Nombre de la organización o titular'), input('name', 'text', '', { maxLength: 200 }))
     ], text('Criar organização', 'Create organization', 'Crear organización'), async data => {
       const result = await api('/licensing/organizations', 'POST', data);
       selectedOrganizationId = result.id; await session();
       feedback(text('Organização criada.', 'Organization created.', 'Organización creada.')); await render();
-    }) : h('div', {}, [p(text('Complete seu perfil para criar uma organização.', 'Complete your profile to create an organization.', 'Completa tu perfil para crear una organización.')), button(text('Minha conta', 'My account', 'Mi cuenta'), () => navigate('profile'))]);
+    });
     const createDisclosure = disclosure(text('Nova organização', 'New organization', 'Nueva organización'), [
       p(text('Use uma organização para reunir aplicações, licenças e pessoas. Para uso pessoal, informe seu próprio nome.', 'Use an organization to group applications, licenses and people. For personal use, enter your own name.', 'Utiliza una organización para reunir aplicaciones, licencias y personas. Para uso personal, indica tu propio nombre.')), create
     ], organizations.length === 0);

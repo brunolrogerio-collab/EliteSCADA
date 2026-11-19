@@ -107,8 +107,8 @@ public sealed class PortalOperations(
                 return Results.Conflict(new { error = "account-already-exists" });
             user.UserName = username;
         }
-        var profileType = input.ProfileType ?? user.ProfileType;
-        var activityArea = input.ActivityArea ?? user.ActivityArea;
+        var profileType = (input.ProfileType ?? user.ProfileType).Trim();
+        var activityArea = (input.ActivityArea ?? user.ActivityArea).Trim();
         var activityAreaOther = input.ActivityAreaOther ?? user.ActivityAreaOther;
         var organizationOrSchool = input.OrganizationOrSchool ?? user.OrganizationOrSchool;
         var phoneNumber = input.PhoneNumber ?? user.PhoneNumber;
@@ -196,10 +196,10 @@ public sealed class PortalOperations(
             Locale = input.Locale!,
             EmailConfirmed = false,
             InvitationAccepted = false,
-            ProfileType = input.ProfileType!,
-            ActivityArea = input.ActivityArea!,
-            ActivityAreaOther = input.ActivityArea == "other" ? input.ActivityAreaOther!.Trim() : null,
-            OrganizationOrSchool = input.OrganizationOrSchool!.Trim(),
+            ProfileType = input.ProfileType?.Trim() ?? "",
+            ActivityArea = input.ActivityArea?.Trim() ?? "",
+            ActivityAreaOther = input.ActivityArea?.Trim() == "other" ? input.ActivityAreaOther!.Trim() : null,
+            OrganizationOrSchool = input.OrganizationOrSchool?.Trim() ?? "",
             PhoneNumber = string.IsNullOrWhiteSpace(input.PhoneNumber) ? null : input.PhoneNumber.Trim(),
             Address = string.IsNullOrWhiteSpace(input.Address) ? null : input.Address.Trim(),
             DateOfBirth = input.DateOfBirth,
@@ -372,10 +372,10 @@ public sealed class PortalOperations(
         if (!result.Succeeded) return Invalid("invalid-invitation-or-password");
         user.InvitationAccepted = true;
         user.Locale = input.Locale!;
-        user.ProfileType = input.ProfileType!;
-        user.ActivityArea = input.ActivityArea!;
-        user.ActivityAreaOther = input.ActivityArea == "other" ? input.ActivityAreaOther!.Trim() : null;
-        user.OrganizationOrSchool = input.OrganizationOrSchool!.Trim();
+        user.ProfileType = input.ProfileType?.Trim() ?? "";
+        user.ActivityArea = input.ActivityArea?.Trim() ?? "";
+        user.ActivityAreaOther = user.ActivityArea == "other" ? input.ActivityAreaOther!.Trim() : null;
+        user.OrganizationOrSchool = input.OrganizationOrSchool?.Trim() ?? "";
         user.PhoneNumber = string.IsNullOrWhiteSpace(input.PhoneNumber) ? null : input.PhoneNumber.Trim();
         user.Address = string.IsNullOrWhiteSpace(input.Address) ? null : input.Address.Trim();
         user.DateOfBirth = input.DateOfBirth;
@@ -793,9 +793,10 @@ public sealed class PortalOperations(
 
     private static bool ValidProfile(string? profileType, string? activityArea, string? activityAreaOther,
         string? organizationOrSchool, string? phoneNumber, string? address, DateOnly? dateOfBirth) =>
-        ProfileTypes.Contains(profileType ?? "") && ActivityAreas.Contains(activityArea ?? "") &&
-        (activityArea != "other" || Valid(activityAreaOther, 2, 120)) &&
-        Valid(organizationOrSchool, 1, 200) &&
+        (string.IsNullOrWhiteSpace(profileType) || ProfileTypes.Contains(profileType.Trim())) &&
+        (string.IsNullOrWhiteSpace(activityArea) || ActivityAreas.Contains(activityArea.Trim())) &&
+        (activityArea?.Trim() != "other" || Valid(activityAreaOther, 2, 120)) &&
+        (organizationOrSchool?.Trim().Length ?? 0) <= 200 &&
         ((phoneNumber?.Length ?? 0) <= 40 && (phoneNumber is null || Regex.IsMatch(phoneNumber, @"^[+0-9() .-]*$"))) &&
         (address?.Length ?? 0) <= 300 &&
         (dateOfBirth is null || dateOfBirth.Value <= DateOnly.FromDateTime(DateTime.UtcNow));

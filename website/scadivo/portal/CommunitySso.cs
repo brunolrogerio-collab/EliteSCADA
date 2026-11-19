@@ -99,7 +99,7 @@ public static class DiscourseConnect
 
         var isOwner = await users.IsInRoleAsync(user, "Owner");
         var isMember = await users.IsInRoleAsync(user, "Member");
-        if (!isOwner && (!isMember || !user.ProfileComplete)) return Results.Forbid();
+        if (!isOwner && !isMember) return Results.Forbid();
 
         var payload = EncodeQuery(
             new("nonce", nonce),

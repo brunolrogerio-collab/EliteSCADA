@@ -143,8 +143,7 @@ function errorText(code) {
   const errors = {
     'invalid-credentials': tr('Usuário ou senha inválidos. Após várias tentativas, aguarde 15 minutos.', 'Invalid username or password. After repeated attempts, wait 15 minutes.'),
     'invalid-input': tr('Confira os campos informados.', 'Check the information entered.'),
-    'profile-fields-required': tr('Preencha os campos obrigatórios do perfil e confira os dados opcionais.', 'Complete the required profile fields and check the optional information.'),
-    'profile-incomplete': tr('Complete seu perfil antes de navegar pelo portal.', 'Complete your profile before using the portal.'),
+    'profile-fields-required': tr('Confira os dados da conta e os campos de perfil que você preencheu.', 'Check your account details and any profile fields you filled in.', 'Comprueba tus datos de cuenta y los campos de perfil que completaste.'),
     'password-requirements': tr('A senha precisa ter ao menos 8 caracteres, incluindo maiúscula, minúscula e número.', 'The password needs at least 8 characters, including uppercase, lowercase and a number.'),
     'email-not-configured': tr('O envio de confirmação está temporariamente indisponível. Tente mais tarde.', 'Email confirmation is temporarily unavailable. Please try again later.'),
     'invalid-email': tr('Informe um endereço de e-mail válido.', 'Enter a valid email address.'),
@@ -200,7 +199,7 @@ function parseCommunitySso(encoded) {
 }
 function continueCommunitySso() {
   const user = state.session?.user;
-  if (!state.communitySso || !user || (!user.owner && !user.profileComplete)) return false;
+  if (!state.communitySso || !user) return false;
   const query = new URLSearchParams(state.communitySso);
   state.communitySso = null;
   try { sessionStorage.removeItem(communitySsoStorageKey); } catch { /* The request remains in memory for this navigation. */ }
@@ -295,9 +294,9 @@ function passwordReset() {
   card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'invite-layout' }, card));
 }
 
-const profileTypeOptions = () => [['', tr('Selecione seu perfil', 'Select your profile')], ['student', tr('Estudante', 'Student')], ['professional', tr('Profissional', 'Professional')], ['organization', tr('Organização', 'Organization')]];
+const profileTypeOptions = () => [['', tr('Não informado', 'Not provided', 'Sin indicar')], ['student', tr('Estudante', 'Student')], ['professional', tr('Profissional', 'Professional')], ['organization', tr('Organização', 'Organization')]];
 const activityAreaOptions = () => [
-  ['', tr('Selecione sua área', 'Select your area')],
+  ['', tr('Não informada', 'Not provided', 'Sin indicar')],
   ['industrial-automation', tr('Automação industrial e processos', 'Industrial automation and process')],
   ['buildings-facilities', tr('Edificações e instalações', 'Buildings and facilities')],
   ['residential', tr('Aplicações residenciais', 'Residential applications')],
@@ -307,17 +306,17 @@ const activityAreaOptions = () => [
   ['other', tr('Outra área', 'Other')]
 ];
 function profileFields(user = {}) {
-  const profileType = select('profileType', profileTypeOptions(), user.profileType || '', { required: true });
-  const activityArea = select('activityArea', activityAreaOptions(), user.activityArea || '', { required: true });
+  const profileType = select('profileType', profileTypeOptions(), user.profileType || '');
+  const activityArea = select('activityArea', activityAreaOptions(), user.activityArea || '');
   const otherInput = input('activityAreaOther', 'text', user.activityAreaOther || '', { maxLength: 120, required: user.activityArea === 'other' });
   const otherField = field(tr('Qual área?', 'Which area?'), otherInput, tr('Obrigatório se escolher “Outra área”.', 'Required when “Other” is selected.'));
   const updateOther = () => { otherField.hidden = activityArea.value !== 'other'; otherInput.required = activityArea.value === 'other'; };
   activityArea.addEventListener('change', updateOther); updateOther();
   const marketing = input('marketingEmailOptIn', 'checkbox', 'yes', { checked: user.marketingEmailOptIn === true, required: false });
   return [
-    h('div', { class: 'form-row' }, [field(tr('Perfil', 'Profile'), profileType), field(tr('Área de atuação', 'Activity area'), activityArea)]),
+    h('div', { class: 'form-row' }, [field(tr('Tipo de perfil (opcional)', 'Profile type (optional)', 'Tipo de perfil (opcional)'), profileType), field(tr('Área de atuação (opcional)', 'Activity area (optional)', 'Área de actividad (opcional)'), activityArea)]),
     otherField,
-    field(tr('Empresa, escola ou vínculo (obrigatório)', 'Company, school or affiliation (required)'), input('organizationOrSchool', 'text', user.organizationOrSchool || '', { maxLength: 200, placeholder: tr('Autônomo/independente', 'Independent') }), tr('Obrigatório. Se não houver empresa ou escola, informe “Autônomo/independente”.', 'Required. If you have no company or school, enter “Independent”.')),
+    field(tr('Empresa, escola ou vínculo (opcional)', 'Company, school or affiliation (optional)', 'Empresa, escuela o afiliación (opcional)'), input('organizationOrSchool', 'text', user.organizationOrSchool || '', { required: false, maxLength: 200 })),
     h('div', { class: 'form-row' }, [field(tr('Telefone (opcional)', 'Phone (optional)'), input('phoneNumber', 'tel', user.phoneNumber || '', { required: false, maxLength: 40, autocomplete: 'tel' })), field(tr('Data de nascimento (opcional)', 'Date of birth (optional)'), input('dateOfBirth', 'date', user.dateOfBirth || '', { required: false }))]),
     field(tr('Endereço (opcional)', 'Address (optional)'), input('address', 'text', user.address || '', { required: false, maxLength: 300, autocomplete: 'street-address' })),
     h('label', { class: 'check-field' }, [marketing, tr('Quero receber novidades e informações comerciais por e-mail (opcional).', 'I would like to receive product news and commercial updates by email (optional).')])
@@ -372,22 +371,6 @@ function languagePreference() {
     feedback(tr('Idioma salvo.', 'Language saved.', 'Idioma guardado.'));
   }));
 }
-function completeProfile() {
-  const user = state.session.user;
-  const accountUsername = user.userName?.toLowerCase() === user.email?.toLowerCase() ? '' : user.userName;
-  const card = panel(tr('Complete seu perfil', 'Complete your profile'),
-    p(tr('Para continuar no portal, informe seu perfil, área de atuação e empresa/escola. Os demais campos são opcionais.', 'To continue, tell us your profile, activity area and company/school. The remaining fields are optional.')),
-    form([
-      field(tr('Nome de apresentação', 'Display name', 'Nombre visible'), input('displayName', 'text', user.displayName, { maxLength: 160, autocomplete: 'nickname' }), tr('Esse nome aparecerá na comunidade. Escolha como quer ser identificado.', 'This name will appear in the community. Choose how you want to be identified.', 'Este nombre aparecerá en la comunidad. Elige cómo quieres que te identifiquen.')),
-      field(tr('Nome de usuário', 'Username', 'Nombre de usuario'), input('username', 'text', accountUsername || '', { minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'username' }), tr('Precisa estar disponível e ter de 3 a 20 caracteres. Você poderá entrar com ele ou com seu e-mail.', 'Must be available and 3 to 20 characters long. You can sign in with it or with your email.', 'Debe estar disponible y tener de 3 a 20 caracteres. Puedes iniciar sesión con este nombre o con tu correo.')),
-      ...profileFields(user)
-    ], tr('Salvar e continuar', 'Save and continue'), async data => {
-      await api('/profile', 'PUT', data); await session(); state.tab = 'home'; if (continueCommunitySso()) return; render();
-    })
-  );
-  card.classList.add('login-card', 'small-space');
-  app.replaceChildren(h('div', { class: 'invite-layout' }, [languagePreference(), card]));
-}
 function invitation() {
   app.replaceChildren(h('div', { class: 'invite-layout' }, panel(tr('Bem-vindo ao SCADIVO', 'Welcome to SCADIVO'), p(tr('Defina a senha da sua conta convidada. O link é pessoal e válido por 24 horas.', 'Set the password for your invited account. The personal link is valid for 24 hours.')), form([
     field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), state.lang, { required: true })),
@@ -409,7 +392,6 @@ async function render() {
   if (state.recover && state.session?.emailDeliveryConfigured) return passwordRecovery();
   if (state.register && state.session?.publicRegistrationEnabled) return registration();
   if (!state.session?.authenticated) return login();
-  if (!state.session.user.owner && !state.session.user.profileComplete) return completeProfile();
   const tabs = labels();
   if (!tabs[state.tab] || (state.tab === 'admin' && !isPortalAdministrator())) state.tab = 'home';
   const nav = h('nav', { class: 'portal-nav', 'aria-label': tr('Portal do cliente', 'Customer portal') }, Object.entries(tabs).filter(([id]) => id !== 'admin' || isPortalAdministrator()).map(([id, label]) => button(label, () => navigate(id), `nav-item${state.tab === id ? ' active' : ''}`)));
@@ -429,9 +411,15 @@ function profile() {
   const accountUsername = user.userName?.toLowerCase() === user.email?.toLowerCase() ? '' : user.userName;
   const account = h('div', { class: 'content-grid' }, [panel(tr('Seu perfil', 'Your profile'), p(`${tr('Usuário', 'Username')}: ${user.userName}`), p(`${tr('E-mail', 'Email')}: ${user.email || tr('Ainda não informado', 'Not provided yet')}`), form([
     field(tr('Nome de apresentação', 'Display name', 'Nombre visible'), input('displayName', 'text', user.displayName, { maxLength: 160, autocomplete: 'nickname' }), tr('Esse nome aparecerá na comunidade. Escolha como quer ser identificado.', 'This name will appear in the community. Choose how you want to be identified.', 'Este nombre aparecerá en la comunidad. Elige cómo quieres que te identifiquen.')),
-    field(tr('Nome de usuário', 'Username', 'Nombre de usuario'), input('username', 'text', accountUsername || '', { minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'username' }), tr('Precisa estar disponível e ter de 3 a 20 caracteres. Você poderá entrar com ele ou com seu e-mail.', 'Must be available and 3 to 20 characters long. You can sign in with it or with your email.', 'Debe estar disponible y tener de 3 a 20 caracteres. Puedes iniciar sesión con este nombre o con tu correo.')),
+    field(tr('Nome de usuário', 'Username', 'Nombre de usuario'), input('username', 'text', accountUsername || '', { required: Boolean(accountUsername), minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'username' }), tr('Precisa estar disponível e ter de 3 a 20 caracteres. Você poderá entrar com ele ou com seu e-mail.', 'Must be available and 3 to 20 characters long. You can sign in with it or with your email.', 'Debe estar disponible y tener de 3 a 20 caracteres. Puedes iniciar sesión con este nombre o con tu correo.')),
     ...profileFields(user)
-  ], tr('Salvar perfil', 'Save profile'), async data => { await api('/profile', 'PUT', data); await session(); feedback(tr('Perfil atualizado.', 'Profile updated.')); render(); }), h('div', { class: 'organization-list' }, user.organizations.map(org => p(`${org.name} · ${org.role}`)))), panel(tr('Alterar senha', 'Change password'), form([
+  ], tr('Salvar perfil', 'Save profile'), async data => {
+    await api('/profile', 'PUT', {
+      ...data, profileType: data.profileType ?? '', activityArea: data.activityArea ?? '',
+      organizationOrSchool: data.organizationOrSchool ?? ''
+    });
+    await session(); feedback(tr('Perfil atualizado.', 'Profile updated.')); render();
+  }), h('div', { class: 'organization-list' }, user.organizations.map(org => p(`${org.name} · ${org.role}`)))), panel(tr('Alterar senha', 'Change password'), form([
     field(tr('Senha atual', 'Current password'), input('currentPassword', 'password', '', { autocomplete: 'current-password' })),
     field(tr('Nova senha', 'New password'), input('newPassword', 'password', '', { autocomplete: 'new-password', minLength: 8 }), tr('Mínimo de 8 caracteres, maiúscula, minúscula e número.', 'At least 8 characters, uppercase, lowercase and a number.')),
     field(tr('Repita a nova senha', 'Repeat new password'), input('confirmation', 'password', '', { autocomplete: 'new-password', minLength: 8 }))

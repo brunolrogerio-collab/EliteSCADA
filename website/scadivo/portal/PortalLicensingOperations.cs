@@ -59,7 +59,6 @@ public sealed class PortalLicensingOperations(
         if (!Valid(input.Name, 1, 200)) return Invalid();
         var user = await CurrentUser(context);
         if (user is null) return Results.Unauthorized();
-        if (!user.ProfileComplete) return Results.Json(new { error = "profile-incomplete" }, statusCode: StatusCodes.Status428PreconditionRequired);
 
         var name = input.Name!.Trim();
         var organization = new Organization { Name = name };

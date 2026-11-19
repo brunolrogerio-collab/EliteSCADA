@@ -31,6 +31,10 @@ const portalIndicators = (() => {
       label: tr('Vínculos com menos de 3 perfis', 'Affiliations with fewer than 3 profiles', 'Vínculos con menos de 3 perfiles'),
       count: profiles.otherAffiliations
     });
+    if (profiles.missingAffiliations) affiliations.push({
+      label: tr('Vínculo não informado', 'Affiliation not provided', 'Vínculo sin indicar'),
+      count: profiles.missingAffiliations
+    });
     return [
       panel(tr('Visualizações de página', 'Page views', 'Vistas de página'),
         p(tr('Contagem diária em UTC. Recarregar a página conta como nova visualização.', 'Daily counts in UTC. Reloading counts as a new page view.', 'Conteo diario en UTC. Recargar cuenta como una nueva vista.')),
@@ -45,9 +49,9 @@ const portalIndicators = (() => {
           downloads.map(row => [row.platform, row.version, number(row.count)]))
           : p(tr('Nenhum item no catálogo.', 'No catalog entries.', 'No hay elementos en el catálogo.'))),
       panel(tr('Perfil do público', 'Audience profile', 'Perfil del público'),
-        p(tr(`${number(profiles.total)} contas ativas e confirmadas com perfil preenchido. Esta distribuição é atual, independente do período.`,
-          `${number(profiles.total)} active, confirmed accounts with a completed profile. This breakdown reflects current profiles.`,
-          `${number(profiles.total)} cuentas activas y confirmadas con perfil completo. La distribución refleja los perfiles actuales.`)),
+        p(tr(`${number(profiles.total)} contas ativas e confirmadas. Esta distribuição é atual, independente do período.`,
+          `${number(profiles.total)} active, confirmed accounts. This breakdown reflects current profiles.`,
+          `${number(profiles.total)} cuentas activas y confirmadas. La distribución refleja los perfiles actuales.`)),
         h('div', { class: 'indicator-grid' }, [
           panel(tr('Tipo de perfil', 'Profile type', 'Tipo de perfil'), profileTable(profiles.types, profiles.total, new Map(profileTypeOptions()))),
           panel(tr('Área de atuação', 'Field of work or study', 'Área de actividad'), profileTable(profiles.areas, profiles.total, new Map(activityAreaOptions()))),

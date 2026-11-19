@@ -40,7 +40,8 @@ test -n "$name"
 sha256sum -- "$name"
 '@
     $problem = 'Não foi possível consultar o último backup no VPS.'
-    $files = @(ssh.exe @sshOptions -p $port $target $inventory 2>$null)
+    # A Windows checkout can save the here-string with CRLF. The remote shell expects LF.
+    $files = @(ssh.exe @sshOptions -p $port $target ($inventory.Replace([string][char]13, '')) 2>$null)
     if ($LASTEXITCODE -ne 0 -or $files.Count -ne 2 -or $files[0] -notin @('ok', 'failed')) {
         throw 'Backup inventory unavailable.'
     }

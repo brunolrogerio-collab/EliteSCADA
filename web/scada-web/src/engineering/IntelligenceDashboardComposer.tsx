@@ -52,6 +52,11 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
   });
   const change = (id: string, draft: Draft, patch: Partial<Draft>) => setDrafts(current => ({ ...current, [id]: { ...draft, ...patch } }));
   return <div className="asset-process-intelligence__dashboard-composer">
+    <p>{stage ? copy.stageBase : copy.base}</p>
+    <button type="button" data-testid="intelligence-dashboard-generate" disabled={disabled || !rows.length || rows.some(row => !row.valid)}
+      onClick={() => onGenerate({ theme, measurements: Object.fromEntries(rows.map(row => [row.tag.id!, row.measurement])) }, { performance: !stage && performance && performanceAvailable, deviation: !stage && deviation && deviationAvailable, stageCoverage: Boolean(stage && stageCoverage && stage.coverageAvailable), stageReports: Boolean(stage && stageReports && stageReportsAvailable), referenceEvidence: !stage && referenceEvidence && referenceAvailable, contextEligibility: !stage && contextEligibility && contextAvailable, experimentalJoint: !stage && experimentalJoint && jointAvailable, stageReferenceEvidence: Boolean(stage && stageReferenceEvidence && stage.coverageAvailable), stageContextEligibility: Boolean(stage && stageContextEligibility && stageContextsAvailable), stageExperimentalJoint: Boolean(stage && stageExperimentalJoint && stageJointAvailable), singleTarget: !stage && singleTarget && singleTargetAvailable, stageSingleTarget: Boolean(stage && stageSingleTarget && stageSingleTargetAvailable), currentFrequency: !stage && currentFrequency && currentFrequencyAvailable, stageCurrentFrequency: Boolean(stage && stageCurrentFrequency && stageCurrentFrequencyAvailable) })}>{copy.generate}</button>
+    <details className="asset-process-intelligence__analysis" data-testid="intelligence-dashboard-options">
+    <summary>{copy.customize}</summary>
     <h3>{copy.measurements}</h3><p>{copy.measurementsHint}</p>
     <label>{copy.theme}<select value={theme} disabled={disabled} onChange={event => setTheme(event.currentTarget.value as typeof theme)}>
       <option value="dark">{copy.dark}</option><option value="light">{copy.light}</option><option value="high-contrast">{copy.contrast}</option>
@@ -73,7 +78,6 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
       {!valid && <p role="status">{copy.invalid}</p>}
     </details>)}
     <h3>{copy.analyses}</h3><p>{stage ? copy.stageAnalysesHint : copy.analysesHint}</p>
-    <p>{stage ? copy.stageBase : copy.base}</p>
     {stage ? <>
       <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={stageCoverage && stage.coverageAvailable} disabled={disabled || !stage.coverageAvailable} onChange={e => setStageCoverage(e.currentTarget.checked)}/>{copy.stageCoverage}</label>
       <label className="asset-process-intelligence__checkbox"><input type="checkbox" checked={stageReports && stageReportsAvailable} disabled={disabled || !stageReportsAvailable} onChange={e => setStageReports(e.currentTarget.checked)}/>{copy.stageReports}</label>
@@ -111,13 +115,13 @@ export function IntelligenceDashboardComposer({ locale, tags, disabled, performa
     {!deviationAvailable && <p>{deviationSignalCount !== undefined && deviationSignalCount < 4 ? copy.deviationNeedsSignals : copy.deviationMissing}</p>}
     {configurationHref && <a href={configurationHref}>{copy.configure}</a>}
     </>}
-    <button type="button" data-testid="intelligence-dashboard-generate" disabled={disabled || !rows.length || rows.some(row => !row.valid)}
-      onClick={() => onGenerate({ theme, measurements: Object.fromEntries(rows.map(row => [row.tag.id!, row.measurement])) }, { performance: !stage && performance && performanceAvailable, deviation: !stage && deviation && deviationAvailable, stageCoverage: Boolean(stage && stageCoverage && stage.coverageAvailable), stageReports: Boolean(stage && stageReports && stageReportsAvailable), referenceEvidence: !stage && referenceEvidence && referenceAvailable, contextEligibility: !stage && contextEligibility && contextAvailable, experimentalJoint: !stage && experimentalJoint && jointAvailable, stageReferenceEvidence: Boolean(stage && stageReferenceEvidence && stage.coverageAvailable), stageContextEligibility: Boolean(stage && stageContextEligibility && stageContextsAvailable), stageExperimentalJoint: Boolean(stage && stageExperimentalJoint && stageJointAvailable), singleTarget: !stage && singleTarget && singleTargetAvailable, stageSingleTarget: Boolean(stage && stageSingleTarget && stageSingleTargetAvailable), currentFrequency: !stage && currentFrequency && currentFrequencyAvailable, stageCurrentFrequency: Boolean(stage && stageCurrentFrequency && stageCurrentFrequencyAvailable) })}>{copy.generate}</button>
+    </details>
   </div>;
 }
 
 const TEXT = {
   'pt-BR': {
+    customize: 'Personalizar painel',
     stageJoint: 'Desvio conjunto experimental por equipamento', stageJointHint: 'Use o seletor da mesma tela de análises para calcular o desvio conjunto de um equipamento por vez. A consulta é experimental, sem diagnóstico ou limiar de alarme.', stageJointMissing: 'Ao menos um equipamento precisa de contexto salvo que deixe duas medições numéricas distintas fora de suas condições. As outras vistas continuam disponíveis.',
     currentFrequency: 'Corrente em frequência semelhante', stageCurrentFrequency: 'Corrente e frequência por equipamento', currentFrequencyHint: 'Acrescente a comparação de corrente usando medições controladas em A e Hz. O operador escolhe períodos e faixa de frequência no Runtime, sem diagnóstico ou afirmação de eficiência.', currentFrequencyMissing: 'O perfil precisa de corrente controlada em ampere e frequência medida em hertz, com significados explícitos. As outras vistas continuam disponíveis.',
     singleTarget: 'Medições sob uma condição', stageSingleTarget: 'Medição sob condição por equipamento', singleTargetHint: 'Adiciona a comparação de uma medição por uma condição com unidade controlada. O operador escolhe faixa e períodos no Runtime.', singleTargetMissing: 'Precisa de 2 a 16 medições numéricas distintas e unidade controlada na condição. As demais vistas continuam disponíveis.',
@@ -140,6 +144,7 @@ const TEXT = {
     performance: 'Desempenho', performanceMissing: 'Desempenho ainda não configurado para esta origem. Escolha uma regra elegível na associação do equipamento.', deviation: 'Desvio contextual', deviationMissing: 'Desvio contextual ainda não configurado para esta origem. Escolha os sinais e as duas faixas de contexto na associação do equipamento.', configure: 'Configurar análises da associação', generate: 'Gerar painel e vistas selecionadas'
   },
   en: {
+    customize: 'Customize dashboard',
     stageJoint: 'Experimental joint deviation per equipment', stageJointHint: 'Use the same analyses screen selector to calculate joint deviation for one equipment at a time. This is experimental, without diagnosis or an alarm threshold.', stageJointMissing: 'At least one equipment needs a saved context leaving two distinct numeric measurements outside its conditions. Other views remain available.',
     currentFrequency: 'Current at similar frequency', stageCurrentFrequency: 'Current and frequency per equipment', currentFrequencyHint: 'Add current comparison using controlled measurements in A and Hz. The operator chooses periods and frequency range in Runtime, without diagnosis or an efficiency claim.', currentFrequencyMissing: 'The profile needs controlled current in amperes and measured frequency in hertz, with explicit meanings. Other views remain available.',
     singleTarget: 'Measurements under one condition', stageSingleTarget: 'Measurement under a condition per equipment', singleTargetHint: 'Adds comparison of one measurement under a controlled-unit condition. The operator chooses range and periods in Runtime.', singleTargetMissing: 'Needs 2 to 16 distinct numeric measurements and a controlled condition unit. Other views remain available.',
@@ -162,6 +167,7 @@ const TEXT = {
     performance: 'Performance', performanceMissing: 'Performance is not configured for this source yet. Choose an eligible rule in the equipment assignment.', deviation: 'Contextual deviation', deviationMissing: 'Contextual deviation is not configured for this source yet. Choose signals and both context ranges in the equipment assignment.', configure: 'Configure assignment analyses', generate: 'Generate dashboard and selected views'
   },
   es: {
+    customize: 'Personalizar panel',
     stageJoint: 'Desviación conjunta experimental por equipo', stageJointHint: 'Use el selector de la misma pantalla de análisis para calcular desviación conjunta de un equipo a la vez. Es experimental, sin diagnóstico ni umbral de alarma.', stageJointMissing: 'Al menos un equipo necesita contexto guardado que deje dos mediciones numéricas distintas fuera de sus condiciones. Las otras vistas siguen disponibles.',
     currentFrequency: 'Corriente a frecuencia similar', stageCurrentFrequency: 'Corriente y frecuencia por equipo', currentFrequencyHint: 'Agregue la comparación de corriente con mediciones controladas en A y Hz. El operador elige períodos y rango en Runtime, sin diagnóstico ni afirmación de eficiencia.', currentFrequencyMissing: 'El perfil necesita corriente controlada en amperios y frecuencia medida en hercios, con significados explícitos. Las otras vistas siguen disponibles.',
     singleTarget: 'Mediciones bajo una condición', stageSingleTarget: 'Medición bajo condición por equipo', singleTargetHint: 'Agrega comparación de una medición bajo una condición de unidad controlada. El operador elige rango y períodos en Runtime.', singleTargetMissing: 'Requiere de 2 a 16 mediciones numéricas distintas y unidad controlada en la condición. Las demás vistas siguen disponibles.',

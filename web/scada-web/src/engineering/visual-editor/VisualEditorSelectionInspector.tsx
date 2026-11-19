@@ -151,6 +151,7 @@ export function VisualEditorSelectionInspector({
         {selectedElements.length <= 1 ? <>
           <p className="visual-editor-inspector-hint">{selectedElement ? text.objectEvents : text.screenEvents}</p>
           <EventsEditor
+            locale={locale}
             visualDefinitionId={screen.id}
             visualObjectId={selectedElement?.id ?? null}
             element={selectedElement ?? undefined}

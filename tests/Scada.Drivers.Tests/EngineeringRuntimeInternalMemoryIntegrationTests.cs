@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
+using Scada.Core.Abstractions;
 using Scada.Core.InternalMemory;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
@@ -106,6 +107,67 @@ public sealed class EngineeringRuntimeInternalMemoryIntegrationTests
         Assert.Equal(long.MaxValue, tag.InitialValue.Value);
         Assert.Empty(runtime.Tags());
         Assert.Empty(runtime.CurrentValues());
+    }
+
+    [Fact]
+    public async Task IntelligenceDeviationRequiresActivePermitAndOperatingContextAndUsesCanonicalAlarmState()
+    {
+        var targetId = Guid.NewGuid();
+        var conditionId = Guid.NewGuid();
+        var equipmentId = Guid.NewGuid();
+        var assignmentId = Guid.NewGuid();
+        var profileId = Guid.NewGuid();
+        var package = ServerPackage(targetId, 5);
+        var condition = package.Tags.Single() with
+        {
+            Id = conditionId, Name = "Pump mode", Path = "Plant.Mode", InitialValue = Initial(TagDataType.Int32, 0)
+        };
+        package = package with
+        {
+            Tags = [.. package.Tags, condition],
+            Equipment = [new(equipmentId, "Plant.Pump01", "Pump 01")],
+            AssetProcessIntelligence = new(3,
+                Assignments: [new(assignmentId, equipmentId, profileId)],
+                OperatingContextProfiles: [new(Guid.NewGuid(), "pumping", "Pumping", assignmentId, 1,
+                    [new(conditionId, AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval, 1, 2)],
+                    new(targetId, 3, 7, 0))])
+        };
+        var permitted = false;
+        var active = true;
+        var bus = new InMemoryScadaEventBus();
+        var changes = new List<AlarmStateChanged>();
+        using var subscription = bus.Subscribe<AlarmStateChanged>(change =>
+        {
+            changes.Add(change);
+            return ValueTask.CompletedTask;
+        });
+        await using var runtime = new EngineeringRuntimeCoordinator(bus, new EngineeringDriverCompiler(),
+            industrialEffectAuthority: () => active,
+            intelligenceAlarmPermit: (project, revision, equipment) =>
+                permitted && project == "eee" && revision == 1 && equipment == equipmentId);
+
+        Assert.True((await runtime.ActivateAsync("eee", 1, package)).Activated);
+        var alarm = Assert.Single(runtime.AlarmDefinitions());
+        Assert.Equal("Intelligence", alarm.Area);
+        Assert.Equal(targetId, alarm.TagId);
+
+        await runtime.WriteAsync(targetId, 9);
+        await runtime.WriteAsync(conditionId, 1);
+        Assert.Empty(changes);
+
+        permitted = true;
+        await runtime.WriteAsync(conditionId, 0);
+        Assert.Empty(changes);
+        await runtime.WriteAsync(conditionId, 1);
+        await runtime.WriteAsync(targetId, 10);
+        Assert.Equal(AlarmState.Active, Assert.Single(changes).Current.State);
+        Assert.Equal(9, changes[0].Current.LastValue);
+
+        await runtime.WriteAsync(targetId, 7);
+        Assert.Equal(AlarmState.Returned, changes[1].Current.State);
+        active = false;
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await runtime.WriteAsync(targetId, 9));
+        Assert.Equal(2, changes.Count);
     }
 
     private static EngineeringRuntimeCoordinator CreateRuntime(IServerMemoryRetentionStore retention) =>

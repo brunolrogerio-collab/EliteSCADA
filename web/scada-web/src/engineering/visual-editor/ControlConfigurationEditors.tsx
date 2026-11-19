@@ -29,7 +29,7 @@ const COPY = {
     alarm: 'Alarme', chooseAlarm: 'Selecione um alarme', noAlarms: 'Nenhum alarme com identidade estável está disponível.',
     reason: 'Motivo', duration: 'Duração', untilReleased: 'Até liberar', oneHour: '1 hora', fourHours: '4 horas', eightHours: '8 horas',
     maintenance: 'Manutenção', startup: 'Partida', testing: 'Teste', other: 'Outro', save: 'Aplicar configuração',
-    comboTitle: 'Opções da lista', comboHint: 'Cada opção tem o valor gravado no TAG e o texto que o operador vê. O TAG vinculado precisa ser Texto ou Enum.',
+    comboTitle: 'Opções da lista', comboHint: 'Defina o valor e o texto de cada opção. Use a aba Eventos para escolher o que cada opção faz. O vínculo com uma TAG de Texto ou Enum é opcional quando há ações.',
     value: 'Valor do TAG', label: 'Texto exibido', add: 'Adicionar opção', remove: 'Remover',
     empty: 'Adicione ao menos uma opção antes de aplicar.', duplicate: 'Os valores das opções precisam ser únicos.', invalid: 'Revise os valores e textos; ambos são obrigatórios e limitados a 120 caracteres.',
     saved: 'Configuração aplicada no rascunho. Use Preview e Apply para publicá-la.'
@@ -41,7 +41,7 @@ const COPY = {
     alarm: 'Alarm', chooseAlarm: 'Choose an alarm', noAlarms: 'No alarm with a stable identity is available.',
     reason: 'Reason', duration: 'Duration', untilReleased: 'Until released', oneHour: '1 hour', fourHours: '4 hours', eightHours: '8 hours',
     maintenance: 'Maintenance', startup: 'Startup', testing: 'Test', other: 'Other', save: 'Apply configuration',
-    comboTitle: 'List options', comboHint: 'Each option has the value written to the TAG and the text shown to the operator. The bound TAG must be String or Enum.',
+    comboTitle: 'List options', comboHint: 'Set the value and label for each option. Use the Events tab to choose what each option does. A String or Enum TAG binding is optional when options have actions.',
     value: 'TAG value', label: 'Display text', add: 'Add option', remove: 'Remove',
     empty: 'Add at least one option before applying.', duplicate: 'Option values must be unique.', invalid: 'Review the values and labels; both are required and limited to 120 characters.',
     saved: 'Configuration applied to the draft. Use Preview and Apply to publish it.'
@@ -53,7 +53,7 @@ const COPY = {
     alarm: 'Alarma', chooseAlarm: 'Seleccione una alarma', noAlarms: 'No hay alarmas con identidad estable disponibles.',
     reason: 'Motivo', duration: 'Duración', untilReleased: 'Hasta liberar', oneHour: '1 hora', fourHours: '4 horas', eightHours: '8 horas',
     maintenance: 'Mantenimiento', startup: 'Arranque', testing: 'Prueba', other: 'Otro', save: 'Aplicar configuración',
-    comboTitle: 'Opciones de la lista', comboHint: 'Cada opción tiene el valor guardado en el TAG y el texto que ve el operador. El TAG vinculado debe ser Texto o Enum.',
+    comboTitle: 'Opciones de la lista', comboHint: 'Defina el valor y el texto de cada opción. Use la pestaña Eventos para elegir qué hace cada opción. El vínculo con un TAG de Texto o Enum es opcional si hay acciones.',
     value: 'Valor del TAG', label: 'Texto mostrado', add: 'Agregar opción', remove: 'Quitar',
     empty: 'Agregue al menos una opción antes de aplicar.', duplicate: 'Los valores deben ser únicos.', invalid: 'Revise los valores y textos; ambos son obligatorios y tienen un máximo de 120 caracteres.',
     saved: 'Configuración aplicada al borrador. Use Vista previa y Aplicar para publicarla.'

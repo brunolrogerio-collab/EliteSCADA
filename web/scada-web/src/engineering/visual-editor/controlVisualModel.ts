@@ -66,6 +66,17 @@ export function normalizeComboBoxOptions(value: unknown): readonly ComboBoxOptio
   return Object.freeze(options);
 }
 
+const COMBO_BOX_OPTION_EVENT_PREFIX = 'option:';
+
+export function comboBoxOptionEventKey(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  return COMBO_BOX_OPTION_EVENT_PREFIX + Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+export function isComboBoxOptionEventKey(key: string): boolean {
+  return key.toLowerCase().startsWith(COMBO_BOX_OPTION_EVENT_PREFIX);
+}
+
 export function comboBoxOptionsEngineeringValue(options: readonly ComboBoxOption[]): VisualEngineeringPropertyValue {
   return Object.freeze(normalizeComboBoxOptions(options).map(option => Object.freeze({
     value: option.value,

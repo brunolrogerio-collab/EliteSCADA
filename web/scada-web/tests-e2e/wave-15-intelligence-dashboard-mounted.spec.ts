@@ -124,6 +124,7 @@ test('Intelligence generates visible equipment and process dashboards in the can
     label: 'Perfil de equipamento · Pump P-101 · Pump process profile'
   });
   await expect(licensedGenerate).toBeEnabled();
+  await licensedGenerator.getByTestId('intelligence-dashboard-options').locator(':scope > summary').click();
   await expect(licensedGenerator.getByLabel('Mínimo · Discharge flow', { exact: true })).toHaveValue('0');
   await expect(licensedGenerator.getByLabel('Máximo · Discharge flow', { exact: true })).toHaveValue('100');
   await licensedGenerator.getByLabel('Objeto · Discharge flow', { exact: true }).selectOption('measurementDial');
@@ -154,6 +155,7 @@ test('Intelligence generates visible equipment and process dashboards in the can
   await processDashboardGenerator.getByTestId('intelligence-dashboard-source').selectOption({
     label: 'Etapa do processo · Pumping train'
   });
+  await processDashboardGenerator.getByTestId('intelligence-dashboard-options').locator(':scope > summary').click();
   await expect(processDashboardGenerator.getByRole('checkbox', { name: 'Cobertura por equipamento', exact: true })).toBeChecked();
   await expect(processDashboardGenerator.getByRole('checkbox', { name: 'Análises por equipamento', exact: true })).toBeDisabled();
   await processDashboardGenerator.getByTestId('intelligence-dashboard-generate').click();

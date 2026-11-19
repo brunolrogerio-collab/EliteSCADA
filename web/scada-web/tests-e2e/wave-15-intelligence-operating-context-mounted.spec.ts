@@ -4,6 +4,7 @@ const equipmentId = '15000000-0000-0000-0000-000000000301';
 const measurementProfileId = '15000000-0000-0000-0000-000000000501';
 const measurementSignalId = '15000000-0000-0000-0000-000000000502';
 const tagId = '15000000-0000-0000-0000-000000000101';
+const alarmTargetId = '15000000-0000-0000-0000-000000000102';
 const assignmentId = '15000000-0000-0000-0000-000000000601';
 
 test('Stage 4E authors and saves a versioned numeric operating context from the assigned profile', async ({ page }) => {
@@ -14,7 +15,8 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
       id: measurementProfileId,
       key: 'pump-process',
       name: 'Pump process',
-      signals: [{ id: measurementSignalId, key: 'temperature', signalRole: 'process', tagId, required: true }]
+      signals: [{ id: measurementSignalId, key: 'temperature', signalRole: 'process', tagId, required: true },
+        { id: '15000000-0000-0000-0000-000000000503', key: 'current', signalRole: 'Motor current', tagId: alarmTargetId, required: true }]
     }],
     assignments: [{ id: assignmentId, equipmentId, profileId: measurementProfileId }],
     processStages: [],
@@ -37,7 +39,8 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
   await page.route('**/api/engineering/asset-process-intelligence/scopes', route => route.fulfill({ json: {
     configuration,
     resources: [{ kind: 'Equipment', scopeId: equipmentId, path: 'Plant.Pump01', name: 'Pump P01' }],
-    tags: [{ id: tagId, name: 'Temperature', path: 'Plant.Pump.Temperature', dataType: 'Double', engineeringUnit: currentEngineeringUnit }],
+    tags: [{ id: tagId, name: 'Temperature', path: 'Plant.Pump.Temperature', dataType: 'Double', engineeringUnit: currentEngineeringUnit },
+      { id: alarmTargetId, name: 'Motor current', path: 'Plant.Pump.Current', dataType: 'Double', engineeringUnit: 'A' }],
     licensed: true,
     execution: { stage: 'Stage1', workerRegistered: false, queueDepth: 0, activePermitCount: 0, projectKey: 'test-project', activeRevision: 1, workspaceDirty: false }
   } }));
@@ -55,6 +58,13 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
     await route.fulfill({ json: { configuration, workspace: {} } });
   });
 
+  await page.route('**/api/engineering/asset-process-intelligence/analytics/query', route => {
+    const request = route.request().postDataJSON();
+    expect(request).toMatchObject({ tagId: alarmTargetId, scopeId: equipmentId });
+    return route.fulfill({ json: { projectKey: 'test-project', activeRevision: 1, scopeId: equipmentId,
+      tagId: alarmTargetId, period: { window: request.window, summary: { acceptedSampleCount: 48, minimum: 2.5, maximum: 5.25 } } } });
+  });
+
   await page.goto('/tests-e2e/harness/authoring-preview.html?intelligence&locale=pt-BR');
   const workspace = page.getByTestId('intelligence-stage2-authoring');
   const contextEditor = workspace.getByTestId('intelligence-context-profiles');
@@ -68,6 +78,14 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
   await contextEditor.getByRole('button', { name: 'Adicionar condição' }).click();
 
   await expect(contextEditor.getByText('Plant.Pump.Temperature')).toBeVisible();
+  await contextEditor.getByRole('checkbox', { name: 'Gerar alarme na área Intelligence' }).check();
+  const min = contextEditor.getByLabel('Mínimo esperado');
+  const max = contextEditor.getByLabel('Máximo esperado');
+  await contextEditor.getByText('Sugerir pelo histórico', { exact: true }).click();
+  await contextEditor.getByRole('button', { name: 'Preencher limites' }).click();
+  await expect(min).toHaveValue('2.5');
+  await expect(max).toHaveValue('5.25');
+  await max.fill('6');
   await workspace.locator('.asset-process-intelligence__authoring-footer')
     .getByRole('button', { name: 'Salvar configuração de processo' }).click();
   await expect.poll(() => saved).not.toBeNull();
@@ -95,6 +113,8 @@ test('Stage 4E authors and saves a versioned numeric operating context from the 
     key: expect.stringMatching(/^context-[a-f0-9]{32}$/),
     displayLabel: 'Operação normal',
     assignmentId,
+    deviationAlarm: { tagId: alarmTargetId, minimum: 2.5, maximum: 6, persistenceSeconds: 10 },
+    updateDeviationAlarm: true,
     predicates: [{
       tagId,
       kind: 'NumericInterval',

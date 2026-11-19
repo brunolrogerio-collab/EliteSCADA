@@ -1393,7 +1393,11 @@ public static class ProductLicensedRuntimeConfiguration
                         protectedMaterialResolver: sp.GetService<ICommunicationDriverProtectedMaterialResolver>(),
                         industrialEffectAuthority: () =>
                             sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects(),
-                        transientEventIngress: sp.GetRequiredService<ITransientEventRuntimeIngress>()),
+                        transientEventIngress: sp.GetRequiredService<ITransientEventRuntimeIngress>(),
+                        intelligenceAlarmPermit: (projectKey, revision, equipmentId) =>
+                            sp.GetRequiredService<IProductLicenseService>().CurrentVerification.HasAssetProcessIntelligence &&
+                            sp.GetRequiredService<AssetProcessIntelligenceExecutionGate>()
+                                .Describe(projectKey, AssetProcessIntelligenceScopeKind.Equipment, equipmentId)?.Revision == revision),
                     eventBus);
 
             return new ProductLicensedRuntimeCoordinator(

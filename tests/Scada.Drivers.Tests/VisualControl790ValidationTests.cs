@@ -119,6 +119,22 @@ public sealed class VisualControl790ValidationTests
     }
 
     [Fact]
+    public void InteractiveComboBox_AllowsAnOptionActionWithoutATagBinding()
+    {
+        var combo = Element(BuiltinVisualObjectSchemas.ComboBoxType, new()
+        {
+            [BuiltinVisualObjectSchemas.ComboBoxOptionsProperty] = Json("""[{"value":"Resumo","label":"Resumo"}]"""),
+            [VisualPropertyKeys.InteractionEnabled] = Json("true")
+        });
+        Assert.Contains(Validate(combo), issue => issue.Code == "VISUAL_COMBOBOX_ENUM_TAG_REQUIRED");
+
+        var action = new VisualNavigationActionEngineeringDto("option:526573756d6f", VisualNavigationActionKind.NavigateScreen, "overview");
+        Assert.DoesNotContain(Validate(combo with { Actions = [action] }), issue => issue.IsError);
+        Assert.Contains(Validate(combo with { Actions = [action with { EventKey = "option:31" }] }),
+            issue => issue.Code == "VISUAL_COMBOBOX_ENUM_TAG_REQUIRED");
+    }
+
+    [Fact]
     public void StructuralControlSettings_SurviveCurrentSchemaMigration()
     {
         var options = Json("""

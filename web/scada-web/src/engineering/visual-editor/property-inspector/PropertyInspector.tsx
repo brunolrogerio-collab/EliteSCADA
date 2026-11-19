@@ -292,6 +292,7 @@ export function PropertyInspector({
 
       {showEvents && selectedElements.length === 1 && selectedElements[0].id ? (
         <EventsEditor
+            locale={locale}
           visualObjectId={selectedElements[0].id}
           element={selectedElements[0]}
           onMutationIntent={onMutationIntent}

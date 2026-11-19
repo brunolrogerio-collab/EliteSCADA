@@ -35,7 +35,9 @@ public sealed record AssetProcessIntelligenceOperatingContextProfileSaveRequest(
     string Key,
     string DisplayLabel,
     Guid AssignmentId,
-    IReadOnlyCollection<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>? Predicates);
+    IReadOnlyCollection<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>? Predicates,
+    AssetProcessIntelligenceDeviationAlarmEngineeringDto? DeviationAlarm = null,
+    bool UpdateDeviationAlarm = false);
 
 public sealed record AssetProcessIntelligenceOperatingContextProfileExpectedVersion(Guid Id, int Version);
 
@@ -337,7 +339,8 @@ public static class AssetProcessIntelligenceApi
                         if (expected != persisted.Version)
                             return Results.Conflict(new { error = "INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_CONFLICT" });
                         var candidate = new AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
-                            incoming.Id, incoming.Key, incoming.DisplayLabel, incoming.AssignmentId, persisted.Version, incoming.Predicates);
+                            incoming.Id, incoming.Key, incoming.DisplayLabel, incoming.AssignmentId, persisted.Version, incoming.Predicates,
+                            incoming.UpdateDeviationAlarm ? incoming.DeviationAlarm : persisted.DeviationAlarm);
                         versioned.Add(ContextProfileSemanticallyEqual(persisted, candidate)
                             ? candidate
                             : candidate with { Version = checked(persisted.Version + 1) });
@@ -345,7 +348,7 @@ public static class AssetProcessIntelligenceApi
                     else
                     {
                         versioned.Add(new AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
-                            incoming.Id, incoming.Key, incoming.DisplayLabel, incoming.AssignmentId, 1, incoming.Predicates));
+                            incoming.Id, incoming.Key, incoming.DisplayLabel, incoming.AssignmentId, 1, incoming.Predicates, incoming.DeviationAlarm));
                     }
                 }
                 contextProfiles = versioned;
@@ -475,7 +478,8 @@ public static class AssetProcessIntelligenceApi
         if (left.Id != right.Id ||
             !string.Equals(left.Key, right.Key, StringComparison.Ordinal) ||
             !string.Equals(left.DisplayLabel, right.DisplayLabel, StringComparison.Ordinal) ||
-            left.AssignmentId != right.AssignmentId)
+            left.AssignmentId != right.AssignmentId ||
+            left.DeviationAlarm != right.DeviationAlarm)
             return false;
 
         var leftPredicates = (left.Predicates ?? Array.Empty<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>())

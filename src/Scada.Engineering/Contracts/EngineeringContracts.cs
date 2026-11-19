@@ -345,7 +345,14 @@ public sealed record AssetProcessIntelligenceOperatingContextProfileEngineeringD
     string DisplayLabel,
     Guid AssignmentId,
     int Version,
-    IReadOnlyCollection<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>? Predicates = null);
+    IReadOnlyCollection<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>? Predicates = null,
+    AssetProcessIntelligenceDeviationAlarmEngineeringDto? DeviationAlarm = null);
+
+public sealed record AssetProcessIntelligenceDeviationAlarmEngineeringDto(
+    Guid TagId,
+    double Minimum,
+    double Maximum,
+    int PersistenceSeconds);
 
 public enum AssetProcessIntelligenceIssueEntity
 {

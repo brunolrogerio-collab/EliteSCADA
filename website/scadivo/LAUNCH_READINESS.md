@@ -6,6 +6,14 @@ O cadastro com confirmação e a recuperação de senha estão disponíveis no P
 
 A conferência de 19/11/2026 confirmou a sessão anônima da API em HTTPS, o cadastro e envio configurados, o redirecionamento do fórum para SSO e a presença de SPF e DMARC no DNS. Os testes Chromium do Portal passaram 19/19 e a integração PostgreSQL passou 22/22. Na homologação descartável com a imagem de produção c15ac5f9, o Mailpit recebeu os e-mails de confirmação e recuperação em espanhol. O teste confirmou a recusa de login antes da confirmação, links de uso único, acesso pelo nome de usuário e pelo e-mail, rejeição da senha antiga e recusa de indicadores para membro comum. O aceite de uma mensagem de monitoramento pelo SMTP em produção está documentado na [#741](https://github.com/brunolrogerio-collab/EliteSCADA/issues/741#issuecomment-7011534654).
 
+## Entrega de e-mails e recuperação fora do VPS
+
+Em produção, a confirmação e a recuperação chegaram ao Gmail com SPF, DKIM e DMARC aprovados. Após a publicação da #899, o Portal vinculou duas cópias de uma devolução simulada a um único envio real. A caixa administrativa recebeu um único aviso de devolução. [Entrega no Gmail](https://github.com/brunolrogerio-collab/EliteSCADA/issues/741#issuecomment-7019810542) · [Teste em produção](https://github.com/brunolrogerio-collab/EliteSCADA/issues/741#issuecomment-7020649631)
+
+Em 19/11/2026, a cópia criptografada externa foi conferida por SHA-256 e restaurada em PostgreSQL descartável no Windows. A API reconstruída do commit `5f998de6` abriu com as chaves da cópia, aplicou a migração da #899 e ficou saudável em cerca de 10 segundos a partir do início do ensaio local. A página do Portal, a sessão anônima e a recusa de acesso anônimo à administração foram verificadas. As contagens de contas, FAQ, licenças, pedidos offline e e-mails foram preservadas. O tempo medido começa com a imagem e a cópia já disponíveis no computador.
+
+O ensaio usou rede isolada, com e-mail, SSO da Comunidade e assinatura online desativados. A cópia não tinha pedido ou licença offline com conteúdo protegido para testar a leitura desse conteúdo. O ensaio confirma a recuperação da API e da base. A retomada dos serviços externos durante uma queda do VPS continua pendente.
+
 ## Inventário para o aviso de privacidade e a retenção
 
 | Área | Dados e finalidade observados | Decisão para revisão |
@@ -46,8 +54,8 @@ Use **[canal oficial]** para suporte, dúvidas e solicitações relativas à con
 ## Etapas verificáveis antes de ampliar o piloto
 
 - Revisar as minutas, aprovar identidade e canais oficiais, decidir os prazos por categoria e testar, com conta sintética, um pedido de acesso, correção e encerramento envolvendo Portal e fórum.
-- Fazer cadastro → confirmação → recuperação com caixa de teste autorizada. Conferir chegada na caixa final, alinhamento SPF/DKIM/DMARC e tratamento de rejeição. O DNS e o aceite SMTP são evidências parciais.
-- Validar a recuperação completa em outro host, registrar versões restauradas, tempos e rotas verificadas. Definir a responsabilidade pela cópia externa e pela detecção de queda do próprio VPS.
+- Repetir as verificações de confirmação, recuperação, rejeição e devolução se houver troca de provedor, remetente ou configuração de e-mail.
+- Ensaiar a retomada em outro host com proxy/TLS, e-mail, SSO e assinatura online, usando parâmetros de teste. Validar a recuperação de um pedido e de uma licença offline com dados sintéticos. Definir a responsabilidade pela cópia externa e pela detecção de queda do próprio VPS.
 - Medir capacidade em homologação com volume representativo. Registrar latência, taxa de erro, filas e uso de CPU/memória. Repetir caso um tradutor passe a compartilhar o servidor.
 - Acompanhar artefatos oficiais em #363/#408. Validar downloads reais e o ciclo de licenças no produto. O lançamento comercial depende ainda de planos, regras de conversão, checkout, conciliação e ciclo de cancelamento/reembolso.
 

@@ -154,6 +154,9 @@ function errorText(code) {
     'account-already-exists': tr('Esse usuário ou e-mail já está cadastrado.', 'This username or email is already registered.'),
     'account-not-created': tr('Use um nome de usuário com letras, números, ponto ou hífen.', 'Use a username with letters, numbers, a dot or a hyphen.'),
     'owner-account-protected': tr('Contas proprietárias não podem ser suspensas por este controle.', 'Owner accounts cannot be suspended with this control.', 'Las cuentas propietarias no se pueden suspender con este control.'),
+    'staff-account-protected': tr('Remova a permissão administrativa antes de encerrar a conta.', 'Remove the administrative role before closing the account.', 'Retira el permiso administrativo antes de cerrar la cuenta.'),
+    'account-not-eligible-for-closure': tr('O encerramento exige uma conta ativa e confirmada.', 'Closure requires an active and confirmed account.', 'El cierre requiere una cuenta activa y confirmada.'),
+    'account-closed': tr('Esta conta já foi encerrada.', 'This account is closed.', 'Esta cuenta ya está cerrada.'),
     'account-not-updated': tr('A conta mudou durante a operação. Atualize a página e tente novamente.', 'The account changed during this operation. Refresh the page and try again.', 'La cuenta cambió durante la operación. Actualiza la página e inténtalo de nuevo.'),
     'account-not-ready-for-administration': tr('Para receber administração, a conta precisa estar ativa e com o e-mail confirmado.', 'Administrative access requires an active account with a confirmed email.', 'Para recibir acceso administrativo, la cuenta debe estar activa y tener el correo confirmado.'),
     'password-not-changed': tr('Confira a senha atual. A nova senha precisa ter ao menos 8 caracteres, maiúscula, minúscula e número.', 'Check your current password. The new password needs at least 8 characters, uppercase, lowercase and a number.'),
@@ -495,6 +498,7 @@ async function admin() {
 }
 function accountAccessAction(account) {
   if (account.owner) return badge(tr('Proprietário', 'Owner', 'Propietario'));
+  if (account.closedAtUtc) return badge(tr('Encerrada', 'Closed', 'Cerrada'));
   const action = button(account.isSuspended ? tr('Reativar', 'Reactivate', 'Reactivar') : tr('Suspender', 'Suspend', 'Suspender'), async () => {
     const message = account.isSuspended
       ? tr('Reativar esta conta? Será necessário entrar novamente.', 'Reactivate this account? A new sign-in will be required.', '¿Reactivar esta cuenta? Será necesario iniciar sesión de nuevo.')
@@ -508,7 +512,23 @@ function accountAccessAction(account) {
     } catch (error) { feedback(error.message, true); }
     finally { action.disabled = false; }
   });
-  return action;
+  if (!state.session.user.owner || account.administrator || account.isSuspended || !account.emailConfirmed || !account.invitationAccepted) return action;
+  const close = button(tr('Encerrar conta', 'Close account', 'Cerrar cuenta'), async () => {
+    const message = tr(
+      'Encerrar o acesso ao Portal e preservar as licenças vigentes? Depois, trate a sessão e a autoria na Comunidade.',
+      'Close Portal access and preserve current licenses? Then handle the session and authorship in the Community.',
+      '¿Cerrar el acceso al Portal y conservar las licencias vigentes? Después, gestiona la sesión y la autoría en la Comunidad.'
+    );
+    if (!window.confirm(`${account.userName}\n\n${message}`)) return;
+    close.disabled = true;
+    try {
+      await api(`/admin/accounts/${encodeURIComponent(account.id)}/closure`, 'PUT');
+      await render();
+      feedback(tr('Conta encerrada no Portal. Conclua o atendimento no fórum.', 'Account closed in the Portal. Finish the request in the forum.', 'Cuenta cerrada en el Portal. Completa la solicitud en el foro.'));
+    } catch (error) { feedback(error.message, true); }
+    finally { close.disabled = false; }
+  });
+  return h('div', { class: 'form-stack' }, [action, close]);
 }
 async function accountsAdmin() {
   const accounts = await api('/admin/accounts');
@@ -525,11 +545,12 @@ async function accountsAdmin() {
   }), invitationResult), panel(tr('Contas do portal', 'Portal accounts'),
     p(tr('Suspender preserva os dados da conta e encerra o acesso ao portal. Sessões já abertas no fórum são administradas no próprio fórum.', 'Suspension preserves account data and ends portal access. Existing forum sessions are managed in the forum itself.', 'La suspensión conserva los datos de la cuenta y cierra el acceso al portal. Las sesiones ya abiertas en el foro se administran en el propio foro.')),
     p(tr('A administração da equipe SCADIVO permite gerenciar contas, suporte, mensagens, FAQ, downloads e licenças. Ela é independente das funções nas organizações de clientes.', 'SCADIVO staff administration can manage accounts, support, messages, FAQ, downloads and licenses. It is independent of roles in customer organizations.', 'La administración del equipo SCADIVO permite gestionar cuentas, soporte, mensajes, FAQ, descargas y licencias. Es independiente de los roles en las organizaciones de clientes.')),
-    table([tr('Usuário', 'Username'), tr('Nome', 'Name'), tr('Situação', 'Status'), tr('Administração', 'Administration', 'Administración'), tr('Acesso', 'Access', 'Acceso')], accounts.map(account => [account.userName, account.displayName, badge(account.isSuspended ? tr('Suspensa', 'Suspended', 'Suspendida') : account.invitationAccepted && (account.emailConfirmed || account.owner) ? tr('Ativa', 'Active') : account.invitationAccepted ? tr('Aguardando confirmação', 'Awaiting confirmation', 'Pendiente de confirmación') : account.email ? tr('Aguardando ativação', 'Awaiting activation') : tr('Convite pendente', 'Pending invitation')), accountAdministrationAction(account), accountAccessAction(account)]))));
+    table([tr('Usuário', 'Username'), tr('Nome', 'Name'), tr('Situação', 'Status'), tr('Administração', 'Administration', 'Administración'), tr('Acesso', 'Access', 'Acceso')], accounts.map(account => [account.userName, account.displayName, badge(account.closedAtUtc ? tr('Encerrada', 'Closed', 'Cerrada') : account.isSuspended ? tr('Suspensa', 'Suspended', 'Suspendida') : account.invitationAccepted && (account.emailConfirmed || account.owner) ? tr('Ativa', 'Active') : account.invitationAccepted ? tr('Aguardando confirmação', 'Awaiting confirmation', 'Pendiente de confirmación') : account.email ? tr('Aguardando ativação', 'Awaiting activation') : tr('Convite pendente', 'Pending invitation')), accountAdministrationAction(account), accountAccessAction(account)]))));
   return result;
 }
 function accountAdministrationAction(account) {
   if (account.owner) return badge(tr('Proprietário', 'Owner', 'Propietario'));
+  if (account.closedAtUtc) return '—';
   const action = button(account.administrator ? tr('Remover administração', 'Remove administration', 'Retirar administración') : tr('Conceder administração', 'Grant administration', 'Conceder administración'), async () => {
     const message = account.administrator
       ? tr('Remover a administração desta conta? As sessões atuais serão encerradas e o próximo login terá acesso de usuário.', 'Remove administration from this account? Current sessions will end and the next sign-in will have user access.', '¿Retirar la administración de esta cuenta? Se cerrarán las sesiones actuales y el próximo acceso tendrá permisos de usuario.')

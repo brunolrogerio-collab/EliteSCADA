@@ -19,6 +19,7 @@ public sealed class PortalUser : IdentityUser
     public DateTimeOffset? MarketingEmailOptInAtUtc { get; set; }
     public bool InvitationAccepted { get; set; }
     public bool IsSuspended { get; set; }
+    public DateTimeOffset? ClosedAtUtc { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     [NotMapped]

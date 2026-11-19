@@ -25,7 +25,10 @@ if (args.Contains("--healthcheck"))
     return;
 }
 
-var builder = WebApplication.CreateBuilder(args.Where(argument => argument != "--send-test-email").ToArray());
+var retentionReport = args.Contains("--retention-report");
+var applyRetention = args.Contains("--apply-retention");
+var builder = WebApplication.CreateBuilder(args.Where(argument =>
+    argument is not ("--send-test-email" or "--retention-report" or "--apply-retention")).ToArray());
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 65536);
 builder.Services.AddDbContext<PortalDb>(options => options.UseNpgsql(
     builder.Configuration.GetConnectionString("Portal") ?? throw new InvalidOperationException("Portal database is not configured.")));
@@ -116,6 +119,8 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddScoped<PortalOperations>();
 builder.Services.AddScoped<PortalIndicators>();
+builder.Services.AddScoped<PortalAccountClosure>();
+builder.Services.AddScoped<PortalRetention>();
 builder.Services.AddScoped<PortalLicensingOperations>();
 builder.Services.AddScoped<PortalLicenseOperations>();
 builder.Services.AddSingleton<OfflineLicenseVerifier>();
@@ -144,6 +149,28 @@ builder.Services.AddHostedService<PortalEmailBounceWorker>();
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
+if (retentionReport || applyRetention)
+{
+    if (retentionReport && applyRetention)
+    {
+        Console.Error.WriteLine("Choose one retention mode.");
+        Environment.ExitCode = 1;
+        return;
+    }
+    await using var scope = app.Services.CreateAsyncScope();
+    try
+    {
+        var retention = scope.ServiceProvider.GetRequiredService<PortalRetention>();
+        var result = await retention.RunAsync(applyRetention, CancellationToken.None);
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { applied = applyRetention, result }));
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Retention did not complete ({exception.GetType().Name}).");
+        Environment.ExitCode = 1;
+    }
+    return;
+}
 if (args.Contains("--send-test-email"))
 {
     try

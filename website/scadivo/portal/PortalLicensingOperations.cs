@@ -122,7 +122,7 @@ public sealed class PortalLicensingOperations(
 
         var identifier = input.UserIdentifier!.Trim();
         var user = await users.FindByEmailAsync(identifier) ?? await users.FindByNameAsync(identifier);
-        if (user is null || !user.InvitationAccepted || !user.EmailConfirmed || user.IsSuspended)
+        if (user is null || !user.InvitationAccepted || !user.EmailConfirmed || user.IsSuspended || user.ClosedAtUtc is not null)
             return Results.NotFound(new { error = "account-not-available" });
         if (await db.Memberships.AnyAsync(x => x.OrganizationId == organizationId && x.UserId == user.Id))
             return Results.Conflict(new { error = "account-already-in-organization" });
@@ -375,7 +375,7 @@ public sealed class PortalLicensingOperations(
             (input.CurrentRefreshCredential is not null && !IsRefreshCredential(input.CurrentRefreshCredential))) return Invalid();
         var identifier = input.Username!.Trim();
         var user = await users.FindByEmailAsync(identifier) ?? await users.FindByNameAsync(identifier);
-        if (user is null) return InvalidCredentials();
+        if (user is null || user.ClosedAtUtc is not null) return InvalidCredentials();
         var result = await signIn.CheckPasswordSignInAsync(user, input.Password, lockoutOnFailure: true);
         if (!result.Succeeded || !UsableAccount(user)) return InvalidCredentials();
         var code = NormalizeLicenseCode(input.LicenseCode!);
@@ -470,7 +470,7 @@ public sealed class PortalLicensingOperations(
         var normalizedFingerprint = input.MachineFingerprint!.ToLowerInvariant();
         await using var transaction = await db.Database.BeginTransactionAsync();
         user = await LockUser(user.Id, "SHARE");
-        if (user is null || !UsableAccount(user) || await users.IsLockedOutAsync(user)) return InvalidCredentials();
+        if (user is null || !UsableAccount(user) || user.ClosedAtUtc is not null || await users.IsLockedOutAsync(user)) return InvalidCredentials();
         var membership = await LockMembershipForRead(await db.ProductLicenses.AsNoTracking().Where(x => x.Id == licenseId.Value).Select(x => x.OrganizationId).SingleAsync(), user.Id);
         if (membership is null) return LicenseNotAvailable();
         var license = await LockLicense(licenseId.Value, "UPDATE");
@@ -618,6 +618,8 @@ public sealed class PortalLicensingOperations(
         var activation = await LockActivation(activationId, "UPDATE");
         if (license is null || activation is null || activation.UserId != initial.UserId)
             return InvalidCredentials();
+        // Closure removes interactive account access. An already enrolled machine still proves
+        // possession with its rotating credential and must have an eligible activation and license.
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == activation.UserId);
         if (user is null || !UsableAccount(user)) return InvalidCredentials();
 

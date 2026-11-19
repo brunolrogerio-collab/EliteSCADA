@@ -95,6 +95,7 @@ public sealed class PortalEmailDispatcher(
         var template = await db.EmailTemplates.FindAsync([item.TemplateKey], cancellationToken);
         var recipient = item.RecipientAddress ?? user?.Email;
         var reason = item.TemplateKey is not ("account.invitation" or "account.confirmation" or "account.password-reset" or "support.created" or "support.replied" or "support.team-ticket" or "support.team-reply" or "contact.received" or "contact.notification") ? "unsupported-template"
+            : user?.ClosedAtUtc is not null ? "account-closed"
             : string.IsNullOrWhiteSpace(recipient) || !MailboxAddress.TryParse(recipient, out _) ? "recipient-missing"
             : template is null ? "template-missing"
             : item.TemplateKey == "account.invitation" && user?.InvitationAccepted == true ? "invitation-accepted"

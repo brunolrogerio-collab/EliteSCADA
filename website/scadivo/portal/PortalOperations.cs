@@ -57,7 +57,7 @@ public sealed class PortalOperations(
         if (!Valid(input.Username, 1, 256) || input.Password is null || input.Password.Length > 1024) return Invalid();
         var username = input.Username!.Trim();
         var user = await users.FindByEmailAsync(username) ?? await users.FindByNameAsync(username);
-        if (user is null || !user.InvitationAccepted || user.IsSuspended)
+        if (user is null || !user.InvitationAccepted || user.IsSuspended || user.ClosedAtUtc is not null)
             return Results.Json(new { error = "invalid-credentials" }, statusCode: 401);
         var result = await signIn.PasswordSignInAsync(user, input.Password, false, lockoutOnFailure: true);
         if (!result.Succeeded)
@@ -228,7 +228,7 @@ public sealed class PortalOperations(
     {
         if (!Valid(input.UserId, 1, 100) || !Valid(input.Token, 1, 4096)) return Invalid("invalid-confirmation");
         var user = await users.FindByIdAsync(input.UserId!);
-        if (user?.Email is null || user.EmailConfirmed) return Invalid("invalid-confirmation");
+        if (user?.Email is null || user.EmailConfirmed || user.ClosedAtUtc is not null) return Invalid("invalid-confirmation");
         string token;
         try { token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(input.Token!)); }
         catch (FormatException) { return Invalid("invalid-confirmation"); }
@@ -249,7 +249,7 @@ public sealed class PortalOperations(
         if (!Valid(email, 5, 256) || !MailAddress.TryCreate(email, out var parsedEmail) ||
             !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase)) return Invalid("invalid-email");
         var user = await users.FindByEmailAsync(email!);
-        if (emailSettings.Value.Enabled && user is not null && !user.EmailConfirmed)
+        if (emailSettings.Value.Enabled && user is { EmailConfirmed: false, ClosedAtUtc: null })
         {
             var cooldown = DateTimeOffset.UtcNow.AddMinutes(-2);
             var activeStatuses = new[] { "queued", "retry", "sent" };
@@ -274,7 +274,7 @@ public sealed class PortalOperations(
             string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase))
         {
             var user = await users.FindByEmailAsync(email!);
-            if (user is not null && user.EmailConfirmed && user.InvitationAccepted && !user.IsSuspended)
+            if (user is { EmailConfirmed: true, InvitationAccepted: true, IsSuspended: false, ClosedAtUtc: null })
             {
                 var cooldown = DateTimeOffset.UtcNow.AddMinutes(-15);
                 var activeStatuses = new[] { "queued", "retry", "sent" };
@@ -296,7 +296,7 @@ public sealed class PortalOperations(
         if (!Valid(input.UserId, 1, 100) || !Valid(input.Token, 1, 4096) || input.Password is null || input.Password.Length > 1024)
             return Invalid("invalid-password-reset");
         var user = await users.FindByIdAsync(input.UserId!);
-        if (user?.Email is null || !user.EmailConfirmed || !user.InvitationAccepted || user.IsSuspended)
+        if (user?.Email is null || !user.EmailConfirmed || !user.InvitationAccepted || user.IsSuspended || user.ClosedAtUtc is not null)
             return Invalid("invalid-password-reset");
         string token;
         try { token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(input.Token!)); }
@@ -361,7 +361,7 @@ public sealed class PortalOperations(
     {
         if (!Valid(input.UserId, 1, 100) || !Valid(input.Token, 1, 4096) || input.Password is null || input.Password.Length > 1024 || !ValidLocale(input.Locale)) return Invalid();
         var user = await users.FindByIdAsync(input.UserId!);
-        if (user is null || user.InvitationAccepted) return Invalid("invalid-invitation");
+        if (user is null || user.InvitationAccepted || user.ClosedAtUtc is not null) return Invalid("invalid-invitation");
         if (!ValidProfile(input.ProfileType, input.ActivityArea, input.ActivityAreaOther, input.OrganizationOrSchool,
             input.PhoneNumber, input.Address, input.DateOfBirth)) return Invalid("profile-fields-required");
         string token;
@@ -651,7 +651,7 @@ public sealed class PortalOperations(
             where role.Name == "Admin"
             select membership.UserId).ToArrayAsync();
         return Results.Ok(await db.Users.AsNoTracking().OrderBy(x => x.UserName).Take(100)
-            .Select(x => new { x.Id, x.UserName, x.DisplayName, x.Email, x.EmailConfirmed, x.InvitationAccepted, x.IsSuspended,
+            .Select(x => new { x.Id, x.UserName, x.DisplayName, x.Email, x.EmailConfirmed, x.InvitationAccepted, x.IsSuspended, x.ClosedAtUtc,
                 owner = ownerIds.Contains(x.Id), administrator = ownerIds.Contains(x.Id) || adminIds.Contains(x.Id),
                 profileComplete = x.ProfileType != "" && x.ActivityArea != "" && x.OrganizationOrSchool != "", x.CreatedAtUtc }).ToListAsync());
     }
@@ -663,7 +663,7 @@ public sealed class PortalOperations(
         var account = await db.Users.FromSqlInterpolated($"SELECT * FROM \"AspNetUsers\" WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync();
         if (account is null) return Results.NotFound();
         if (await users.IsInRoleAsync(account, "Owner")) return Results.Conflict(new { error = "owner-account-protected" });
-        if (input.Administrator.Value && (!account.EmailConfirmed || !account.InvitationAccepted || account.IsSuspended))
+        if (input.Administrator.Value && (!account.EmailConfirmed || !account.InvitationAccepted || account.IsSuspended || account.ClosedAtUtc is not null))
             return Results.Conflict(new { error = "account-not-ready-for-administration" });
         var current = await users.IsInRoleAsync(account, "Admin");
         if (current == input.Administrator.Value) return Results.Ok(new { account.Id, administrator = current });
@@ -679,14 +679,16 @@ public sealed class PortalOperations(
     public async Task<IResult> UpdateAccountAccess(string id, AccountAccessInput input, HttpContext context)
     {
         if (input.Suspended is null || !Valid(id, 1, 100)) return Invalid();
-        var account = await users.FindByIdAsync(id);
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var account = await db.Users.FromSqlInterpolated($"SELECT * FROM \"AspNetUsers\" WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync();
         if (account is null) return Results.NotFound();
         if (await users.IsInRoleAsync(account, "Owner"))
             return Results.Conflict(new { error = "owner-account-protected" });
+        if (account.ClosedAtUtc is not null)
+            return Results.Conflict(new { error = "account-closed" });
         if (account.IsSuspended == input.Suspended.Value)
             return Results.Ok(new { account.Id, account.IsSuspended });
 
-        await using var transaction = await db.Database.BeginTransactionAsync();
         account.IsSuspended = input.Suspended.Value;
         var updated = await users.UpdateSecurityStampAsync(account);
         if (!updated.Succeeded) return Results.Conflict(new { error = "account-not-updated" });

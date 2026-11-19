@@ -26,6 +26,65 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
     private const string Password = "Scad1vo!";
 
     [Fact]
+    public async Task RetentionReportsThenAppliesOnlyTheApprovedCutoffs()
+    {
+        var connection = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+            ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!";
+        await using var db = new PortalDb(new DbContextOptionsBuilder<PortalDb>().UseNpgsql(connection).Options);
+        await db.Database.MigrateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var oldPending = new PortalUser { CreatedAtUtc = now.AddDays(-31) };
+        var newPending = new PortalUser { CreatedAtUtc = now.AddDays(-29) };
+        var unacceptedInvitation = new PortalUser { CreatedAtUtc = now.AddDays(-31) };
+        var idle = new PortalUser { EmailConfirmed = true, InvitationAccepted = true, CreatedAtUtc = now.AddMonths(-13) };
+        var recentActivity = new PortalUser { EmailConfirmed = true, InvitationAccepted = true, CreatedAtUtc = now.AddMonths(-13) };
+        db.Users.AddRange(oldPending, newPending, unacceptedInvitation, idle, recentActivity);
+        db.Audit.AddRange(
+            new PortalAudit { ActorId = oldPending.Id, Action = "account.registered", CreatedAtUtc = oldPending.CreatedAtUtc },
+            new PortalAudit { ActorId = newPending.Id, Action = "account.registered", CreatedAtUtc = newPending.CreatedAtUtc },
+            new PortalAudit { ActorId = recentActivity.Id, Action = "auth.login", CreatedAtUtc = now.AddDays(-2) });
+
+        var oldTicket = new SupportTicket { UserId = idle.Id, Status = "closed", UpdatedAtUtc = now.AddMonths(-13) };
+        var openTicket = new SupportTicket { UserId = idle.Id, Status = "open", UpdatedAtUtc = now.AddMonths(-13) };
+        var recentTicket = new SupportTicket { UserId = idle.Id, Status = "closed", UpdatedAtUtc = now.AddMonths(-11) };
+        var message = new TicketMessage { TicketId = oldTicket.Id, UserId = idle.Id, Body = "Historic message" };
+        db.Tickets.AddRange(oldTicket, openTicket, recentTicket);
+        db.TicketMessages.Add(message);
+        var staleMail = new EmailOutbox { Status = "sent", CreatedAtUtc = now.AddDays(-100), SentAtUtc = now.AddDays(-91) };
+        var bouncedRecently = new EmailOutbox { Status = "bounced", CreatedAtUtc = now.AddDays(-100), SentAtUtc = now.AddDays(-91), BouncedAtUtc = now.AddDays(-1) };
+        var pendingMail = new EmailOutbox { Status = "retry", CreatedAtUtc = now.AddDays(-100), NextAttemptAtUtc = now.AddDays(1) };
+        var pendingConfirmation = new EmailOutbox { Status = "queued", UserId = oldPending.Id, TemplateKey = "account.confirmation" };
+        db.EmailOutbox.AddRange(staleMail, bouncedRecently, pendingMail, pendingConfirmation);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var retention = new PortalRetention(db, TimeProvider.System);
+        var report = await retention.RunAsync(false, CancellationToken.None);
+        Assert.True(report.Registrations >= 1 && report.ClosedTickets >= 1 && report.DeliveryRecords >= 1 && report.InactivityReview >= 1);
+        Assert.True(await db.Users.AnyAsync(user => user.Id == oldPending.Id));
+        Assert.True(await db.TicketMessages.AnyAsync(row => row.Id == message.Id));
+        Assert.True(await db.EmailOutbox.AnyAsync(row => row.Id == staleMail.Id));
+
+        var applied = await retention.RunAsync(true, CancellationToken.None);
+        Assert.Equal(report, applied);
+        Assert.False(await db.Users.AnyAsync(user => user.Id == oldPending.Id));
+        Assert.False(await db.Tickets.AnyAsync(row => row.Id == oldTicket.Id));
+        Assert.False(await db.TicketMessages.AnyAsync(row => row.Id == message.Id));
+        Assert.False(await db.EmailOutbox.AnyAsync(row => row.Id == staleMail.Id || row.Id == pendingConfirmation.Id));
+        Assert.Equal(4, await db.Users.CountAsync(user => new[] { newPending.Id, unacceptedInvitation.Id, idle.Id, recentActivity.Id }.Contains(user.Id)));
+        Assert.Equal(2, await db.Tickets.CountAsync(row => row.Id == openTicket.Id || row.Id == recentTicket.Id));
+        Assert.Equal(2, await db.EmailOutbox.CountAsync(row => row.Id == bouncedRecently.Id || row.Id == pendingMail.Id));
+
+        Assert.Equal(new PortalRetentionResult(0, 0, 0, report.InactivityReview),
+            await retention.RunAsync(true, CancellationToken.None));
+        await db.EmailOutbox.Where(row => row.Id == bouncedRecently.Id || row.Id == pendingMail.Id).ExecuteDeleteAsync();
+        await db.Tickets.Where(row => row.Id == openTicket.Id || row.Id == recentTicket.Id).ExecuteDeleteAsync();
+        var fixtureUsers = new[] { oldPending.Id, newPending.Id, unacceptedInvitation.Id, idle.Id, recentActivity.Id };
+        await db.Audit.Where(row => row.ActorId != null && fixtureUsers.Contains(row.ActorId)).ExecuteDeleteAsync();
+        await db.Users.Where(user => fixtureUsers.Contains(user.Id)).ExecuteDeleteAsync();
+    }
+
+    [Fact]
     public async Task OfflineMachineLicenseConversionRetiresOnlineRightsAndDelaysPrivateDelivery()
     {
         var root = Path.Combine(Path.GetTempPath(), "scadivo-license-request-tests-" + Guid.NewGuid().ToString("N"));
@@ -1758,6 +1817,34 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 Assert.Contains(Convert.ToHexString(SHA256.HashData(WebEncoders.Base64UrlDecode(laterRecovery.Credential))).ToLowerInvariant(), hashes);
                 Assert.DoesNotContain(laterRecovery.Credential, hashes);
             }
+
+            var member = await Login(factory, username);
+            var closurePath = $"/admin/accounts/{userId}/closure";
+            using (var unauthorizedClosure = await member.Raw(closurePath, HttpMethod.Put, new { }))
+                Assert.Equal(HttpStatusCode.Forbidden, unauthorizedClosure.StatusCode);
+            var closed = await owner.Send(closurePath, HttpMethod.Put, new { });
+            var repeated = await owner.Send(closurePath, HttpMethod.Put, new { });
+            Assert.Equal(closed.GetProperty("closedAtUtc").GetString(), repeated.GetProperty("closedAtUtc").GetString());
+            Assert.False((await member.Get("/session")).GetProperty("authenticated").GetBoolean());
+
+            using var newPreparation = await product.PostAsJsonAsync("api/licensing/device/prepare", new
+            {
+                username, password = Password, licenseCode, activationId, machineFingerprint = fingerprint
+            });
+            Assert.Equal(HttpStatusCode.Unauthorized, newPreparation.StatusCode);
+            using var renewalAfterClosure = new HttpRequestMessage(HttpMethod.Post, $"api/licensing/device/activations/{activationId}/renew")
+            {
+                Content = JsonContent.Create(new { requestId = Guid.NewGuid(), nextRefreshCredential = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32)) })
+            };
+            renewalAfterClosure.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", laterRecovery.Credential);
+            using var renewed = await product.SendAsync(renewalAfterClosure);
+            Assert.Equal(HttpStatusCode.OK, renewed.StatusCode);
+            var installed = await renewed.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(activationId, installed.GetProperty("activationId").GetGuid());
+            await using var finalScope = factory.Services.CreateAsyncScope();
+            var finalDb = finalScope.ServiceProvider.GetRequiredService<PortalDb>();
+            Assert.Equal(1, await finalDb.ProductLicenseActivations.CountAsync(row => row.LicenseId == licenseId));
+            Assert.Equal(4L, (await finalDb.ProductLicenseActivations.SingleAsync(row => row.Id == activationId)).CredentialGeneration);
         }
         finally { Directory.Delete(root, recursive: true); }
     }

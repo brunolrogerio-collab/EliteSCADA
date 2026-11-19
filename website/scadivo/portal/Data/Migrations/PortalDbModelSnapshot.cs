@@ -534,6 +534,9 @@ namespace Scadivo.Portal.Data.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<DateTimeOffset?>("ClosedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("text");

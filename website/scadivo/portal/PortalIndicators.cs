@@ -27,7 +27,7 @@ public sealed class PortalIndicators(PortalDb db, TimeProvider clock)
         if (end > today || end < start || end.DayNumber - start.DayNumber >= 90)
             return Results.BadRequest(new { error = "invalid-indicators-period" });
 
-        var profiles = db.Users.AsNoTracking().Where(user => user.EmailConfirmed && user.InvitationAccepted && !user.IsSuspended);
+        var profiles = db.Users.AsNoTracking().Where(user => user.EmailConfirmed && user.InvitationAccepted && !user.IsSuspended && user.ClosedAtUtc == null);
         var total = await profiles.CountAsync(cancellationToken);
         var types = await profiles.GroupBy(user => user.ProfileType)
             .Select(group => new { label = group.Key, count = group.Count() }).ToListAsync(cancellationToken);

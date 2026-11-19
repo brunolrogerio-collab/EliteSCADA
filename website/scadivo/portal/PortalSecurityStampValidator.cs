@@ -13,6 +13,6 @@ public sealed class PortalSecurityStampValidator(
     protected override async Task<PortalUser?> VerifySecurityStamp(ClaimsPrincipal? principal)
     {
         var user = await base.VerifySecurityStamp(principal);
-        return user is { IsSuspended: false } ? user : null;
+        return user is { IsSuspended: false, ClosedAtUtc: null } ? user : null;
     }
 }

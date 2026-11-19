@@ -72,7 +72,7 @@ public sealed class SmtpPortalEmailTransport(IOptions<PortalEmailOptions> settin
 }
 
 public sealed class PortalEmailDispatcher(
-    PortalDb db, UserManager<PortalUser> users, IOptions<PortalEmailOptions> settings,
+    PortalDb db, UserManager<PortalUser> users, IOptions<PortalEmailOptions> settings, PortalRetention retention,
     IPortalEmailTransport transport, IConfiguration configuration, ILogger<PortalEmailDispatcher> logger)
 {
     public async Task<bool> ProcessNextAsync(CancellationToken cancellationToken)
@@ -94,12 +94,13 @@ public sealed class PortalEmailDispatcher(
         var user = item.UserId is null ? null : await users.FindByIdAsync(item.UserId);
         var template = await db.EmailTemplates.FindAsync([item.TemplateKey], cancellationToken);
         var recipient = item.RecipientAddress ?? user?.Email;
-        var reason = item.TemplateKey is not ("account.invitation" or "account.confirmation" or "account.password-reset" or "support.created" or "support.replied" or "support.team-ticket" or "support.team-reply" or "contact.received" or "contact.notification") ? "unsupported-template"
+        var reason = item.TemplateKey is not ("account.invitation" or "account.confirmation" or "account.password-reset" or PortalRetention.InactivityTemplate or "support.created" or "support.replied" or "support.team-ticket" or "support.team-reply" or "contact.received" or "contact.notification") ? "unsupported-template"
             : user?.ClosedAtUtc is not null ? "account-closed"
             : string.IsNullOrWhiteSpace(recipient) || !MailboxAddress.TryParse(recipient, out _) ? "recipient-missing"
             : template is null ? "template-missing"
             : item.TemplateKey == "account.invitation" && user?.InvitationAccepted == true ? "invitation-accepted"
             : item.TemplateKey == "account.confirmation" && (user is null || user.EmailConfirmed) ? "confirmation-not-required"
+            : item.TemplateKey == PortalRetention.InactivityTemplate && !await retention.StillInactiveAsync(item, cancellationToken) ? "inactivity-notice-not-required"
             : item.TemplateKey == "account.password-reset" && (user is null || !user.EmailConfirmed || !user.InvitationAccepted) ? "password-reset-not-eligible" : null;
         if (reason is not null)
         {
@@ -159,6 +160,8 @@ public sealed class PortalEmailDispatcher(
                 item.Status = "sent";
                 item.DeliveryRecipientFingerprint = PortalEmailBounceProcessor.Fingerprint(item.Id, message.To.Mailboxes.Single().Address);
                 item.SentAtUtc = DateTimeOffset.UtcNow;
+                if (item.TemplateKey == PortalRetention.InactivityTemplate)
+                    db.Audit.Add(new PortalAudit { Action = PortalRetention.InactivityAccepted, ResourceId = item.UserId, CreatedAtUtc = item.SentAtUtc.Value });
                 item.NextAttemptAtUtc = null;
                 item.LastErrorCode = null;
                 // Contact details are needed only while delivery is pending.

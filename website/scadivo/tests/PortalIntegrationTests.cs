@@ -26,6 +26,67 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
     private const string Password = "Scad1vo!";
 
     [Fact]
+    public async Task InactivityNoticeQueueDeduplicatesAndProtectsRecentAndLicensedAccounts()
+    {
+        const string template = "account.inactivity-notice";
+        var connection = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+            ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!";
+        await using var db = new PortalDb(new DbContextOptionsBuilder<PortalDb>().UseNpgsql(connection).Options);
+        await db.Database.MigrateAsync();
+        var clock = new OfflineTestClock();
+        PortalUser Account(string label) => new()
+        {
+            Email = $"{label}-{Guid.NewGuid():N}@example.test", EmailConfirmed = true, InvitationAccepted = true,
+            CreatedAtUtc = clock.UtcNow.AddMonths(-13)
+        };
+        var idle = Account("idle");
+        var active = Account("recent");
+        var licensed = Account("licensed");
+        var organization = new Organization { Name = "Notice test" };
+        var application = new ProductApplication { OrganizationId = organization.Id, Name = "Test", NormalizedName = "TEST" };
+        var license = new ProductLicense { OrganizationId = organization.Id, ApplicationId = application.Id, PublicCode = Guid.NewGuid().ToString("N") };
+        db.AddRange(idle, active, licensed, organization, application, license,
+            new Membership { OrganizationId = organization.Id, UserId = licensed.Id, Role = "Member" },
+            new PortalAudit { ActorId = active.Id, Action = "auth.login", CreatedAtUtc = clock.UtcNow.AddDays(-1) });
+        await db.SaveChangesAsync();
+        var retention = new PortalRetention(db, clock);
+        var ids = new[] { idle.Id, active.Id, licensed.Id };
+        var notices = db.EmailOutbox.Where(row => row.TemplateKey == template && row.UserId != null && ids.Contains(row.UserId));
+        try
+        {
+            var parallel = Task.Run(async () =>
+            {
+                await using var secondDb = new PortalDb(new DbContextOptionsBuilder<PortalDb>().UseNpgsql(connection).Options);
+                await new PortalRetention(secondDb, clock).QueueInactivityNoticesAsync(CancellationToken.None);
+            });
+            await Task.WhenAll(parallel, retention.QueueInactivityNoticesAsync(CancellationToken.None));
+            Assert.Equal(idle.Id, (await notices.SingleAsync()).UserId);
+
+            await notices.ExecuteDeleteAsync();
+            await retention.QueueInactivityNoticesAsync(CancellationToken.None);
+            Assert.False(await notices.AnyAsync());
+
+            db.Audit.Add(new PortalAudit { ActorId = idle.Id, Action = "auth.login", CreatedAtUtc = clock.UtcNow.AddDays(1) });
+            await db.SaveChangesAsync();
+            clock.UtcNow = clock.UtcNow.AddMonths(13);
+            await retention.QueueInactivityNoticesAsync(CancellationToken.None);
+            Assert.Equal(1, await notices.CountAsync(row => row.UserId == idle.Id));
+            Assert.False(await notices.AnyAsync(row => row.UserId == licensed.Id));
+        }
+        finally
+        {
+            await notices.ExecuteDeleteAsync();
+            await db.Audit.Where(row => (row.ResourceId != null && ids.Contains(row.ResourceId)) ||
+                (row.ActorId != null && ids.Contains(row.ActorId))).ExecuteDeleteAsync();
+            await db.ProductLicenses.Where(row => row.Id == license.Id).ExecuteDeleteAsync();
+            await db.Memberships.Where(row => row.OrganizationId == organization.Id).ExecuteDeleteAsync();
+            await db.ProductApplications.Where(row => row.Id == application.Id).ExecuteDeleteAsync();
+            await db.Organizations.Where(row => row.Id == organization.Id).ExecuteDeleteAsync();
+            await db.Users.Where(row => ids.Contains(row.Id)).ExecuteDeleteAsync();
+        }
+    }
+
+    [Fact]
     public async Task RetentionReportsThenAppliesOnlyTheApprovedCutoffs()
     {
         var connection = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")

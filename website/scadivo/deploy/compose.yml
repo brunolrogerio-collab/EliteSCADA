@@ -55,6 +55,12 @@ services:
       Portal__Email__ReplyToAddress: support@scadivo.com
       Portal__Email__Bounces__Enabled: ${PORTAL_EMAIL_BOUNCES_ENABLED:-false}
       Portal__Email__Bounces__Host: ${PORTAL_IMAP_HOST:-mail.scadivo.com}
+      Portal__Privacy__InactivityNoticesEnabled: ${PORTAL_INACTIVITY_NOTICES_ENABLED:-false}
+      Portal__Privacy__ContactMailbox__Enabled: ${PORTAL_CONTACT_RETENTION_ENABLED:-false}
+      Portal__Privacy__ContactMailbox__Apply: ${PORTAL_CONTACT_RETENTION_APPLY:-false}
+      Portal__Privacy__ContactMailbox__Host: ${PORTAL_CONTACT_IMAP_HOST:-mail.scadivo.com}
+      Portal__Privacy__ContactMailbox__Username: contact@scadivo.com
+      Portal__Privacy__ContactMailbox__PasswordFile: /run/secrets/portal-mail/contact-imap-password
       Portal__Licensing__Online__Enabled: ${PORTAL_ONLINE_LEASE_SIGNING_ENABLED:-false}
       Portal__Licensing__Online__PrivateKeyFile: /run/scadivo-signing/online-lease.pem
       Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning

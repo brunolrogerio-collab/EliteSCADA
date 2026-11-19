@@ -8,6 +8,39 @@ public sealed record PortalRetentionResult(int Registrations, int ClosedTickets,
 
 public sealed class PortalRetention(PortalDb db, TimeProvider clock)
 {
+    internal const string InactivityTemplate = "account.inactivity-notice";
+    internal const string InactivityQueued = "account.inactivity-notice.queued";
+    internal const string InactivityAccepted = "account.inactivity-notice.accepted";
+    private const long InactivityQueueLock = 0x53434144494F0012L;
+
+    public async Task<int> QueueInactivityNoticesAsync(CancellationToken cancellationToken)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({InactivityQueueLock})", cancellationToken);
+        var now = clock.GetUtcNow();
+        var candidates = await InactivityCandidates(now)
+            .Where(user => user.Email != null && user.Email != "" &&
+                !db.Audit.Any(notice => notice.ResourceId == user.Id && notice.Action == InactivityQueued &&
+                    !db.Audit.Any(activity => activity.ActorId == user.Id && activity.CreatedAtUtc > notice.CreatedAtUtc)) &&
+                !db.EmailOutbox.Any(mail => mail.UserId == user.Id && mail.TemplateKey == InactivityTemplate &&
+                    (mail.Status == "queued" || mail.Status == "retry")))
+            .OrderBy(user => user.CreatedAtUtc).ThenBy(user => user.Id)
+            .Select(user => user.Id).Take(100).ToListAsync(cancellationToken);
+        foreach (var id in candidates)
+        {
+            db.EmailOutbox.Add(new EmailOutbox { TemplateKey = InactivityTemplate, UserId = id, Status = "queued", CreatedAtUtc = now });
+            db.Audit.Add(new PortalAudit { Action = InactivityQueued, ResourceId = id, CreatedAtUtc = now });
+        }
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return candidates.Count;
+    }
+
+    internal Task<bool> StillInactiveAsync(EmailOutbox notice, CancellationToken cancellationToken) =>
+        InactivityCandidates(clock.GetUtcNow()).AnyAsync(user => user.Id == notice.UserId &&
+            !db.Audit.Any(activity => activity.ActorId == user.Id && activity.CreatedAtUtc > notice.CreatedAtUtc),
+            cancellationToken);
+
     public async Task<PortalRetentionResult> RunAsync(bool apply, CancellationToken cancellationToken)
     {
         var now = clock.GetUtcNow();
@@ -43,7 +76,13 @@ public sealed class PortalRetention(PortalDb db, TimeProvider clock)
     public async Task<IResult> InactivityReview(CancellationToken cancellationToken) =>
         Results.Ok(await InactivityCandidates(clock.GetUtcNow()).OrderBy(user => user.CreatedAtUtc)
             .ThenBy(user => user.Id)
-            .Select(user => new { user.Id, user.UserName, user.Email, user.CreatedAtUtc })
+            .Select(user => new
+            {
+                user.Id, user.UserName, user.Email, user.CreatedAtUtc,
+                noticeAcceptedAtUtc = db.Audit.Where(notice => notice.ResourceId == user.Id && notice.Action == InactivityAccepted &&
+                    !db.Audit.Any(activity => activity.ActorId == user.Id && activity.CreatedAtUtc > notice.CreatedAtUtc))
+                    .Max(notice => (DateTimeOffset?)notice.CreatedAtUtc)
+            })
             .ToListAsync(cancellationToken));
 
     private IQueryable<PortalUser> ExpiredRegistrations(DateTimeOffset cutoff) =>

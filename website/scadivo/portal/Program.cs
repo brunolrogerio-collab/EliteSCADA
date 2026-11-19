@@ -146,6 +146,16 @@ builder.Services.AddOptions<PortalEmailBounceOptions>().BindConfiguration("Porta
     .ValidateOnStart();
 builder.Services.AddScoped<PortalEmailBounceProcessor>();
 builder.Services.AddHostedService<PortalEmailBounceWorker>();
+builder.Services.AddOptions<PortalPrivacyAutomationOptions>().BindConfiguration("Portal:Privacy")
+    .Validate<Microsoft.Extensions.Options.IOptions<PortalEmailOptions>>((privacy, email) => !privacy.InactivityNoticesEnabled || email.Value.Enabled,
+        "Inactivity notices require the Portal email service.")
+    .ValidateOnStart();
+builder.Services.AddOptions<PortalContactMailboxRetentionOptions>().BindConfiguration("Portal:Privacy:ContactMailbox")
+    .Validate<Microsoft.Extensions.Options.IOptions<PortalEmailOptions>>((mailbox, email) => mailbox.Valid(email.Value),
+        "Contact retention requires a separate contact mailbox credential and an IMAP endpoint.")
+    .ValidateOnStart();
+builder.Services.AddScoped<PortalContactMailboxRetention>();
+builder.Services.AddHostedService<PortalPrivacyAutomationWorker>();
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();

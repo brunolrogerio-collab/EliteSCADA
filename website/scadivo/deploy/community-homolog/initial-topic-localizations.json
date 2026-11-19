@@ -1,0 +1,30 @@
+[
+  {
+    "topic": 4,
+    "sourceTitle": "Regras da comunidade SCADIVO",
+    "translations": {
+      "en": {
+        "title": "SCADIVO community rules",
+        "body": "The SCADIVO community is a place for students, professionals, integrators, and organizations working with automation and supervisory systems.\n\n1. **Respect others and keep discussions technical.** Discuss ideas and solutions courteously. Attacks, harassment, and discrimination are prohibited.\n2. **Protect confidential information.** Keep passwords, keys, tokens, personal data, private addresses, customer names, and details that identify real sites out of posts. Anonymize examples, files, and screenshots.\n3. **Work safely.** A forum suggestion does not authorize changes to a process. Validate changes in a controlled environment and follow your site's safety procedures.\n4. **Choose the right category.** Search before opening a topic, cover one issue at a time, and include the version, environment, goal, and steps to reproduce when relevant.\n5. **Share material you have permission to use.** Publish code, images, and documents that you own or are authorized to share. Credit the source where applicable.\n6. **Keep the forum useful.** Avoid spam, duplicates, and off-topic promotions. Use the flag option on the page to report inappropriate content.\n\nWho can see a post depends on the category permissions. The team may moderate content that breaks these rules or exposes people or facilities."
+      },
+      "es": {
+        "title": "Reglas de la comunidad SCADIVO",
+        "body": "La comunidad SCADIVO es un espacio de intercambio para estudiantes, profesionales, integradores y organizaciones que trabajan con sistemas de automatización y supervisión.\n\n1. **Respeta a los demás y mantén el enfoque técnico.** Debate ideas y soluciones con cortesía. No se permiten ataques personales, acoso ni discriminación.\n2. **Protege la información.** Evita publicar contraseñas, claves, tokens, datos personales, direcciones privadas, nombres de clientes o datos que permitan identificar instalaciones reales. Anonimiza ejemplos, archivos y capturas.\n3. **Trabaja de forma segura.** Una sugerencia del foro no autoriza cambios en un proceso. Valida los cambios en un entorno controlado y sigue los procedimientos de seguridad de la instalación.\n4. **Elige la categoría adecuada.** Busca antes de abrir un tema, aborda un asunto por tema e indica, cuando corresponda, la versión, el entorno, el objetivo y los pasos para reproducirlo.\n5. **Comparte material autorizado.** Publica código, imágenes y documentos propios o que tengas permiso para compartir. Indica la fuente cuando corresponda.\n6. **Ayuda a mantener útil el foro.** Evita el spam, los mensajes duplicados y la publicidad fuera de tema. Usa la opción de marcar contenido para avisar sobre publicaciones inapropiadas.\n\nLos permisos de cada categoría determinan quién puede ver sus publicaciones. El equipo puede moderar contenido que infrinja estas reglas o exponga a personas e instalaciones."
+      }
+    }
+  },
+  {
+    "topic": 5,
+    "sourceTitle": "Boas-vindas à comunidade SCADIVO",
+    "translations": {
+      "en": {
+        "title": "Welcome to the SCADIVO community",
+        "body": "This community brings together students, professionals, integrators, and organizations that study, build, and operate automation and supervisory systems.\n\n## Getting started\n\n- Read the [community rules](/t/regras-da-comunidade-scadivo/4).\n- Explore [installation and configuration](/c/instalacao-e-configuracao/6), [engineering, operations, and projects](/c/engenharia-operacao-projetos/7), [Python scripts](/c/scripts-python-automacoes/8), and [integrations](/c/integracoes-protocolos/9).\n- Ask questions in [troubleshooting](/c/duvidas-solucao-problemas/4). Include the version and steps to reproduce.\n- When sharing a residential, building, or industrial application, describe the context while keeping the facility anonymous.\n\n## Safety and privacy\n\nKeep passwords, keys, tokens, private addresses, customer names, and any information that identifies a real facility out of posts. Use anonymized examples and screenshots. Validate suggestions in a controlled environment and follow your facility's safety procedures before applying them to a live process."
+      },
+      "es": {
+        "title": "Bienvenida a la comunidad SCADIVO",
+        "body": "Esta comunidad reúne a estudiantes, profesionales, integradores y organizaciones que estudian, desarrollan y operan sistemas de automatización y supervisión.\n\n## Por dónde empezar\n\n- Lee las [reglas de la comunidad](/t/regras-da-comunidade-scadivo/4).\n- Explora [instalación y configuración](/c/instalacao-e-configuracao/6), [ingeniería, operación y proyectos](/c/engenharia-operacao-projetos/7), [scripts de Python](/c/scripts-python-automacoes/8) e [integraciones](/c/integracoes-protocolos/9).\n- Usa [preguntas y solución de problemas](/c/duvidas-solucao-problemas/4) para hacer consultas. Incluye la versión y los pasos para reproducir el problema.\n- Si compartes una aplicación residencial, de edificios o industrial, describe el contexto sin identificar la instalación.\n\n## Seguridad y privacidad\n\nEvita publicar contraseñas, claves, tokens, direcciones privadas, nombres de clientes o datos que permitan identificar instalaciones reales. Usa ejemplos y capturas anonimizados. Valida las sugerencias en un entorno controlado y sigue los procedimientos de seguridad antes de aplicarlas a un proceso en producción."
+      }
+    }
+  }
+]

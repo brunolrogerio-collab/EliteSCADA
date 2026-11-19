@@ -27,8 +27,8 @@ See [activation confirmation](portal/ACTIVATION_CONFIRMATION.md) and [licensing 
 3. Define the pricing, approval and exchange rules for any additional offline conversion modalities before extending eligibility.
 4. Connect approved Windows/Linux/OCI release artifacts (#363/#408) to the catalog, verify hashes and test delivery. Per-record download starts are available in Administration; a redirect records a start.
 5. Administrative indicators include profile counts and percentages, daily site/Portal views and download starts with UTC date filters. The production dashboard and collection of site visits were checked with an administrator session. Document the operational retention policy.
-6. Validate the shared-renderer email template preview in the deployed Portal after release. Review remaining language and content consistency. Broad community translation remains deferred behind licensing.
+6. The shared-renderer email preview was validated in the deployed Portal in PT-BR/EN/ES. The opening topics have reviewed native translations prepared and verified locally. See the [community translation pilot](deploy/community-homolog/TRANSLATION_PILOT.md) for publication checks and the local model evaluation.
 7. Implement the commercial catalog/payment provider, authenticated idempotent webhooks, reconciliation and entitlement transitions. No automatic payment claim should appear before this integration is verified.
-8. Complete operational evidence: backup restoration, offsite copy, alerts for API/database/email/renewal failures, deployment version identification and capacity testing. Finalize privacy, retention and commercial terms before broad launch.
+8. Encrypted backup restoration and the Windows offsite copy were verified. Production API, database, mail and renewal alerts are active. Complete a restore of the full Portal on another host and capacity testing. The [launch preparation](LAUNCH_READINESS.md) tracks validation, privacy and terms drafts, and retention decisions.
 
 All changes follow branch/PR review. Record results and deployment separately in #741 and update the single resumption comment in #756.

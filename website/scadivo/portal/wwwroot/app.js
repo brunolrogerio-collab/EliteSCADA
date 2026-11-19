@@ -164,6 +164,7 @@ function errorText(code) {
     ...portalLicensing.errors(),
     ...portalOfflineLicensing.errors(),
     ...portalDownloads.errors(),
+    'profile-changed': tr('O perfil mudou enquanto você salvava. Atualize a página e tente novamente.', 'Your profile changed while saving. Reload the page and try again.', 'El perfil cambió mientras guardabas. Recarga la página y vuelve a intentarlo.'),
     'invalid-indicators-period': tr('Selecione um período de até 90 dias, sem datas futuras.', 'Choose a period of up to 90 days, with no future dates.', 'Elige un periodo de hasta 90 días, sin fechas futuras.')
   };
   return errors[code] || tr('Não foi possível concluir. Tente novamente.', 'Unable to complete. Please try again.');
@@ -358,6 +359,19 @@ function emailConfirmation() {
   );
   card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'invite-layout' }, card));
 }
+function languagePreference() {
+  const user = state.session.user;
+  return panel(tr('Idioma', 'Language', 'Idioma'), form([
+    field(tr('Idioma preferido', 'Preferred language', 'Idioma preferido'),
+      select('locale', localeOptions(), user.locale, { required: true }),
+      tr('Usado no Portal e na Comunidade.', 'Used in the Portal and Community.', 'Se usa en el Portal y en la Comunidad.'))
+  ], tr('Salvar idioma', 'Save language', 'Guardar idioma'), async data => {
+    await api('/profile/locale', 'PUT', data);
+    await session();
+    render();
+    feedback(tr('Idioma salvo.', 'Language saved.', 'Idioma guardado.'));
+  }));
+}
 function completeProfile() {
   const user = state.session.user;
   const accountUsername = user.userName?.toLowerCase() === user.email?.toLowerCase() ? '' : user.userName;
@@ -366,13 +380,13 @@ function completeProfile() {
     form([
       field(tr('Nome de apresentação', 'Display name', 'Nombre visible'), input('displayName', 'text', user.displayName, { maxLength: 160, autocomplete: 'nickname' }), tr('Esse nome aparecerá na comunidade. Escolha como quer ser identificado.', 'This name will appear in the community. Choose how you want to be identified.', 'Este nombre aparecerá en la comunidad. Elige cómo quieres que te identifiquen.')),
       field(tr('Nome de usuário', 'Username', 'Nombre de usuario'), input('username', 'text', accountUsername || '', { minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'username' }), tr('Precisa estar disponível e ter de 3 a 20 caracteres. Você poderá entrar com ele ou com seu e-mail.', 'Must be available and 3 to 20 characters long. You can sign in with it or with your email.', 'Debe estar disponible y tener de 3 a 20 caracteres. Puedes iniciar sesión con este nombre o con tu correo.')),
-      field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), user.locale, { required: true })),
       ...profileFields(user)
     ], tr('Salvar e continuar', 'Save and continue'), async data => {
       await api('/profile', 'PUT', data); await session(); state.tab = 'home'; if (continueCommunitySso()) return; render();
     })
   );
-  card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'invite-layout' }, card));
+  card.classList.add('login-card', 'small-space');
+  app.replaceChildren(h('div', { class: 'invite-layout' }, [languagePreference(), card]));
 }
 function invitation() {
   app.replaceChildren(h('div', { class: 'invite-layout' }, panel(tr('Bem-vindo ao SCADIVO', 'Welcome to SCADIVO'), p(tr('Defina a senha da sua conta convidada. O link é pessoal e válido por 24 horas.', 'Set the password for your invited account. The personal link is valid for 24 hours.')), form([
@@ -413,16 +427,16 @@ function home() {
 function profile() {
   const user = state.session.user;
   const accountUsername = user.userName?.toLowerCase() === user.email?.toLowerCase() ? '' : user.userName;
-  return h('div', { class: 'content-grid' }, [panel(tr('Seu perfil', 'Your profile'), p(`${tr('Usuário', 'Username')}: ${user.userName}`), p(`${tr('E-mail', 'Email')}: ${user.email || tr('Ainda não informado', 'Not provided yet')}`), form([
+  const account = h('div', { class: 'content-grid' }, [panel(tr('Seu perfil', 'Your profile'), p(`${tr('Usuário', 'Username')}: ${user.userName}`), p(`${tr('E-mail', 'Email')}: ${user.email || tr('Ainda não informado', 'Not provided yet')}`), form([
     field(tr('Nome de apresentação', 'Display name', 'Nombre visible'), input('displayName', 'text', user.displayName, { maxLength: 160, autocomplete: 'nickname' }), tr('Esse nome aparecerá na comunidade. Escolha como quer ser identificado.', 'This name will appear in the community. Choose how you want to be identified.', 'Este nombre aparecerá en la comunidad. Elige cómo quieres que te identifiquen.')),
     field(tr('Nome de usuário', 'Username', 'Nombre de usuario'), input('username', 'text', accountUsername || '', { minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'username' }), tr('Precisa estar disponível e ter de 3 a 20 caracteres. Você poderá entrar com ele ou com seu e-mail.', 'Must be available and 3 to 20 characters long. You can sign in with it or with your email.', 'Debe estar disponible y tener de 3 a 20 caracteres. Puedes iniciar sesión con este nombre o con tu correo.')),
-    field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), user.locale, { required: true })),
     ...profileFields(user)
   ], tr('Salvar perfil', 'Save profile'), async data => { await api('/profile', 'PUT', data); await session(); feedback(tr('Perfil atualizado.', 'Profile updated.')); render(); }), h('div', { class: 'organization-list' }, user.organizations.map(org => p(`${org.name} · ${org.role}`)))), panel(tr('Alterar senha', 'Change password'), form([
     field(tr('Senha atual', 'Current password'), input('currentPassword', 'password', '', { autocomplete: 'current-password' })),
     field(tr('Nova senha', 'New password'), input('newPassword', 'password', '', { autocomplete: 'new-password', minLength: 8 }), tr('Mínimo de 8 caracteres, maiúscula, minúscula e número.', 'At least 8 characters, uppercase, lowercase and a number.')),
     field(tr('Repita a nova senha', 'Repeat new password'), input('confirmation', 'password', '', { autocomplete: 'new-password', minLength: 8 }))
   ], tr('Atualizar senha', 'Update password'), async (data, node) => { if (data.newPassword !== data.confirmation) throw new Error(tr('As senhas não coincidem.', 'The passwords do not match.')); await api('/profile/password', 'POST', data); await session(); node.reset(); feedback(tr('Senha atualizada.', 'Password updated.')); }))]);
+  return h('div', {}, [languagePreference(), account]);
 }
 async function support() {
   const tickets = await api('/support');

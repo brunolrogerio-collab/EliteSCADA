@@ -48,6 +48,7 @@ public static class PortalEndpoints
         var account = app.MapGroup("/api").RequireAuthorization().RequireRateLimiting("writes");
         account.MapGet("/profile", (HttpContext context, PortalOperations operations) => operations.Profile(context));
         account.MapPut("/profile", (ProfileInput input, HttpContext context, PortalOperations operations) => operations.UpdateProfile(input, context));
+        account.MapPut("/profile/locale", (ProfileLocaleInput input, HttpContext context, PortalOperations operations) => operations.UpdateProfileLocale(input, context));
         account.MapPost("/profile/password", (PasswordInput input, HttpContext context, PortalOperations operations) => operations.ChangePassword(input, context));
 
         var members = app.MapGroup("/api").RequireAuthorization().RequireRateLimiting("writes");

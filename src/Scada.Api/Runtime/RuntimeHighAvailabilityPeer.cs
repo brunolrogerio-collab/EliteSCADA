@@ -357,6 +357,7 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
 
             var imported = envelope with { ReplicatedAtUtc = now };
             _leases[key] = imported;
+            _peerProjectionKeys.Add(key);
             return new RuntimeSessionContinuityImportResult(
                 true,
                 "peer-session-applied",
@@ -442,7 +443,7 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
                         "session-tombstone-stale",
                         lease);
                 }
-                _leases.Remove(key);
+                RemoveLeaseLocked(key);
             }
 
             _peerTombstones[key] = tombstone;

@@ -349,6 +349,46 @@ public sealed class RuntimeHighAvailabilityPeerBoundaryTests
     }
 
     [Fact]
+    public void SessionContinuityImport_RecoversExpiredReplicaFromLiveAuthorityAndPreservesTermination()
+    {
+        var pair = CreateReadyPair();
+        var source = pair.NodeA.SessionContinuity;
+        var replica = pair.NodeB.SessionContinuity;
+        var now = pair.Clock.UtcNow;
+        var lease = Lease(Guid.NewGuid(), RuntimeConnectionClass.Interactive,
+            now, now.AddMinutes(1), generation: 1, authorityRevision: 10);
+        var beforeCut = source.CaptureOrRetain(lease, "cluster-a", "node-a");
+        Assert.True(pair.NodeB.ApplyPeerSessionContinuity(beforeCut).Accepted);
+
+        pair.Clock.Advance(TimeSpan.FromSeconds(30));
+        var renewed = source.CaptureOrRetain(lease with
+        {
+            Generation = 2,
+            LastHeartbeatUtc = pair.Clock.UtcNow,
+            ExpiresAtUtc = pair.Clock.UtcNow.AddMinutes(1)
+        }, "cluster-a", "node-a");
+
+        pair.Clock.Advance(TimeSpan.FromSeconds(35));
+        Assert.Empty(replica.Snapshot());
+        Assert.Equal("session-expired",
+            pair.NodeB.ApplyPeerSessionContinuity(beforeCut).ReasonCode);
+
+        var restored = pair.NodeB.ApplyPeerSessionContinuity(renewed);
+        Assert.True(restored.Accepted, restored.ReasonCode);
+        var mirrored = Assert.Single(replica.Snapshot());
+        Assert.Equal(lease.SessionId, mirrored.SessionId);
+        Assert.Equal(renewed.Generation, mirrored.Generation);
+
+        Assert.True(source.Terminate("cluster-a", lease.UserId, lease.ClientInstanceId, lease.SessionId));
+        Assert.True(replica.ApplyPeerTombstone(
+            Assert.Single(source.TombstoneSnapshot("cluster-a")), "cluster-a", "node-a").Accepted);
+        var afterTermination = pair.NodeB.ApplyPeerSessionContinuity(renewed with { Generation = 3 });
+        Assert.False(afterTermination.Accepted);
+        Assert.Equal("session-terminated-or-expired-session", afterTermination.ReasonCode);
+        Assert.Empty(replica.Snapshot());
+    }
+
+    [Fact]
     public void SessionContinuityImport_RejectsExpiredEnvelope()
     {
         var pair = CreateReadyPair();

@@ -11,7 +11,7 @@ public static class PortalSeed
         var roles = services.GetRequiredService<RoleManager<IdentityRole>>();
         var users = services.GetRequiredService<UserManager<PortalUser>>();
         await using var transaction = await db.Database.BeginTransactionAsync();
-        foreach (var role in new[] { "Owner", "Member" })
+        foreach (var role in new[] { "Owner", "Admin", "Member" })
             if (!await roles.RoleExistsAsync(role)) Ensure(await roles.CreateAsync(new IdentityRole(role)));
 
         if (!await db.Users.AnyAsync())

@@ -137,6 +137,10 @@ public sealed class OfflineMachineLicenseRequest
     public string ApplicationName { get; set; } = "";
     public string RequestKind { get; set; } = "new";
     public string? ExistingLicenseName { get; set; }
+    public Guid? OnlineLicenseId { get; set; }
+    public string? SignedLicenseId { get; set; }
+    public string? SignedLicenseProtected { get; set; }
+    public DateTimeOffset? AvailableAtUtc { get; set; }
     public string MachineRequestCodeProtected { get; set; } = "";
     public string? RequestNote { get; set; }
     public string Status { get; set; } = "submitted";
@@ -209,7 +213,9 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
         builder.Entity<ProductLicenseActivation>().Property(x => x.ActivationLeaseEnvelope).HasColumnType("text");
         builder.Entity<ProductLicenseActivation>().Property(x => x.LastLeaseEnvelope).HasColumnType("text");
         builder.Entity<ProductLicenseActivation>().Property(x => x.RevocationReason).HasMaxLength(240);
+        builder.Entity<ProductLicensePreparation>().Property(x => x.ConfirmedLeaseEnvelope).HasColumnType("text");
         builder.Entity<ProductLicenseActivation>().HasIndex(x => new { x.LicenseId, x.Status });
+        builder.Entity<ProductLicenseActivation>().HasIndex(x => new { x.LicenseId, x.MachineFingerprint, x.Status });
         builder.Entity<ProductLicenseActivation>().HasIndex(x => x.LastActivationRequestId).IsUnique().HasFilter("\"LastActivationRequestId\" IS NOT NULL");
         builder.Entity<ProductLicenseActivation>().HasIndex(x => x.LastRenewalRequestId).IsUnique().HasFilter("\"LastRenewalRequestId\" IS NOT NULL");
         builder.Entity<ProductLicenseRefreshCredential>().HasOne<ProductLicenseActivation>().WithMany().HasForeignKey(x => x.ActivationId).OnDelete(DeleteBehavior.Restrict);
@@ -247,6 +253,9 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
         builder.Entity<OfflineMachineLicenseRequest>().Property(x => x.MachineRequestCodeProtected).HasColumnType("text");
         builder.Entity<OfflineMachineLicenseRequest>().Property(x => x.RequestNote).HasMaxLength(800);
         builder.Entity<OfflineMachineLicenseRequest>().Property(x => x.Status).HasMaxLength(40);
+        builder.Entity<OfflineMachineLicenseRequest>().HasOne<ProductLicense>().WithMany().HasForeignKey(x => x.OnlineLicenseId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<OfflineMachineLicenseRequest>().Property(x => x.SignedLicenseId).HasMaxLength(36);
+        builder.Entity<OfflineMachineLicenseRequest>().HasIndex(x => x.SignedLicenseId).IsUnique();
         builder.Entity<OfflineMachineLicenseRequest>().HasIndex(x => new { x.UserId, x.SubmittedAtUtc });
         builder.Entity<OfflineMachineLicenseRequest>().HasIndex(x => new { x.Status, x.SubmittedAtUtc });
     }

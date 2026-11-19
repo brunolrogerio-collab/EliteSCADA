@@ -21,7 +21,7 @@ public static class PortalLicensingEndpoints
         customer.MapGet("/activations", (HttpContext context, PortalLicensingOperations operations) => operations.MyActivations(context));
         customer.MapDelete("/activations/{activationId:guid}", (Guid activationId, HttpContext context, PortalLicensingOperations operations) => operations.DeactivateMyActivation(activationId, context));
 
-        var admin = app.MapGroup("/api/admin/licensing").RequireAuthorization("Owner").RequireRateLimiting("writes");
+        var admin = app.MapGroup("/api/admin/licensing").RequireAuthorization(PortalAccess.AdministratorPolicy).RequireRateLimiting("writes");
         admin.MapGet("/organizations", (PortalLicensingOperations operations) => operations.AdminOrganizations());
         admin.MapGet("/licenses", (PortalLicensingOperations operations) => operations.AdminLicenses());
         admin.MapPost("/licenses", (IssueProductLicenseInput input, HttpContext context, PortalLicensingOperations operations) => operations.IssueLicense(input, context));
@@ -31,6 +31,13 @@ public static class PortalLicensingEndpoints
         admin.MapPost("/activations/{activationId:guid}/revoke", (Guid activationId, RevokeProductLicenseInput input, HttpContext context, PortalLicensingOperations operations) => operations.RevokeAdminActivation(activationId, input, context));
 
         var device = app.MapGroup("/api/licensing/device").WithMetadata(new PortalDeviceLicenseEndpoint());
+        device.MapGet("/health", (HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            return !context.Request.IsHttps
+                ? Results.BadRequest(new { error = "https-required" })
+                : Results.Ok(new { serviceAvailable = true });
+        }).RequireRateLimiting("licensing-health");
         device.MapPost("/prepare", (DevicePrepareInput input, HttpContext context, PortalLicensingOperations operations) => operations.Prepare(input, context)).RequireRateLimiting("licensing-activate");
         device.MapPost("/confirm", (DeviceConfirmInput input, HttpContext context, PortalLicensingOperations operations) => operations.Confirm(input, context)).RequireRateLimiting("licensing-renew");
         device.MapPost("/cancel", (DeviceCancelInput input, HttpContext context, PortalLicensingOperations operations) => operations.Cancel(input, context)).RequireRateLimiting("licensing-renew");

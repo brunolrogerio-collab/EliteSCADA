@@ -70,13 +70,19 @@ public static class PortalEndpoints
         {
             members.MapGet("/licenses/offline-requests", (HttpContext context, PortalLicenseOperations operations) => operations.MyOfflineMachineRequests(context));
             members.MapGet("/licenses/offline-requests/{id:guid}", (Guid id, HttpContext context, PortalLicenseOperations operations) => operations.MyOfflineMachineRequest(id, context));
+            members.MapGet("/licenses/offline-requests/conversion-options", (HttpContext context, PortalLicenseOperations operations) => operations.MyConversionOptions(context));
+            members.MapGet("/licenses/offline-requests/{id:guid}/signed-license", (Guid id, HttpContext context, PortalLicenseOperations operations) => operations.GetSignedLicense(id, context));
             members.MapPost("/licenses/offline-requests", (OfflineMachineLicenseRequestInput input, HttpContext context, PortalLicenseOperations operations) => operations.SubmitOfflineMachineRequest(input, context));
         }
 
-        var admin = app.MapGroup("/api/admin").RequireAuthorization("Owner").RequireRateLimiting("writes");
+        var admin = app.MapGroup("/api/admin").RequireAuthorization(PortalAccess.AdministratorPolicy).RequireRateLimiting("writes");
         admin.MapGet("/overview", (PortalOperations operations) => operations.Overview());
         admin.MapGet("/accounts", (PortalOperations operations) => operations.Accounts());
         admin.MapPut("/accounts/{id}/access", (string id, AccountAccessInput input, HttpContext context, PortalOperations operations) => operations.UpdateAccountAccess(id, input, context));
+        admin.MapPut("/accounts/{id}/administration", (string id, AdministrationAccessInput input, HttpContext context, PortalOperations operations) => operations.UpdateAdministration(id, input, context));
+        admin.MapGet("/downloads", (PortalOperations operations) => operations.AdminReleases());
+        admin.MapPost("/downloads", (DownloadReleaseInput input, HttpContext context, PortalOperations operations) => operations.SaveRelease(null, input, context));
+        admin.MapPut("/downloads/{id:guid}", (Guid id, DownloadReleaseInput input, HttpContext context, PortalOperations operations) => operations.SaveRelease(id, input, context));
         admin.MapPost("/invitations", (InviteInput input, HttpContext context, PortalOperations operations) => operations.Invite(input, context));
         admin.MapPut("/support/{id:guid}/status", (Guid id, TicketStatusInput input, HttpContext context, PortalOperations operations) => operations.UpdateTicketStatus(id, input, context));
         admin.MapGet("/templates", async (PortalDb db) => Results.Ok(await db.EmailTemplates.AsNoTracking().OrderBy(x => x.Key).ToListAsync()));
@@ -89,6 +95,7 @@ public static class PortalEndpoints
         {
             admin.MapGet("/license-requests/offline", (PortalLicenseOperations operations) => operations.AdminOfflineMachineRequests());
             admin.MapGet("/license-requests/offline/{id:guid}", (Guid id, HttpContext context, PortalLicenseOperations operations) => operations.AdminOfflineMachineRequest(id, context));
+            admin.MapPut("/license-requests/offline/{id:guid}/signed-license", (Guid id, DeliverOfflineLicenseInput input, HttpContext context, PortalLicenseOperations operations, PortalLicensingOperations licensing) => operations.DeliverSignedLicense(id, input, context, licensing));
             admin.MapPut("/license-requests/offline/{id:guid}/status", (Guid id, OfflineMachineLicenseRequestStatusInput input, HttpContext context, PortalLicenseOperations operations) => operations.UpdateOfflineMachineRequestStatus(id, input, context));
         }
     }

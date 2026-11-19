@@ -18,18 +18,19 @@ This Portal API is a separate layer from the offline request intake in PR #777. 
 
 - An account can belong to several organizations. An organization can own several named applications, and each application can have several license entitlements.
 - `LicenseId` is the human-visible license code that selects an entitlement; it is not an authentication secret.
-- A Portal `Owner` administers organizations, issues/extends/revokes entitlements, and revokes activations. An organization `Owner` or `Admin` manages that organization's application list and members. Members can see their organization's licenses and manage their own device activations.
+- A Portal `Owner` or delegated Portal `Admin` administers organizations, issues/extends/revokes entitlements, and revokes activations. These are global SCADIVO staff roles, separate from an organization `Owner` or `Admin`, which manages only that organization's application list and members. Members can see their organization's licenses and manage their own device activations.
 - A license is bound to one organization and one application. Composite database constraints prevent an activation or license from referencing an application in another organization.
-- The `MaxActivations` value is required when a Portal Owner creates an entitlement. Its commercial value remains a business decision; the API does not guess a default.
+- The `MaxActivations` value is required when a Portal administrator creates an entitlement. Its commercial value remains a business decision; the API does not guess a default.
 - `perpetual` means the account entitlement has no commercial expiry. Online use still requires a new signed lease at least every 48 hours; every lease expires within 72 hours. Monthly and annual terms have an entitlement expiry and leases end no later than that expiry.
 
 ## Portal endpoints
 
-The API is under `/portal/api` on the public site. Customer write calls require the authenticated Portal session and its anti-forgery token. The two product device endpoints are HTTPS-only and use the device credential flow below instead.
+The API is under `/portal/api` on the public site. Customer write calls require the authenticated Portal session and its anti-forgery token. Product device endpoints are HTTPS-only and use the device credential flow below instead.
 
 | Method | Path | Access |
 |---|---|---|
 | `GET` | `/licensing/status` | Portal account; only reports whether online activation is available |
+| `GET` | `/licensing/device/health` | Public HTTPS device endpoint; only confirms the licensing API route responded |
 | `GET` / `POST` | `/licensing/organizations` | Portal account; create requires a complete profile |
 | `GET` / `POST` | `/licensing/organizations/{organizationId}/applications` | Organization member; create requires Owner/Admin |
 | `GET` / `POST` | `/licensing/organizations/{organizationId}/members` | Organization member; add requires Owner/Admin |
@@ -37,37 +38,20 @@ The API is under `/portal/api` on the public site. Customer write calls require 
 | `GET` | `/licensing/licenses` | Portal account; returns only licenses in its organizations |
 | `GET` | `/licensing/activations` | Portal account; returns its device activations |
 | `DELETE` | `/licensing/activations/{activationId}` | Activation's Portal account |
-| `GET` | `/admin/licensing/organizations` | Portal Owner |
-| `GET` / `POST` | `/admin/licensing/licenses` | Portal Owner; create an entitlement |
-| `POST` | `/admin/licensing/licenses/{licenseId}/extend` | Portal Owner; subscription term only |
-| `POST` | `/admin/licensing/licenses/{licenseId}/revoke` | Portal Owner |
-| `GET` | `/admin/licensing/licenses/{licenseId}/activations` | Portal Owner |
-| `POST` | `/admin/licensing/activations/{activationId}/revoke` | Portal Owner |
+| `GET` | `/admin/licensing/organizations` | Portal Owner/Admin |
+| `GET` / `POST` | `/admin/licensing/licenses` | Portal Owner/Admin; create an entitlement |
+| `POST` | `/admin/licensing/licenses/{licenseId}/extend` | Portal Owner/Admin; subscription term only |
+| `POST` | `/admin/licensing/licenses/{licenseId}/revoke` | Portal Owner/Admin |
+| `GET` | `/admin/licensing/licenses/{licenseId}/activations` | Portal Owner/Admin |
+| `POST` | `/admin/licensing/activations/{activationId}/revoke` | Portal Owner/Admin |
 
 An administrator-created entitlement is not itself a signed machine license. It becomes usable by the product only after the product performs an authenticated device activation while the dedicated online signer is enabled.
 
 ## Product activation
 
-`POST /portal/api/licensing/device/activate`
+Use [the preparation/confirmation contract](ACTIVATION_CONFIRMATION.md): the product sends username/email, password and one public license code to `/prepare`, presents the resolved application and rights, then requires explicit confirmation before `/confirm`. The Portal can resolve a unique existing activation for the same authenticated account, license, application and machine fingerprint after local ID loss. An optional current refresh credential is checked as proof when available; a supplied invalid proof fails closed, and omission requires account reauthentication plus user confirmation. Recovery keeps the existing row and slot and rotates credentials. A five-minute preparation consumes no activation slot; `/cancel` abandons it. Device-generated identifiers are never entered by the user. Exact confirmation retries recover the same result without consuming another activation.
 
-The product generates and persists an `ActivationId`, a stable `RequestId`, and a cryptographically random 32-byte Base64URL refresh credential **before** sending the first request. It sends the Portal login only for this initial activation, and must not log the password or request body.
-
-```json
-{
-  "username": "portal-user-or-email",
-  "password": "provided-at-activation-only",
-  "licenseCode": "SCV-...",
-  "activationId": "00000000-0000-0000-0000-000000000000",
-  "requestId": "00000000-0000-0000-0000-000000000000",
-  "machineFingerprint": "64-hex-characters",
-  "refreshCredential": "43-character-base64url-token"
-}
-```
-
-The Portal verifies the confirmed/active account, password, organization membership, entitlement state, application binding, machine fingerprint and activation limit. It stores only a SHA-256 hash of the refresh credential. The response contains the activation ID, signed lease and lease expiry. The license code selects the entitlement; possession of the code alone does not activate it.
-
-The request is idempotent for the same activation ID, request ID and refresh credential. If the response is lost, resend the exact persisted request. Reusing an activation ID with different identity, license, application, or machine is rejected.
-
+The retired `/device/activate` route returns 410 and cannot bypass confirmation. Preparation remains available with signing disabled; confirmation and renewal require the approved online signer. The authenticated `/licensing/status` endpoint reports whether online activation is enabled; that is separate from network connectivity. The public `/licensing/device/health` endpoint returns only `{ "serviceAvailable": true }` after an HTTPS request reaches the route; it does not report signing configuration, account, license, or activation state. Product backends can call it when the online-license panel opens and on an explicit retry; do not poll it in the background or call it directly from the browser. HTTP 200 means only that the route responded, not that activation credentials, entitlement, signing, or a requested activation will succeed. A failed health request does not modify a lease, activation slot or license. It has a modest per-IP request limit to discourage polling.
 ## Product renewal
 
 The product initiates renewal every 48 hours using HTTPS. It creates and persists the renewal `RequestId` and next random refresh credential before sending the request. It replaces the current credential only after a successful response; after a lost response it resends the same request ID and next credential.
@@ -102,6 +86,6 @@ The API signs the UTF-8 JSON bytes with RSA-PSS/SHA-256 and key ID `scadivo-onli
 
 - The customer and Owner license screens are PT-BR/EN/ES and use the same authenticated API/anti-forgery boundaries. They never activate a product on behalf of the browser, handle refresh tokens or reveal signing material. Entitlement creation requires explicit capacities, term and activation limit; it does not process a payment or install a license.
 - The offline `ESREQ1` intake remains in PR #777; offline request review, signing, conversion, delivery and offline-key operations remain separate.
-- Product-side verification, Windows/Linux/Docker token protection, License UI, shared Runtime quotas, HA, Demo transition and the 48-hour renewal scheduler must be implemented on the product branch under issue #301.
+- Product-side verification, token protection, License UI, Runtime quotas, HA, Demo transition and the renewal scheduler are tracked under #301. Check its current integration and acceptance evidence before claiming a deployed product supports the full cycle.
 - Payment processing, automatic account purchase, commercial activation policy, and translation of community posts are outside this API stage.
 - Keep signing disabled until the product and operational key controls are integrated and verified. This PR does not deploy to the live Portal.

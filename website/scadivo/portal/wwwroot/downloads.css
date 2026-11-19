@@ -1,0 +1,15 @@
+.download-admin-list { display: grid; gap: 12px; }
+.download-admin-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid var(--border); border-radius: 11px; padding: 17px 20px; background: #102332; }
+.download-admin-card > div { min-width: 0; }
+.download-admin-card h3 { overflow-wrap: anywhere; }
+.download-admin-card p { margin: 9px 0 0; }
+.download-admin-card button { flex-shrink: 0; }
+.download-editor { margin-top: 20px; scroll-margin-top: 25px; min-width: 0; }
+.download-hash { font-family: Consolas, monospace; font-size: 12px; }
+.download-list .panel { min-width: 0; }
+.download-list p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.download-list .checksum { margin-bottom: 18px; }
+@media (max-width: 480px) {
+  .download-admin-card { padding: 15px; align-items: flex-start; }
+  .download-admin-card h3 { font-size: 15px; }
+}

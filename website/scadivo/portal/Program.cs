@@ -54,7 +54,11 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; };
     options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
 });
-builder.Services.AddAuthorization(options => options.AddPolicy("Owner", policy => policy.RequireRole("Owner")));
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Owner", policy => policy.RequireRole("Owner"));
+    options.AddPolicy(PortalAccess.AdministratorPolicy, policy => policy.RequireRole("Owner", "Admin"));
+});
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-CSRF-TOKEN";
@@ -91,6 +95,9 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("licensing-activate", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    options.AddPolicy("licensing-health", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     options.AddPolicy("licensing-renew", context =>
     {
         var activation = context.Request.RouteValues.TryGetValue("activationId", out var routeValue) ? routeValue?.ToString() : null;
@@ -107,6 +114,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddScoped<PortalOperations>();
 builder.Services.AddScoped<PortalLicensingOperations>();
 builder.Services.AddScoped<PortalLicenseOperations>();
+builder.Services.AddSingleton<OfflineLicenseVerifier>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddOptions<OnlineLeaseSigningOptions>().BindConfiguration("Portal:Licensing:Online")
     .Validate(options => options.IsValid(builder.Environment.ContentRootPath, builder.Configuration["Portal:KeyDirectory"] ?? "/app/keys"),

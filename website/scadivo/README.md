@@ -201,3 +201,7 @@ For disaster recovery: provision the same stack without publishing it, decrypt t
 - All checks passed for PR #749 commit `9ad5231`, including the full Chromium end-to-end workflow. PR #749 remains an unmerged draft; `main` was not changed. Outlook-specific markup is covered by the portal integration suite; visual confirmation in the owner's Outlook remains a manual follow-up.
 
 Review and future integration remain through the draft PR and umbrella issue #741. Do not close #741 on this foundation package.
+
+### Administrative indicators
+
+The **Administration → Indicators** view uses UTC days and a filter of up to 90 days. Site and Portal page loads increment separate daily counters. This is a count of reported page views, including reloads, and is not suitable for counting unique users. The counters store day, surface and total only. Download starts come from successful catalog redirects and are attributed to the catalog record. Profile totals cover current confirmed, active accounts with a complete profile. Affiliation names are grouped case-insensitively and shown only for groups of at least three accounts.

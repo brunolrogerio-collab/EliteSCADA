@@ -1869,6 +1869,29 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 Assert.Equal(url, download.Headers.Location?.AbsoluteUri);
             }
             Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync($"api/downloads/{releaseId}/file")).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await ordinaryMember.Client.GetAsync("api/admin/indicators")).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await delegatedStaff.Client.GetAsync("api/admin/indicators?from=2000-01-01")).StatusCode);
+            var before = await delegatedStaff.Get("/admin/indicators");
+            var previousViews = before.GetProperty("traffic").EnumerateArray().Last().GetProperty("site").GetInt64();
+
+            using var view = new HttpRequestMessage(HttpMethod.Post, "api/page-views/site");
+            view.Headers.Add("Sec-Fetch-Site", "same-origin");
+            Assert.Equal(HttpStatusCode.NoContent, (await anonymous.SendAsync(view)).StatusCode);
+            using var untrustedView = new HttpRequestMessage(HttpMethod.Post, "api/page-views/site");
+            untrustedView.Headers.Add("Sec-Fetch-Site", "cross-site");
+            Assert.Equal(HttpStatusCode.BadRequest, (await anonymous.SendAsync(untrustedView)).StatusCode);
+            var indicators = await delegatedStaff.Get("/admin/indicators");
+            Assert.Equal(previousViews + 1, indicators.GetProperty("traffic").EnumerateArray().Last().GetProperty("site").GetInt64());
+            Assert.Contains(indicators.GetProperty("profiles").GetProperty("types").EnumerateArray(), row =>
+                row.GetProperty("label").GetString() == "professional" && row.GetProperty("count").GetInt32() >= 3);
+            Assert.DoesNotContain("@example.test", indicators.ToString(), StringComparison.OrdinalIgnoreCase);
+            var downloadMetric = indicators.GetProperty("downloads").EnumerateArray()
+                .Single(row => row.GetProperty("id").GetGuid() == releaseId);
+            Assert.Equal(1, downloadMetric.GetProperty("count").GetInt64());
+            var adminDownload = (await delegatedStaff.Get("/admin/downloads")).EnumerateArray()
+                .Single(row => row.GetProperty("id").GetGuid() == releaseId);
+            Assert.Equal(1, adminDownload.GetProperty("downloadStarts").GetInt64());
+
             await staff.Send($"/admin/downloads/{releaseId}", HttpMethod.Put, ReleaseInput(url, new string('a', 64), false));
             Assert.DoesNotContain((await ordinaryMember.Get("/downloads")).EnumerateArray(), item => item.GetProperty("id").GetGuid() == releaseId);
             Assert.Equal(HttpStatusCode.NotFound, (await ordinaryMember.Client.GetAsync($"api/downloads/{releaseId}/file")).StatusCode);

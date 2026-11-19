@@ -544,8 +544,20 @@ public sealed class PortalOperations(
             .Select(x => new { x.Id, x.Version, x.Platform, x.NotesPt, x.NotesEn, x.NotesEs, x.Sha256, x.CreatedAtUtc }));
     }
 
-    public async Task<IResult> AdminReleases() => Results.Ok(await db.Releases.AsNoTracking()
-        .OrderByDescending(x => x.CreatedAtUtc).Take(200).ToListAsync());
+    public async Task<IResult> AdminReleases()
+    {
+        var releases = await db.Releases.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).Take(200).ToListAsync();
+        var ids = releases.Select(x => x.Id.ToString("D")).ToArray();
+        var totals = await db.Audit.AsNoTracking()
+            .Where(x => x.Action == "download.requested" && x.ResourceId != null && ids.Contains(x.ResourceId))
+            .GroupBy(x => x.ResourceId).Select(group => new { Id = group.Key, Count = group.LongCount() })
+            .ToDictionaryAsync(item => item.Id!, item => item.Count);
+        return Results.Ok(releases.Select(x => new
+        {
+            x.Id, x.Version, x.Platform, x.OfficialUrl, x.Sha256, x.NotesPt, x.NotesEn, x.NotesEs,
+            x.Published, x.CreatedAtUtc, downloadStarts = totals.GetValueOrDefault(x.Id.ToString("D"))
+        }));
+    }
 
     public async Task<IResult> SaveRelease(Guid? id, DownloadReleaseInput input, HttpContext context)
     {

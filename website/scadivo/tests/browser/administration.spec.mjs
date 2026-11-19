@@ -32,12 +32,22 @@ async function fixture(page, { locale = 'en', administrator = true } = {}) {
   await page.route('**/portal/api/**', async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace('/portal/api', '');
+    if (path.startsWith('/page-views/')) { await route.fulfill({ status: 204 }); return; }
     const method = request.method();
     const body = method === 'GET' ? null : request.postDataJSON();
     if (method !== 'GET') calls.push({ path, method, body, csrf: request.headers()['x-csrf-token'] });
     let result = {};
     if (path === '/session') result = { authenticated: true, csrfToken: 'synthetic-csrf', emailDeliveryConfigured: true, user: { id: 'signed-in-staff', userName: 'scadivo.staff', displayName: 'SCADIVO Staff', owner: false, administrator, locale, profileComplete: true } };
     else if (path === '/admin/overview') result = { accounts: accounts.length, openTickets: 0, pendingInvitations: 1, publicRegistrationEnabled: true, emailDeliveryConfigured: true, queuedMessages: 0, sentMessages: 0, failedMessages: 0 };
+    else if (path === '/admin/indicators') {
+      const query = new URL(request.url()).searchParams;
+      const from = query.get('from') || '2026-10-24';
+      result = {
+        from, to: '2026-10-25', traffic: [{ day: from, site: query.has('from') ? 12 : 6, portal: 3 }],
+        profiles: { total: 4, types: [{ label: 'student', count: 2 }], areas: [], affiliations: [], otherAffiliations: 4 },
+        downloads: [{ platform: 'windows-x64', version: 'v1.0.0', count: 5 }]
+      };
+    }
     else if (path === '/admin/accounts') result = accounts;
     else if (path.endsWith('/administration')) {
       const account = accounts.find(item => path === `/admin/accounts/${item.id}/administration`);
@@ -131,3 +141,18 @@ for (const [locale, label, title] of [['pt-BR', 'Downloads', 'Novo download'], [
     expect(browserErrors).toEqual([]);
   });
 }
+
+
+test('indicators filter daily traffic and show aggregate profile and download counts on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 900 });
+  const { browserErrors } = await fixture(page);
+  await page.getByRole('button', { name: 'Indicators', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Website · 6' })).toBeVisible();
+  await expect(page.getByText('50%', { exact: true })).toBeVisible();
+  await expect(page.getByText('v1.0.0')).toBeVisible();
+  await page.getByLabel('From (UTC)').fill('2026-10-25');
+  await page.getByRole('button', { name: 'Apply date range' }).click();
+  await expect(page.getByRole('heading', { name: 'Website · 12' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+  expect(browserErrors).toEqual([]);
+});

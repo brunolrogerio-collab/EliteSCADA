@@ -143,3 +143,5 @@
   try { saved = new URLSearchParams(location.search).get('lang') || localStorage.getItem('scadivo-site-language'); } catch { /* Portuguese remains the default. */ }
   applyLanguage(saved);
 })();
+
+fetch('/portal/api/page-views/site', { method: 'POST', credentials: 'omit', keepalive: true }).catch(() => {});

@@ -41,6 +41,10 @@ public static class PortalEndpoints
         app.MapGet("/api/community/sso", DiscourseConnect.HandleAsync)
             .RequireRateLimiting("community-sso");
 
+        app.MapPost("/api/page-views/{surface}", (string surface, HttpContext context, PortalIndicators indicators) =>
+            indicators.RecordPageView(surface, context))
+            .WithMetadata(new PortalPageViewEndpoint()).RequireRateLimiting("page-views");
+
         var account = app.MapGroup("/api").RequireAuthorization().RequireRateLimiting("writes");
         account.MapGet("/profile", (HttpContext context, PortalOperations operations) => operations.Profile(context));
         account.MapPut("/profile", (ProfileInput input, HttpContext context, PortalOperations operations) => operations.UpdateProfile(input, context));
@@ -76,6 +80,8 @@ public static class PortalEndpoints
         }
 
         var admin = app.MapGroup("/api/admin").RequireAuthorization(PortalAccess.AdministratorPolicy).RequireRateLimiting("writes");
+        admin.MapGet("/indicators", (DateOnly? from, DateOnly? to, PortalIndicators indicators, CancellationToken cancellationToken) =>
+            indicators.Report(from, to, cancellationToken));
         admin.MapGet("/overview", (PortalOperations operations) => operations.Overview());
         admin.MapGet("/accounts", (PortalOperations operations) => operations.Accounts());
         admin.MapPut("/accounts/{id}/access", (string id, AccountAccessInput input, HttpContext context, PortalOperations operations) => operations.UpdateAccountAccess(id, input, context));

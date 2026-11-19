@@ -584,6 +584,13 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
                     normalized);
             }
 
+            await DeactivateExpiredForIdentityAsync(
+                connection,
+                transaction,
+                normalized.SubjectId,
+                normalized.ClientInstanceId,
+                DateTimeOffset.UtcNow,
+                cancellationToken);
             var logicalConflict = await LoadActiveByIdentityAsync(
                 connection,
                 transaction,

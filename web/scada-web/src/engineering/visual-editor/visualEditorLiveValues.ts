@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import type { EngineeringLocale } from '../i18n';
 import type {
   BindingEngineering,
@@ -11,9 +11,13 @@ import { initializeClientMemory, readClientMemoryValue } from '../../runtime/cli
 import {
   loadReadableRuntimeTags,
   openRuntimeTagSocket,
-  parseRuntimeTagRealtimeMessage
+  parseRuntimeTagRealtimeMessage,
+  RuntimeTagSessionRequiredContext
 } from '../../runtime/liveTagTransport';
+import { getActiveRuntimeSession } from '../../runtime/runtimeSessionAdmissionApi';
 import { visualTagSampleKey, type VisualDynamicSample } from './visualDynamicRuntime';
+
+const TAG_SOCKET_RECONNECT_INTERVALS_MS = [1000, 2000, 5000] as const;
 
 export type VisualLiveScalarSample = VisualDynamicSample;
 
@@ -28,6 +32,7 @@ export function useVisualBindingSamples(
   elements: readonly VisualElementEngineering[] | null | undefined,
   enabled = true
 ): ReadonlyMap<string, VisualLiveScalarSample> {
+  const requireRuntimeSession = useContext(RuntimeTagSessionRequiredContext);
   const bindings = useMemo(() => enabled ? collectBindings(elements) : Object.freeze([]), [elements, enabled]);
   const requests = useMemo(() => enabled ? collectRuntimeSourceRequests(elements) : Object.freeze([]), [elements, enabled]);
   const tagRequests = useMemo(() => requests.filter(request => request.kind === 'tag'), [requests]);
@@ -42,7 +47,7 @@ export function useVisualBindingSamples(
 
     const refresh = async () => {
       try {
-        const tags = await loadReadableRuntimeTags();
+        const tags = await loadReadableRuntimeTags(undefined, requireRuntimeSession);
         if (cancelled) return;
         setSamples(current => {
           const next = new Map(current);
@@ -96,8 +101,14 @@ export function useVisualBindingSamples(
 
     void refresh();
     const refreshTimer = window.setInterval(() => void refresh(), 3000);
-    const socket = openRuntimeTagSocket();
-    socket.addEventListener('message', event => {
+    let socket: WebSocket | undefined;
+    let socketSessionId: string | undefined;
+    let reconnectTimer: number | undefined;
+    let reconnectAttempt = 0;
+
+    const onMessage = (event: MessageEvent) => {
+      if (cancelled || event.currentTarget !== socket ||
+          (requireRuntimeSession && getActiveRuntimeSession()?.sessionId !== socketSessionId)) return;
       const message = parseRuntimeTagRealtimeMessage(String(event.data));
       if (!message) return;
       const id = message.tag.id.trim().toLocaleLowerCase();
@@ -118,17 +129,41 @@ export function useVisualBindingSamples(
         next.set(visualTagSampleKey(message.tag.id), sample);
         return next;
       });
-    });
-    socket.addEventListener('close', () => {
-      if (!cancelled) markRequestsUnavailable(setSamples, tagRequests, bindings, true);
-    });
+    };
+
+    const scheduleReconnect = () => {
+      const delay = TAG_SOCKET_RECONNECT_INTERVALS_MS[reconnectAttempt];
+      reconnectAttempt = Math.min(reconnectAttempt + 1, TAG_SOCKET_RECONNECT_INTERVALS_MS.length - 1);
+      reconnectTimer = window.setTimeout(connect, delay);
+    };
+
+    const connect = () => {
+      try {
+        const connection = openRuntimeTagSocket(requireRuntimeSession);
+        socketSessionId = getActiveRuntimeSession()?.sessionId;
+        socket = connection;
+        connection.addEventListener('open', () => { reconnectAttempt = 0; });
+        connection.addEventListener('message', onMessage);
+        connection.addEventListener('close', () => {
+          if (cancelled || socket !== connection) return;
+          socket = undefined;
+          markRequestsUnavailable(setSamples, tagRequests, bindings, true);
+          scheduleReconnect();
+        });
+      } catch {
+        scheduleReconnect();
+      }
+    };
+
+    connect();
 
     return () => {
       cancelled = true;
       window.clearInterval(refreshTimer);
-      socket.close();
+      window.clearTimeout(reconnectTimer);
+      socket?.close();
     };
-  }, [tagRequests, bindings]);
+  }, [tagRequests, bindings, requireRuntimeSession]);
 
   useEffect(() => {
     if (clientRequests.length === 0) return undefined;

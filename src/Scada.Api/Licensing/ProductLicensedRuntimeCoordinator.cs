@@ -187,6 +187,13 @@ public sealed class ProductLicensedRuntimeCoordinator :
             ? restorer.RestoreAuthoritativeValuesAsync(values, cancellationToken)
             : throw new InvalidOperationException("The active runtime does not support HA value snapshot restoration.");
 
+    public Task<int> RestoreAuthoritativeValuesForTakeoverAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default) =>
+        Current is IRuntimeTagValueSnapshotRestorer restorer
+            ? restorer.RestoreAuthoritativeValuesForTakeoverAsync(values, cancellationToken)
+            : throw new InvalidOperationException("The active runtime does not support fenced HA value reconciliation.");
+
     public Task<int> ApplyPassiveAuthoritativeValuesAsync(
         IReadOnlyCollection<TagValue> values,
         CancellationToken cancellationToken = default) =>

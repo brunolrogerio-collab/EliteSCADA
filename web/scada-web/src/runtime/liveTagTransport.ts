@@ -1,3 +1,4 @@
+import { createContext } from 'react';
 import { getActiveRuntimeSession } from './runtimeSessionAdmissionApi';
 
 export type RuntimeTagCurrentValue = Readonly<{
@@ -37,8 +38,19 @@ export type RuntimeTagRealtimeMessage = Readonly<{
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
-export async function loadReadableRuntimeTags(signal?: AbortSignal): Promise<readonly RuntimeTagSnapshot[]> {
+export const RuntimeTagSessionRequiredContext = createContext(false);
+
+function resolveTagSession(requireRuntimeSession: boolean) {
   const session = getActiveRuntimeSession();
+  if (requireRuntimeSession && !session) throw new Error('Runtime TAG transport requires an active Runtime session.');
+  return session;
+}
+
+export async function loadReadableRuntimeTags(
+  signal?: AbortSignal,
+  requireRuntimeSession = false
+): Promise<readonly RuntimeTagSnapshot[]> {
+  const session = resolveTagSession(requireRuntimeSession);
   const response = await fetch(`${API}/api/tags`, {
     credentials: 'same-origin',
     headers: { accept: 'application/json', ...(session?.headers ?? {}) },
@@ -46,17 +58,20 @@ export async function loadReadableRuntimeTags(signal?: AbortSignal): Promise<rea
   });
   if (!response.ok) throw new Error(`Runtime TAG request failed with HTTP ${response.status}.`);
   const payload = await response.json() as RuntimeTagSnapshot[];
+  if (requireRuntimeSession && getActiveRuntimeSession()?.sessionId !== session?.sessionId) {
+    throw new Error('Runtime session changed while loading TAGs.');
+  }
   return Object.freeze(payload.map(tag => Object.freeze({
     ...tag,
     current: tag.current ? Object.freeze({ ...tag.current }) : null
   })));
 }
 
-export function openRuntimeTagSocket(): WebSocket {
+export function openRuntimeTagSocket(requireRuntimeSession = false): WebSocket {
+  const session = resolveTagSession(requireRuntimeSession);
   const url = new URL(API
     ? `${API.replace(/^http/i, 'ws')}/ws/tags`
     : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/tags`);
-  const session = getActiveRuntimeSession();
   if (session) {
     url.searchParams.set('runtimeSessionId', session.sessionId);
     url.searchParams.set('clientInstanceId', session.clientInstanceId);

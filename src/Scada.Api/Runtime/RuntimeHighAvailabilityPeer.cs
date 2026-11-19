@@ -265,6 +265,14 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
 
         lock (_gate)
         {
+            if (envelope.AuthorityRevision < _minimumAuthorityRevision)
+            {
+                return new RuntimeSessionContinuityImportResult(
+                    false,
+                    "session-authority-revision-stale",
+                    null);
+            }
+
             ExpireLocked(now);
             var key = LogicalKey(
                 envelope.ClusterId,
@@ -349,6 +357,7 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
 
             var imported = envelope with { ReplicatedAtUtc = now };
             _leases[key] = imported;
+            _peerProjectionKeys.Add(key);
             return new RuntimeSessionContinuityImportResult(
                 true,
                 "peer-session-applied",
@@ -434,7 +443,7 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
                         "session-tombstone-stale",
                         lease);
                 }
-                _leases.Remove(key);
+                RemoveLeaseLocked(key);
             }
 
             _peerTombstones[key] = tombstone;

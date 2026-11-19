@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type WebSocketRoute } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
 
@@ -193,7 +193,8 @@ async function installEngineeringRuntimeProjection(
   branding?: unknown,
   visualAssets: unknown[] = [],
   runtimePresentation?: unknown,
-  onRequest?: (headers: Record<string, string>) => void
+  onRequest?: (headers: Record<string, string>) => void,
+  screenElements: unknown[] = []
 ) {
   await page.context().route('**/api/runtime/application', route => {
     onRequest?.(route.request().headers());
@@ -211,7 +212,7 @@ async function installEngineeringRuntimeProjection(
           id: 'screen-home-id',
           key: 'home',
           name: 'Home',
-          elements: []
+          elements: screenElements
         }],
         popups: [],
         dynamos: [],
@@ -794,6 +795,49 @@ test('Runtime renews each window lease and binds its application projection to t
   await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
 });
 
+const pressureTag = { id: '00000000-0000-0000-0000-000000000783', name: 'Pressure', path: 'Test.Pressure' };
+const pressureDisplay = {
+  id: 'pressure-display',
+  key: 'pressure-display',
+  type: 'core.text',
+  properties: { x: 20, y: 20, width: 160, height: 40 },
+  bindings: [{ key: 'text', kind: 'Tag', target: pressureTag.path, tagReference: { tagId: pressureTag.id } }]
+};
+
+test('a Runtime screen resumes TAG events on the same session after a WebSocket drop', async ({ page }) => {
+  const session = await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page, undefined, [], undefined, undefined, [pressureDisplay]);
+  // The screen can only receive either test value from its own WebSocket.
+  await page.route('**/api/tags', route => route.fulfill({ json: [] }));
+  const connections: WebSocketRoute[] = [];
+  await page.routeWebSocket('**/ws/tags*', socket => { connections.push(socket); });
+
+  let navigations = 0;
+  page.on('framenavigated', frame => { if (frame === page.mainFrame()) navigations++; });
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => connections.length).toBe(1);
+  const field = page.locator('[data-object-id="pressure-display"][data-dynamic-reference="Test.Pressure"]');
+  const sample = (value: number) => JSON.stringify({
+    type: 'tagValueChanged', tag: pressureTag, value, quality: 'Good', timestamp: new Date().toISOString()
+  });
+  connections[0].send(sample(41));
+  await expect(field).toHaveText('41');
+
+  await connections[0].close({ code: 1011 });
+  await expect.poll(() => connections.length).toBe(2);
+  const originalLease = new URL(connections[0].url()).searchParams;
+  const replacementLease = new URL(connections[1].url()).searchParams;
+  expect(originalLease.get('runtimeSessionId')).toBeTruthy();
+  expect(originalLease.get('clientInstanceId')).toBeTruthy();
+  expect(replacementLease.toString()).toBe(originalLease.toString());
+  connections[1].send(sample(42));
+  await expect(field).toHaveText('42');
+  expect(session.runtimeSessionAdmissions).toBe(1);
+  expect(session.loginRequests).toBe(0);
+  expect(navigations).toBe(1);
+});
+
 test('Runtime closes the projection after lease renewal fails and can reacquire a seat', async ({ page }) => {
   await page.clock.install();
   await installSessionContract(page, administrator);
@@ -801,17 +845,28 @@ test('Runtime closes the projection after lease renewal fails and can reacquire 
   await installEngineeringRuntimeProjection(page, undefined, [], undefined, headers => {
     const sessionId = headers['x-elitescada-runtime-session'];
     if (sessionId) projectionSessionIds.push(sessionId);
+  }, [pressureDisplay]);
+  const readLeases: (string | undefined)[] = [];
+  await page.route('**/api/tags', route => {
+    readLeases.push(route.request().headers()['x-elitescada-runtime-session']);
+    return route.fulfill({ json: [] });
   });
+  const sockets: WebSocketRoute[] = [];
+  await page.routeWebSocket('**/ws/tags*', socket => { sockets.push(socket); });
+
+  let releaseRecovery: () => void = () => undefined;
+  const recovery = new Promise<void>(resolve => { releaseRecovery = resolve; });
   let admissions = 0;
   let heartbeatRequests = 0;
   const admissionClientInstanceIds: string[] = [];
   const sessionIds: string[] = [];
-  await page.route('**/api/runtime/sessions', route => {
+  await page.route('**/api/runtime/sessions', async route => {
     const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
     admissions++;
     const sessionId = `00000000-0000-0000-0000-${String(780 + admissions).padStart(12, '0')}`;
     admissionClientInstanceIds.push(request.clientInstanceId);
     sessionIds.push(sessionId);
+    if (admissions > 1) await recovery;
     return route.fulfill({ status: 201, json: {
       sessionId,
       clientInstanceId: request.clientInstanceId,
@@ -828,11 +883,24 @@ test('Runtime closes the projection after lease renewal fails and can reacquire 
 
   await page.goto('/');
   await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => sockets.length).toBe(1);
   await page.clock.fastForward(20_000);
-  await expect.poll(() => heartbeatRequests).toBe(1);
-  await expect.poll(() => admissions).toBe(2);
+  try {
+    await expect.poll(() => heartbeatRequests).toBe(1);
+    await expect.poll(() => admissions).toBe(2);
+    await sockets[0].close({ code: 1011 });
+    await expect(page.locator('[data-object-id="pressure-display"]')).toHaveAttribute('title', /Disconnected/);
+    await page.clock.runFor(6000);
+    expect(sockets).toHaveLength(1);
+    expect(readLeases).toContain(sessionIds[0]);
+    expect(readLeases).not.toContain(undefined);
+  } finally {
+    releaseRecovery();
+  }
   await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
   await expect.poll(() => projectionSessionIds).toContain(sessionIds[1]);
+  await expect.poll(() => sockets.length).toBe(2);
+  expect(new URL(sockets[1].url()).searchParams.get('runtimeSessionId')).toBe(sessionIds[1]);
   await expect(page.getByTestId('runtime-session-required')).toHaveCount(0);
   expect(sessionIds[0]).not.toBe(sessionIds[1]);
   expect(admissionClientInstanceIds[1]).toBe(admissionClientInstanceIds[0]);

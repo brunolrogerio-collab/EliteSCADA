@@ -122,6 +122,12 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
     private const string ProjectKey = "w15-stage1-process-evidence";
     private const string JwtKey = "w15-stage1-integration-jwt-signing-key-only";
     private const string PeerSecret = "w15-stage1-integration-peer-secret-32-bytes";
+    private static readonly Guid HaEffectsMemorySourceId = Guid.Parse("b3110000-0000-0000-0000-000000000200");
+    private static readonly Guid HaEffectsCounterTagId = Guid.Parse("b3110000-0000-0000-0000-000000000201");
+    private static readonly Guid HaEffectsAlarmId = Guid.Parse("b3110000-0000-0000-0000-000000000202");
+    private static readonly Guid HaEffectsScriptId = Guid.Parse("b3110000-0000-0000-0000-000000000203");
+    private static readonly Guid HaEffectsOperationalEventId = Guid.Parse("b3110000-0000-0000-0000-000000000204");
+    private static readonly Guid HaEffectsAlarmTagId = Guid.Parse("b3110000-0000-0000-0000-000000000205");
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     [Theory]
@@ -572,7 +578,8 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 nodeA,
                 activate: true,
                 writableEvidenceTag: verifyRuntimeSessionContinuity,
-                simulationScanIntervalMilliseconds: verifyRuntimeSessionContinuity ? 2_000 : 100);
+                simulationScanIntervalMilliseconds: verifyRuntimeSessionContinuity ? 2_000 : 100,
+                includeHaEffects: verifyRuntimeSessionContinuity);
             if (sharedDatabase)
             {
                 // Start the shared-database standby only after the published project
@@ -591,7 +598,8 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     nodeB!,
                     activate: false,
                     writableEvidenceTag: verifyRuntimeSessionContinuity,
-                    simulationScanIntervalMilliseconds: verifyRuntimeSessionContinuity ? 2_000 : 100);
+                    simulationScanIntervalMilliseconds: verifyRuntimeSessionContinuity ? 2_000 : 100,
+                    includeHaEffects: verifyRuntimeSessionContinuity);
                 // In the separate-database case, publish its local copy without
                 // activating it, then restart so D2 begins from a loaded standby.
                 await nodeB!.DisposeAsync();
@@ -646,6 +654,21 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             AssertOneActive(initialA, "node-a");
             AssertOneActive(initialB, "node-a");
             var initialEpoch = initialA["authorityEpoch"]!.GetValue<long>();
+            HaEffectCounts? effectsBeforeFailoverA = null;
+            HaEffectCounts? effectsBeforeFailoverB = null;
+            if (verifyRuntimeSessionContinuity)
+            {
+                await WaitUntilAsync(async () =>
+                {
+                    effectsBeforeFailoverA = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                    return effectsBeforeFailoverA.HistorianSamples >= 2 &&
+                        effectsBeforeFailoverA.OperationalEvents >= 2;
+                }, TimeSpan.FromSeconds(30), "the initial Active did not produce durable script, event, and Historian evidence");
+                effectsBeforeFailoverB = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                Assert.Equal(0, effectsBeforeFailoverB.HistorianSamples);
+                Assert.Equal(0, effectsBeforeFailoverB.AlarmTransitions);
+                Assert.Equal(0, effectsBeforeFailoverB.OperationalEvents);
+            }
 
             Guid? runtimeSessionId = null;
             string? runtimeSessionClientInstanceId = null;
@@ -740,6 +763,12 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     runtimeSessionId.Value,
                     runtimeSessionClientInstanceId,
                     137.25d);
+                await WriteClusterTagValueAsync(
+                    browser,
+                    HaEffectsAlarmTagId,
+                    runtimeSessionId.Value,
+                    runtimeSessionClientInstanceId,
+                    137.25d);
 
                 standbySession = await WaitForRuntimeSessionLeaseAsync(
                     appConnectionB.ConnectionString,
@@ -756,6 +785,9 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             // reference fence to claim a strictly newer authority epoch.
             await nodeA.DisposeAsync();
             nodeA = null;
+            var effectsAfterActiveProcessStopA = verifyRuntimeSessionContinuity
+                ? await ReadHaEffectCountsAsync(appConnectionA.ConnectionString)
+                : null;
             if (verifyRuntimeSessionContinuity)
             {
                 // Keep the direct node-local admin session for topology probes; the
@@ -815,6 +847,34 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     runtimeSessionId.Value,
                     runtimeSessionClientInstanceId!,
                     248.5d);
+                await WriteClusterTagValueAsync(
+                    browser,
+                    HaEffectsAlarmTagId,
+                    runtimeSessionId.Value,
+                    runtimeSessionClientInstanceId!,
+                    248.5d);
+                HaEffectCounts? latestPromotedEffects = null;
+                try
+                {
+                    await WaitUntilAsync(async () =>
+                    {
+                        latestPromotedEffects = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                        return latestPromotedEffects.HistorianSamples > 0 &&
+                            latestPromotedEffects.OperationalEvents > 0 &&
+                            latestPromotedEffects.AlarmTransitions == 1;
+                    }, TimeSpan.FromSeconds(20), "the promoted Active did not produce exactly one alarm transition and durable script/history evidence");
+                }
+                catch (TimeoutException exception)
+                {
+                    var observedA = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                    var observedB = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                    var alarmDefinitions = await browser.GetAsync("/api/alarms/definitions");
+                    var activeAlarms = await browser.GetAsync("/api/alarms?activeOnly=true");
+                    var alarmTag = await browser.GetAsync("/api/tags/by-path/System.HA.AlarmInput");
+                    throw new TimeoutException(
+                        $"{exception.Message}; last promoted counts={latestPromotedEffects}; database A={observedA}; database B={observedB}; alarm definitions={alarmDefinitions.ToJsonString()}; active alarms={activeAlarms.ToJsonString()}; alarm input={alarmTag.ToJsonString()}; API B output: {nodeB.LastOutput()}",
+                        exception);
+                }
             }
 
             // Rejoin the old node with the same NodeId. It must reconcile the newer
@@ -843,6 +903,13 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
 
             if (verifyRuntimeSessionContinuity)
             {
+                await Task.Delay(TimeSpan.FromMilliseconds(1_500));
+                var effectsWhileRestartedStandbyA = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                var effectsWhilePromotedB = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                Assert.Equal(effectsAfterActiveProcessStopA, effectsWhileRestartedStandbyA);
+                Assert.True(effectsWhilePromotedB.OperationalEvents > effectsBeforeFailoverB!.OperationalEvents);
+                Assert.True(effectsWhilePromotedB.HistorianSamples > effectsBeforeFailoverB.HistorianSamples);
+
                 // Force the actual TCP ingress to select the restarted Standby. It must
                 // forward the old browser cookie to the promoted Active, which rejects it.
                 clusterIngress!.SetBackends(urlA);
@@ -887,6 +954,13 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     runtimeSessionClientInstanceId!,
                     359.75d);
             }
+
+            var effectsBeforeFailbackA = verifyRuntimeSessionContinuity
+                ? await ReadHaEffectCountsAsync(appConnectionA.ConnectionString)
+                : null;
+            var effectsBeforeFailbackB = verifyRuntimeSessionContinuity
+                ? await ReadHaEffectCountsAsync(appConnectionB.ConnectionString)
+                : null;
 
             // This request traverses the authenticated API endpoint with the temporary
             // V3 HaRuntime license installed in both real processes; no security/license
@@ -945,6 +1019,124 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     failedBackSessionId,
                     runtimeSessionClientInstanceId!,
                     461.125d);
+                await WaitUntilAsync(async () =>
+                {
+                    var effects = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                    return effects.OperationalEvents > effectsBeforeFailbackA!.OperationalEvents &&
+                        effects.HistorianSamples > effectsBeforeFailbackA.HistorianSamples;
+                }, TimeSpan.FromSeconds(20), "the explicitly failed-back Active did not resume its durable script/history effects");
+                await Task.Delay(TimeSpan.FromMilliseconds(1_500));
+                var effectsAfterFailbackA = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                var effectsAfterFailbackB = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                Assert.Equal(effectsBeforeFailbackB, effectsAfterFailbackB);
+                var alarmTagAfterFailback = await nodeA.GetAsync("/api/tags/by-path/System.HA.AlarmInput");
+                var alarmRowsA = await ReadHaAlarmRowsAsync(appConnectionA.ConnectionString);
+                var alarmRowsB = await ReadHaAlarmRowsAsync(appConnectionB.ConnectionString);
+                var activeAlarmsAfterFailback = await nodeA.GetAsync("/api/alarms?activeOnly=true");
+                var activeAlarmAfterFailback = activeAlarmsAfterFailback.AsArray()
+                    .SingleOrDefault(item => item?["definitionId"]?.GetValue<Guid>() == HaEffectsAlarmId);
+                Assert.True(
+                    effectsAfterFailbackA.AlarmTransitions + effectsAfterFailbackB.AlarmTransitions == 1,
+                    $"Expected one unique alarm transition across independent databases. " +
+                    $"A before={effectsBeforeFailbackA}, after={effectsAfterFailbackA}; " +
+                    $"B before={effectsBeforeFailbackB}, after={effectsAfterFailbackB}; " +
+                    $"A alarm input after failback={alarmTagAfterFailback.ToJsonString()}; " +
+                    $"A alarm rows={alarmRowsA}; B alarm rows={alarmRowsB}; " +
+                    $"A active alarms={activeAlarmsAfterFailback.ToJsonString()}");
+                Assert.NotNull(activeAlarmAfterFailback);
+                Assert.Equal(1, activeAlarmAfterFailback!["state"]!.GetValue<int>());
+                Assert.Equal(248.5d, activeAlarmAfterFailback["lastValue"]!.GetValue<double>(), precision: 6);
+
+                // Repeat after failback: loss of B lets A advance its local session
+                // revision while B is offline. Logical seats still have to mirror on rejoin.
+                var repeatedSwitch = await nodeA.PostRawAsync(
+                    "/api/runtime/ha/actions/switchover",
+                    new JsonObject { ["targetNodeId"] = "node-b" });
+                Assert.Equal(HttpStatusCode.Accepted, repeatedSwitch.StatusCode);
+                var beforeSecondLoss = await WaitForHaTopologyAsync(
+                    nodeB, topology => IsEffectiveActive(topology, "node-b") && IsReadyStandby(topology, "node-a"),
+                    TimeSpan.FromSeconds(30), "A did not become Ready Standby before the second Active loss");
+                clusterIngress.SetBackends(urlB);
+                await clusterBrowser.LoginAsync();
+                var repeatedClient = "w15-ha-d2-repeat-" + suffix;
+                var repeatedSeat = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    clusterBrowser, repeatedClient, "node-b", TimeSpan.FromSeconds(20));
+                var repeatedSubject = repeatedSeat["userId"]!.GetValue<string>();
+                var repeatedSessionId = repeatedSeat["sessionId"]!.GetValue<Guid>();
+                var mirroredBeforeRenewal = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString, repeatedSessionId,
+                    repeatedSubject, repeatedClient, "node-b", 1, TimeSpan.FromSeconds(20));
+
+                // PostgreSQL reloads the lease at microsecond precision during a heartbeat.
+                // Its renewal must update the same logical lease on A before B is lost.
+                var heartbeat = await clusterBrowser.PostRawAsync(
+                    $"/api/runtime/sessions/{repeatedSessionId:D}/heartbeat",
+                    new JsonObject { ["clientInstanceId"] = repeatedClient });
+                Assert.Equal(HttpStatusCode.OK, heartbeat.StatusCode);
+                var renewedOnActive = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionB.ConnectionString, repeatedSessionId,
+                    repeatedSubject, repeatedClient, "node-b", mirroredBeforeRenewal.Generation + 1,
+                    TimeSpan.FromSeconds(10));
+                await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString, repeatedSessionId,
+                    repeatedSubject, repeatedClient, "node-b", renewedOnActive.Generation,
+                    TimeSpan.FromSeconds(10));
+                using var secondStaleBrowser = clusterBrowser.Clone();
+                await nodeB.DisposeAsync();
+                nodeB = null;
+
+                var secondPromotion = await WaitForHaTopologyAsync(
+                    nodeA, topology => IsEffectiveActive(topology, "node-a") &&
+                        topology["authorityEpoch"]!.GetValue<long>() >
+                        beforeSecondLoss["authorityEpoch"]!.GetValue<long>(),
+                    TimeSpan.FromSeconds(90), "A did not promote after B was stopped");
+                AssertOneActive(secondPromotion, "node-a");
+                clusterIngress.SetBackends(urlA);
+                await clusterBrowser.LoginAsync();
+                var secondReadmission = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    clusterBrowser, repeatedClient, "node-a", TimeSpan.FromSeconds(20));
+                // Verify stale authentication after the Runtime opens, so a pre-admission
+                // HA conflict cannot be mistaken for rejection of an obsolete cookie.
+                var secondStaleAdmission = await secondStaleBrowser.PostRawAsync(
+                    "/api/runtime/sessions",
+                    new JsonObject { ["clientInstanceId"] = repeatedClient, ["connectionClass"] = "interactive" });
+                Assert.True(secondStaleAdmission.StatusCode == HttpStatusCode.Unauthorized,
+                    $"The old login was not rejected after the second promotion: HTTP {(int)secondStaleAdmission.StatusCode}.");
+                Assert.Equal(repeatedSubject, secondReadmission["userId"]!.GetValue<string>());
+                await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString, secondReadmission["sessionId"]!.GetValue<Guid>(),
+                    repeatedSubject, repeatedClient, "node-a", 1, TimeSpan.FromSeconds(20));
+
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
+                await nodeB.LoginAsync();
+                await WaitForHaTopologyAsync(
+                    nodeB, topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
+                    TimeSpan.FromSeconds(60), "B did not rejoin as a standby after the second promotion");
+
+                // Returning B must also reject the exact cookie it issued before the loss.
+                clusterIngress.SetBackends(urlB);
+                var oldCookieOnRejoinedStandby = await secondStaleBrowser.PostRawAsync(
+                    "/api/runtime/sessions",
+                    new JsonObject { ["clientInstanceId"] = repeatedClient, ["connectionClass"] = "interactive" });
+                Assert.Equal(HttpStatusCode.Unauthorized, oldCookieOnRejoinedStandby.StatusCode);
+                clusterIngress.SetBackends(urlA);
+
+                var afterRejoinClient = "w15-ha-d2-rejoin-" + suffix;
+                var afterRejoin = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    clusterBrowser, afterRejoinClient, "node-a", TimeSpan.FromSeconds(20));
+                var afterRejoinSession = afterRejoin["sessionId"]!.GetValue<Guid>();
+                await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString, afterRejoinSession, repeatedSubject,
+                    afterRejoinClient, "node-a", 1, TimeSpan.FromSeconds(20));
+                await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionB.ConnectionString, afterRejoinSession, repeatedSubject,
+                    afterRejoinClient, "node-a", 1, TimeSpan.FromSeconds(20));
+                var finalEffectsA = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                var finalEffectsB = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                Assert.Equal(1, finalEffectsA.AlarmTransitions + finalEffectsB.AlarmTransitions);
             }
 
             Console.WriteLine(JsonSerializer.Serialize(new
@@ -971,7 +1163,15 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                         afterPromotion = "old cookie rejected; reauthentication, TAG write, and TAG WebSocket reached effective Active node-b",
                         afterRejoin = "old cookie rejected through restarted node-a Standby; reauthentication, Runtime read, TAG write, and TAG WebSocket reached node-b Active",
                         afterFailback = "reauthentication, TAG write, and TAG WebSocket through node-b Standby reached node-a Active",
-                        writeRealtimeEvents = "four distinct Runtime writes each produced exactly one matching realtime TAG event"
+                        writeRealtimeEvents = "four distinct Runtime writes each produced exactly one matching realtime TAG event",
+                        durableNoDuplicateEffects = new
+                        {
+                            initialActive = effectsBeforeFailoverA,
+                            standbyBeforePromotion = effectsBeforeFailoverB,
+                            activeAfterPromotion = effectsBeforeFailbackB,
+                            activeAfterFailback = effectsBeforeFailbackA,
+                        coverage = "Server Script timer, Operational Event persistence, TAG Historian persistence, and one alarm transition across Active/Standby/failover/rejoin/failback"
+                        }
                     }
                     : null,
                 runtimeSessionContinuity = verifyRuntimeSessionContinuity
@@ -1244,6 +1444,23 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         Assert.Equal(1, matchingEvents);
     }
 
+    private static async Task WriteClusterTagValueAsync(
+        ClusterBrowser browser,
+        Guid tagId,
+        Guid sessionId,
+        string clientInstanceId,
+        double value)
+    {
+        var response = await browser.PostRuntimeRawAsync(
+            $"/api/tags/{tagId:D}/write",
+            new JsonObject { ["value"] = value },
+            sessionId,
+            clientInstanceId);
+        Assert.True(
+            response.StatusCode == HttpStatusCode.Accepted,
+            $"Runtime TAG write expected HTTP {(int)HttpStatusCode.Accepted}, got {(int)response.StatusCode}: {response.RawBody}");
+    }
+
     private static async Task<JsonDocument> ReceiveWebSocketMessageAsync(ClientWebSocket socket, CancellationToken cancellationToken)
     {
         using var message = new MemoryStream();
@@ -1428,7 +1645,8 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         bool activate,
         bool twoScopes = false,
         bool writableEvidenceTag = false,
-        int simulationScanIntervalMilliseconds = 100)
+        int simulationScanIntervalMilliseconds = 100,
+        bool includeHaEffects = false)
     {
         var first = await node.SendAsync(
             HttpMethod.Post,
@@ -1478,6 +1696,8 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                 ["id"] = "b3100000-0000-0000-0000-000000000211",
                 ["path"] = "Plant.Pump02", ["name"] = "Second evidence pump"
             });
+        if (includeHaEffects)
+            AddHaEffectsFixture(package.AsObject());
         await node.SendAsync(
             HttpMethod.Post,
             "/api/engineering/import/json/apply",
@@ -1510,6 +1730,138 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
         {
             Assert.True(first["revision"]?["revision"]!.GetValue<long>() > 0);
         }
+    }
+
+    private static void AddHaEffectsFixture(JsonObject package)
+    {
+        var dataSources = package["dataSources"]!.AsArray();
+        dataSources.Add(new JsonObject
+        {
+            ["id"] = HaEffectsMemorySourceId.ToString("D"),
+            ["key"] = "memory.server",
+            ["name"] = "HA effects test memory",
+            ["driver"] = "builtin.memory.server",
+            ["enabled"] = true,
+            ["settings"] = new JsonObject()
+        });
+
+        package["tags"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = HaEffectsCounterTagId.ToString("D"),
+            ["name"] = "HA effects counter",
+            ["path"] = "System.HA.EffectsCounter",
+            ["dataType"] = "int32",
+            ["source"] = "memory.server",
+            ["dataSourceId"] = HaEffectsMemorySourceId.ToString("D"),
+            ["readOnly"] = false,
+            ["historian"] = new JsonObject { ["enabled"] = true, ["strategy"] = "on-change" },
+            ["initialValue"] = new JsonObject { ["dataType"] = "int32", ["value"] = 0 }
+        });
+
+        package["tags"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = HaEffectsAlarmTagId.ToString("D"),
+            ["name"] = "HA effects alarm input",
+            ["path"] = "System.HA.AlarmInput",
+            ["dataType"] = "double",
+            ["source"] = "memory.server",
+            ["dataSourceId"] = HaEffectsMemorySourceId.ToString("D"),
+            ["readOnly"] = false,
+            ["initialValue"] = new JsonObject { ["dataType"] = "double", ["value"] = 0 }
+        });
+
+        package["alarms"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = HaEffectsAlarmId.ToString("D"),
+            ["name"] = "HA independent process alarm",
+            ["tagId"] = HaEffectsAlarmTagId.ToString("D"),
+            ["tagPath"] = "System.HA.AlarmInput",
+            ["type"] = "high",
+            ["priority"] = "high",
+            ["setpoint"] = 200,
+            ["activationDelayMilliseconds"] = 0,
+            ["enabled"] = true
+        });
+
+        package["operationalEvents"] = new JsonArray(new JsonObject
+        {
+            ["id"] = HaEffectsOperationalEventId.ToString("D"),
+            ["key"] = "ha.independent.effects.tick",
+            ["name"] = "HA independent effects tick",
+            ["type"] = "state-change",
+            ["category"] = "process",
+            ["source"] = "runtime.server-script",
+            ["enabled"] = true
+        });
+
+        var scriptSource = string.Join('\n',
+            "def tick(event):",
+            $"    current = read_server_memory(\"{HaEffectsCounterTagId:D}\")",
+            "    next_value = current + 1",
+            $"    write_server_memory(\"{HaEffectsCounterTagId:D}\", next_value)",
+            $"    emit_operational_event(\"{HaEffectsOperationalEventId:D}\", \"HA effects tick \" + str(next_value))");
+        package["scripts"] = new JsonArray(new JsonObject
+        {
+            ["id"] = HaEffectsScriptId.ToString("D"),
+            ["path"] = "Scripts.HAIndependentEffects",
+            ["name"] = "HA independent effects witness",
+            ["scope"] = "server",
+            ["source"] = scriptSource,
+            ["enabled"] = true,
+            ["language"] = "python",
+            ["languageVersion"] = "3",
+            ["entryPoints"] = new JsonArray(new JsonObject
+            {
+                ["eventKind"] = "timer",
+                ["handlerName"] = "tick",
+                ["timerIntervalMs"] = 3_000
+            }),
+            ["dependencies"] = new JsonArray(new JsonObject
+            {
+                ["kind"] = "serverMemoryTag",
+                ["stableReference"] = HaEffectsCounterTagId.ToString("D")
+            })
+        });
+    }
+
+    private sealed record HaEffectCounts(long HistorianSamples, long AlarmTransitions, long OperationalEvents);
+
+    private static async Task<HaEffectCounts> ReadHaEffectCountsAsync(string connectionString)
+    {
+        const string sql = """
+            SELECT
+                (SELECT count(*) FROM elitescada.tag_history WHERE tag_id = @counter_tag_id),
+                (SELECT count(*) FROM elitescada.alarm_history WHERE alarm_id = @alarm_id),
+                (SELECT count(*) FROM elitescada.operational_event_history WHERE definition_id = @event_id);
+            """;
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("counter_tag_id", HaEffectsCounterTagId);
+        command.Parameters.AddWithValue("alarm_id", HaEffectsAlarmId);
+        command.Parameters.AddWithValue("event_id", HaEffectsOperationalEventId);
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        return new HaEffectCounts(reader.GetInt64(0), reader.GetInt64(1), reader.GetInt64(2));
+    }
+
+    private static async Task<string> ReadHaAlarmRowsAsync(string connectionString)
+    {
+        const string sql = """
+            SELECT previous_state, state, tag_path, timestamp_utc
+            FROM elitescada.alarm_history
+            WHERE alarm_id = @alarm_id
+            ORDER BY timestamp_utc;
+            """;
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("alarm_id", HaEffectsAlarmId);
+        await using var reader = await command.ExecuteReaderAsync();
+        var rows = new List<string>();
+        while (await reader.ReadAsync())
+            rows.Add($"{reader.GetInt16(0)}->{reader.GetInt16(1)} {reader.GetString(2)} @ {reader.GetDateTime(3):O}");
+        return string.Join(" | ", rows);
     }
 
     private static async Task ConfigureAndActivateIntelligenceAsync(ApiProcess node, bool twoScopes = false)
@@ -2336,6 +2688,8 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             Set("DatabaseTopology__Secrets__MasterKeyBase64", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
             Set("Historian__Provider", "timescaledb");
             Set("HistoricalQuery__Enabled", "true");
+            // Leave time for the evidence script and its PostgreSQL effects on loaded hosts.
+            Set("ServerScripts__HandlerTimeoutMs", "2000");
             Set("HistoricalQuery__CursorKeyBase64", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
             Set("Licensing__LicenseFile", license.LicensePath);
             Set("Licensing__VerificationKeys__" + license.KeyId, license.PublicKeyPath);

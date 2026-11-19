@@ -87,6 +87,34 @@ public sealed class HighAvailabilityRuntimeCoordinator(
         return inner.RestoreAuthoritativeValuesAsync(values, cancellationToken);
     }
 
+    public Task<int> RestoreAuthoritativeValuesForTakeoverAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        var topology = highAvailability.Snapshot();
+        var localNodeId = highAvailability.LocalNodeId;
+        var rawAuthority = localNodeId is null
+            ? RuntimeHaIndustrialAuthorityDecision.Denied("local-node-id-unavailable")
+            : highAvailability.Authority.TryAcquireIndustrialAuthority(localNodeId);
+        var verification = licensing.CurrentVerification;
+        var takeoverOwnsReferenceWhileFenced = highAvailability.Enabled &&
+            localNodeId is not null &&
+            rawAuthority.Allowed &&
+            !highAvailability.CanOwnIndustrialEffects() &&
+            !topology.AmbiguousAuthority &&
+            topology.PendingTransfer is null &&
+            topology.EffectiveActiveNodeId is { } activeNodeId &&
+            activeNodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) &&
+            verification.State == LicenseState.Valid &&
+            verification.SessionEntitlements?.HaRuntime == true;
+        if (!takeoverOwnsReferenceWhileFenced)
+            throw new InvalidOperationException(
+                "HA authoritative values can only be reconciled while this licensed node holds the effective Active reference and industrial effects remain fenced.");
+
+        return inner.RestoreAuthoritativeValuesForTakeoverAsync(values, cancellationToken);
+    }
+
     public Task<int> ApplyPassiveAuthoritativeValuesAsync(
         string sourceNodeId,
         string projectKey,

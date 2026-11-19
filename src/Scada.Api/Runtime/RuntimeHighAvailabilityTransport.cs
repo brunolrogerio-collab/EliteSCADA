@@ -210,7 +210,8 @@ public sealed record RuntimeHaAuthoritativeStateSnapshot(
     EngineeringPackage? Application = null,
     DateTimeOffset? RuntimeActivatedAtUtc = null,
     long? AlarmSuppressionRevision = null,
-    IReadOnlyCollection<AlarmSuppressionRecord>? AlarmSuppressions = null);
+    IReadOnlyCollection<AlarmSuppressionRecord>? AlarmSuppressions = null,
+    long? SessionAuthorityRevision = null);
 
 public sealed record RuntimeHaPeerReplicationEnvelope(
     string Schema,
@@ -869,20 +870,28 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                 _highAvailability.CanOwnIndustrialEffects())
             {
                 var now = _timeProvider.GetUtcNow();
-                var sessions = _highAvailability.SessionContinuity.Snapshot()
-                    .Select(lease => lease with
-                    {
-                        SourceNodeId = localNodeId,
-                        ReplicatedAtUtc = now
-                    })
-                    .ToArray();
-                var tombstones = _highAvailability.SessionContinuity
-                    .TombstoneSnapshot(_highAvailability.ClusterId)
-                    .Select(tombstone => tombstone with
-                    {
-                        SourceNodeId = localNodeId
-                    })
-                    .ToArray();
+                var authority = await _sessionLeaseStore.GetAuthorityStateAsync(cancellationToken);
+                var runtimeIdentity = RuntimeHaRuntimeIdentity.From(descriptor);
+                var sessionRuntime = new RuntimeSessionRuntimeIdentity(
+                    descriptor.Mode, descriptor.ProjectKey, descriptor.Revision, descriptor.ActivatedAtUtc);
+                RuntimeSessionLeaseContinuityEnvelope[] sessions = [];
+                RuntimeSessionLeaseContinuityTombstoneEnvelope[] tombstones = [];
+                if (!authority.TransitionPending)
+                {
+                    sessions = _highAvailability.SessionContinuity.Snapshot()
+                        .Where(lease => lease.AuthorityRevision == authority.AuthorityRevision &&
+                            lease.SourceNodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) &&
+                            new RuntimeSessionRuntimeIdentity(
+                                lease.Runtime.Mode, lease.Runtime.ProjectKey, lease.Runtime.Revision,
+                                lease.RuntimeActivatedAtUtc).Matches(sessionRuntime))
+                        .Select(lease => lease with { ReplicatedAtUtc = now })
+                        .ToArray();
+                    tombstones = _highAvailability.SessionContinuity
+                        .TombstoneSnapshot(_highAvailability.ClusterId)
+                        .Where(tombstone => tombstone.AuthorityRevision <= authority.AuthorityRevision)
+                        .Select(tombstone => tombstone with { SourceNodeId = localNodeId })
+                        .ToArray();
+                }
                 var suppressionSnapshot = await _alarmSuppressionStore.ReadSnapshotAsync(
                     descriptor.ProjectKey!,
                     now,
@@ -890,8 +899,16 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                 if (!suppressionSnapshot.ProjectKey.Equals(descriptor.ProjectKey, StringComparison.Ordinal))
                     throw new InvalidOperationException("HA alarm suppression state belongs to a different project.");
 
+                // A local security transition can invalidate leases while the snapshot is built.
+                var authorityAfter = await _sessionLeaseStore.GetAuthorityStateAsync(cancellationToken);
+                if (authorityAfter.TransitionPending || authorityAfter.AuthorityRevision != authority.AuthorityRevision)
+                {
+                    sessions = [];
+                    tombstones = [];
+                }
+
                 authoritative = new RuntimeHaAuthoritativeStateSnapshot(
-                    RuntimeHaRuntimeIdentity.From(descriptor),
+                    runtimeIdentity,
                     descriptor.TagCount,
                     RuntimeHaPeerLicenseEvidence.From(_licensing.CurrentVerification),
                     _runtime.CurrentValues()
@@ -903,7 +920,8 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                     application,
                     descriptor.ActivatedAtUtc,
                     suppressionSnapshot.Revision,
-                    suppressionSnapshot.Records);
+                    suppressionSnapshot.Records,
+                    authority.AuthorityRevision);
             }
         }
 
@@ -1167,6 +1185,7 @@ public sealed class RuntimeHaPeerReplicationCoordinator
 
                 var sessionFailure = await ApplySessionStateAsync(
                     envelope.SourceNodeId,
+                    envelope.Observation.AuthorityEpoch,
                     authoritativeState,
                     cancellationToken);
                 if (sessionFailure is not null)
@@ -1404,16 +1423,44 @@ public sealed class RuntimeHaPeerReplicationCoordinator
 
     private async Task<string?> ApplySessionStateAsync(
         string sourceNodeId,
+        long sourceEpoch,
         RuntimeHaAuthoritativeStateSnapshot state,
         CancellationToken cancellationToken)
     {
+        if (state.Sessions.Count == 0 && state.SessionTombstones.Count == 0)
+            return null;
+
         var clusterId = _highAvailability.ClusterId!;
         var authority = await _sessionLeaseStore.GetAuthorityStateAsync(cancellationToken);
         if (authority.TransitionPending)
             return "authority-transition-pending";
 
-        foreach (var tombstone in state.SessionTombstones)
+        if (state.SessionAuthorityRevision is { } sourceRevision)
         {
+            // The HA epoch is shared. Lease authority revisions belong to each
+            // installation and can advance independently when an old Active is offline.
+            var topology = _highAvailability.Snapshot();
+            if (topology.AmbiguousAuthority || topology.PendingTransfer is not null ||
+                topology.AuthorityEpoch != sourceEpoch ||
+                !string.Equals(topology.EffectiveActiveNodeId, sourceNodeId, StringComparison.OrdinalIgnoreCase))
+            {
+                return "peer-session-authority-not-current";
+            }
+            if (sourceRevision < 1 ||
+                state.Sessions.Any(lease => lease.AuthorityRevision != sourceRevision ||
+                    !string.Equals(lease.SourceNodeId, sourceNodeId, StringComparison.OrdinalIgnoreCase)) ||
+                state.SessionTombstones.Any(tombstone => tombstone.AuthorityRevision < 1 ||
+                    tombstone.AuthorityRevision > sourceRevision))
+            {
+                return "peer-session-source-revision-invalid";
+            }
+        }
+
+        foreach (var sourceTombstone in state.SessionTombstones)
+        {
+            var tombstone = state.SessionAuthorityRevision.HasValue
+                ? sourceTombstone with { AuthorityRevision = authority.AuthorityRevision }
+                : sourceTombstone;
             var mirrored = _highAvailability.SessionContinuity.ApplyPeerTombstone(
                 tombstone,
                 clusterId,
@@ -1449,8 +1496,11 @@ public sealed class RuntimeHaPeerReplicationCoordinator
             state.Runtime.Revision,
             state.RuntimeActivatedAtUtc);
 
-        foreach (var lease in state.Sessions)
+        foreach (var sourceLease in state.Sessions)
         {
+            var lease = state.SessionAuthorityRevision.HasValue
+                ? sourceLease with { AuthorityRevision = authority.AuthorityRevision }
+                : sourceLease;
             var mirrored = _highAvailability.ApplyPeerSessionContinuity(lease);
             if (!mirrored.Accepted &&
                 mirrored.ReasonCode != "session-state-not-newer")

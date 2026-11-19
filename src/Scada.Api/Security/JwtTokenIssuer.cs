@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
+using Scada.Api.Runtime;
 using Scada.Security.Authentication;
 
 namespace Scada.Api.Security;
@@ -15,6 +16,7 @@ public sealed class JwtTokenIssuer
     public const string PublicRuntimeIdentityProvider = "public-runtime";
     public const string LocalUserVersionClaim = "elitescada_local_user_version";
     public const string AuthorityEpochClaim = "elitescada_authority_epoch";
+    internal const string RuntimeHaAuthorityClaim = "elitescada_runtime_ha_authority";
 
     private readonly string _issuer;
     private readonly string _audience;
@@ -22,14 +24,17 @@ public sealed class JwtTokenIssuer
     private readonly int _configuredDefaultLifetimeMinutes;
     private readonly IAuthorityLifecycleStore _authorityLifecycle;
     private readonly ILocalAuthenticationSessionPolicyStore? _localSessionPolicy;
+    private readonly RuntimeHighAvailabilityService? _runtimeHa;
 
     public JwtTokenIssuer(
         IConfiguration configuration,
         IAuthorityLifecycleStore authorityLifecycle,
-        ILocalAuthenticationSessionPolicyStore? localSessionPolicy = null)
+        ILocalAuthenticationSessionPolicyStore? localSessionPolicy = null,
+        RuntimeHighAvailabilityService? runtimeHa = null)
     {
         _authorityLifecycle = authorityLifecycle ?? throw new ArgumentNullException(nameof(authorityLifecycle));
         _localSessionPolicy = localSessionPolicy;
+        _runtimeHa = runtimeHa;
         var jwt = configuration.GetSection("Authentication:Jwt");
         _issuer = jwt["Issuer"]?.Trim()
             ?? throw new InvalidOperationException("Authentication:Jwt:Issuer is required for token issuance.");
@@ -85,6 +90,9 @@ public sealed class JwtTokenIssuer
             new(LocalUserVersionClaim, account.UpdatedAtUtc.ToUnixTimeMilliseconds().ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64),
             new(AuthorityEpochClaim, lifecycle.Epoch.ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64)
         };
+        if (_runtimeHa?.Enabled == true)
+            claims.Add(new Claim(RuntimeHaAuthorityClaim, FormatRuntimeHaAuthority(_runtimeHa.Snapshot())));
+
         claims.AddRange(LocalIdentityNormalization.NormalizeRoles(account.Roles)
             .Select(role => new Claim("role", role)));
 
@@ -98,6 +106,9 @@ public sealed class JwtTokenIssuer
 
         return new IssuedAccessToken(new JwtSecurityTokenHandler().WriteToken(token), expires);
     }
+
+    internal static string FormatRuntimeHaAuthority(RuntimeHaTopologySnapshot topology) =>
+        FormattableString.Invariant($"{topology.ClusterId}:{topology.TopologyVersion}:{topology.AuthorityEpoch}");
 
     public async Task<IssuedAccessToken> IssuePublicRuntimeSessionAsync(
         string subjectId,

@@ -13,6 +13,7 @@ import { HistoricalPlaybackProvider, useHistoricalPlayback } from '../historical
 import { HistoricalPlaybackOverlay } from '../historical-playback/HistoricalPlaybackOverlay';
 import { historicalPlaybackCopy } from '../historical-playback/historicalPlaybackI18n';
 import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNavigator';
+import { RuntimeTagSessionRequiredContext } from '../liveTagTransport';
 import { useRuntimeSessionAdmission } from './RuntimeSessionClassPanel';
 import type { RuntimeSessionConnectionClass } from '../runtimeSessionAdmissionApi';
 import {
@@ -231,7 +232,9 @@ export function RuntimeApplicationMount({
       </section>
     </main>;
   }
-  return <EngineeringRuntimeApplication projection={projection} locale={locale} showHistoryNavigation={showHistoryNavigation} showFullscreenControl={showFullscreenControl} />;
+  return <RuntimeTagSessionRequiredContext.Provider value={session.admissionSupported}>
+    <EngineeringRuntimeApplication projection={projection} locale={locale} showHistoryNavigation={showHistoryNavigation} showFullscreenControl={showFullscreenControl} />
+  </RuntimeTagSessionRequiredContext.Provider>;
 }
 
 function EngineeringRuntimeApplication(props: {

@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Scada.Api.Runtime;
 using Scada.Security.Authentication;
 
 namespace Scada.Api.Security;
@@ -121,6 +122,19 @@ public static class JwtAuthenticationConfiguration
                                 context.HttpContext.RequestAborted))
                         {
                             context.Fail("Local identity token is no longer current.");
+                            return;
+                        }
+
+                        if (UsesRuntimeSession(context.Request) &&
+                            context.HttpContext.RequestServices.GetService<RuntimeHighAvailabilityService>() is { Enabled: true } ha)
+                        {
+                            var topology = ha.Snapshot();
+                            var issuedFor = context.Principal?.FindFirst(JwtTokenIssuer.RuntimeHaAuthorityClaim)?.Value;
+                            if (topology.AmbiguousAuthority || topology.EffectiveActiveNodeId is null ||
+                                !string.Equals(issuedFor, JwtTokenIssuer.FormatRuntimeHaAuthority(topology), StringComparison.Ordinal))
+                            {
+                                context.Fail("The login is no longer current for the effective HA Runtime.");
+                            }
                         }
                     }
                 };
@@ -128,4 +142,10 @@ public static class JwtAuthenticationConfiguration
 
         return true;
     }
+
+    // Engineering login and the HA diagnostics retain the Security Authority contract.
+    private static bool UsesRuntimeSession(HttpRequest request) =>
+        request.Path.StartsWithSegments("/api/runtime/sessions") ||
+        request.Headers.ContainsKey(ApiAuthorizationService.RuntimeSessionHeaderName) ||
+        (request.Path.StartsWithSegments("/ws/tags") && request.Query.ContainsKey("runtimeSessionId"));
 }

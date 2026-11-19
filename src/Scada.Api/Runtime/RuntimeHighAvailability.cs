@@ -990,9 +990,30 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
     private readonly Func<DateTimeOffset> _utcNow;
     private readonly Dictionary<string, RuntimeSessionLeaseContinuityEnvelope> _leases =
         new(StringComparer.Ordinal);
+    private readonly HashSet<string> _peerProjectionKeys = new(StringComparer.Ordinal);
 
     public RuntimeSessionLeaseContinuityRegistry(Func<DateTimeOffset>? utcNow = null) =>
         _utcNow = utcNow ?? (() => DateTimeOffset.UtcNow);
+
+    private long _minimumAuthorityRevision;
+
+    internal void AdvanceAuthorityRevision(long revision)
+    {
+        lock (_gate)
+        {
+            if (revision <= _minimumAuthorityRevision)
+                return;
+
+            _minimumAuthorityRevision = revision;
+            // The durable ledger already fenced or rebound these leases.
+            // A rebound lease may keep its ID, so this eviction is not a tombstone.
+            foreach (var key in _leases.Where(pair => pair.Value.AuthorityRevision < revision)
+                         .Select(pair => pair.Key).ToArray())
+            {
+                RemoveLeaseLocked(key);
+            }
+        }
+    }
 
     public RuntimeSessionLeaseContinuityEnvelope CaptureOrRetain(
         RuntimeSessionLease lease,
@@ -1029,6 +1050,9 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
         {
             ExpireLocked(now);
             var key = LogicalKey(candidate.ClusterId, candidate.UserId, candidate.ClientInstanceId);
+            if (candidate.AuthorityRevision < _minimumAuthorityRevision)
+                return _leases.GetValueOrDefault(key) ?? candidate;
+
             ClearPeerTombstoneForLocalAdmissionLocked(key);
             if (_leases.TryGetValue(key, out var current) &&
                 current.ExpiresAtUtc > now &&
@@ -1039,6 +1063,7 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
             }
 
             _leases[key] = candidate;
+            _peerProjectionKeys.Remove(key);
             return candidate;
         }
     }
@@ -1086,7 +1111,7 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
             if (!_leases.TryGetValue(key, out var current) || current.SessionId != sessionId)
                 return false;
             RecordPeerTombstoneLocked(key, current, "terminated");
-            _leases.Remove(key);
+            RemoveLeaseLocked(key);
             return true;
         }
     }
@@ -1120,9 +1145,18 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
                      .Where(pair => pair.Value.ExpiresAtUtc <= now)
                      .ToArray())
         {
-            RecordPeerTombstoneLocked(pair.Key, pair.Value, "expired");
-            _leases.Remove(pair.Key);
+            // A stale copy can expire while its source is still renewing the lease.
+            // Only a locally owned expiration is a final event for peer replication.
+            if (!_peerProjectionKeys.Contains(pair.Key))
+                RecordPeerTombstoneLocked(pair.Key, pair.Value, "expired");
+            RemoveLeaseLocked(pair.Key);
         }
+    }
+
+    private void RemoveLeaseLocked(string key)
+    {
+        _leases.Remove(key);
+        _peerProjectionKeys.Remove(key);
     }
 
     private static string LogicalKey(string clusterId, string userId, string clientInstanceId) =>

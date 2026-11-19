@@ -15,12 +15,14 @@ import { visualTagSampleKey, type VisualDynamicSample } from './visualDynamicRun
 import {
   CHECK_BOX_CONFIG_PROPERTY,
   COMBO_BOX_OPTIONS_PROPERTY,
+  comboBoxOptionEventKey,
+  normalizeComboBoxOptions,
   readCheckBoxAlarmSuppressionConfig,
   resolveComboBoxSelection,
   suppressionExpiry,
   type ComboBoxOption
 } from './controlVisualModel';
-import { normalizeComboBoxOptions } from './controlVisualModel';
+import type { CanonicalVisualEvent } from './CanonicalVisualRenderer';
 import type { SliderTagWrite } from './SliderVisualElement';
 import './ControlVisualElements.css';
 
@@ -207,14 +209,23 @@ export function CheckBoxVisualElement({
 
 export function ComboBoxVisualElement({
   element, values, liveSamples, style, runtimeObjectId, locale, title,
-  processValueWriteEnabled, onTagWrite
-}: ControlVisualElementProps) {
+  processValueWriteEnabled, onTagWrite, onVisualEvent
+}: ControlVisualElementProps & { onVisualEvent?: (event: CanonicalVisualEvent) => void }) {
   const lang = controlLocale(locale);
   const copy = COPY[lang];
   const binding = element.bindings?.find(candidate => candidate.key === VISUAL_PROPERTY_KEYS.text);
   const sample = binding ? readBindingSample(binding, liveSamples) : undefined;
   const rawOptions = element.properties?.[COMBO_BOX_OPTIONS_PROPERTY];
   const selection = resolveComboBoxSelection(rawOptions, sample);
+  const [localSelection, setLocalSelection] = useState('');
+  const configuredActions = new Map(element.actions?.map(action => [action.eventKey.toLowerCase(), action]));
+  const findAction = (value: string) => configuredActions.get(comboBoxOptionEventKey(value));
+  const canRunAction = (value: string) => {
+    const action = findAction(value);
+    if (!action || !onVisualEvent) return false;
+    const kind = String(action.kind).toLowerCase();
+    return processValueWriteEnabled || kind === 'navigatescreen' || kind === 'openpopup';
+  };
   let options: readonly ComboBoxOption[] = Object.freeze([]);
   try { options = normalizeComboBoxOptions(rawOptions); } catch { /* The explicit state below explains an invalid list. */ }
   const [busy, setBusy] = useState(false);
@@ -234,41 +245,60 @@ export function ComboBoxVisualElement({
         sample.value === requestedValue && Date.parse(sample.timestamp ?? '') >= requestStartedAt) setFeedback('confirmed');
   }, [feedback, requestedValue, sample?.value, sample?.quality, sample?.timestamp, requestStartedAt]);
 
-  const status = writeError || (selection.state === 'unconfigured' ? copy.noOptions :
+  const actionOnly = !binding && options.some(option => findAction(option.value));
+  const status = actionOnly ? null : writeError || (selection.state === 'unconfigured' ? copy.noOptions :
     selection.state === 'unavailable' ? copy.unavailable :
     selection.state === 'incompatible' ? copy.incompatible :
     selection.state === 'missing-option' ? copy.missing(selection.value) :
     feedback === 'pending' || busy ? copy.pending : feedback === 'accepted' ? copy.accepted : feedback === 'confirmed' ? copy.confirmed : null);
-  const selectValue = selection.state === 'selected' ? selection.value :
+  const selectValue = actionOnly
+    ? (options.some(option => option.value === localSelection) ? localSelection : '')
+    : selection.state === 'selected' ? selection.value :
     selection.state === 'missing-option' ? `__missing__:${selection.value}` : '';
-  const disabled = !enabled || !interactionEnabled || !processValueWriteEnabled || !writable || busy;
+  const disabled = !enabled || !interactionEnabled || busy ||
+    (actionOnly ? !options.some(option => canRunAction(option.value)) : !processValueWriteEnabled || !writable);
   const descriptionId = `combobox-status-${safeId(element.id ?? element.key)}`;
 
   const choose = async (nextValue: string) => {
-    if (disabled || !onTagWrite || !tagId || !options.some(option => option.value === nextValue)) return;
+    if (disabled || nextValue === selectValue || !options.some(option => option.value === nextValue)) return;
+    const invokeOptionAction = () => {
+      if (canRunAction(nextValue))
+        onVisualEvent?.({ element, eventKey: comboBoxOptionEventKey(nextValue), runtimeObjectId });
+    };
+    if (actionOnly) {
+      if (!canRunAction(nextValue)) return;
+      setLocalSelection(nextValue);
+      invokeOptionAction();
+      return;
+    }
+    if (!onTagWrite || !tagId) return;
     const started = Date.now();
     setBusy(true); setWriteError(null); setFeedback('pending'); setRequestedValue(nextValue); setRequestStartedAt(started);
-    try { await onTagWrite(tagId, nextValue); setFeedback('accepted'); }
+    try {
+      await onTagWrite(tagId, nextValue);
+      setFeedback('accepted');
+      invokeOptionAction();
+    }
     catch (error) { setWriteError(error instanceof Error ? error.message : String(error)); setFeedback('failed'); }
     finally { setBusy(false); }
   };
 
   return <div className="visual-control visual-control--combobox" style={style}
     data-object-id={element.id ?? undefined} data-runtime-object-id={runtimeObjectId}
-    data-control-kind="comboBox" data-control-state={busy ? 'pending' : selection.state}
+    data-control-kind="comboBox" data-control-state={busy ? 'pending' : actionOnly ? 'action-only' : selection.state}
     title={[title, status].filter(Boolean).join('\n') || undefined}>
     <select
       aria-label={title || element.key}
       aria-describedby={status ? descriptionId : undefined}
-      aria-invalid={selection.state === 'missing-option' || selection.state === 'incompatible'}
+      aria-invalid={!actionOnly && (selection.state === 'missing-option' || selection.state === 'incompatible')}
       disabled={disabled}
       value={selectValue}
       data-quality={sample?.quality ?? 'unavailable'}
       onChange={event => { void choose(event.currentTarget.value); }}
     >
       {selection.state === 'missing-option' ? <option value={selectValue} disabled>{copy.missing(selection.value)}</option> : null}
-      {options.length === 0 ? <option value="">{copy.select}</option> : null}
-      {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+      {actionOnly || options.length === 0 ? <option value="" disabled={actionOnly}>{copy.select}</option> : null}
+      {options.map(option => <option key={option.value} value={option.value} disabled={actionOnly && !canRunAction(option.value)}>{option.label}</option>)}
     </select>
     {status ? <span id={descriptionId} className={feedback === 'failed' || writeError ? 'visual-control__status visual-control__status--error' : 'visual-control__status'} role={feedback === 'failed' || writeError ? 'alert' : 'status'}>{status}</span> : null}
   </div>;

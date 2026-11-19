@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
   comboBoxOptionsEngineeringValue,
+  comboBoxOptionEventKey,
   normalizeComboBoxOptions,
   readCheckBoxAlarmSuppressionConfig,
   resolveComboBoxSelection,
@@ -8,6 +9,7 @@ import {
 } from '../src/engineering/visual-editor/controlVisualModel';
 import { createBindingSetIntent, isBindingSourceCompatibleForObject } from '../src/engineering/visual-editor/binding-editor/bindingEditorModel';
 import type { VisualEditorBindingSourceCatalogItem } from '../src/engineering/visual-editor/visualEditorContracts';
+import { resolveVisualNavigationAction } from '../src/runtime/visual-navigation/runtimeVisualNavigationModel';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../src/visual-runtime';
 
 const booleanTag: VisualEditorBindingSourceCatalogItem = {
@@ -76,6 +78,15 @@ test('ComboBox options are normalized and Enum TAG values are matched without fa
   expect(resolveComboBoxSelection(options, { value: 'AUTO', dataType: 'Enum', quality: 'Bad' })).toMatchObject({ state: 'unavailable' });
   expect(resolveComboBoxSelection(options, { value: 'AUTO', dataType: 'Double', quality: 0 })).toMatchObject({ state: 'incompatible' });
   expect(() => normalizeComboBoxOptions([{ value: 'AUTO', label: 'A' }, { value: 'AUTO', label: 'B' }])).toThrow(/duplicated/);
+});
+
+test('ComboBox keeps distinct actions for options including case and accents', () => {
+  const open = { eventKey: comboBoxOptionEventKey('Resumo'), kind: 'NavigateScreen', targetKey: 'overview', version: 1 } as const;
+  const set = { eventKey: comboBoxOptionEventKey('resumo'), kind: 'SetTagValue', targetKey: enumTag.tagReference!.tagId!, parameters: { value: 'MANUAL' }, version: 1 } as const;
+  const toggle = { eventKey: comboBoxOptionEventKey('ação'), kind: 'ToggleTagBoolean', targetKey: booleanTag.tagReference!.tagId!, version: 1 } as const;
+  const combo = { key: 'options', type: BUILTIN_VISUAL_OBJECT_TYPES.comboBox, actions: [open, set, toggle] };
+  for (const action of [open, set, toggle]) expect(resolveVisualNavigationAction(combo, action.eventKey)).toBe(action);
+  expect(resolveVisualNavigationAction(combo, comboBoxOptionEventKey('Acao'))).toBeNull();
 });
 
 test('alarm suppression is an optional typed CheckBox configuration with deterministic duration', () => {

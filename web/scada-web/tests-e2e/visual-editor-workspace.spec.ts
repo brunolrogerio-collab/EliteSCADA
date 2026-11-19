@@ -1,6 +1,7 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { createE2eJwt } from './jwt';
+import { comboBoxOptionEventKey } from '../src/engineering/visual-editor/controlVisualModel';
 import { admitInteractiveRuntimeSession, E2E_RUNTIME_CLIENT_INSTANCE_ID, terminateRuntimeSession } from './runtimeSessionLease';
 
 test.use({ locale: 'pt-BR' });
@@ -12,6 +13,7 @@ type ExportedVisualElement = {
   type: string;
   bindings?: Array<{ key: string; kind: string; target: string; direction?: string | null; metadata?: Record<string, string> | null }> | null;
   properties?: Record<string, unknown> | null;
+  actions?: Array<{ eventKey: string; kind: string; targetKey: string }> | null;
   children?: ExportedVisualElement[] | null;
   propertyExpressions?: Array<{
     propertyKey: string;
@@ -749,6 +751,13 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
     const checkBoxId = await authorCheckBoxControl(screenRoot, booleanTagPath, 'E2E boolean control');
     const comboBoxId = await authorComboBoxControl(screenRoot, stringTagPath, 'E2E mode selector');
     await nudgeVisualObjectRight(screenRoot, comboBoxId, 24);
+    await screenRoot.getByTestId('visual-editor-inspector-tab-events').click();
+    const comboEvents = screenRoot.getByTestId('visual-events-editor');
+    await comboEvents.getByTestId('visual-events-quick-option').selectOption('MANUAL');
+    await comboEvents.getByTestId('visual-events-quick-kind').selectOption('toggleBoolean');
+    await comboEvents.getByTestId('visual-events-quick-target').selectOption(booleanTagId);
+    await comboEvents.getByTestId('visual-events-quick-add').click();
+    await expect(comboEvents).toContainText('Manual');
     openPopupButtonId = await authorOpenPopupButton(screenRoot, originalPopup!.key, 'Abrir supressão do alarme');
     await nudgeVisualObjectDown(screenRoot, openPopupButtonId, 8);
 
@@ -765,6 +774,9 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
     const persisted = await persistedResponse.json() as ExportedPackage;
     const persistedScreen = persisted.screens?.find(candidate => candidate.id === originalScreen!.id || candidate.key === originalScreen!.key);
     const controls = flatten(persistedScreen?.elements ?? []);
+    expect(controls.find(element => element.id === comboBoxId)?.actions).toEqual([
+      expect.objectContaining({ eventKey: comboBoxOptionEventKey('MANUAL'), targetKey: booleanTagId })
+    ]);
     expect(controls.find(element => element.id === checkBoxId)).toMatchObject({
       id: checkBoxId, type: 'core.checkBox', bindings: [expect.objectContaining({
         key: 'checked', kind: 'tag', target: booleanTagPath, direction: 'readWrite'
@@ -862,6 +874,7 @@ test('W15 CheckBox and ComboBox can be authored, bound, published, and operated 
       const body = await response.json() as { current?: { value?: unknown } | null };
       return body.current?.value ?? null;
     }).toBe('MANUAL');
+    await expect(runtimeCheckBox).not.toBeChecked();
     await page.locator(`[data-object-id="${openPopupButtonId}"]`).click();
     const popupSuppressionCheckBox = page.locator(`[data-object-id="${popupCheckBoxId}"] input[type="checkbox"]`);
     await expect(popupSuppressionCheckBox).toBeVisible();

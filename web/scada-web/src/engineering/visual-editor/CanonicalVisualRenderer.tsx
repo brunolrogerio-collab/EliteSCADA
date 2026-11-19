@@ -254,6 +254,7 @@ function CanonicalElement({
         element={element} values={values} liveSamples={liveSamples} style={style}
         runtimeObjectId={runtimeObjectId} locale={locale} title={elementTitle}
         processValueWriteEnabled={processValueWriteEnabled} alarmShelveEnabled={alarmShelveEnabled} onTagWrite={onTagWrite}
+        onVisualEvent={onVisualEvent}
       />;
     }
 

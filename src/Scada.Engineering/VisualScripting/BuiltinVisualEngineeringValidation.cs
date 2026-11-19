@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Scada.Engineering.Contracts;
 
@@ -227,12 +228,17 @@ public static class BuiltinVisualEngineeringValidation
         var bindings = (element.Bindings ?? Array.Empty<EngineeringBindingDto>())
             .Where(binding => binding is not null && binding.Key.Equals(VisualPropertyKeys.Text, StringComparison.Ordinal))
             .ToArray();
+        if (bindings.Length == 0 && element.Actions is { Count: > 0 } actions &&
+            values.Select(value => "option:" + Convert.ToHexString(Encoding.UTF8.GetBytes(value)))
+                .Any(eventKey => actions.Any(action => string.Equals(action?.EventKey, eventKey, StringComparison.OrdinalIgnoreCase))))
+            yield break;
+
         var binding = bindings.Length == 1 ? bindings[0] : null;
         if (binding is null || binding.Kind != EngineeringBindingKind.Tag ||
             binding.TagReference is null || binding.TagReference.TagId == Guid.Empty ||
             binding.TagReference.Selector is not null || !IsWriteDirection(binding.Direction))
             yield return Error("VISUAL_COMBOBOX_ENUM_TAG_REQUIRED",
-                $"Interactive ComboBox '{element.Key}' requires one writable String or Enum TAG binding.", entityKind, entityKey);
+                $"Interactive ComboBox '{element.Key}' requires one writable String or Enum TAG binding or an action on one of its options.", entityKind, entityKey);
     }
 
     private static IEnumerable<ImportIssue> ValidateMeasurementDisplay(

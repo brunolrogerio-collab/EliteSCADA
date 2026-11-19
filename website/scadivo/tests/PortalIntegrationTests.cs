@@ -26,6 +26,235 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
     private const string Password = "Scad1vo!";
 
     [Fact]
+    public async Task OfflineMachineLicenseConversionRetiresOnlineRightsAndDelaysPrivateDelivery()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "scadivo-license-request-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var passwordFile = Path.Combine(root, "owner");
+        await File.WriteAllTextAsync(passwordFile, Password);
+        var configuration = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Portal"] = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+                ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!",
+            ["Portal:Bootstrap:PasswordFile"] = passwordFile,
+            ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
+            ["Portal:PublicRegistrationEnabled"] = "true",
+            ["Portal:OfflineMachineLicenseRequestsEnabled"] = "true",
+            ["Logging:LogLevel:Default"] = "Warning"
+        };
+
+        try
+        {
+            using var signingKey = RSA.Create(3072);
+            var publicParameters = signingKey.ExportParameters(false);
+            var clock = new OfflineTestClock();
+            await using var factory = Factory(configuration).WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            {
+                services.AddSingleton<TimeProvider>(clock);
+                services.AddSingleton(new OfflineLicenseVerifier(() => RSA.Create(publicParameters)));
+            }));
+            var owner = await Login(factory, "scadivo.owner");
+            var marker = Guid.NewGuid().ToString("N")[..8];
+            string BuildMachineRequestCode(int schemaVersion, string fingerprint)
+            {
+                var payload = JsonSerializer.Serialize(new { schemaVersion, machineFingerprint = fingerprint });
+                var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(payload)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+                return "ESREQ1." + encoded;
+            }
+
+            var invite = await owner.Send("/admin/invitations", HttpMethod.Post,
+                new { username = "license-" + marker, displayName = "License Customer" });
+            var invitation = Invitation(invite);
+            using var invitedClient = Client(factory);
+            var invited = new Session(invitedClient, await Csrf(invitedClient));
+            using (var accepted = await invited.Raw("/auth/accept-invitation", HttpMethod.Post, new
+            {
+                userId = invitation.UserId,
+                token = invitation.Token,
+                password = Password,
+                locale = "pt-BR",
+                profileType = "professional",
+                activityArea = "industrial-automation",
+                organizationOrSchool = "Example Automation"
+            })) Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+            var customer = await Login(factory, "license-" + marker);
+
+            var otherInvite = await owner.Send("/admin/invitations", HttpMethod.Post,
+                new { username = "other-" + marker, displayName = "Other License Customer" });
+            var otherInvitation = Invitation(otherInvite);
+            using var otherClient = Client(factory);
+            var other = new Session(otherClient, await Csrf(otherClient));
+            using (var accepted = await other.Raw("/auth/accept-invitation", HttpMethod.Post, new
+            {
+                userId = otherInvitation.UserId,
+                token = otherInvitation.Token,
+                password = Password,
+                locale = "en",
+                profileType = "professional",
+                activityArea = "industrial-automation",
+                organizationOrSchool = "Other Automation"
+            })) Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+            var otherCustomer = await Login(factory, "other-" + marker);
+
+            using (var invalid = await customer.Raw("/licenses/offline-requests", HttpMethod.Post, new
+            {
+                applicationName = "Pump station",
+                requestKind = "new",
+                machineRequestCode = "ESLIC1.not-a-machine-request"
+            })) Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+
+            using (var malformed = await customer.Raw("/licenses/offline-requests", HttpMethod.Post, new
+            {
+                applicationName = "Pump station",
+                requestKind = "new",
+                machineRequestCode = "ESREQ1.not-base64!"
+            })) Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
+            using (var unsupportedSchema = await customer.Raw("/licenses/offline-requests", HttpMethod.Post, new
+            {
+                applicationName = "Pump station",
+                requestKind = "new",
+                machineRequestCode = BuildMachineRequestCode(2, new string('a', 64))
+            })) Assert.Equal(HttpStatusCode.BadRequest, unsupportedSchema.StatusCode);
+
+            var organization = new Organization { Name = "Offline conversion " + marker };
+            var application = new ProductApplication { OrganizationId = organization.Id, Name = "Pump station", NormalizedName = "PUMP STATION" };
+            var online = new ProductLicense
+            {
+                OrganizationId = organization.Id, ApplicationId = application.Id, PublicCode = "SCV-OFFLINE-" + marker,
+                Tier = "Tags500", ViewOnlySeats = 8, InteractiveSeats = 4, HaRuntime = true, MaxActivations = 1
+            };
+            var activation = new ProductLicenseActivation
+            {
+                Id = Guid.NewGuid(), LicenseId = online.Id, OrganizationId = organization.Id, ApplicationId = application.Id,
+                UserId = invitation.UserId, MachineFingerprint = new string('a', 64)
+            };
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                db.AddRange(organization, application, online, activation,
+                    new Membership { OrganizationId = organization.Id, UserId = invitation.UserId, Role = "Owner" });
+                await db.SaveChangesAsync();
+            }
+
+            Assert.Contains((await customer.Get("/licenses/offline-requests/conversion-options")).EnumerateArray(),
+                option => option.GetProperty("id").GetGuid() == online.Id);
+            Assert.Empty((await otherCustomer.Get("/licenses/offline-requests/conversion-options")).EnumerateArray());
+
+            var machineRequestCode = BuildMachineRequestCode(1, new string('a', 64));
+            using var createResponse = await customer.Raw("/licenses/offline-requests", HttpMethod.Post, new
+            {
+                applicationName = "Pump station",
+                requestKind = "convert",
+                onlineLicenseId = online.Id,
+                machineRequestCode,
+                note = "Preciso operar sem conexão externa."
+            });
+            Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+            var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+            var requestId = created.GetProperty("id").GetGuid();
+            Assert.Equal($"/portal/api/licenses/offline-requests/{requestId:D}", createResponse.Headers.Location?.OriginalString);
+            Assert.Equal("submitted", created.GetProperty("status").GetString());
+            Assert.DoesNotContain("machineRequestCode", created.ToString(), StringComparison.OrdinalIgnoreCase);
+
+            var customerRequests = await customer.Get("/licenses/offline-requests");
+            Assert.Equal(1, customerRequests.GetArrayLength());
+            Assert.Equal(requestId, customerRequests[0].GetProperty("id").GetGuid());
+            Assert.DoesNotContain("machineRequestCode", customerRequests[0].ToString(), StringComparison.OrdinalIgnoreCase);
+            var customerDetail = await customer.Get($"/licenses/offline-requests/{requestId:D}");
+            Assert.Equal("Pump station", customerDetail.GetProperty("applicationName").GetString());
+            Assert.DoesNotContain("machineRequestCode", customerDetail.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(0, (await otherCustomer.Get("/licenses/offline-requests")).GetArrayLength());
+            using (var otherRequest = await otherCustomer.Client.GetAsync($"api/licenses/offline-requests/{requestId:D}"))
+                Assert.Equal(HttpStatusCode.NotFound, otherRequest.StatusCode);
+
+            using (var denied = await customer.Client.GetAsync($"api/admin/license-requests/offline/{requestId:D}"))
+                Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+            var adminRequests = await owner.Get("/admin/license-requests/offline");
+            Assert.Contains(adminRequests.EnumerateArray(), item => item.GetProperty("id").GetGuid() == requestId);
+            Assert.All(adminRequests.EnumerateArray(), item => Assert.DoesNotContain("machineRequestCode", item.ToString(), StringComparison.OrdinalIgnoreCase));
+
+            var detail = await owner.Get($"/admin/license-requests/offline/{requestId:D}");
+            Assert.Equal(machineRequestCode, detail.GetProperty("machineRequestCode").GetString());
+            Assert.Equal("Preciso operar sem conexão externa.", detail.GetProperty("requestNote").GetString());
+
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                var stored = await db.OfflineMachineLicenseRequests.SingleAsync(x => x.Id == requestId);
+                Assert.NotEqual(machineRequestCode, stored.MachineRequestCodeProtected);
+                Assert.DoesNotContain(machineRequestCode, stored.MachineRequestCodeProtected, StringComparison.Ordinal);
+                Assert.Contains(await db.Audit.AsNoTracking().Where(x => x.ResourceId == requestId.ToString("D")).ToListAsync(),
+                    x => x.Action == "licensing.offline-request.code-viewed");
+            }
+
+            await owner.Send($"/admin/license-requests/offline/{requestId:D}/status", HttpMethod.Put, new { status = "reviewing" });
+            await owner.Send($"/admin/license-requests/offline/{requestId:D}/status", HttpMethod.Put, new { status = "approved-for-signing" });
+            using (var cannotIssue = await owner.Raw($"/admin/license-requests/offline/{requestId:D}/status", HttpMethod.Put, new { status = "issued" }))
+                Assert.Equal(HttpStatusCode.BadRequest, cannotIssue.StatusCode);
+            Assert.Equal("approved-for-signing", (await customer.Get("/licenses/offline-requests"))[0].GetProperty("status").GetString());
+            string Sign(string fingerprint, int interactive = 4)
+            {
+                var bytes = JsonSerializer.SerializeToUtf8Bytes(new
+                {
+                    schemaVersion = 3, licenseId = requestId.ToString("D"), machineFingerprint = fingerprint,
+                    tier = "Tags500", keyId = OfflineLicenseVerifier.KeyId, issuedAtUtc = clock.GetUtcNow(),
+                    notAfterUtc = (DateTimeOffset?)null, interactiveSeats = interactive, viewOnlySeats = 8,
+                    haRuntime = true, assetProcessIntelligence = false
+                });
+                var signature = signingKey.SignData(bytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+                return $"ESLIC3.{WebEncoders.Base64UrlEncode(bytes)}.{WebEncoders.Base64UrlEncode(signature)}";
+            }
+            var signedLicense = Sign(new string('a', 64));
+            var adminPath = $"/admin/license-requests/offline/{requestId:D}/signed-license";
+            var customerPath = $"api/licenses/offline-requests/{requestId:D}/signed-license";
+            using (var mismatch = await owner.Raw(adminPath, HttpMethod.Put, new { signedLicense = Sign(new string('b', 64)), retireConfirmed = true }))
+                Assert.Equal(HttpStatusCode.BadRequest, mismatch.StatusCode);
+            using (var escalation = await owner.Raw(adminPath, HttpMethod.Put, new { signedLicense = Sign(new string('a', 64), 5), retireConfirmed = true }))
+                Assert.Equal(HttpStatusCode.BadRequest, escalation.StatusCode);
+            using (var denied = await customer.Raw(adminPath, HttpMethod.Put, new { signedLicense, retireConfirmed = true }))
+                Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+            using (var missingConfirmation = await owner.Raw(adminPath, HttpMethod.Put, new { signedLicense }))
+                Assert.Equal(HttpStatusCode.Conflict, missingConfirmation.StatusCode);
+
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var manager = scope.ServiceProvider.GetRequiredService<UserManager<PortalUser>>();
+                var staff = (await manager.FindByIdAsync(otherInvitation.UserId))!;
+                Assert.True((await manager.AddToRoleAsync(staff, "Admin")).Succeeded);
+            }
+            var delegatedAdmin = await Login(factory, "other-" + marker);
+            var delivery = await delegatedAdmin.Send(adminPath, HttpMethod.Put, new { signedLicense, retireConfirmed = true });
+            Assert.Equal(clock.GetUtcNow().AddHours(72), delivery.GetProperty("availableAtUtc").GetDateTimeOffset());
+            using (var premature = await customer.Client.GetAsync(customerPath))
+                Assert.Equal(HttpStatusCode.Conflict, premature.StatusCode);
+            clock.UtcNow = clock.UtcNow.AddHours(72);
+            customer = await Login(factory, "license-" + marker);
+            delegatedAdmin = await Login(factory, "other-" + marker);
+            Assert.Equal(signedLicense, (await customer.Get("/" + customerPath["api/".Length..])).GetProperty("signedLicense").GetString());
+            using (var unrelated = await delegatedAdmin.Client.GetAsync(customerPath))
+                Assert.Equal(HttpStatusCode.NotFound, unrelated.StatusCode);
+
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                Assert.Equal(ProductLicenseStates.Revoked, (await db.ProductLicenses.FindAsync(online.Id))!.Status);
+                Assert.Equal(ProductLicenseStates.Revoked, (await db.ProductLicenseActivations.FindAsync(activation.Id))!.Status);
+                var stored = (await db.OfflineMachineLicenseRequests.FindAsync(requestId))!;
+                Assert.NotNull(stored.SignedLicenseProtected);
+                Assert.DoesNotContain(signedLicense, stored.SignedLicenseProtected, StringComparison.Ordinal);
+            }
+            Assert.True((await customer.Get("/session")).GetProperty("offlineMachineLicenseRequestsEnabled").GetBoolean());
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private sealed class OfflineTestClock : TimeProvider
+    {
+        public DateTimeOffset UtcNow { get; set; } = DateTimeOffset.UtcNow;
+        public override DateTimeOffset GetUtcNow() => UtcNow;
+    }
+
+    [Fact]
     public void CommunitySsoAllowsHttpOnlyForLoopbackInDevelopment()
     {
         var secretFile = Path.GetTempFileName();

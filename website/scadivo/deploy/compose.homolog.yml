@@ -52,6 +52,7 @@ services:
       Portal__Bootstrap__Username: scadivo.owner
       Portal__Bootstrap__PasswordFile: /tmp/portal-owner
       Portal__PublicRegistrationEnabled: 'true'
+      Portal__OfflineMachineLicenseRequestsEnabled: 'true'
       Portal__Email__Enabled: 'true'
       Portal__Email__Host: portal-mailpit-homolog
       Portal__Email__Port: '1025'

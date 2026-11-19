@@ -313,17 +313,23 @@ public sealed class PortalLicensingOperations(
         if (license is null) return Results.NotFound();
         if (license.Status == ProductLicenseStates.Revoked) return Results.Ok(new { license.Id, revoked = true, license.RevokedAtUtc });
         var now = clock.GetUtcNow();
-        license.Status = ProductLicenseStates.Revoked;
-        license.RevokedAtUtc = now;
-        license.RevokedByUserId = UserId(context);
-        license.RevocationReason = string.IsNullOrWhiteSpace(input.Reason) ? null : input.Reason.Trim();
-        var activations = await db.ProductLicenseActivations.Where(x => x.LicenseId == license.Id && x.Status != ProductLicenseStates.Revoked).ToListAsync();
-        foreach (var activation in activations)
-            await RevokeActivationAsync(activation, now, UserId(context), "license-revoked");
-        db.Audit.Add(new PortalAudit { ActorId = UserId(context), Action = "licensing.license.revoked", ResourceId = license.Id.ToString("D") });
+        await RetireOnlineLicenseAsync(license, UserId(context), now,
+            string.IsNullOrWhiteSpace(input.Reason) ? null : input.Reason.Trim());
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         return Results.Ok(new { license.Id, revoked = true, license.RevokedAtUtc });
+    }
+
+    internal async Task RetireOnlineLicenseAsync(ProductLicense license, string actorId, DateTimeOffset now, string? reason)
+    {
+        license.Status = ProductLicenseStates.Revoked;
+        license.RevokedAtUtc = now;
+        license.RevokedByUserId = actorId;
+        license.RevocationReason = reason;
+        var activations = await db.ProductLicenseActivations.Where(x => x.LicenseId == license.Id && x.Status != ProductLicenseStates.Revoked).ToListAsync();
+        foreach (var activation in activations)
+            await RevokeActivationAsync(activation, now, actorId, "license-revoked");
+        db.Audit.Add(new PortalAudit { ActorId = actorId, Action = "licensing.license.revoked", ResourceId = license.Id.ToString("D") });
     }
 
     public async Task<IResult> AdminActivations(Guid licenseId)
@@ -808,14 +814,14 @@ public sealed class PortalLicensingOperations(
         ? await db.Users.FromSqlInterpolated($"SELECT * FROM \"AspNetUsers\" WHERE \"Id\" = {userId} FOR UPDATE").SingleOrDefaultAsync()
         : await db.Users.FromSqlInterpolated($"SELECT * FROM \"AspNetUsers\" WHERE \"Id\" = {userId} FOR SHARE").SingleOrDefaultAsync();
 
-    private async Task<Membership?> LockMembershipForRead(Guid organizationId, string userId) =>
+    internal async Task<Membership?> LockMembershipForRead(Guid organizationId, string userId) =>
         await db.Memberships.FromSqlInterpolated($"SELECT * FROM \"Memberships\" WHERE \"OrganizationId\" = {organizationId} AND \"UserId\" = {userId} FOR SHARE").SingleOrDefaultAsync();
 
     private async Task<Membership?> LockMembership(Guid organizationId, string userId, string lockMode) => lockMode == "UPDATE"
         ? await db.Memberships.FromSqlInterpolated($"SELECT * FROM \"Memberships\" WHERE \"OrganizationId\" = {organizationId} AND \"UserId\" = {userId} FOR UPDATE").SingleOrDefaultAsync()
         : await db.Memberships.FromSqlInterpolated($"SELECT * FROM \"Memberships\" WHERE \"OrganizationId\" = {organizationId} AND \"UserId\" = {userId} FOR SHARE").SingleOrDefaultAsync();
 
-    private async Task<ProductLicense?> LockLicense(Guid licenseId, string lockMode) => lockMode == "UPDATE"
+    internal async Task<ProductLicense?> LockLicense(Guid licenseId, string lockMode) => lockMode == "UPDATE"
         ? await db.ProductLicenses.FromSqlInterpolated($"SELECT * FROM \"ProductLicenses\" WHERE \"Id\" = {licenseId} FOR UPDATE").SingleOrDefaultAsync()
         : await db.ProductLicenses.FromSqlInterpolated($"SELECT * FROM \"ProductLicenses\" WHERE \"Id\" = {licenseId} FOR SHARE").SingleOrDefaultAsync();
 

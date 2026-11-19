@@ -366,6 +366,81 @@ namespace Scadivo.Portal.Data.Migrations
                     b.ToTable("Memberships");
                 });
 
+            modelBuilder.Entity("Scadivo.Portal.Data.OfflineMachineLicenseRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApplicationName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTimeOffset?>("AvailableAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExistingLicenseName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("MachineRequestCodeProtected")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("OnlineLicenseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RequestKind")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<string>("RequestNote")
+                        .HasMaxLength(800)
+                        .HasColumnType("character varying(800)");
+
+                    b.Property<string>("ReviewedByUserId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SignedLicenseId")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<string>("SignedLicenseProtected")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTimeOffset>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OnlineLicenseId");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("SignedLicenseId")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "SubmittedAtUtc");
+
+                    b.HasIndex("UserId", "SubmittedAtUtc");
+
+                    b.ToTable("OfflineMachineLicenseRequests");
+                });
+
             modelBuilder.Entity("Scadivo.Portal.Data.Organization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -748,13 +823,13 @@ namespace Scadivo.Portal.Data.Migrations
                     b.Property<bool>("Cancelled")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("ConfirmedLeaseEnvelope")
+                        .HasColumnType("text");
+
                     b.Property<Guid?>("ConsumedRequestId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("CredentialHash")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ConfirmedLeaseEnvelope")
                         .HasColumnType("text");
 
                     b.Property<long?>("ExpectedCredentialGeneration")
@@ -960,6 +1035,25 @@ namespace Scadivo.Portal.Data.Migrations
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Scadivo.Portal.Data.PortalUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Scadivo.Portal.Data.OfflineMachineLicenseRequest", b =>
+                {
+                    b.HasOne("Scadivo.Portal.Data.ProductLicense", null)
+                        .WithMany()
+                        .HasForeignKey("OnlineLicenseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Scadivo.Portal.Data.PortalUser", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Scadivo.Portal.Data.PortalUser", null)
                         .WithMany()

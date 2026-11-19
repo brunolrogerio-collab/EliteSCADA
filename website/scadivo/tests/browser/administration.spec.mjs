@@ -23,7 +23,7 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { await new Promise(done => server.close(done)); });
 
-async function fixture(page, { locale = 'en', administrator = true } = {}) {
+async function fixture(page, { locale = 'en', administrator = true, owner = false, profileComplete = true } = {}) {
   const calls = [], browserErrors = [], releases = [];
   const accounts = [
     { id: 'owner', userName: 'portal.owner', displayName: 'Portal Owner', owner: true, administrator: true, emailConfirmed: true, invitationAccepted: true, createdAtUtc: '2026-10-25T10:00:00Z' },
@@ -39,7 +39,11 @@ async function fixture(page, { locale = 'en', administrator = true } = {}) {
     const body = method === 'GET' ? null : request.postDataJSON();
     if (method !== 'GET') calls.push({ path, method, body, csrf: request.headers()['x-csrf-token'] });
     let result = {};
-    if (path === '/session') result = { authenticated: true, csrfToken: 'synthetic-csrf', emailDeliveryConfigured: true, user: { id: 'signed-in-staff', userName: 'scadivo.staff', displayName: 'SCADIVO Staff', owner: false, administrator, locale, profileComplete: true } };
+    if (path === '/session') result = { authenticated: true, csrfToken: 'synthetic-csrf', emailDeliveryConfigured: true, user: { id: 'signed-in-staff', userName: 'scadivo.staff', displayName: 'SCADIVO Staff', owner, administrator, locale, profileComplete, organizations: [] } };
+    else if (path === '/profile/locale' && method === 'PUT') {
+      locale = body.locale;
+      result = { locale };
+    }
     else if (path === '/admin/overview') result = { accounts: accounts.length, openTickets: 0, pendingInvitations: 1, publicRegistrationEnabled: true, emailDeliveryConfigured: true, queuedMessages: 0, sentMessages: 0, failedMessages: 0 };
     else if (path === '/admin/indicators') {
       const query = new URL(request.url()).searchParams;
@@ -78,6 +82,29 @@ async function fixture(page, { locale = 'en', administrator = true } = {}) {
   });
   await page.goto(`${baseUrl}/portal/#admin`);
   return { calls, browserErrors, accounts, releases };
+}
+
+for (const owner of [true, false]) {
+  test(`an incomplete ${owner ? 'owner' : 'member'} can save the preferred language separately`, async ({ page }) => {
+    const { calls, browserErrors } = await fixture(page, { locale: 'pt-BR', owner, profileComplete: false });
+    await page.setViewportSize({ width: owner ? 1440 : 360, height: 900 });
+    if (owner) await page.getByRole('button', { name: 'Minha conta', exact: true }).click();
+
+    const preference = page.getByLabel('Idioma preferido', { exact: false });
+    await expect(preference).toHaveValue('pt-BR');
+    await preference.selectOption('es');
+    await page.getByRole('button', { name: 'Salvar idioma', exact: true }).click();
+    await expect(page.getByRole('status')).toHaveText('Idioma guardado.');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'es');
+    expect(calls).toEqual([{ path: '/profile/locale', method: 'PUT', body: { locale: 'es' }, csrf: 'synthetic-csrf' }]);
+
+    await page.reload();
+    await expect(page.getByLabel('Idioma preferido', { exact: false })).toHaveValue('es');
+    await expect(page.locator('select[name="profileType"]')).toHaveValue('');
+    await expect(page.locator('input[name="organizationOrSchool"]')).toHaveValue('');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(owner ? 1440 : 360);
+    expect(browserErrors).toEqual([]);
+  });
 }
 
 test('email preview renders the selected language from unsaved fields without saving the template', async ({ page }) => {

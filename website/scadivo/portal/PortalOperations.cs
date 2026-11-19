@@ -28,6 +28,7 @@ public sealed record ResetPasswordInput(string? UserId, string? Token, string? P
 public sealed record ProfileInput(string? Username, string? DisplayName, string? Locale, string? ProfileType, string? ActivityArea,
     string? ActivityAreaOther, string? OrganizationOrSchool, string? PhoneNumber, string? Address,
     DateOnly? DateOfBirth, bool? MarketingEmailOptIn);
+public sealed record ProfileLocaleInput(string? Locale);
 public sealed record PasswordInput(string? CurrentPassword, string? NewPassword);
 public sealed record TicketInput(string? Subject, string? Category, string? Body);
 public sealed record MessageInput(string? Body);
@@ -94,7 +95,7 @@ public sealed class PortalOperations(
 
     public async Task<IResult> UpdateProfile(ProfileInput input, HttpContext context)
     {
-        if (!Valid(input.DisplayName, 1, 160) || !ValidLocale(input.Locale)) return Invalid();
+        if (!Valid(input.DisplayName, 1, 160) || (input.Locale is not null && !ValidLocale(input.Locale))) return Invalid();
         var user = await users.GetUserAsync(context.User);
         if (user is null) return Results.Unauthorized();
         if (input.Username is not null)
@@ -115,7 +116,7 @@ public sealed class PortalOperations(
         var marketingEmailOptIn = input.MarketingEmailOptIn ?? user.MarketingEmailOptIn;
         if (!ValidProfile(profileType, activityArea, activityAreaOther, organizationOrSchool, phoneNumber, address, input.DateOfBirth)) return Invalid("profile-fields-required");
         user.DisplayName = input.DisplayName!.Trim();
-        user.Locale = input.Locale!;
+        if (input.Locale is not null) user.Locale = input.Locale;
         user.ProfileType = profileType;
         user.ActivityArea = activityArea;
         user.ActivityAreaOther = activityArea == "other" ? activityAreaOther!.Trim() : null;
@@ -130,6 +131,27 @@ public sealed class PortalOperations(
         if (!result.Succeeded) return Invalid();
         await AuditAsync(user.Id, "profile.updated");
         return Results.Ok(await Profile(context));
+    }
+
+    public async Task<IResult> UpdateProfileLocale(ProfileLocaleInput input, HttpContext context)
+    {
+        if (!ValidLocale(input.Locale)) return Invalid();
+        var user = await users.GetUserAsync(context.User);
+        if (user is null) return Results.Unauthorized();
+        if (user.Locale == input.Locale) return Results.Ok(new { user.Locale });
+
+        // Advance the Identity concurrency stamp so a concurrent full profile save cannot silently overwrite the locale.
+        user.Locale = input.Locale!;
+        user.ConcurrencyStamp = Guid.NewGuid().ToString();
+        try
+        {
+            await AuditAsync(user.Id, "profile.locale.updated");
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Results.Conflict(new { error = "profile-changed" });
+        }
+        return Results.Ok(new { user.Locale });
     }
 
     public async Task<IResult> ChangePassword(PasswordInput input, HttpContext context)

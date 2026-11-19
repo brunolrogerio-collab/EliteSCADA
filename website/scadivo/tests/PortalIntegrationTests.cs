@@ -408,6 +408,8 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             }
 
             var anonymousSession = new Session(anonymous, await Csrf(anonymous));
+            using (var anonymousLocale = await anonymousSession.Raw("/profile/locale", HttpMethod.Put, new { locale = "en" }))
+                Assert.Equal(HttpStatusCode.Unauthorized, anonymousLocale.StatusCode);
             using (var loginResponse = await anonymousSession.Raw("/auth/login", HttpMethod.Post, new { username = email, password = Password }))
                 Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
             using (var resumedSso = await anonymous.GetAsync(challengeQuery))
@@ -456,8 +458,10 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
 
             var chosenUsername = "com-" + marker;
             var profileUpdate = await member.Send("/profile", HttpMethod.Put,
-                new { username = chosenUsername, displayName = "Public Community Name", locale = "es" });
+                new { username = chosenUsername, displayName = "Public Community Name" });
             Assert.Equal(chosenUsername, profileUpdate.GetProperty("userName").GetString());
+            Assert.Equal("es", profileUpdate.GetProperty("locale").GetString());
+            await member.Send("/profile/locale", HttpMethod.Put, new { locale = "en" });
             using var updatedSso = await member.Client.GetAsync(QueryHelpers.AddQueryString("api/community/sso", new Dictionary<string, string?>
             {
                 ["sso"] = challenge,
@@ -471,6 +475,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Equal(chosenUsername, updatedPayload["username"].ToString());
             Assert.Equal("Public Community Name", updatedPayload["name"].ToString());
             Assert.Equal(email, updatedPayload["email"].ToString());
+            Assert.Equal("en", updatedPayload["locale"].ToString());
             Assert.DoesNotContain("Private School Name", string.Join("&", updatedPayload.Values.Select(value => value.ToString())));
 
             using var invalidSignature = await member.Client.GetAsync(QueryHelpers.AddQueryString("api/community/sso", new Dictionary<string, string?>
@@ -560,6 +565,19 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 Assert.Equal(HttpStatusCode.Forbidden, memberAdmin.StatusCode);
             var owner = await Login(factory, "scadivo.owner");
             var ownerProfile = await owner.Get("/profile");
+            Assert.False(ownerProfile.GetProperty("profileComplete").GetBoolean());
+            using (var invalidLocale = await owner.Raw("/profile/locale", HttpMethod.Put, new { locale = "fr" }))
+                Assert.Equal(HttpStatusCode.BadRequest, invalidLocale.StatusCode);
+            using (var noCsrf = await owner.Client.PutAsJsonAsync("api/profile/locale", new { locale = "en" }))
+                Assert.Equal(HttpStatusCode.BadRequest, noCsrf.StatusCode);
+            var savedLocale = await owner.Send("/profile/locale", HttpMethod.Put, new { locale = "en" });
+            Assert.Equal("en", savedLocale.GetProperty("locale").GetString());
+            var updatedOwnerProfile = await owner.Get("/profile");
+            Assert.Equal("en", updatedOwnerProfile.GetProperty("locale").GetString());
+            foreach (var property in ownerProfile.EnumerateObject().Where(property => property.Name != "locale"))
+                Assert.True(JsonElement.DeepEquals(property.Value, updatedOwnerProfile.GetProperty(property.Name)), property.Name);
+            await owner.Send("/profile/locale", HttpMethod.Put, new { locale = ownerProfile.GetProperty("locale").GetString() });
+
             using (var protectOwner = await owner.Raw($"/admin/accounts/{ownerProfile.GetProperty("id").GetString()}/access", HttpMethod.Put, new { suspended = true }))
                 Assert.Equal(HttpStatusCode.Conflict, protectOwner.StatusCode);
             using (var missingStatus = await owner.Raw($"/admin/accounts/{userId}/access", HttpMethod.Put, new { }))

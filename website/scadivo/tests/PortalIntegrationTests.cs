@@ -1101,6 +1101,103 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task DeliveryReturnMatchesTheAcceptedMessageAndIsRecordedOnlyOnce(bool headersOnly)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "scadivo-email-bounce-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var passwordFile = Path.Combine(root, "owner");
+        await File.WriteAllTextAsync(passwordFile, Password);
+        var configuration = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Portal"] = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+                ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!",
+            ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
+            ["Portal:Bootstrap:PasswordFile"] = passwordFile,
+            ["Logging:LogLevel:Default"] = "Warning"
+        };
+
+        try
+        {
+            await using var factory = Factory(configuration);
+            const string recipient = "test-bounce@example.test";
+            var id = Guid.NewGuid();
+            var accepted = DateTimeOffset.UtcNow.AddDays(-2);
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+                db.EmailOutbox.Add(new EmailOutbox
+                {
+                    Id = id, Status = "sent", TemplateKey = "contact.received", SentAtUtc = accepted,
+                    DeliveryRecipientFingerprint = PortalEmailBounceProcessor.Fingerprint(id, recipient)
+                });
+                await db.SaveChangesAsync();
+            }
+
+            async Task<bool> Process(Guid messageId, string address, string action, string status)
+            {
+                var originalType = headersOnly ? "text/rfc822-headers" : "message/rfc822";
+                var report = $"""
+                    From: Mail Delivery Subsystem <mailer-daemon@example.test>
+                    MIME-Version: 1.0
+                    Content-Type: multipart/report; report-type=delivery-status; boundary="returns"
+
+                    --returns
+                    Content-Type: text/plain
+
+                    Delivery status report.
+                    --returns
+                    Content-Type: message/delivery-status
+
+                    Reporting-MTA: dns; relay.example.test
+
+                    Final-Recipient: rfc822; {address}
+                    Action: {action}
+                    Status: {status}
+
+                    --returns
+                    Content-Type: {originalType}
+
+                    Message-ID: <{messageId:N}@scadivo.com>
+                    From: noreply@scadivo.com
+                    To: {recipient}
+
+                    --returns--
+                    """;
+                using var input = new MemoryStream(Encoding.UTF8.GetBytes(report));
+                using var message = await MimeMessage.LoadAsync(input);
+                await using var scope = factory.Services.CreateAsyncScope();
+                return await scope.ServiceProvider.GetRequiredService<PortalEmailBounceProcessor>().RecordAsync(message, CancellationToken.None);
+            }
+
+            Assert.False(await Process(Guid.NewGuid(), recipient, "failed", "5.1.1"));
+            Assert.False(await Process(id, "other@example.test", "failed", "5.1.1"));
+            Assert.False(await Process(id, recipient, "delayed", "4.2.0"));
+            Assert.False(await Process(id, recipient, "delivered", "2.0.0"));
+            var reports = await Task.WhenAll(Process(id, recipient, "failed", "5.1.1"),
+                Process(id, recipient, "failed", "5.1.1"));
+            Assert.Single(reports, recorded => recorded);
+            Assert.False(await Process(id, recipient, "failed", "5.1.1"));
+
+            await using var readScope = factory.Services.CreateAsyncScope();
+            var saved = await readScope.ServiceProvider.GetRequiredService<PortalDb>().EmailOutbox.SingleAsync(item => item.Id == id);
+            Assert.Equal("bounced", saved.Status);
+            Assert.Equal("smtp-bounce", saved.LastErrorCode);
+            Assert.Equal(accepted.ToUnixTimeSeconds(), saved.SentAtUtc!.Value.ToUnixTimeSeconds());
+            Assert.True(saved.BouncedAtUtc > accepted);
+            Assert.Null(saved.NextAttemptAtUtc);
+            Assert.Null(saved.RecipientAddress);
+            var owner = await Login(factory, "scadivo.owner");
+            Assert.True((await owner.Get("/admin/overview")).GetProperty("bouncedMessages").GetInt32() >= 1);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task ExistingOwnerCanConfirmEmailWithoutLosingAccess()
     {

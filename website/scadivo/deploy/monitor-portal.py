@@ -17,10 +17,13 @@ from urllib.request import Request, urlopen
 
 
 COMPONENTS = ("API", "Banco", "E-mails", "Renovação")
+BOUNCES = "E-mails devolvidos"
 SQL = """
 SELECT json_build_object(
   'email_failed', (SELECT count(*) FROM "EmailOutbox" WHERE "Status" = 'failed'
     AND "Attempts" >= 5 AND "CreatedAtUtc" >= now() - interval '24 hours'),
+  'email_bounces', (SELECT coalesce(json_agg("Id"), '[]'::json) FROM "EmailOutbox" WHERE "Status" = 'bounced'
+    AND "BouncedAtUtc" >= now() - interval '24 hours'),
   'email_retry', (SELECT count(*) FROM "EmailOutbox" WHERE "Status" = 'retry'
     AND "Attempts" >= 2 AND "LastErrorCode" LIKE 'smtp-%'),
   'email_stale', (SELECT count(*) FROM "EmailOutbox" WHERE "Status" IN ('queued', 'retry')
@@ -74,7 +77,8 @@ def database_snapshot():
             cwd="/opt/scadivo/portal", capture_output=True, text=True, timeout=12, check=True)
         data = json.loads(query.stdout)
         if all(type(data.get(key)) is int and data[key] >= 0
-               for key in ("email_failed", "email_retry", "email_stale", "renewal_overdue")):
+               for key in ("email_failed", "email_retry", "email_stale", "renewal_overdue")) and \
+                isinstance(data.get("email_bounces"), list) and all(isinstance(value, str) for value in data["email_bounces"]):
             return data
     except (OSError, ValueError, AttributeError, subprocess.SubprocessError):
         pass
@@ -91,6 +95,7 @@ def check(config, smtp_available):
         "Banco": "" if database is not None else "O PostgreSQL não respondeu à consulta de monitoramento.",
         "E-mails": None,
         "Renovação": None,
+        BOUNCES: database["email_bounces"] if database is not None else None,
     }
 
     email = []
@@ -128,6 +133,20 @@ def record(state, issues, now):
         pending[:] = [event for event in pending
                       if event["name"] != name or event["failed"] != bool(problem)]
         pending.append({"name": name, "failed": bool(problem), "time": now, "detail": problem})
+
+    bounces = issues.get(BOUNCES)
+    if bounces is None:
+        return
+    observed = set(bounces)
+    new_count = len(observed - set(state.get("seen_bounces", [])))
+    state["seen_bounces"] = sorted(observed)
+    if new_count:
+        previous = next((event for event in pending if event["name"] == BOUNCES), None)
+        if previous is not None:
+            new_count += previous["count"]
+            pending.remove(previous)
+        pending.append({"name": BOUNCES, "failed": True, "time": now, "count": new_count,
+                        "detail": f"Devoluções após o aceite SMTP: {new_count}."})
 
 
 def save_state(path, state):
@@ -202,6 +221,9 @@ def main():
 
         issues = check(config, smtp is not None)
         if args.check:
+            if isinstance(issues[BOUNCES], list):
+                count = len(issues[BOUNCES])
+                issues[BOUNCES] = f"Devoluções recentes: {count}." if count else ""
             print(json.dumps(issues, ensure_ascii=False))
             return int(any(issue != "" for issue in issues.values()))
 

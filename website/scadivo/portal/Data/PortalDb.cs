@@ -104,6 +104,8 @@ public sealed class EmailOutbox
     public int Attempts { get; set; }
     public DateTimeOffset? NextAttemptAtUtc { get; set; }
     public DateTimeOffset? SentAtUtc { get; set; }
+    public DateTimeOffset? BouncedAtUtc { get; set; }
+    public string? DeliveryRecipientFingerprint { get; set; }
     public string? LastErrorCode { get; set; }
 }
 
@@ -245,6 +247,7 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
         builder.Entity<EmailTemplate>().Property(x => x.Key).HasMaxLength(100);
         builder.Entity<EmailOutbox>().HasIndex(x => new { x.Status, x.CreatedAtUtc });
         builder.Entity<EmailOutbox>().HasIndex(x => new { x.Status, x.NextAttemptAtUtc });
+        builder.Entity<EmailOutbox>().Property(x => x.DeliveryRecipientFingerprint).HasMaxLength(64);
         builder.Entity<EmailOutbox>().Property(x => x.LastErrorCode).HasMaxLength(64);
         builder.Entity<EmailOutbox>().Property(x => x.RecipientAddress).HasMaxLength(256);
         builder.Entity<EmailOutbox>().Property(x => x.ReplyToAddress).HasMaxLength(256);

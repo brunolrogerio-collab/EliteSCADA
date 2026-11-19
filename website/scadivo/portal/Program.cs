@@ -135,6 +135,12 @@ builder.Services.AddOptions<CommunitySsoOptions>().BindConfiguration("Portal:Com
 builder.Services.AddSingleton<IPortalEmailTransport, SmtpPortalEmailTransport>();
 builder.Services.AddScoped<PortalEmailDispatcher>();
 builder.Services.AddHostedService<PortalEmailWorker>();
+builder.Services.AddOptions<PortalEmailBounceOptions>().BindConfiguration("Portal:Email:Bounces")
+    .Validate<Microsoft.Extensions.Options.IOptions<PortalEmailOptions>>((bounce, smtp) => bounce.Valid(smtp.Value),
+        "Email returns require an IMAP host and the SMTP return mailbox credential.")
+    .ValidateOnStart();
+builder.Services.AddScoped<PortalEmailBounceProcessor>();
+builder.Services.AddHostedService<PortalEmailBounceWorker>();
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();

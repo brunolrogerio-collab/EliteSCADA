@@ -22,12 +22,12 @@ See [activation confirmation](portal/ACTIVATION_CONFIRMATION.md) and [licensing 
 
 ## Ordered remaining work
 
-1. The administration/downloads PR #784 was merged. PR #777 implements offline requests, approval and private delivery of codes signed in the offline generator. Conversion is limited to eligible perpetual online licenses with one activation and waits up to 72 hours after retirement before releasing the code. Confirm the deployment and validate with an approved fixture before enabling offline intake publicly.
+1. Offline requests and private delivery from #777 are enabled in production after a full request, approval, signing and retrieval test in homologation. The production toggle is versioned in #891. Conversion is limited to eligible perpetual online licenses with one activation and waits 72 hours after retirement if the online license had been activated.
 2. Complete and record the real production Portal → preview product acceptance cycle under #301: resolve, inspect summary, cancel without a seat, confirm, recover a lost response, renew with credential rotation, revoke and observe expiry behavior. Record image/commit, authentication type and limitations; do not replace this with synthetic signing evidence.
 3. Define the pricing, approval and exchange rules for any additional offline conversion modalities before extending eligibility.
 4. Connect approved Windows/Linux/OCI release artifacts (#363/#408) to the catalog, verify hashes and test delivery. Per-record download starts are available in Administration; a redirect records a start.
-5. Administrative indicators include profile counts and percentages, plus daily site/Portal views and download starts with UTC date filters. Verify live collection after deployment and document the operational retention policy.
-6. Finish real-renderer email template preview and remaining language/content consistency. Broad community translation remains deferred behind licensing.
+5. Administrative indicators include profile counts and percentages, daily site/Portal views and download starts with UTC date filters. The production dashboard and collection of site visits were checked with an administrator session. Document the operational retention policy.
+6. Validate the shared-renderer email template preview in the deployed Portal after release. Review remaining language and content consistency. Broad community translation remains deferred behind licensing.
 7. Implement the commercial catalog/payment provider, authenticated idempotent webhooks, reconciliation and entitlement transitions. No automatic payment claim should appear before this integration is verified.
 8. Complete operational evidence: backup restoration, offsite copy, alerts for API/database/email/renewal failures, deployment version identification and capacity testing. Finalize privacy, retention and commercial terms before broad launch.
 

@@ -20,3 +20,12 @@
   margin-block: 0.25rem;
 }
 .indicator-chart-row meter { width: 100%; }
+
+.template-preview-frame {
+  width: 100%;
+  height: clamp(24rem, 60vh, 42rem);
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #edf2f5;
+}

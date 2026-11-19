@@ -33,6 +33,7 @@ public sealed record TicketInput(string? Subject, string? Category, string? Body
 public sealed record MessageInput(string? Body);
 public sealed record TicketStatusInput(string? Status);
 public sealed record TemplateInput(string? SubjectPt, string? SubjectEn, string? SubjectEs, string? BodyPt, string? BodyEn, string? BodyEs);
+public sealed record TemplatePreviewInput(string? Locale, string? Subject, string? Body);
 public sealed record FaqInput(string? Slug, string? Category, string? TitlePt, string? TitleEn, string? TitleEs, string? BodyPt, string? BodyEn, string? BodyEs, bool Published);
 public sealed record PublicContactInput(string? Name, string? Email, string? Category, string? SubjectKey,
     string? OtherSubject, string? Message, string? Locale, string? Website);
@@ -672,6 +673,42 @@ public sealed class PortalOperations(
         await AuditAsync(UserId(context), account.IsSuspended ? "account.suspended" : "account.reactivated", account.Id);
         await transaction.CommitAsync();
         return Results.Ok(new { account.Id, account.IsSuspended });
+    }
+
+    public async Task<IResult> PreviewTemplate(string key, TemplatePreviewInput input, HttpContext context)
+    {
+        if (!ValidLocale(input.Locale) || !Valid(input.Subject, 1, 200) || !Valid(input.Body, 1, 8000)) return Invalid();
+        if (!await db.EmailTemplates.AnyAsync(x => x.Key == key, context.RequestAborted)) return Results.NotFound();
+        var locale = input.Locale!;
+        var subject = input.Subject!.Trim();
+        var body = input.Body!.Trim();
+
+        // No account, token, outbox item or audit mutation is created by a preview.
+        var preview = new EmailTemplate
+        {
+            Key = key, SubjectPt = subject, SubjectEn = subject, SubjectEs = subject,
+            BodyPt = body, BodyEn = body, BodyEs = body
+        };
+        var data = new Dictionary<string, string>
+        {
+            ["name"] = "Alex", ["reference"] = "SCV-EXAMPLE-2026", ["email"] = "alex@example.invalid",
+            ["category"] = locale == "en" ? "Technical support" : locale == "es" ? "Soporte técnico" : "Suporte técnico",
+            ["subject"] = locale == "en" ? "Connection question" : locale == "es" ? "Duda de conexión" : "Dúvida de conexão",
+            ["message"] = locale == "en" ? "Example message for this preview." : locale == "es" ? "Mensaje de ejemplo para esta vista previa." : "Mensagem de exemplo para esta prévia.",
+            ["link"] = key switch
+            {
+                "account.invitation" or "account.confirmation" or "account.password-reset"
+                    => $"https://example.invalid/scadivo/?lang={locale}#preview-{new string('x', 120)}",
+                "support.team-ticket" or "support.team-reply" => "https://example.invalid/scadivo/portal/#support",
+                _ => "https://example.invalid/scadivo/portal/"
+            }
+        };
+        using var message = PortalEmailDispatcher.CreateTemplateMessage(emailSettings.Value, Guid.Empty,
+            "alex@example.invalid", preview, locale, data, "alex@example.invalid");
+        // Keep the rendered link styling while making every preview link inert.
+        var html = Regex.Replace(message.HtmlBody!, " href=\"[^\"]*\"", string.Empty);
+        context.Response.Headers.CacheControl = "no-store";
+        return Results.Ok(new { html });
     }
 
     public async Task<IResult> UpdateTemplate(string key, TemplateInput input, HttpContext context)

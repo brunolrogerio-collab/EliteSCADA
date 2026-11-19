@@ -131,8 +131,6 @@ public sealed class PortalEmailDispatcher(
                 data.TryAdd("subject", "");
                 data.TryAdd("message", "");
                 var locale = data.GetValueOrDefault("locale") ?? user?.Locale ?? "pt-BR";
-                var english = locale == "en";
-                var spanish = locale == "es";
                 if ((item.TemplateKey is "support.team-ticket" or "support.team-reply") && data.TryGetValue("category", out var category))
                     data["category"] = (category, locale) switch
                     {
@@ -155,25 +153,7 @@ public sealed class PortalEmailDispatcher(
                         link = $"{baseUrl}{(baseUrl.Contains('?') ? "&" : "?")}lang={locale}{link[hash..]}";
                 }
                 data["link"] = link;
-                string Render(string text)
-                {
-                    foreach (var (key, value) in data)
-                        text = text.Replace("{{" + key + "}}", value, StringComparison.Ordinal);
-                    return text;
-                }
-                var body = Render(english ? template!.BodyEn : spanish ? template!.BodyEs : template!.BodyPt);
-                // Keep single-use links visible in older editable templates without duplicating links they already include.
-                if ((item.TemplateKey is "account.invitation" or "account.confirmation" or "account.password-reset") && !body.Contains(link, StringComparison.Ordinal)) body += "\n\n" + link;
-                if (item.TemplateKey == "account.password-reset" &&
-                    !body.Contains(english ? "24 hours" : "24 horas", StringComparison.OrdinalIgnoreCase))
-                    body += english
-                        ? "\n\nThis link expires in 24 hours and can only be used once."
-                        : spanish ? "\n\nEste enlace caduca en 24 horas y solo se puede usar una vez."
-                        : "\n\nO link expira em 24 horas e pode ser usado uma única vez.";
-                var replyToSubmitter = item.TemplateKey == "contact.notification";
-                using var message = CreateMessage(settings.Value, item.Id, recipient!,
-                    Render(english ? template!.SubjectEn : spanish ? template.SubjectEs : template.SubjectPt), body,
-                    replyToSubmitter ? item.ReplyToAddress : null, locale, replyToSubmitter);
+                using var message = CreateTemplateMessage(settings.Value, item.Id, recipient!, template!, locale, data, item.ReplyToAddress);
                 await transport.SendAsync(message, cancellationToken);
                 item.Status = "sent";
                 item.SentAtUtc = DateTimeOffset.UtcNow;
@@ -202,6 +182,32 @@ public sealed class PortalEmailDispatcher(
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return true;
+    }
+
+    public static MimeMessage CreateTemplateMessage(PortalEmailOptions settings, Guid id, string recipient,
+        EmailTemplate template, string locale, IReadOnlyDictionary<string, string> data, string? replyTo = null)
+    {
+        var english = locale == "en";
+        var spanish = locale == "es";
+        string Render(string value)
+        {
+            // Resolve variables once; values supplied by a person are never treated as another template.
+            return Regex.Replace(value, @"\{\{([a-z]+)\}\}", match =>
+                data.TryGetValue(match.Groups[1].Value, out var replacement) ? replacement : match.Value);
+        }
+        var body = Render(english ? template.BodyEn : spanish ? template.BodyEs : template.BodyPt);
+        var link = data.GetValueOrDefault("link") ?? "";
+        if (template.Key is "account.invitation" or "account.confirmation" or "account.password-reset" &&
+            link.Length > 0 && !body.Contains(link, StringComparison.Ordinal)) body += "\n\n" + link;
+        if (template.Key == "account.password-reset" &&
+            !body.Contains(english ? "24 hours" : "24 horas", StringComparison.OrdinalIgnoreCase))
+            body += english ? "\n\nThis link expires in 24 hours and can only be used once."
+                : spanish ? "\n\nEste enlace caduca en 24 horas y solo se puede usar una vez."
+                : "\n\nO link expira em 24 horas e pode ser usado uma única vez.";
+        var replyToSubmitter = template.Key == "contact.notification";
+        return CreateMessage(settings, id, recipient,
+            Render(english ? template.SubjectEn : spanish ? template.SubjectEs : template.SubjectPt), body,
+            replyToSubmitter ? replyTo : null, locale, replyToSubmitter);
     }
 
     public static MimeMessage CreateMessage(PortalEmailOptions settings, Guid id, string recipient, string subject,

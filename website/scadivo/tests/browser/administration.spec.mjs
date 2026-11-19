@@ -60,11 +60,46 @@ async function fixture(page, { locale = 'en', administrator = true } = {}) {
       Object.assign(release, body); result = release;
     }
     else if (path === '/downloads') result = releases.filter(item => item.published);
+    else if (path === '/admin/templates') result = [{
+      key: 'account.invitation', subjectPt: 'Convite', bodyPt: 'Mensagem do convite',
+      subjectEn: 'Invitation', bodyEn: 'Invitation message', subjectEs: 'Invitación', bodyEs: 'Mensaje de invitación'
+    }];
+    else if (path === '/admin/templates/account.invitation/preview' && method === 'POST')
+      result = { html: `<!doctype html><html lang="${body.locale}"><head></head><body><h1>Invitación de prueba</h1></body></html>` };
     await route.fulfill({ json: result });
   });
   await page.goto(`${baseUrl}/portal/#admin`);
   return { calls, browserErrors, accounts, releases };
 }
+
+test('email preview renders the selected language from unsaved fields without saving the template', async ({ page }) => {
+  const { calls, browserErrors } = await fixture(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.locator('.admin-subnav').getByRole('button', { name: 'Messages', exact: true }).click();
+  const locale = page.getByLabel('Preview language', { exact: true });
+  await locale.selectOption('es');
+  const subject = page.getByLabel('Asunto', { exact: true });
+  const body = page.getByLabel('Mensaje', { exact: true });
+  await subject.fill('Invitación pendiente');
+  await body.fill('Hola {{name}}');
+  const preview = page.getByRole('button', { name: 'Preview email', exact: true });
+  await preview.click();
+  const frame = page.locator('iframe[title="Email preview"]');
+  await expect(frame).toBeVisible();
+  await expect(frame).toHaveAttribute('sandbox', '');
+  await expect(page.frameLocator('iframe[title="Email preview"]').getByRole('heading', { name: 'Invitación de prueba' })).toBeVisible();
+  expect(calls).toEqual([{
+    path: '/admin/templates/account.invitation/preview', method: 'POST', csrf: 'synthetic-csrf',
+    body: { locale: 'es', subject: 'Invitación pendiente', body: 'Hola {{name}}' }
+  }]);
+  await expect(subject).toHaveValue('Invitación pendiente');
+  await expect(body).toHaveValue('Hola {{name}}');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await locale.selectOption('pt-BR');
+  await expect(frame).toBeHidden();
+  expect(browserErrors).toEqual([]);
+});
 
 test('delegated administrator can save drafts, preserve all translated notes and publish or withdraw a download', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1100 });

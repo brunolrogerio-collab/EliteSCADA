@@ -14,6 +14,8 @@ The portal includes profile/password management, administrator-issued personal i
 
 The authenticated download catalog accepts official GitHub release-file URLs with SHA-256 metadata. Administration → Downloads now creates and edits catalog entries as drafts or published releases. The official distribution pipeline (#363/#408) and the release manager's artifact approval/checksum verification remain prerequisites for publishing real installers; the Portal does not build an installer or verify a remote file's hash by itself. The catalog starts empty, with no placeholder installer.
 
+In **Administration → Messages**, select the preview language and choose **Preview email** to render the current subject and body using the same layout as delivered messages. The preview uses sample data and inactive links. Saving the template is a separate action.
+
 The Portal provides the account and DiscourseConnect SSO integration for the separately deployed SCADIVO Community. Licensing endpoints are part of this same Portal backend, with PostgreSQL in a separate private service. Product activation uses prepare → explicit confirmation → confirm; subsequent renewals use rotating device credentials. Checkout and payment webhooks are not implemented. See [integration status and remaining work](INTEGRATION_STATUS.md) and [the activation contract](portal/ACTIVATION_CONFIRMATION.md).
 
 ### Account access administration

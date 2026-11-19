@@ -754,6 +754,31 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             var dispatcher = scope.ServiceProvider.GetRequiredService<PortalEmailDispatcher>();
             (await db.Users.SingleAsync(x => x.Id == userId)).Locale = "en";
             var template = await db.EmailTemplates.SingleAsync(x => x.Key == "account.invitation");
+            const string previewPath = "/admin/templates/account.invitation/preview";
+            var previewInput = new { locale = "en", subject = "Welcome {{name}}", body = "Hello {{name}}, your invitation is ready." };
+            var outboxCount = await db.EmailOutbox.CountAsync();
+            var originalSubject = template.SubjectEn;
+            using var previewResponse = await owner.Raw(previewPath, HttpMethod.Post, previewInput);
+            Assert.Equal(HttpStatusCode.OK, previewResponse.StatusCode);
+            Assert.True(previewResponse.Headers.CacheControl!.NoStore);
+            var previewHtml = (await previewResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("html").GetString()!;
+            Assert.DoesNotContain("href=", previewHtml);
+            Assert.Contains("Open secure link", previewHtml);
+            var spanishPreview = await owner.Send("/admin/templates/account.password-reset/preview", HttpMethod.Post,
+                new { locale = "es", subject = "Restablecer contraseña", body = "<em>{{name}}</em>" });
+            var spanishHtml = spanishPreview.GetProperty("html").GetString()!;
+            Assert.Contains("lang=\"es\"", spanishHtml);
+            Assert.Contains("caduca en 24 horas", spanishHtml);
+            Assert.Contains("&lt;em&gt;Alex&lt;/em&gt;", spanishHtml);
+            Assert.DoesNotContain("<em>", spanishHtml);
+            using (var invalidLocale = await owner.Raw(previewPath, HttpMethod.Post, new { locale = "fr", previewInput.subject, previewInput.body }))
+                Assert.Equal(HttpStatusCode.BadRequest, invalidLocale.StatusCode);
+            using (var missingTemplate = await owner.Raw("/admin/templates/missing/preview", HttpMethod.Post, previewInput))
+                Assert.Equal(HttpStatusCode.NotFound, missingTemplate.StatusCode);
+            Assert.Equal(outboxCount, await db.EmailOutbox.CountAsync());
+            Assert.Empty(transport.Messages);
+            Assert.Equal(originalSubject, await db.EmailTemplates.Where(x => x.Key == template.Key).Select(x => x.SubjectEn).SingleAsync());
+
             template.SubjectEn = "Welcome {{name}}";
             template.BodyEn = "Hello {{name}}, your invitation is ready."; // Legacy template omits {{link}}.
             var historical = new EmailOutbox { UserId = userId, TemplateKey = "account.invitation", Reference = userId, CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-1) };
@@ -800,9 +825,15 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             var link = textBody.Split('\n').Select(x => x.Trim()).Single(x => x.StartsWith("https://localhost/portal/?lang=en#invite=", StringComparison.Ordinal));
             Assert.Contains($"<a href=\"{link}\"", email.HtmlBody);
             Assert.Contains("href=\"https://scadivo.com/contact?area=support&amp;lang=en\"", email.HtmlBody);
+            var deliveredLayout = email.HtmlBody!
+                .Replace($" href=\"{link}\"", "", StringComparison.Ordinal)
+                .Replace(" href=\"https://scadivo.com/contact?area=support&amp;lang=en\"", "", StringComparison.Ordinal);
+            Assert.Equal(deliveredLayout.Trim().ReplaceLineEndings("\n"), previewHtml.Trim().ReplaceLineEndings("\n"));
             var payload = Invitation(JsonSerializer.SerializeToElement(new { invitationUrl = link }));
             using var anonymous = Client(factory);
             var invited = new Session(anonymous, await Csrf(anonymous));
+            using (var denied = await invited.Raw(previewPath, HttpMethod.Post, previewInput))
+                Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
             await invited.Send("/auth/accept-invitation", HttpMethod.Post, new { payload.UserId, payload.Token, password = Password,
                 locale = "en",
                 profileType = "professional", activityArea = "industrial-automation", activityAreaOther = (string?)null,
@@ -812,6 +843,8 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.False(await dispatcher.ProcessNextAsync(CancellationToken.None));
 
             var member = await Login(factory, "mail-" + marker);
+            using (var denied = await member.Raw(previewPath, HttpMethod.Post, previewInput))
+                Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
             var ticket = await member.Send("/support", HttpMethod.Post, new { subject = "Email test", category = "technical", body = "A private support request for delivery verification." });
             Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));
             Assert.True(await dispatcher.ProcessNextAsync(CancellationToken.None));

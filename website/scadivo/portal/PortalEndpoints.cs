@@ -93,6 +93,7 @@ public static class PortalEndpoints
         admin.MapPut("/support/{id:guid}/status", (Guid id, TicketStatusInput input, HttpContext context, PortalOperations operations) => operations.UpdateTicketStatus(id, input, context));
         admin.MapGet("/templates", async (PortalDb db) => Results.Ok(await db.EmailTemplates.AsNoTracking().OrderBy(x => x.Key).ToListAsync()));
         admin.MapPut("/templates/{key}", (string key, TemplateInput input, HttpContext context, PortalOperations operations) => operations.UpdateTemplate(key, input, context));
+        admin.MapPost("/templates/{key}/preview", (string key, TemplatePreviewInput input, HttpContext context, PortalOperations operations) => operations.PreviewTemplate(key, input, context));
         admin.MapGet("/faq", async (PortalDb db) => Results.Ok(await db.FaqArticles.AsNoTracking().OrderBy(x => x.Slug).ToListAsync()));
         admin.MapPost("/faq", (FaqInput input, HttpContext context, PortalOperations operations) => operations.SaveFaq(null, input, context));
         admin.MapPut("/faq/{id:guid}", (Guid id, FaqInput input, HttpContext context, PortalOperations operations) => operations.SaveFaq(id, input, context));

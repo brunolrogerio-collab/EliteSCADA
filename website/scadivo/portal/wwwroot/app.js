@@ -81,7 +81,7 @@ const spanish = {
   'Para continuar no portal, informe seu perfil, área de atuação e empresa/escola. Os demais campos são opcionais.': 'Para continuar, indica tu perfil, área de actividad y empresa o centro educativo. Los demás campos son opcionales.',
   'Perfil': 'Perfil', 'Perfil atualizado.': 'Perfil actualizado.', 'Pesquisar': 'Buscar', 'Pesquisar no FAQ': 'Buscar en preguntas frecuentes', 'PILOTO': 'PILOTO', 'Portal do cliente': 'Portal de clientes', 'Portal indisponível': 'Portal no disponible',
   'Precisa de apoio? Acesse ': '¿Necesitas ayuda? Visita ', 'Preencha os campos obrigatórios do perfil e confira os dados opcionais.': 'Completa los campos obligatorios del perfil y revisa los datos opcionales.',
-  'Prévia no idioma atual': 'Vista previa en el idioma actual', 'Profissional': 'Profesional', 'PRÓXIMA ETAPA': 'PRÓXIMA ETAPA', 'Publicado no FAQ': 'Publicado en preguntas frecuentes',
+  'Profissional': 'Profesional', 'PRÓXIMA ETAPA': 'PRÓXIMA ETAPA', 'Publicado no FAQ': 'Publicado en preguntas frecuentes',
   'Qual área?': '¿Qué área?', 'Quero receber novidades e informações comerciais por e-mail (opcional).': 'Quiero recibir novedades e información comercial por correo electrónico (opcional).',
   'Recuperar acesso': 'Recuperar acceso', 'Redefinir senha': 'Restablecer contraseña', 'Reenviar confirmação': 'Reenviar confirmación', 'Referência': 'Referencia', 'Repita a nova senha': 'Repite la nueva contraseña', 'Repita a senha': 'Repite la contraseña',
   'Respondido': 'Respondido', 'Sair': 'Cerrar sesión', 'Salvar artigo': 'Guardar artículo', 'Salvar e continuar': 'Guardar y continuar', 'Salvar modelo': 'Guardar plantilla', 'Salvar perfil': 'Guardar perfil',
@@ -550,13 +550,50 @@ function accountAdministrationAction(account) {
 async function templatesAdmin() {
   const templates = await api('/admin/templates'); const editor = h('div');
   function edit(template) {
-    const preview = h('pre', { class: 'template-preview' });
+    const templatePath = `/admin/templates/${encodeURIComponent(template.key)}`;
+    const previewTitle = tr('Prévia do e-mail', 'Email preview', 'Vista previa del correo');
+    const languageLabel = tr('Idioma da prévia', 'Preview language', 'Idioma de la vista previa');
+    const frame = h('iframe', { class: 'template-preview-frame', title: previewTitle, hidden: true });
+    frame.setAttribute('sandbox', '');
+    const locale = select('previewLocale', localeOptions(), state.lang, { 'aria-label': languageLabel });
+    let revision = 0;
+    const preview = button(tr('Gerar prévia', 'Preview email', 'Ver vista previa'), async () => {
+      const data = values(node);
+      const suffix = { 'pt-BR': 'Pt', en: 'En', es: 'Es' }[locale.value];
+      const subject = data[`subject${suffix}`]?.trim();
+      const body = data[`body${suffix}`]?.trim();
+      if (!subject || !body) {
+        feedback(tr('Preencha o assunto e a mensagem no idioma selecionado.', 'Enter the subject and message in the selected language.', 'Introduce el asunto y el mensaje en el idioma seleccionado.'), true);
+        return;
+      }
+      const requestedRevision = revision;
+      preview.disabled = true;
+      frame.hidden = true;
+      try {
+        const { html } = await api(`${templatePath}/preview`, 'POST', { locale: locale.value, subject, body });
+        if (requestedRevision !== revision) return;
+        frame.srcdoc = html.replace('<head>', `<head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">`);
+        frame.hidden = false;
+      } catch (error) { feedback(error.message, true); }
+      finally { preview.disabled = false; }
+    });
     const node = form([
       h('div', { class: 'content-grid' }, [h('div', {}, [h('h3', {}, 'Português'), field('Assunto', input('subjectPt', 'text', template.subjectPt, { maxLength: 200 })), field('Mensagem', textarea('bodyPt', template.bodyPt, { maxLength: 8000, rows: 8 }))]), h('div', {}, [h('h3', {}, 'English'), field('Subject', input('subjectEn', 'text', template.subjectEn, { maxLength: 200 })), field('Message', textarea('bodyEn', template.bodyEn, { maxLength: 8000, rows: 8 }))]), h('div', {}, [h('h3', {}, 'Español'), field('Asunto', input('subjectEs', 'text', template.subjectEs, { maxLength: 200 })), field('Mensaje', textarea('bodyEs', template.bodyEs, { maxLength: 8000, rows: 8 }))])]),
-      p(tr('Variáveis: {{name}}, {{link}}, {{reference}}. Somente texto; nenhum script é executado.', 'Variables: {{name}}, {{link}}, {{reference}}. Text only; no script is executed.')), h('h3', {}, tr('Prévia no idioma atual', 'Preview in current language')), preview
-    ], tr('Salvar modelo', 'Save template'), async data => { await api(`/admin/templates/${encodeURIComponent(template.key)}`, 'PUT', data); Object.assign(template, data); feedback(tr('Modelo salvo. O envio permanece desativado.', 'Template saved. Delivery remains disabled.')); });
-    const update = () => { const data = values(node); const subject = state.lang === 'en' ? data.subjectEn : state.lang === 'es' ? data.subjectEs : data.subjectPt; const body = state.lang === 'en' ? data.bodyEn : state.lang === 'es' ? data.bodyEs : data.bodyPt; preview.textContent = `${subject}\n\n${body}`.replaceAll('{{name}}', 'Alex').replaceAll('{{reference}}', 'SCADIVO-EJEMPLO').replaceAll('{{link}}', 'https://scadivo.com/portal/'); };
-    node.addEventListener('input', update); update(); editor.replaceChildren(h('h3', {}, template.key), node);
+      p(tr('Use variáveis como {{name}}, {{link}} e {{reference}} no texto da mensagem.', 'Use variables such as {{name}}, {{link}} and {{reference}} in the message text.', 'Usa variables como {{name}}, {{link}} y {{reference}} en el texto del mensaje.'))
+    ], tr('Salvar modelo', 'Save template', 'Guardar plantilla'), async data => {
+      await api(templatePath, 'PUT', data);
+      Object.assign(template, data);
+      feedback(tr('Modelo salvo.', 'Template saved.', 'Plantilla guardada.'));
+    });
+    const clearPreview = () => { revision++; frame.hidden = true; };
+    node.addEventListener('input', clearPreview);
+    locale.addEventListener('change', clearPreview);
+    editor.replaceChildren(h('h3', {}, template.key), node, h('section', { class: 'small-space' }, [
+      h('h3', {}, previewTitle),
+      p(tr('A prévia usa dados de exemplo. Nenhum e-mail é enviado e o rascunho continua no editor.', 'The preview uses sample data. It leaves the draft in the editor and sends no email.', 'La vista previa usa datos de ejemplo. El borrador sigue en el editor y no se envía ningún correo.')),
+      h('div', { class: 'form-actions' }, [field(languageLabel, locale), preview]),
+      frame
+    ]));
   }
   const picker = select('template', templates.map(x => [x.key, x.key]), templates[0].key); picker.addEventListener('change', () => edit(templates.find(x => x.key === picker.value))); edit(templates[0]);
   return panel(tr('Modelos de mensagens automáticas', 'Automatic message templates'), field(tr('Tipo de mensagem', 'Message type'), picker), editor);

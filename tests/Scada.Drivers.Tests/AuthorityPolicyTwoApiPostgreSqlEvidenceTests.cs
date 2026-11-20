@@ -431,10 +431,15 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             independentPostgreSqlServers: true,
             verifyRuntimeSessionContinuity: true);
 
+    [Fact]
+    public Task RealApiProcesses_HaD2RestartDuringFailback()
+        => RunHaD2AuthorityLifecycleAsync(false, true, true, restartDuringFailback: true);
+
     private async Task RunHaD2AuthorityLifecycleAsync(
         bool sharedDatabase,
         bool independentPostgreSqlServers = false,
-        bool verifyRuntimeSessionContinuity = false)
+        bool verifyRuntimeSessionContinuity = false,
+        bool restartDuringFailback = false)
     {
         var seedA = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
         if (string.IsNullOrWhiteSpace(seedA))
@@ -965,14 +970,80 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
             // This request traverses the authenticated API endpoint with the temporary
             // V3 HaRuntime license installed in both real processes; no security/license
             // bypass is used for the controlled failback.
-            var failback = await nodeB.PostRawAsync(
-                "/api/runtime/ha/actions/failback",
-                new JsonObject { ["targetNodeId"] = "node-a" });
-            Assert.True(
-                failback.StatusCode == HttpStatusCode.Accepted,
-                $"Expected authenticated licensed failback to be accepted, got {(int)failback.StatusCode}: {failback.Body?.ToJsonString() ?? failback.RawBody}");
-            Assert.Equal("explicit-failback", failback.Body?["kind"]?.GetValue<string>());
-            Assert.Equal("completed", failback.Body?["state"]?.GetValue<string>());
+            if (restartDuringFailback)
+            {
+                // Start with the promoted lease already mirrored before injecting the interruption.
+                await WaitForRuntimeSessionLeaseAsync(appConnectionA.ConnectionString,
+                    runtimeSessionId!.Value, runtimeSessionSubjectId!, runtimeSessionClientInstanceId!,
+                    "node-b", 1, TimeSpan.FromSeconds(30));
+                Console.WriteLine("MID423 baseline: same active logical lease present in both databases");
+                await using var barrier = new NpgsqlConnection(appConnectionB.ConnectionString);
+                await barrier.OpenAsync();
+                await using var tx = await barrier.BeginTransactionAsync();
+                await using var hold = new NpgsqlCommand("select singleton_id from elitescada.runtime_session_authority_state for update", barrier, tx);
+                await hold.ExecuteScalarAsync();
+                var pending = nodeB.PostRawAsync("/api/runtime/ha/actions/failback",
+                    new JsonObject { ["targetNodeId"] = "node-a" });
+                await WaitUntilAsync(async () =>
+                {
+                    var r = JsonNode.Parse(await File.ReadAllTextAsync(referencePath))!;
+                    return r["reasonCode"]?.GetValue<string>() == "explicit-failback-break"
+                        && r["activeNodeId"] is null && r["previousAuthorityFenced"]!.GetValue<bool>();
+                }, TimeSpan.FromSeconds(5), "the durable reference never reached the controlled break");
+                Assert.False(pending.IsCompleted);
+                Console.WriteLine($"MID423 observed fenced/no owner with failback still pending; epoch before={promotedEpoch}");
+                await nodeB.DisposeAsync();
+                nodeB = null;
+                await tx.RollbackAsync();
+                try { await pending; } catch (HttpRequestException) { } catch (OperationCanceledException) { }
+                nodeB = ApiProcess.Start("node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
+                Console.WriteLine("MID423 original source process restarted; health OK");
+                var heldA = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                var heldB = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                for (var sample = 0; sample < 12; sample++)
+                {
+                    var refNow = JsonNode.Parse(await File.ReadAllTextAsync(referencePath))!;
+                    var leases = new List<string>();
+                    foreach (var db in new[] { appConnectionA.ConnectionString, appConnectionB.ConnectionString })
+                    {
+                        await using var connection = new NpgsqlConnection(db);
+                        await connection.OpenAsync();
+                        await using var cmd = new NpgsqlCommand("select session_id::text from elitescada.runtime_session_leases where client_instance_id=@client and is_active and expires_at_utc>clock_timestamp()", connection);
+                        cmd.Parameters.AddWithValue("client", runtimeSessionClientInstanceId!);
+                        await using var reader = await cmd.ExecuteReaderAsync();
+                        var rows = 0;
+                        while (await reader.ReadAsync()) { rows++; leases.Add(reader.GetString(0)); }
+                        Assert.InRange(rows, 0, 1);
+                    }
+                    Console.WriteLine($"MID423 sample={sample} epoch={refNow["epoch"]} owner={refNow["activeNodeId"]} leaseCopies={leases.Count} distinct={leases.Distinct().Count()}");
+                    Assert.InRange(leases.Distinct().Count(), 0, 1);
+                    await Task.Delay(250);
+                }
+                var currentRef = JsonNode.Parse(await File.ReadAllTextAsync(referencePath))!;
+                if (currentRef["activeNodeId"] is null)
+                {
+                    Assert.Equal(heldA, await ReadHaEffectCountsAsync(appConnectionA.ConnectionString));
+                    Assert.Equal(heldB, await ReadHaEffectCountsAsync(appConnectionB.ConnectionString));
+                    Console.WriteLine($"MID423 no effects progressed on either server during fenced interval; A={heldA} B={heldB}");
+                    var recovery = await nodeA.PostRawAsync("/api/runtime/ha/actions/recovery", new JsonObject { ["targetNodeId"] = "node-a" });
+                    Console.WriteLine($"MID423 explicit recovery HTTP={(int)recovery.StatusCode} reason={recovery.Body?["reasonCode"]} code={recovery.Body?["code"]}");
+                    Assert.Equal(HttpStatusCode.Accepted, recovery.StatusCode);
+                }
+                effectsBeforeFailbackB = heldB;
+            }
+            else
+            {
+                var failback = await nodeB.PostRawAsync(
+                    "/api/runtime/ha/actions/failback",
+                    new JsonObject { ["targetNodeId"] = "node-a" });
+                Assert.True(
+                    failback.StatusCode == HttpStatusCode.Accepted,
+                    $"Expected authenticated licensed failback to be accepted, got {(int)failback.StatusCode}: {failback.Body?.ToJsonString() ?? failback.RawBody}");
+                Assert.Equal("explicit-failback", failback.Body?["kind"]?.GetValue<string>());
+                Assert.Equal("completed", failback.Body?["state"]?.GetValue<string>());
+            }
 
             var failedBackA = await WaitForHaTopologyAsync(
                 nodeA,
@@ -980,6 +1051,18 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     topology["authorityEpoch"]!.GetValue<long>() > promotedEpoch,
                 TimeSpan.FromSeconds(60),
                 "the authenticated, licensed failback did not return authority to the preferred node");
+            if (restartDuringFailback)
+            {
+                var login = new JsonObject { ["username"] = AdminUsername, ["password"] = AdminPassword };
+                await WaitUntilAsync(async () =>
+                {
+                    var response = await nodeB.PostRawAsync("/api/auth/login", login);
+                    if (response.StatusCode == HttpStatusCode.ServiceUnavailable &&
+                        response.Body?["reasonCode"]?.GetValue<string>() == "active-not-established") return false;
+                    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                    return true;
+                }, TimeSpan.FromSeconds(20), "B did not restore its authenticated route after A recovered");
+            }
             var failedBackB = await WaitForHaTopologyAsync(
                 nodeB,
                 topology => IsEffectiveActive(topology, "node-a"),
@@ -1012,6 +1095,13 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     minimumGeneration: 1,
                     TimeSpan.FromSeconds(20));
                 Assert.Equal(1, failedBackSession.ActiveLogicalLeaseCount);
+                if (restartDuringFailback)
+                {
+                    var replica = await WaitForRuntimeSessionLeaseAsync(appConnectionB.ConnectionString,
+                        failedBackSessionId, runtimeSessionSubjectId!, runtimeSessionClientInstanceId!, "node-a", 1, TimeSpan.FromSeconds(20));
+                    Assert.Equal(1, replica.ActiveLogicalLeaseCount);
+                    Console.WriteLine($"MID423 recovered A active, mirrored logical seat count A={failedBackSession.ActiveLogicalLeaseCount} B={replica.ActiveLogicalLeaseCount}, same id");
+                }
                 runtimeSessionId = failedBackSessionId;
                 await AssertSingleClusterWriteAndRealtimeEventAsync(
                     clusterBrowser,
@@ -1043,6 +1133,8 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     $"A alarm input after failback={alarmTagAfterFailback.ToJsonString()}; " +
                     $"A alarm rows={alarmRowsA}; B alarm rows={alarmRowsB}; " +
                     $"A active alarms={activeAlarmsAfterFailback.ToJsonString()}");
+                if (restartDuringFailback)
+                    Console.WriteLine($"MID423 effects before A={effectsBeforeFailbackA} B={effectsBeforeFailbackB}; after A={effectsAfterFailbackA} B={effectsAfterFailbackB}");
                 Assert.NotNull(activeAlarmAfterFailback);
                 Assert.Equal(1, activeAlarmAfterFailback!["state"]!.GetValue<int>());
                 Assert.Equal(248.5d, activeAlarmAfterFailback["lastValue"]!.GetValue<double>(), precision: 6);
@@ -2461,7 +2553,12 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     using var connectionCancellation = CancellationTokenSource.CreateLinkedTokenSource(_shutdown.Token);
                     var clientToTarget = client.GetStream().CopyToAsync(target.GetStream(), connectionCancellation.Token);
                     var targetToClient = target.GetStream().CopyToAsync(client.GetStream(), connectionCancellation.Token);
-                    await Task.WhenAny(clientToTarget, targetToClient);
+                    var finished = await Task.WhenAny(clientToTarget, targetToClient);
+                    if (finished == clientToTarget && finished.IsCompletedSuccessfully)
+                    {
+                        target.Client.Shutdown(SocketShutdown.Send);
+                        await targetToClient;
+                    }
                     connectionCancellation.Cancel();
                     client.Close();
                     target.Close();

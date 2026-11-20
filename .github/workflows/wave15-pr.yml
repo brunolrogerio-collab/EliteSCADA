@@ -781,7 +781,7 @@ jobs:
           echo "Serial independent-server HA-D2 test CPU: $cpu (allowed set: $allowed_cpus)"
           taskset --cpu-list "$cpu" env DOTNET_PROCESSOR_COUNT=1 dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
             --no-restore --configuration Release --verbosity minimal \
-            --filter 'FullyQualifiedName~RealApiProcesses_HaD2IndependentPostgreSqlServersPromotesAndFailsBack' \
+            --filter 'FullyQualifiedName~RealApiProcesses_HaD2IndependentPostgreSqlServersPromotesAndFailsBack|FullyQualifiedName~RealApiProcesses_HaD2RestartDuringFailback' \
             --logger 'trx;LogFileName=ha-d2-independent-postgres.trx' \
             --results-directory "$RUNNER_TEMP/ha-d2-independent-results"
       - name: Require distinct PostgreSQL server evidence (no empty or skipped test)
@@ -793,18 +793,21 @@ jobs:
           import xml.etree.ElementTree as ET
           from pathlib import Path
 
-          expected = "RealApiProcesses_HaD2IndependentPostgreSqlServersPromotesAndFailsBack"
+          expected = {
+              "RealApiProcesses_HaD2IndependentPostgreSqlServersPromotesAndFailsBack",
+              "RealApiProcesses_HaD2RestartDuringFailback",
+          }
           results = []
           for path in Path(os.environ["HA_D2_INDEPENDENT_RESULTS"]).glob("*.trx"):
               root = ET.parse(path).getroot()
               results.extend(element for element in root.iter() if element.tag.endswith("UnitTestResult"))
-          passed = [
-              result for result in results
-              if expected in result.attrib.get("testName", "") and result.attrib.get("outcome") == "Passed"
-          ]
-          if len(passed) != 1:
-              raise SystemExit(f"Expected one passing independent PostgreSQL server case, found {len(passed)}")
-          print("Passed HA-D2 automatic promotion and explicit failback using distinct PostgreSQL system identifiers.")
+          for name in expected:
+              passed = [result for result in results
+                        if result.attrib.get("testName", "").endswith("." + name)
+                        and result.attrib.get("outcome") == "Passed"]
+              if len(passed) != 1:
+                  raise SystemExit(f"Expected one passing {name} case, found {len(passed)}")
+          print("Passed independent-server HA-D2 failback and restart during transfer.")
           PY
       - name: Preserve independent-server HA-D2 test results
         if: always()

@@ -861,6 +861,9 @@ public sealed class RuntimeHaProtectionCoordinator
     private readonly Func<DateTimeOffset> _utcNow;
     private readonly IRuntimeHaProtectionOperationHistoryStore? _operationHistoryStore;
     private readonly ILogger<RuntimeHaProtectionCoordinator>? _logger;
+    // Serialize local transitions from the reference read through activation. A poll
+    // must not start a second takeover while a requested recovery restores the runtime.
+    private readonly SemaphoreSlim _transitionGate = new(1, 1);
     private RuntimeHaReferenceAuthority? _lastReference;
     private RuntimeHaStandbyPromotionWitness? _lastReadyWitness;
     private bool _localTakeoverCommitted;
@@ -1042,6 +1045,19 @@ public sealed class RuntimeHaProtectionCoordinator
     }
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
+    {
+        await _transitionGate.WaitAsync(cancellationToken);
+        try
+        {
+            await RefreshCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            _transitionGate.Release();
+        }
+    }
+
+    private async Task RefreshCoreAsync(CancellationToken cancellationToken)
     {
         if (!_options.Enabled)
             return;
@@ -1460,6 +1476,22 @@ public sealed class RuntimeHaProtectionCoordinator
         string kind,
         CancellationToken cancellationToken = default)
     {
+        await _transitionGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await ControlledSwitchCoreAsync(targetNodeId, kind, cancellationToken);
+        }
+        finally
+        {
+            _transitionGate.Release();
+        }
+    }
+
+    private async Task<RuntimeHaProtectionOperation> ControlledSwitchCoreAsync(
+        string targetNodeId,
+        string kind,
+        CancellationToken cancellationToken)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(targetNodeId);
         var now = _utcNow();
         var operation = AddOperation(kind, targetNodeId, now);
@@ -1594,7 +1626,7 @@ public sealed class RuntimeHaProtectionCoordinator
             _lastDatabaseFailoverAttemptUtc = now;
         }
 
-        var operation = await RequestControlledSwitchAsync(
+        var operation = await ControlledSwitchCoreAsync(
             target.NodeId,
             "database-failover",
             cancellationToken);
@@ -1635,6 +1667,21 @@ public sealed class RuntimeHaProtectionCoordinator
     public async Task<RuntimeHaProtectionOperation> RequestRecoveryAsync(
         string? targetNodeId = null,
         CancellationToken cancellationToken = default)
+    {
+        await _transitionGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await RecoveryCoreAsync(targetNodeId, cancellationToken);
+        }
+        finally
+        {
+            _transitionGate.Release();
+        }
+    }
+
+    private async Task<RuntimeHaProtectionOperation> RecoveryCoreAsync(
+        string? targetNodeId,
+        CancellationToken cancellationToken)
     {
         var localNodeId = _highAvailability.LocalNodeId!;
         var target = string.IsNullOrWhiteSpace(targetNodeId)
@@ -1998,6 +2045,7 @@ public sealed class RuntimeHaProtectionCoordinator
                         takeoverCancellation.Token);
                     if (!renewed.Accepted || renewed.Authority is null)
                     {
+                        _logger?.LogWarning("Takeover lease renewal rejected at epoch {Epoch}: {Reason}", authority.Epoch, renewed.ReasonCode);
                         renewalFailure = "takeover-lease-renewal-failed";
                         takeoverCancellation.Cancel();
                         return;

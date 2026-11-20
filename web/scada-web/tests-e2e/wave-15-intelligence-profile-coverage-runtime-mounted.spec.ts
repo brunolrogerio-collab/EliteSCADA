@@ -87,6 +87,16 @@ test('profile coverage is Runtime-only, explicitly queried and transient on inpu
   expect(queries).toEqual([]);
   await visual.getByRole('button', { name: 'Analyze coverage' }).click();
   await expect(visual.getByTestId('intelligence-profile-coverage-result')).toBeVisible();
+  const signalCard = visual.getByRole('article').first();
+  for (const palette of [
+    { theme: 'dark', background: 'rgb(23, 33, 43)', text: 'rgb(237, 243, 247)', label: 'rgb(158, 172, 184)' },
+    { theme: 'light', background: 'rgb(248, 250, 252)', text: 'rgb(21, 33, 43)', label: 'rgb(77, 95, 109)' }
+  ]) {
+    await page.evaluate(theme => { document.documentElement.dataset.appTheme = theme; }, palette.theme);
+    await expect(signalCard).toHaveCSS('background-color', palette.background);
+    await expect(signalCard.locator('dd').first()).toHaveCSS('color', palette.text);
+    await expect(signalCard.locator('dt').first()).toHaveCSS('color', palette.label);
+  }
   expect(queries).toHaveLength(1);
   expect(queries[0]).toMatchObject({ scopeKind: 0, scopeId, profileId, bucketSeconds: 900 });
   expect(Date.parse(queries[0].window.fromUtc)).toBeLessThan(Date.parse(queries[0].window.toUtc));

@@ -80,7 +80,9 @@ export function IntelligenceContextEligibilityPanel({ locale, scopeId, assignmen
     } catch (cause) {
       if (!current.signal.aborted && sequence.current === request) {
         const code = cause instanceof Error ? cause.message : 'NETWORK_ERROR';
-        setError(code.includes('OPERATING_CONTEXT') || code.includes('CONTEXT_ELIGIBILITY')
+        const contextChanged = code !== 'INTELLIGENCE_CONTEXT_ELIGIBILITY_WINDOW_TOO_DENSE' &&
+          (code.includes('OPERATING_CONTEXT') || code.includes('CONTEXT_ELIGIBILITY'));
+        setError(contextChanged
           ? text('O contexto ou suas medições mudaram. Atualize a página e confira as condições antes de consultar novamente.',
             'The context or its measurements changed. Refresh and review the conditions before querying again.',
             'El contexto o sus mediciones cambiaron. Actualice la página y revise las condiciones antes de consultar de nuevo.')

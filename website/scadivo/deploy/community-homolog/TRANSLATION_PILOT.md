@@ -22,6 +22,14 @@ Com as dependências de navegador instaladas, execute `node tests/browser/check-
 
 O teste local em `eafa0d12` usou os serviços nativos de criação e seleção de localizações. Os dois tópicos sintéticos passaram em português, inglês e espanhol (6/6), com links preservados. Os dados de teste foram revertidos ao fim da transação. A navegação autenticada e a publicação das traduções no domínio real ainda precisam ser verificadas.
 
+## Interface da Comunidade e página de perguntas frequentes
+
+Inclua o plugin [scadivo-interface-localization](plugins/scadivo-interface-localization/) na imagem da Comunidade. As traduções de interface corrigem os atalhos do chat, a seleção em massa de tópicos e os rótulos de acessibilidade da navegação e dos títulos. A página `/faq` usa a publicação localizada do tópico configurado como Regras, com retorno ao original quando a tradução estiver indisponível ou o usuário escolher ver o texto original. O plugin também localiza a descrição padrão em Sobre e resolve os nomes das medalhas Editor e Primeiro link pelo idioma atual, inclusive em notificações antigas.
+
+Valide com o tópico de Regras localizado e uma conta de teste confirmada no Portal. O [verificador móvel](../../tests/browser/check-interface-localizations.mjs) usa dois endereços de homologação no loopback e as variáveis `SCADIVO_TEST_USERNAME` e `SCADIVO_TEST_PASSWORD`. Use a conta sintética da equipe com uma notificação da medalha Primeiro link criada em português e as regras de teste com seis itens. O teste entra pelo Portal, usa um idioma de navegador diferente do perfil, abre a FAQ pelo menu e repete a conferência após recarregar.
+
+A publicação requer uma imagem que inclua o plugin e uma cópia protegida da imagem anterior. Depois da troca, limpe o cache anônimo e o cache de traduções pelo mecanismo nativo. A reversão restaura a imagem anterior. Os textos dos canais e as publicações internas continuam sendo conteúdo editável do fórum.
+
 ## Tradução automática de contribuições
 
 O motor nativo guarda traduções para reutilizar nas leituras. No commit em produção, a opção `ai_translation_backfill_limit_to_public_content` restringe a rotina de tradução de publicações a conteúdo público, incluindo a exclusão de mensagens privadas. A seleção de categorias por lista só está disponível em código posterior. Para um piloto de uma categoria, usar uma instância isolada com dados sintéticos ou validar uma versão com essa opção. Sem tradução de mensagens privadas, categorias restritas, chamados ou histórico nesse piloto.

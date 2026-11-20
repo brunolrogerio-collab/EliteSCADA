@@ -1031,7 +1031,6 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     Console.WriteLine($"MID423 explicit recovery HTTP={(int)recovery.StatusCode} reason={recovery.Body?["reasonCode"]} code={recovery.Body?["code"]}");
                     Assert.Equal(HttpStatusCode.Accepted, recovery.StatusCode);
                 }
-                await nodeB.LoginAsync();
                 effectsBeforeFailbackB = heldB;
             }
             else
@@ -1052,6 +1051,18 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     topology["authorityEpoch"]!.GetValue<long>() > promotedEpoch,
                 TimeSpan.FromSeconds(60),
                 "the authenticated, licensed failback did not return authority to the preferred node");
+            if (restartDuringFailback)
+            {
+                var login = new JsonObject { ["username"] = AdminUsername, ["password"] = AdminPassword };
+                await WaitUntilAsync(async () =>
+                {
+                    var response = await nodeB.PostRawAsync("/api/auth/login", login);
+                    if (response.StatusCode == HttpStatusCode.ServiceUnavailable &&
+                        response.Body?["reasonCode"]?.GetValue<string>() == "active-not-established") return false;
+                    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                    return true;
+                }, TimeSpan.FromSeconds(20), "B did not restore its authenticated route after A recovered");
+            }
             var failedBackB = await WaitForHaTopologyAsync(
                 nodeB,
                 topology => IsEffectiveActive(topology, "node-a"),

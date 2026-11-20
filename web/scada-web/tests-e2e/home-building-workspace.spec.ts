@@ -127,7 +127,16 @@ async function installApi(page: Page, previewCanApply = true, initialPackageView
   await page.route(`**/api/engineering/data-sources/${sourceId}/driver-tools/discover`, async route => {
     discoveryCalls++;
     expect(route.request().method()).toBe('POST');
-    await route.fulfill({ json: [discoveryCandidate] });
+    const body = route.request().postDataJSON();
+    if (body.parameters?.selectedEntityIds === 'light.kitchen') {
+      await route.fulfill({ json: [discoveryCandidate] });
+      return;
+    }
+    expect(body.parameters?.selectedEntityIds).toBe('light.missing');
+    await route.fulfill({ json: [{
+      candidateId: 'ha-selection-empty', stableIdentity: 'unresolved', displayName: 'Selected entities',
+      issues: [{ code: 'HA_ENTITY_NOT_FOUND', severity: 'warning', message: 'The selected entity is not available.' }]
+    }] });
   });
   await page.route('**/api/engineering/import/json/preview', async route => {
     previewBody = await route.request().postDataJSON();
@@ -170,6 +179,8 @@ test('device discovery stays read-only until canonical Preview succeeds, then ap
   await page.goto('/engineering/homeBuilding');
   await page.getByTestId('home-building-workspace').waitFor();
   await page.getByTestId('home-building-tab-devices').click();
+  await expect(page.getByTestId('home-building-discover')).toBeDisabled();
+  await page.getByTestId('home-building-entity-ids').fill(' light.kitchen\nlight.kitchen ');
   await page.getByTestId('home-building-discover').click();
   const candidateCard = page.getByTestId('home-building-candidate-ha-candidate-kitchen-light');
   await expect(candidateCard).toBeVisible();
@@ -219,6 +230,8 @@ test('invalid device Preview is visible and blocks Apply without changing Engine
   const calls = await installApi(page, false);
   await page.goto('/engineering/homeBuilding');
   await page.getByTestId('home-building-tab-devices').click();
+  await expect(page.getByTestId('home-building-discover')).toBeDisabled();
+  await page.getByTestId('home-building-entity-ids').fill(' light.kitchen\nlight.kitchen ');
   await page.getByTestId('home-building-discover').click();
   await page.getByTestId('home-building-candidate-ha-candidate-kitchen-light').click();
   await page.getByTestId('home-building-device-preview').click();
@@ -329,4 +342,67 @@ test('device candidate identities are scoped by integration and stable device, p
   expect(refreshed.commands).toHaveLength(3);
   expect(refreshed.commands).toContainEqual(manualCommand);
   expect(refreshed.tags?.find(tag => tag.path === 'HomeAssistant/DeviceB/temperature')?.metadata?.['homeBuilding.stableDeviceIdentity']).toBe('stable-device-b');
+});
+
+test('unavailable Home Assistant selection produces no candidate to apply', async ({ page }) => {
+  const calls = await installApi(page);
+  await page.goto('/engineering/homeBuilding');
+  await page.getByTestId('home-building-tab-devices').click();
+  await expect(page.getByTestId('home-building-discover')).toBeDisabled();
+  await page.getByTestId('home-building-entity-ids').fill('light.missing');
+  await page.getByTestId('home-building-discover').click();
+  await page.getByTestId('home-building-candidate-ha-selection-empty').click();
+  await expect(page.getByText('The selected entity is not available.')).toBeVisible();
+  await expect(page.getByTestId('home-building-device-preview')).toHaveCount(0);
+  expect(calls.applyCalls).toBe(0);
+});
+
+test('Zigbee2MQTT prepares only the selected IEEE address before Preview and Apply', async ({ page }) => {
+  const selectedIeee = '0x00124b0000000001';
+  const otherIeee = '0x00124b0000000002';
+  const inventory = [selectedIeee, otherIeee].map(ieee => ({
+    candidateId: 'z2m-' + ieee, stableIdentity: ieee, displayName: 'Device ' + ieee,
+    metadata: { ieeeAddress: ieee }
+  }));
+  const calls = await installApi(page, true, { ...packageView, dataSources: [inventoryPackage.dataSources[1]] });
+  await page.route('**/api/engineering/data-source-types', route => route.fulfill({ json: {
+    dataSourceTypes: [catalog.dataSourceTypes[0], {
+      ...catalog.dataSourceTypes[0], typeKey: 'zigbee2mqtt', tagBindingSchemaId: 'elitescada.driver.zigbee2mqtt'
+    }]
+  } }));
+  let discoveryCalls = 0;
+  await page.route('**/api/engineering/data-sources/' + secondSourceId + '/driver-tools/discover', async route => {
+    discoveryCalls++;
+    const body = route.request().postDataJSON();
+    if (discoveryCalls === 1) {
+      expect(body.parameters?.selectedIeeeAddresses).toBeUndefined();
+      return route.fulfill({ json: inventory });
+    }
+    expect(body.parameters).toEqual({ selectedIeeeAddresses: selectedIeee });
+    const item = discoveryCandidate.materialization;
+    return route.fulfill({ json: [{
+      ...inventory[0],
+      materialization: {
+        equipment: { ...item.equipment, path: 'Zigbee/selected', name: 'Selected device', stableDeviceIdentity: selectedIeee, capabilities: [] },
+        tags: [{ ...item.tags[0], path: 'Zigbee/selected/state', portableAddress: selectedIeee + ':state' }],
+        commands: []
+      }
+    }] });
+  });
+  await page.goto('/engineering/homeBuilding');
+  await page.getByTestId('home-building-tab-devices').click();
+  await page.getByTestId('home-building-discover').click();
+  await page.getByTestId('home-building-candidate-z2m-' + selectedIeee).click();
+  await expect(page.getByTestId('home-building-device-preview')).toHaveCount(0);
+  expect(calls.applyCalls).toBe(0);
+  await page.getByTestId('home-building-prepare-zigbee').click();
+  await page.getByTestId('home-building-device-preview').click();
+  await expect(page.getByTestId('home-building-preview-summary')).toContainText('Preview is valid');
+  expect(calls.previewBody?.equipment).toHaveLength(1);
+  expect(calls.previewBody?.equipment[0].sourceBindings[0].stableDeviceIdentity).toBe(selectedIeee);
+  expect(calls.previewBody?.tags).toHaveLength(1);
+  expect(calls.applyCalls).toBe(0);
+  await page.getByTestId('home-building-device-apply').click();
+  await expect.poll(() => calls.applyCalls).toBe(1);
+  expect(discoveryCalls).toBe(2);
 });

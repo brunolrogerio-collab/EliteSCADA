@@ -278,6 +278,21 @@ public sealed class HomeAssistantMappingTests
         Assert.Equal("vault://ha/token", resolver.Request.Reference);
         Assert.True(fake.Authenticated);
         Assert.True(fake.TokenLength > 0);
+
+        foreach (var selection in new[] { "", "switch.missing" })
+        {
+            var unavailable = new List<DriverDiscoveryCandidate>();
+            var selectionRequest = request with
+            {
+                Parameters = new Dictionary<string, string>
+                {
+                    [HomeAssistantEngineeringProvider.SelectedEntityIdsParameter] = selection
+                }
+            };
+            await foreach (var candidate in provider.DiscoverAsync(selectionRequest))
+                unavailable.Add(candidate);
+            Assert.Null(Assert.Single(unavailable).Materialization);
+        }
     }
 
     [Fact]

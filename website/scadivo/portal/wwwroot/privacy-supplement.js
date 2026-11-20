@@ -3,7 +3,9 @@
 const portalSupplement = (() => {
   const publicPath = '/privacy/supplement';
   const adminPath = '/admin/privacy/supplement';
-  const filename = 'scadivo-copia-complementar.json';
+  const filename = 'scadivo-copia-complementar';
+  const jsonType = 'application/json';
+  const zipType = 'application/zip';
   const contact = () => h('a', { href: '/contato?area=contato&subject=privacy&lang=' + state.lang },
     tr('Contato → Privacidade', 'Contact → Privacy', 'Contacto → Privacidad'));
 
@@ -21,7 +23,10 @@ const portalSupplement = (() => {
         'Usa el navegador en el que confirmaste la solicitud. La copia solo se puede descargar una vez.')));
     const action = form([], title, async () => {
       if (verification) await api(publicPath + '/verify', 'POST', { token });
-      else saveDownloadedFile(await api(publicPath + '/download', 'POST', { token }, true), filename);
+      else {
+        const copy = await api(publicPath + '/download', 'POST', { token }, true);
+        saveDownloadedFile(copy, filename + (copy.type === zipType ? '.zip' : '.json'));
+      }
       action.remove();
       contents.append(notice(verification
         ? tr('Pedido confirmado. Aguarde a liberação da cópia pelo atendimento.', 'Request confirmed. Support will contact you when your copy is ready.', 'Solicitud confirmada. Soporte te avisará cuando la copia esté lista.')
@@ -60,8 +65,11 @@ const portalSupplement = (() => {
         const actions = [];
         if (copy.status === 'verified') {
           actions.push(form([
-            field(tr('Cópia complementar em JSON', 'Supplemental copy in JSON', 'Copia complementaria en JSON'),
-              h('input', { type: 'file', name: 'archive', accept: '.json,application/json', required: true })),
+            field(tr('Arquivo da cópia complementar', 'Supplemental copy file', 'Archivo de la copia complementaria'),
+              h('input', { type: 'file', name: 'archive', accept: '.zip,.json,application/zip,application/json', required: true }),
+              tr('Para incluir anexos, envie um ZIP de até 32 MB com as mensagens revisadas e seus anexos. Para dados sem anexos, também é possível enviar JSON de até 4 MB.',
+                'For attachments, upload a ZIP up to 32 MB with the reviewed messages and their attachments. Data without attachments can also be uploaded as JSON up to 4 MB.',
+                'Para incluir adjuntos, envía un ZIP de hasta 32 MB con los mensajes revisados y sus adjuntos. Los datos sin adjuntos también se pueden enviar como JSON de hasta 4 MB.')),
             field(tr('Revisei a cópia e confirmei que ela contém apenas dados deste titular.',
               'I reviewed the copy and confirmed that it contains only this person’s data.',
               'Revisé la copia y confirmé que contiene solo los datos de esta persona.'),
@@ -69,13 +77,17 @@ const portalSupplement = (() => {
           ], tr('Liberar cópia', 'Release copy', 'Habilitar copia'), async (data, node) => {
             const file = node.elements.archive.files[0];
             if (!data.reviewed) throw new Error(errorText('privacy-check-required'));
-            if (!file || file.size < 1 || file.size > 4 * 1024 * 1024) throw new Error(errorText('privacy-copy-invalid-file'));
+            const extension = file?.name.toLowerCase().split('.').pop();
+            if (!file?.size || !['zip', 'json'].includes(extension)) throw new Error(errorText('privacy-copy-invalid-file'));
+            const zip = extension === 'zip';
+            if (file.size > (zip ? 32 : 4) * 1024 * 1024) throw new Error(errorText('privacy-copy-file-too-large'));
             const upload = await fetch('/portal/api' + adminPath + '/upload?id=' + encodeURIComponent(copy.id), {
               method: 'POST', credentials: 'same-origin', body: file,
-              headers: { 'Content-Type': 'application/json', 'X-Privacy-Reviewed': 'yes', 'X-CSRF-TOKEN': state.session.csrfToken }
+              headers: { 'Content-Type': zip ? zipType : jsonType, 'X-Privacy-Reviewed': 'yes', 'X-CSRF-TOKEN': state.session.csrfToken }
             });
             const payload = await upload.json().catch(() => ({}));
-            if (!upload.ok) throw new Error(errorText(payload.error));
+            if (!upload.ok) throw new Error(upload.status === 429 ? errorText('privacy-copy-busy') :
+              errorText(upload.status === 413 ? 'privacy-copy-file-too-large' : payload.error));
             node.reset();
             response(payload.url);
             await refresh();

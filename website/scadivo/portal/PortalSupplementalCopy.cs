@@ -1,7 +1,9 @@
+using System.IO.Compression;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.RateLimiting;
@@ -31,10 +33,16 @@ public sealed record SupplementalCopyToken(string? Token);
 public sealed class PortalSupplementalCopy(PortalDb db, IDataProtectionProvider protection,
     IConfiguration configuration, IWebHostEnvironment environment, TimeProvider clock)
 {
-    private const int MaxArchiveSize = 4 * 1024 * 1024;
+    private const int MaxJsonSize = 4 * 1024 * 1024;
+    private const int MaxZipSize = 32 * 1024 * 1024;
+    private const long MaxExpandedSize = 128 * 1024 * 1024;
+    private const string ZipContentType = "application/zip";
+    private const string JsonContentType = "application/json";
+    private const string Filename = "scadivo-copia-complementar";
     private const string PublicPath = "/api/privacy/supplement";
     private const string AdminPath = "/api/admin/privacy/supplement";
     private const string CookiePath = "/portal" + PublicPath;
+    private static readonly ConcurrencyLimiter Transfers = new(new ConcurrencyLimiterOptions { PermitLimit = 2, QueueLimit = 0 });
 
     public static bool IsEnabled(IConfiguration config) => config.GetValue<bool>("Portal:SupplementalCopyEnabled");
 
@@ -52,14 +60,26 @@ public sealed class PortalSupplementalCopy(PortalDb db, IDataProtectionProvider 
         admin.MapPost("", (CreateSupplementalCopyInput input, HttpContext http, PortalSupplementalCopy copies, CancellationToken token) =>
             copies.CreateAsync(input, http, token));
         admin.MapPost("/upload", (Guid id, HttpContext http, PortalSupplementalCopy copies, CancellationToken token) =>
-            copies.ReleaseAsync(id, http, token));
+            copies.ReleaseAsync(id, http, token)).AddEndpointFilter(LimitTransfers);
         admin.MapDelete("/{id:guid}", (Guid id, HttpContext http, PortalSupplementalCopy copies, CancellationToken token) =>
             copies.RevokeAsync(id, http, token));
         var claim = endpoints.MapGroup(PublicPath).RequireRateLimiting("auth");
         claim.MapPost("/verify", (SupplementalCopyToken input, HttpContext http, PortalSupplementalCopy copies, CancellationToken token) =>
             copies.VerifyAsync(input, http, token));
         claim.MapPost("/download", (SupplementalCopyToken input, HttpContext http, PortalSupplementalCopy copies, CancellationToken token) =>
-            copies.DownloadAsync(input, http, token));
+            copies.DownloadAsync(input, http, token)).AddEndpointFilter(LimitTransfers);
+    }
+
+    private static ValueTask<object?> LimitTransfers(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        var lease = Transfers.AttemptAcquire(1);
+        if (lease.IsAcquired)
+        {
+            context.HttpContext.Response.RegisterForDispose(lease);
+            return next(context);
+        }
+        lease.Dispose();
+        return ValueTask.FromResult<object?>(Results.StatusCode(StatusCodes.Status429TooManyRequests));
     }
 
     private async Task<IResult> ListAsync(CancellationToken token)
@@ -121,22 +141,21 @@ public sealed class PortalSupplementalCopy(PortalDb db, IDataProtectionProvider 
         var request = http.Request;
         if (request.Headers["X-Privacy-Reviewed"] != "yes")
             return Results.BadRequest(new { error = "privacy-check-required" });
-        if (request.ContentLength is not (> 0 and <= MaxArchiveSize) ||
-            !string.Equals(request.ContentType, "application/json", StringComparison.OrdinalIgnoreCase))
-            return Results.BadRequest(new { error = "privacy-copy-invalid-file" });
+        var mediaType = request.ContentType;
+        var zip = string.Equals(mediaType, ZipContentType, StringComparison.OrdinalIgnoreCase);
+        if ((!zip && !string.Equals(mediaType, JsonContentType, StringComparison.OrdinalIgnoreCase)) ||
+            request.ContentLength is not > 0)
+            return InvalidArchive();
+        var maxSize = zip ? MaxZipSize : MaxJsonSize;
+        if (request.ContentLength > maxSize)
+            return Results.Json(new { error = "privacy-copy-file-too-large" }, statusCode: StatusCodes.Status413PayloadTooLarge);
         if (!await Active(id, "verified", clock.GetUtcNow()).AnyAsync(token)) return Unavailable();
 
         var limit = http.Features.Get<IHttpMaxRequestBodySizeFeature>();
-        if (limit is { IsReadOnly: false }) limit.MaxRequestBodySize = MaxArchiveSize;
+        if (limit is { IsReadOnly: false }) limit.MaxRequestBodySize = maxSize;
         var archive = new byte[(int)request.ContentLength.Value];
         await request.Body.ReadExactlyAsync(archive, token);
-        try
-        {
-            using var json = JsonDocument.Parse(archive);
-            if (json.RootElement.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
-                return Results.BadRequest(new { error = "privacy-copy-invalid-file" });
-        }
-        catch (JsonException) { return Results.BadRequest(new { error = "privacy-copy-invalid-file" }); }
+        if (!(zip ? await ValidZipAsync(archive, token) : ValidJson(archive))) return InvalidArchive();
 
         var now = clock.GetUtcNow();
         var secret = GenerateSecret();
@@ -177,7 +196,61 @@ public sealed class PortalSupplementalCopy(PortalDb db, IDataProtectionProvider 
         await db.SaveChangesAsync(token);
         await transaction.CommitAsync(token);
         http.Response.Cookies.Delete(BrowserCookieName(id), BrowserCookie(http));
-        return Results.File(archive, "application/json; charset=utf-8", "scadivo-copia-complementar.json");
+        return HasZipHeader(archive)
+            ? Results.File(archive, ZipContentType, Filename + ".zip")
+            : Results.File(archive, JsonContentType + "; charset=utf-8", Filename + ".json");
+    }
+
+    private static IResult InvalidArchive() => Results.BadRequest(new { error = "privacy-copy-invalid-file" });
+
+    private static bool ValidJson(byte[] archive)
+    {
+        try
+        {
+            using var json = JsonDocument.Parse(archive);
+            return json.RootElement.ValueKind is JsonValueKind.Object or JsonValueKind.Array;
+        }
+        catch (JsonException) { return false; }
+    }
+
+    // Existing protected JSON packages remain readable. The validated file format is inferred from its decrypted bytes.
+    private static bool HasZipHeader(ReadOnlySpan<byte> archive) => archive.StartsWith("PK\u0003\u0004"u8);
+
+    private static async Task<bool> ValidZipAsync(byte[] archive, CancellationToken token)
+    {
+        if (!HasZipHeader(archive)) return false;
+        try
+        {
+            using var zip = new ZipArchive(new MemoryStream(archive, writable: false), ZipArchiveMode.Read);
+            if (zip.Entries.Count is 0 or > 1024) return false;
+            var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var buffer = new byte[64 * 1024];
+            long remaining = MaxExpandedSize;
+            var hasFile = false;
+            foreach (var entry in zip.Entries)
+            {
+                var path = entry.FullName.TrimEnd('/');
+                if (!paths.Add(path) || path.Any(ch => char.IsControl(ch) || ch is '\\' or ':') ||
+                    path.Split('/').Any(part => part is "" or "." or ".." || part.EndsWith(' ') || part.EndsWith('.')) ||
+                    ((entry.ExternalAttributes >> 16) & 0xf000) == 0xa000 ||
+                    entry.Length < 0 || entry.Length > remaining) return false;
+                var length = entry.Length;
+                remaining -= length;
+                var directory = entry.FullName.EndsWith('/');
+                if (directory && length != 0) return false;
+                hasFile |= !directory;
+                using var data = entry.Open();
+                while (length > 0)
+                {
+                    var chunk = (int)Math.Min(length, buffer.Length);
+                    await data.ReadExactlyAsync(buffer.AsMemory(0, chunk), token);
+                    length -= chunk;
+                }
+                if (await data.ReadAsync(buffer.AsMemory(0, 1), token) != 0) return false;
+            }
+            return hasFile;
+        }
+        catch (Exception error) when (error is IOException or InvalidDataException or NotSupportedException) { return false; }
     }
 
     private async Task<IResult> RevokeAsync(Guid id, HttpContext http, CancellationToken token)

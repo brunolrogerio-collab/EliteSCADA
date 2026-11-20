@@ -177,7 +177,12 @@ function errorText(code) {
       'El enlace no está disponible en este navegador. Si usaste este navegador para confirmar, contacta con soporte.'),
     'privacy-check-required': tr('Confira o canal ou o conteúdo antes de continuar.', 'Verify the channel or review the copy before proceeding.', 'Verifica el canal o revisa la copia antes de continuar.'),
     'privacy-reference-not-found': tr('Protocolo de contato não encontrado.', 'Contact reference not found.', 'No se encontró la referencia de contacto.'),
-    'privacy-copy-invalid-file': tr('Selecione um arquivo JSON válido de até 4 MB.', 'Select a valid JSON file up to 4 MB.', 'Selecciona un archivo JSON válido de hasta 4 MB.'),
+    'privacy-copy-invalid-file': tr('Use um JSON válido ou um ZIP com arquivos e nomes válidos. Confira se o ZIP contém até 1.024 itens e 128 MB após a extração.',
+      'Use valid JSON or a ZIP with valid files and names. Check that the ZIP contains up to 1,024 entries and 128 MB after extraction.',
+      'Usa un JSON válido o un ZIP con archivos y nombres válidos. Comprueba que el ZIP tenga hasta 1.024 elementos y 128 MB al extraerlo.'),
+    'privacy-copy-file-too-large': tr('O limite é de 32 MB para ZIP e 4 MB para JSON.', 'The limit is 32 MB for ZIP and 4 MB for JSON.', 'El límite es de 32 MB para ZIP y 4 MB para JSON.'),
+    'privacy-copy-busy': tr('O Portal está processando outras transferências. Tente novamente em instantes.',
+      'The Portal is processing other transfers. Try again shortly.', 'El Portal está procesando otras transferencias. Inténtalo en unos instantes.'),
     'invalid-indicators-period': tr('Selecione um período de até 90 dias, sem datas futuras.', 'Choose a period of up to 90 days, with no future dates.', 'Elige un periodo de hasta 90 días, sin fechas futuras.')
   };
   return errors[code] || tr('Não foi possível concluir. Tente novamente.', 'Unable to complete. Please try again.');

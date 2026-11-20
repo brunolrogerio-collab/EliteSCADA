@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
@@ -46,6 +47,22 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
         const string verify = "/privacy/supplement/verify";
         const string download = "/privacy/supplement/download";
         const string archive = """{"records":[{"message":"synthetic original message"}]}""";
+        const string attachmentPath = "anexos/relatorio.bin";
+        var attachment = RandomNumberGenerator.GetBytes(6 * 1024 * 1024);
+        byte[] Pack(string path, byte[] content)
+        {
+            using var output = new MemoryStream();
+            using (var zip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                using (var messages = new StreamWriter(zip.CreateEntry("mensagens.json").Open()))
+                    messages.Write(archive);
+                using var file = zip.CreateEntry(path, CompressionLevel.NoCompression).Open();
+                file.Write(content);
+            }
+            return output.ToArray();
+        }
+        var package = Pack(attachmentPath, attachment);
+        Assert.True(package.Length > 4 * 1024 * 1024);
         try
         {
             await using var factory = Factory(configuration).WithWebHostBuilder(builder => builder.ConfigureServices(services =>
@@ -77,24 +94,24 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 var record = await owner.Send(admin, HttpMethod.Post, evidence);
                 return (record.GetProperty("id").GetGuid(), TokenFrom(record));
             }
-            async Task<HttpResponseMessage> Upload(Guid id, string value)
+            async Task<HttpResponseMessage> Upload(Guid id, byte[] bytes, string mediaType = "application/json")
             {
                 using var request = new HttpRequestMessage(HttpMethod.Post, "api" + admin + $"/upload?id={id}");
-                request.Content = new ByteArrayContent(Encoding.UTF8.GetBytes(value));
-                request.Content.Headers.ContentType = new("application/json");
+                request.Content = new ByteArrayContent(bytes);
+                request.Content.Headers.ContentType = new(mediaType);
                 request.Headers.Add("X-CSRF-TOKEN", owner.Token);
                 request.Headers.Add("X-Privacy-Reviewed", "yes");
                 return await owner.Client.SendAsync(request);
             }
-            async Task<string> Release(Guid id)
+            async Task<string> Release(Guid id, byte[]? copy = null)
             {
-                using var response = await Upload(id, archive);
+                using var response = copy is null ? await Upload(id, Encoding.UTF8.GetBytes(archive)) : await Upload(id, copy, "application/zip");
                 Assert.Equal(HttpStatusCode.OK, response.StatusCode);
                 return TokenFrom(await response.Content.ReadFromJsonAsync<JsonElement>());
             }
 
             var (id, challenge) = await Create();
-            using var premature = await Upload(id, archive);
+            using var premature = await Upload(id, package, "application/zip");
             Assert.Equal(HttpStatusCode.NotFound, premature.StatusCode);
             using var unprotected = await claimantClient.PostAsJsonAsync("api" + verify, new { token = challenge });
             Assert.Equal(HttpStatusCode.BadRequest, unprotected.StatusCode);
@@ -106,12 +123,18 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Contains("samesite=strict", receipt);
             using var replay = await stranger.Raw(verify, HttpMethod.Post, new { token = challenge });
             Assert.Equal(HttpStatusCode.NotFound, replay.StatusCode);
-            using var malformed = await Upload(id, "not valid JSON");
+            using var malformed = await Upload(id, "not valid JSON"u8.ToArray());
             Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
-            var downloadToken = await Release(id);
+            using var truncated = await Upload(id, package[..^65], "application/zip");
+            Assert.Equal(HttpStatusCode.BadRequest, truncated.StatusCode);
+            using var unsafePath = await Upload(id, Pack("../outside.bin", [1, 2, 3]), "application/zip");
+            Assert.Equal(HttpStatusCode.BadRequest, unsafePath.StatusCode);
+            using var oversizedJson = await Upload(id, package);
+            Assert.Equal(HttpStatusCode.RequestEntityTooLarge, oversizedJson.StatusCode);
+            var downloadToken = await Release(id, package);
             var stored = await db.SupplementalCopies.AsNoTracking().SingleAsync(row => row.Id == id);
             Assert.NotNull(stored.ProtectedArchive);
-            Assert.DoesNotContain("synthetic original message", Encoding.UTF8.GetString(stored.ProtectedArchive), StringComparison.Ordinal);
+            Assert.False(stored.ProtectedArchive.AsSpan().StartsWith(package));
             Assert.Null(stored.ChallengeHash);
             Assert.DoesNotContain(stored.DownloadHash!, downloadToken, StringComparison.Ordinal);
             using var wrongBrowser = await stranger.Raw(download, HttpMethod.Post, new { token = downloadToken });
@@ -125,7 +148,17 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Equal(HttpStatusCode.NotFound, alreadyUsed.StatusCode);
             Assert.True(success.Headers.CacheControl!.NoStore);
             Assert.Equal("attachment", success.Content.Headers.ContentDisposition!.DispositionType);
-            Assert.Equal(archive, await success.Content.ReadAsStringAsync());
+            Assert.Equal("application/zip", success.Content.Headers.ContentType!.MediaType);
+            Assert.Equal("scadivo-copia-complementar.zip", success.Content.Headers.ContentDisposition.FileName);
+            var received = await success.Content.ReadAsByteArrayAsync();
+            Assert.Equal(SHA256.HashData(package), SHA256.HashData(received));
+            using (var unpacked = new ZipArchive(new MemoryStream(received)))
+            {
+                using var reader = new StreamReader(unpacked.GetEntry("mensagens.json")!.Open());
+                Assert.Equal(archive, await reader.ReadToEndAsync());
+                using var attachmentStream = unpacked.GetEntry(attachmentPath)!.Open();
+                Assert.Equal(SHA256.HashData(attachment), await SHA256.HashDataAsync(attachmentStream));
+            }
             var consumed = await db.SupplementalCopies.AsNoTracking().SingleAsync(row => row.Id == id);
             Assert.Null(consumed.ProtectedArchive);
             Assert.Null(consumed.BrowserHash);
@@ -145,6 +178,15 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             using var revokedAccess = await claimant.Raw(download, HttpMethod.Post, new { token = revokedDownload });
             Assert.Equal(HttpStatusCode.NotFound, revokedAccess.StatusCode);
             Assert.Null(await db.SupplementalCopies.Where(row => row.Id == revocable).Select(row => row.ProtectedArchive).SingleAsync());
+
+            var (legacy, legacyChallenge) = await Create();
+            using var verifiedForJson = await claimant.Raw(verify, HttpMethod.Post, new { token = legacyChallenge });
+            Assert.Equal(HttpStatusCode.OK, verifiedForJson.StatusCode);
+            var jsonDownload = await Release(legacy);
+            using var jsonResponse = await claimant.Raw(download, HttpMethod.Post, new { token = jsonDownload });
+            Assert.Equal(HttpStatusCode.OK, jsonResponse.StatusCode);
+            Assert.Equal("application/json", jsonResponse.Content.Headers.ContentType!.MediaType);
+            Assert.Equal(archive, await jsonResponse.Content.ReadAsStringAsync());
 
             var (_, staleChallenge) = await Create();
             clock.UtcNow = clock.UtcNow.AddHours(25);

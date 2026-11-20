@@ -426,6 +426,14 @@ Se esses itens estão corretos, examine a captura no Historian, a qualidade dos 
 
 Não mude o significado de um sinal nem amplie limites só para fazer aparecer um resultado. As análises ajudam a investigar. Elas não confirmam defeito nem antecipam falhas com validade de campo ainda não demonstrada.
 
+### Tolerância entre horários no desvio contextual
+
+TAGs coletados a cada segundo podem ter horários com milissegundos diferentes. Na tela Runtime de desvio contextual, escolha primeiro a **Base de horário** e depois a **Tolerância entre horários**: 10 segundos (inicial), 30, 60 ou Mesmo horário (0 s).
+
+**Horário de origem sincronizado** usa a hora informada pela fonte e exige evidência explícita de sincronização. **Horário de registro no SCADIVO** usa quando o Historian recebeu cada leitura. Essa segunda opção permite analisar TAGs sem horário confiável do dispositivo, mas a chegada pode incluir atraso de comunicação ou processamento; ela não revela o instante exato em que o equipamento foi medido. O SCADIVO não troca de base automaticamente, não transforma horário de registro em horário de origem e não altera o histórico.
+
+Em ambas as bases, o SCADIVO procura leituras válidas próximas ao primeiro sinal-alvo. A diferença entre o primeiro e o último horário do conjunto deve caber na tolerância. Uma leitura não é reutilizada; empates e conjuntos incompletos são descartados. Não há interpolação nem preenchimento de valores ausentes. Comece pela menor tolerância adequada à coleta e à velocidade do processo: um minuto pode esconder mudanças rápidas de uma bomba. **Zero conjuntos significa dados insuficientes, não ausência de desvio.** Mudar a base ou a tolerância limpa o resultado; clique em Analisar novamente. A escolha vale para a consulta atual e não modifica o histórico.
+
 #### Exemplos reais: consultas e dashboards
 
 As legendas indicam se a captura usa API simulada ou API/PostgreSQL reais. Todos os dados apresentados são sintéticos, sem validação de campo.
@@ -511,11 +519,3 @@ As legendas indicam se a captura usa API simulada ou API/PostgreSQL reais. Todos
 ![Atalho do conjunto fixo e retorno ao compositor principal, na interface real.](../../evidence/intelligence-791-final/language791-fixed-shortcut.png)
 
 [Abrir este guia na Ajuda instalada](/help?topic=intelligence.analysis-guide)
-
-## Tolerância entre horários no desvio contextual
-
-TAGs coletados a cada segundo podem ter horários com milissegundos diferentes. Na tela Runtime de desvio contextual, escolha primeiro a **Base de horário** e depois a **Tolerância entre horários**: 10 segundos (inicial), 30, 60 ou Mesmo horário (0 s).
-
-**Horário de origem sincronizado** usa a hora informada pela fonte e exige evidência explícita de sincronização. **Horário de registro no SCADIVO** usa quando o Historian recebeu cada leitura. Essa segunda opção permite analisar TAGs sem horário confiável do dispositivo, mas a chegada pode incluir atraso de comunicação ou processamento; ela não revela o instante exato em que o equipamento foi medido. O SCADIVO não troca de base automaticamente, não transforma horário de registro em horário de origem e não altera o histórico.
-
-Em ambas as bases, o SCADIVO procura leituras válidas próximas ao primeiro sinal-alvo. A diferença entre o primeiro e o último horário do conjunto deve caber na tolerância. Uma leitura não é reutilizada; empates e conjuntos incompletos são descartados. Não há interpolação nem preenchimento de valores ausentes. Comece pela menor tolerância adequada à coleta e à velocidade do processo: um minuto pode esconder mudanças rápidas de uma bomba. **Zero conjuntos significa dados insuficientes, não ausência de desvio.** Mudar a base ou a tolerância limpa o resultado; clique em Analisar novamente. A escolha vale para a consulta atual e não modifica o histórico.

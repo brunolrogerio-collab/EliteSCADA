@@ -478,12 +478,14 @@ test('system tasks are discoverable and their field references stay localized', 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('help-equipment-mobile.png') });
   await openTopic('intelligence.activation');
-  await expect(page.locator('article')).toContainText('Restaurar a concessão não reinicia o trabalho silenciosamente');
+  await expect(page.locator('article')).toContainText('restaurá-la não reaproveita a ativação anterior');
+  await expect(page.locator('article')).toContainText('a ativação salva pode ser recuperada sem novo clique');
   await page.locator('article section').first().scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('help-intelligence-activation-mobile.png') });
   await openTopic('intelligence.analysis-guide');
-  await expect(page.locator('article')).toContainText('limite inferior ≤ valor < limite superior');
+  await expect(page.locator('article')).toContainText('mínimo ≤ leitura < máximo');
+  await expect(page.locator('article')).toContainText('Horário de registro no SCADIVO');
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: testInfo.outputPath('help-intelligence-analysis-desktop.png'), fullPage: true });
@@ -545,7 +547,8 @@ test('alarm and operational event guides teach fields, state paths and emission 
   await page.screenshot({ path: testInfo.outputPath('help-operational-event-fields.png'), fullPage: true });
   await page.goto('/help?topic=alarms.runtime-operation');
   await expect(article).toContainText('o item deixa a lista ativa após o ACK');
-  await expect(article).toContainText('não reconhece, desabilita ou coloca em shelving');
+  await expect(article).toContainText('Silenciar sons também é local. Nenhuma dessas opções reconhece ou altera o alarme.');
+  await expect(article).toContainText('a supressão operacional explicada acima mantém o alarme visível com seu estado real.');
   await page.setViewportSize({ width: 390, height: 844 });
   await article.getByRole('rowheader', { name: 'Returned', exact: true }).scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

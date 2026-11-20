@@ -147,28 +147,42 @@ public sealed class EspHomeDeviceCapabilitiesTests
         using var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         var endpoint = (IPEndPoint)listener.LocalEndpoint;
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+        var wrongFrameSent = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var peerMayClose = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var peer = Task.Run(async () =>
+        async Task ServeAsync()
         {
-            using var socket = await listener.AcceptTcpClientAsync(timeout.Token);
+            using var socket = await listener.AcceptTcpClientAsync(deadline.Token);
             await using var stream = socket.GetStream();
 
-            Assert.Equal((ushort)1, (await ReadFrameAsync(stream, timeout.Token)).Type);
-            await WriteFrameAsync(stream, 2, HelloPayload(15), timeout.Token);
-            Assert.Equal((ushort)9, (await ReadFrameAsync(stream, timeout.Token)).Type);
-            await WriteFrameAsync(stream, 10, DeviceInfoPayload(), timeout.Token);
-            Assert.Equal((ushort)149, (await ReadFrameAsync(stream, timeout.Token)).Type);
+            Assert.Equal((ushort)1, (await ReadFrameAsync(stream, deadline.Token)).Type);
+            await WriteFrameAsync(stream, 2, HelloPayload(15), deadline.Token);
+            Assert.Equal((ushort)9, (await ReadFrameAsync(stream, deadline.Token)).Type);
+            await WriteFrameAsync(stream, 10, DeviceInfoPayload(), deadline.Token);
+            Assert.Equal((ushort)149, (await ReadFrameAsync(stream, deadline.Token)).Type);
 
-            // A valid but wrong message is ignored by the existing expected-message
-            // reader, then the bounded request timeout terminates the wait.
-            await WriteFrameAsync(stream, 19, [], timeout.Token);
-            await Task.Delay(500, timeout.Token);
-        }, timeout.Token);
+            // Leave the socket open until the client gives up on the expected response.
+            await WriteFrameAsync(stream, 19, [], deadline.Token);
+            wrongFrameSent.SetResult();
+            await peerMayClose.Task.WaitAsync(deadline.Token);
+        }
 
-        await using var client = CreateClient(endpoint.Port, TimeSpan.FromMilliseconds(100));
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            async () => await client.ConnectAsync(timeout.Token));
+        var peer = ServeAsync();
+        await using var client = CreateClient(endpoint.Port, TimeSpan.FromSeconds(2));
+        var connect = client.ConnectAsync(deadline.Token).AsTask();
+        try
+        {
+            var first = await Task.WhenAny(wrongFrameSent.Task, connect, peer);
+            if (first == peer) await peer;
+            Assert.True(wrongFrameSent.Task.IsCompletedSuccessfully, "Fixture must send the wrong response before the client times out.");
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => connect);
+            Assert.False(deadline.IsCancellationRequested);
+        }
+        finally
+        {
+            peerMayClose.TrySetResult();
+        }
         await peer;
     }
 

@@ -14,7 +14,7 @@ namespace Scada.Api.Runtime;
 /// </summary>
 public static class BuiltinDynamoCatalogV1
 {
-    public const string Version = "1.4.0";
+    public const string Version = "1.5.0";
     private const string Outline = "#263746";
     private const string Steel = "#A9BAC5";
     private const string Light = "#E7EEF2";
@@ -52,16 +52,15 @@ public static class BuiltinDynamoCatalogV1
 
     private static IReadOnlyCollection<DynamoEngineeringDto> CreateGeometryDefinitions()
     {
-        var result = new List<DynamoEngineeringDto>(23);
+        var result = new List<DynamoEngineeringDto>(15);
         result.AddRange(new[] { "round", "square", "rectangular" }.Select((shape, i) => Lamp(shape, i)));
         result.AddRange(new[] { "raised", "flush", "illuminated" }.Select((shape, i) => Button(shape, i)));
-        result.AddRange(new[] { "tefc", "finned", "vertical", "large-frame", "vfd-package" }
+        result.AddRange(new[] { "tefc", "vertical" }
             .Select((shape, i) => Equipment("motor", shape, $"Motor {MotorName(shape)}", i)));
-        result.AddRange(new[] { "gate", "globe", "ball", "butterfly", "control" }
+        result.AddRange(new[] { "gate", "globe", "ball" }
             .Select((shape, i) => Equipment("valve", shape, $"Válvula {ValveName(shape)}", i)));
         result.Add(Equipment("pump", "submersible", "Bomba submersível", 0));
-        result.AddRange(new[] { "contact-mono-horizontal", "contact-mono-vertical", "contact-tri-horizontal",
-            "contact-tri-vertical", "isolator-horizontal", "isolator-vertical" }
+        result.AddRange(new[] { "contact-mono-horizontal", "contact-mono-vertical", "contact-tri-horizontal" }
             .Select((shape, i) => Equipment("electrical", shape, $"Contato elétrico {ContactName(shape)}", i)));
         return result;
     }

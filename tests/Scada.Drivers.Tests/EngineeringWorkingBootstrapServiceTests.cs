@@ -73,7 +73,7 @@ public sealed class EngineeringWorkingBootstrapServiceTests
         Assert.DoesNotContain(workspace.Assets.SnapshotDynamos(), dynamo =>
             dynamo.Metadata?.GetValueOrDefault("assetOrigin") == "elipse-e3-import");
         Assert.Equal("Custom definition with a platform key", workspace.Assets.FindDynamoByKey(customDynamo.Key)!.Name);
-        Assert.Equal(24, workspace.Assets.SnapshotDynamos().Count);
+        Assert.Equal(16, workspace.Assets.SnapshotDynamos().Count);
         Assert.DoesNotContain(workspace.Assets.SnapshotDynamos(), dynamo =>
             dynamo.Metadata?.GetValueOrDefault("catalogStatus") == "legacy");
         var replacementCatalog = BuiltinDynamoCatalogV1.Create();
@@ -88,7 +88,7 @@ public sealed class EngineeringWorkingBootstrapServiceTests
             Assert.True(workspace.VisualAssets.HasPayload(persistedAsset.Sha256));
         });
         Assert.True(result.Workspace.IsDirty);
-        Assert.Equal(24, result.Workspace.DynamoCount);
+        Assert.Equal(16, result.Workspace.DynamoCount);
         Assert.Equal(4, result.Workspace.BaseRevision);
     }
 
@@ -166,7 +166,10 @@ public sealed class EngineeringWorkingBootstrapServiceTests
         var removedKeys = new[]
         {
             "indicator.lamp.stacked", "motor.foot-mounted",
-            "operator.button.guarded", "valve.diaphragm"
+            "operator.button.guarded", "valve.diaphragm",
+            "motor.finned", "motor.large-frame", "motor.vfd-package",
+            "valve.butterfly", "valve.control", "electrical.contact-tri-vertical",
+            "electrical.isolator-horizontal", "electrical.isolator-vertical"
         };
         foreach (var key in removedKeys)
         {
@@ -208,7 +211,22 @@ public sealed class EngineeringWorkingBootstrapServiceTests
             $"builtin.dynamo.v1.{key.Replace('.', '-') }")));
         Assert.NotNull(workspace.VisualAssets.FindAsset(userAsset.Id!.Value));
         Assert.Contains(workspace.Assets.SnapshotDynamos(), item => item.Key == "pump.submersible");
-        Assert.Equal(23, workspace.Assets.SnapshotDynamos().Count);
+        Assert.Equal(15, workspace.Assets.SnapshotDynamos().Count);
+    }
+
+    [Fact]
+    public void CatalogRetirementKeepsAnExistingNestedDynamoInstanceUsable()
+    {
+        using var workspace = new EngineeringWorkspace(seedDemo: false);
+        var retired = BuiltinDynamoCatalogV1.Create().First() with { Id = Guid.NewGuid(), Key = "motor.finned" };
+        workspace.Assets.UpsertDynamo(retired);
+        workspace.Views.UpsertScreen(new(Guid.NewGuid(), "plant", "Plant", Elements:
+            [new("group", "core.group", Children: [new("motor", "dynamo", DynamoDefinitionId: retired.Id)])]));
+
+        EngineeringWorkingBootstrapService.UpgradeBuiltinDynamos(workspace);
+
+        Assert.Equal(retired.Id, workspace.Assets.FindDynamoByKey(retired.Key)?.Id);
+        Assert.DoesNotContain(BuiltinDynamoCatalogV1.Create(), d => d.Key == retired.Key);
     }
 
     [Fact]

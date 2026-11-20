@@ -1,5 +1,6 @@
 using Scada.Api.Runtime;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.Contracts;
 
 namespace Scada.Api.Persistence;
 
@@ -38,7 +39,10 @@ public sealed class EngineeringWorkingBootstrapService(
         "indicator.lamp.stacked",
         "motor.foot-mounted",
         "operator.button.guarded",
-        "valve.diaphragm"
+        "valve.diaphragm",
+        "motor.finned", "motor.large-frame", "motor.vfd-package",
+        "valve.butterfly", "valve.control",
+        "electrical.contact-tri-vertical", "electrical.isolator-horizontal", "electrical.isolator-vertical"
     ];
 
     public async Task<EngineeringWorkingBootstrapResult> BootstrapAsync(
@@ -182,12 +186,24 @@ public sealed class EngineeringWorkingBootstrapService(
 
         // Retire only these platform-owned definitions and their private artwork;
         // user dynamos and unrelated visual assets remain untouched.
+        var projectElements = workspace.Views.SnapshotScreens().SelectMany(screen => screen.Elements ?? [])
+            .Concat(workspace.Views.SnapshotPopups().SelectMany(popup => popup.Elements ?? []))
+            .Concat(existingDynamos.Values.Where(d => !RemovedBuiltinDynamoKeys.Contains(d.Key, StringComparer.OrdinalIgnoreCase)
+                || !existingBuiltins.ContainsKey(d.Key)).SelectMany(d => d.Elements ?? []));
+        var elements = WalkElements(projectElements).ToArray();
         foreach (var key in RemovedBuiltinDynamoKeys)
         {
-            if (!existingBuiltins.ContainsKey(key)) continue;
+            if (!existingBuiltins.TryGetValue(key, out var retired)) continue;
+            if (elements.Any(e => string.Equals(e.DynamoKey, key, StringComparison.OrdinalIgnoreCase)
+                || (retired.Id.HasValue && e.DynamoDefinitionId == retired.Id))) continue;
             workspace.Assets.RemoveDynamo(key);
             var artwork = workspace.VisualAssets.FindAssetByKey($"builtin.dynamo.v1.{key.Replace('.', '-')}");
-            if (artwork?.Metadata?.GetValueOrDefault("assetOrigin") == "original-elitescada-vector-factory")
+            if (artwork?.Metadata?.GetValueOrDefault("assetOrigin") == "original-elitescada-vector-factory"
+                && !elements.Any(e => e.Properties?.TryGetValue("assetRef", out var reference) == true
+                    && reference.ValueKind == System.Text.Json.JsonValueKind.Object
+                    && reference.TryGetProperty("assetId", out var id)
+                    && id.ValueKind == System.Text.Json.JsonValueKind.String && id.TryGetGuid(out var assetId)
+                    && assetId == artwork.Id))
                 workspace.VisualAssets.RemoveAsset(artwork.Id!.Value);
         }
 
@@ -199,6 +215,16 @@ public sealed class EngineeringWorkingBootstrapService(
                 string.Equals(isBuiltin, "true", StringComparison.OrdinalIgnoreCase))
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
         UpgradeBuiltinDynamoCatalogV1(workspace, remainingDynamos, remainingBuiltins);
+    }
+
+    private static IEnumerable<VisualElementEngineeringDto> WalkElements(IEnumerable<VisualElementEngineeringDto> elements)
+    {
+        foreach (var element in elements)
+        {
+            yield return element;
+            if (element.Children is null) continue;
+            foreach (var child in WalkElements(element.Children)) yield return child;
+        }
     }
 
     private static void UpgradeBuiltinDynamoCatalogV1(

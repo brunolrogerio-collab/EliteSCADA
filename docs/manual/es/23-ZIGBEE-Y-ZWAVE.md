@@ -30,17 +30,15 @@ Esta guía ayuda a decidir; no es una pantalla nueva. No abra el mismo radio sim
 
 Prepare la fuente para el coordinador TI admitido y comprenda el alcance limitado de esta versión.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786-ZIGBEE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.zigbee-native-setup; fields=communicationBinding; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Instalación necesaria
 
 En este camino, red y dispositivo Zigbee deben estar preparados. Use coordinador serie TI zStack/CC2652 compatible conectado al servidor. Esta versión no ofrece descubrimiento ni asistente de inclusión de Ingeniería y no promete todos los dispositivos o clusters Zigbee.
 
 La distribución usa proceso auxiliar gestionado para Windows o Linux x64. En contenedor el host debe exponer radio físico y almacenamiento persistente del estado. Compruébelo antes de completar la fuente.
 
-### Campos y límite de autoría
+### Campos del vínculo
 
-Los parámetros de red deben coincidir con coordinador/estado existentes. La autoría del vínculo en el asistente genérico es incompleta: Runtime rechaza sus campos extra. Los campos siguientes describen requisitos del driver; el asistente actual no ofrece un flujo de creación corregido.
+Use la red preparada. En Ingeniería → TAGs, seleccione la fuente Zigbee nativo e introduzca IEEE, endpoint, clúster y atributo. Aplique el vínculo, valide y aplique al Workspace.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -56,7 +54,7 @@ Los parámetros de red deben coincidir con coordinador/estado existentes. La aut
 | Cluster admitido | Este driver nativo admite genOnOff en esta versión; no ofrece todos los clusters Zigbee ni medición analógica mediante este vínculo. | genOnOff |  |
 | Atributo admitido | Atributo onOff con TAG Boolean. Se rechaza otro atributo o tipo numérico de TAG. | onOff |  |
 | Dirección completa del TAG | Reúne IEEE/endpoint/cluster/atributo. El ejemplo es una función On/Off; sustituya por la identidad existente del dispositivo. | 00124b0000000001/1/genOnOff/onOff |  |
-| Autoría del vínculo en esta versión | El asistente genérico actual guarda campos de identidad como ajustes extra, pero este driver los exige solo en la dirección. Runtime rechaza el objeto generado. La autoría por interfaz espera corrección; no eluda la validación. |  |  |
+| Autoría del vínculo en esta versión | El asistente genera la dirección portátil a partir de IEEE, endpoint, clúster y atributo. |  |  |
 
 ### Ejemplo de función preparada
 
@@ -76,8 +74,6 @@ Compruebe recurso disponible, modelo/familia, acceso serie e identidad de red an
 
 Use el controlador registrado en el host y conserve la identidad exacta de cada valor.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786-ZWAVE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.zwave-setup; fields=communicationBinding; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Qué hace este tipo
 
 Use este camino para leer valores persistidos de una red Z-Wave preparada. El controlador serie es local al servidor; el proceso auxiliar gestionado usa comunicación interna limitada al host.
@@ -86,7 +82,7 @@ Admite Windows o Linux x64. En Docker exponga también dispositivo y directorio 
 
 ### Fuente e interpretación de dirección
 
-Las referencias S0/S2 son opcionales en el formato de fuente, pero los dispositivos seguros necesitan material de su red. Región RF e identidad NVM pertenecen al recurso del host. La autoría de vínculos nuevos por interfaz está pendiente: el descriptor sin campos adicionales no produce el vínculo exigido por Runtime.
+Las referencias S0/S2 deben corresponder a la red segura. El recurso del host define la región RF y la identidad NVM. En el editor de TAG, introduzca la dirección portátil tipada y aplique el vínculo.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -101,7 +97,7 @@ Las referencias S0/S2 son opcionales en el formato de fuente, pero los dispositi
 | Command Class | Código de la clase a la que pertenece el valor. El ejemplo 37 es Switch Binary; el driver admite valores persistidos limitados y rechaza clases fuera de alcance. No es permiso de Authority. | 37 |  |
 | Propiedad y su tipo | Use string/currentValue para la propiedad textual del ejemplo. Las propiedades number/1 y string/1 tienen identidades distintas; no quite el tipo. No suponga que currentValue sea escribible. | string/currentValue |  |
 | Clave opcional y su tipo | key/none/- significa sin clave adicional. Si existe una clave conserve su tipo number/string y el contenido escapado de la dirección; no omita partes del formato. | none/- |  |
-| Autoría de un vínculo nuevo | Este driver exige vínculo de comunicación versionado además de Address. El asistente genérico no crea un vínculo nuevo si el descriptor no tiene campos adicionales, como aquí. Escribir solo la dirección de un TAG nuevo no basta; la corrección de autoría está pendiente. Un vínculo válido recibido por paquete/API es un caso distinto. |  |  |
+| Autoría de un vínculo nuevo | En Ingeniería → TAGs, seleccione la fuente Z-Wave JS, introduzca la dirección portátil tipada y aplique el vínculo. Valide y aplique al Workspace. |  |  |
 
 ### Ejemplo: leer estado de interruptor binario
 

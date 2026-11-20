@@ -82,8 +82,6 @@ Teste a conexão, descubra/navegue os objetos e revise a prévia antes de aplica
 
 Use os endereços do projeto KNX e mantenha comando e feedback separados.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.knx-setup; fields=writeGroupAddress; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Requisitos e alcance
 
 Use os dados do projeto KNX: endereços, gateway, tipo de cada ponto e materiais de segurança. Peça essas informações ao responsável antes de preencher a fonte. Separe o ponto que recebe comando daquele que informa o estado real.
@@ -94,9 +92,7 @@ Não presuma túnel IP sem segurança, roteamento multicast ou descoberta autom�
 
 ### Campos do gateway e do ponto
 
-O assistente genérico de TAG ainda produz um vínculo incompatível com o contrato KNX/IP. A correção da autoria pela interface está pendente; os campos abaixo explicam o contrato, mas não há um roteiro validado para concluir esse vínculo pelo assistente atual. Não tente resolver alterando DPTs ou desabilitando segurança.
-
-Configure a fonte e o vínculo usando o DPT real. Senhas e chaveiro são referências protegidas, não arquivos secretos dentro da aplicação.
+Em Engenharia → TAGs, selecione a fonte KNX/IP. Informe o endereço de comando, o endereço de retorno e o DPT. Clique em Usar configurações de binding, valide e aplique ao Workspace. Para escrita, use endereços de comando e retorno distintos. Senhas e chaveiro continuam em referências protegidas.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -107,7 +103,7 @@ Configure a fonte e o vínculo usando o DPT real. Senhas e chaveiro são referê
 | Referência da senha Secure | Referência do material protegido provisionado no servidor para esta integração. Peça a referência ao administrador; não cole senha, token ou chave secreta em configurações comuns nem no manual da aplicação. |  |  |
 | Referência de autenticação do dispositivo | Referência do material protegido provisionado no servidor para esta integração. Peça a referência ao administrador; não cole senha, token ou chave secreta em configurações comuns nem no manual da aplicação. |  |  |
 | Referência do chaveiro Data Secure | Referência do material protegido provisionado no servidor para esta integração. Peça a referência ao administrador; não cole senha, token ou chave secreta em configurações comuns nem no manual da aplicação. |  |  |
-| Grupo de comando / endereço do vínculo | Endereço em principal/intermediário/subgrupo para a escrita. No vínculo portátil este é o Address do TAG; para TAG somente leitura, confira o mapeamento do projeto KNX. O assistente genérico de TAG ainda produz um vínculo incompatível com o contrato KNX/IP. A correção da autoria pela interface está pendente; os campos abaixo explicam o contrato, mas não há um roteiro validado para concluir esse vínculo pelo assistente atual. Não tente resolver alterando DPTs ou desabilitando segurança. | 1/2/3 |  |
+| Grupo de comando / endereço do vínculo | Endereço em três níveis para comando. O assistente grava este valor como endereço portátil. Para TAG somente leitura, confira o mapeamento do projeto KNX. | 1/2/3 |  |
 | Grupo do estado confirmado | Origem do feedback. Para TAG gravável deve ser diferente do grupo de comando; o driver não considera o envio do comando como confirmação de estado. | 1/2/4 |  |
 | Tipo de ponto KNX (DPT) | Define como interpretar o telegrama. 1.001/1.002 usam TAG Boolean; 5.001 e 9.001/9.004/9.007/9.024 usam Float ou Double neste driver. O exemplo usa 9.001 para temperatura. Não escolha DPT apenas pelo tamanho aparente do valor. | 9.001 |  |
 

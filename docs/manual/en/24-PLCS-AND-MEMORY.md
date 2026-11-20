@@ -4,8 +4,6 @@
 
 Configure ISO-on-TCP while distinguishing connection, DB access and write permission.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786-S7: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.siemens-setup; fields=communicationBinding,valueOrder; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Prepare the PLC side
 
 Choose a known variable in the PLC program and obtain its memory address. This S7 ISO-on-TCP driver reads absolute addresses: you need to know where the value is, not just its name. It is not full TIA symbolic browsing or an OPC UA connection.
@@ -46,12 +44,12 @@ The SCADIVO TAG path identifies the application variable; area, DB, byte and bit
 | Physical PLC type | Choose actual storage: Boolean, Byte, SInt, UInt16, Int16, UInt32, Int32, Int64, Float32, Float64, String, WString, Date or DateTime. Float32 maps to TAG Float, Float64 to Double, text to String, dates to DateTime. A TAG name does not convert memory contents. | Float32 |  |
 | Text capacity | String/WString only: declared capacity of 1–254 characters; this is not numeric read size. Use zero for other types. Allow actual DB space for the format header. | 0 |  |
 | Allow writes to this point | Start with false while checking reads. true only enables a point that is also writable in memory/protocol; TAG ReadOnly, session permissions and other restrictions still apply. | false |  |
-| Byte and word order | The descriptor still declares Normal, ByteSwap, WordSwap and ByteAndWordSwap, but the current binding does not accept this setting or order in the address. Ordering is represented by the shared physical byte/word transform. This mismatch is part of the pending authoring correction; do not copy the catalog field into the binding as a manual solution. | Normal |  |
-| Binding authoring in this version | The current catalog gives the generic assistant a binding identity different from the one required by the S7 Runtime. Creation through this path is rejected and awaits correction. Other fields and the example describe the correct S7 binding, not an already corrected authoring flow. Do not change internal IDs to bypass validation. The valueOrder field must also be projected to the physical transform rather than saved as an extra setting. |  |  |
+| Byte and word order | Choose Normal, ByteSwap, WordSwap or ByteAndWordSwap. The assistant stores this in the physical value transform. | Normal |  |
+| Binding authoring in this version | Enter the area, offsets and physical type in the TAG assistant. Apply the binding settings to build the address and physical transform, then validate and apply to the Workspace. |  |  |
 
 ### From Data Source to a checked reading
 
-Manual creation through the current assistant encounters the binding limitation described above. The example demonstrates valid binding parameters for review; it does not instruct you to force an internal identity in the UI. For a project with an already valid S7 binding, verify the source, a known reading and quality after publishing/activating through the project workflow. A successful connection test does not establish tested reads or writes.
+Validate the binding in the Workspace. Save, publish and activate the revision. Check a known reading and its quality in Runtime.
 
 ### Example: REAL at the start of DB1
 
@@ -93,8 +91,6 @@ Advertised import accepts compatible PLC TAG exports in XLSX, XML and SDF; this 
 
 Use ControlLogix/CompactLogix symbolic access and check limits before importing or writing.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786-LOGIX: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.logix-setup; fields=communicationBinding,bitIndex; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Which connection you are configuring
 
 Start with a known ControlLogix or CompactLogix symbol, the named reference used by the program. Have actual IP address, profile and route, and check that the symbol permits external access.
@@ -130,12 +126,12 @@ Identity includes scope, program where applicable, path and native type. Do not 
 | Native symbol type | Runtime reads in this version: Bool, Sint, Int, Dint, Lint and Real, mapping to Boolean, Int16, Int16, Int32, Int64 and Float. Lreal/String may appear in the catalog/import but are not enabled for Runtime reading. Whole structures are not scalars. | Real |  |
 | External access defined in the PLC | ReadOnly permits reading; ReadWrite also permits compatible writing; None blocks access. Unknown does not prove write permission. This field describes the symbol; it does not change the PLC setting. | ReadOnly |  |
 | Constant symbol | true identifies a PLC constant and prevents writing. Do not use false to try making a constant writable. | false |  |
-| Physical integer bit | Optional Boolean projection from Sint/Int/Dint/Lint: maximum indices 7/15/31/63. Not applicable to Real or Bool. It does not turn a write into a safe bit operation; check support before issuing commands. An accepted binding uses the shared physical selector, not an extra bitIndex setting; assistant projection is also pending. |  |  |
-| Binding authoring in this version | Runtime stores symbolic identity in the portable address and requires empty extra settings. The current generic assistant copies the fields in this table into extra settings and its binding is rejected. Creation through this path awaits correction; the example shows a valid point contract, not a corrected assistant. |  |  |
+| Physical integer bit | Optional Boolean projection from Sint/Int/Dint/Lint: maximum indices 7/15/31/63. Not applicable to Real or Bool. It does not turn a write into a safe bit operation; check support before issuing commands. An accepted binding uses the shared physical selector, not an extra bitIndex setting; the assistant creates this selector. |  |  |
+| Binding authoring in this version | Enter the scope, program if applicable, symbol and physical type. The assistant builds the portable address and stores the optional bit in the TAG selector. Validate and apply to the Workspace. |  |  |
 
 ### From Data Source to a checked reading
 
-Manual creation through the current assistant encounters the binding limitation described above. The example shows a valid read identity for review. For a project with an already valid Logix binding, verify source, symbol, type and quality after publishing/activating. Advertised Browse/import/reconciliation services require candidate and binding review before applying; opening a file does not establish a successful import.
+Validate the binding in the Workspace. After publishing and activating, verify the symbol, type and quality in Runtime. Review browse, import and reconciliation candidates before applying.
 
 ### Example: read-only REAL symbol
 

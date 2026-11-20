@@ -3376,7 +3376,7 @@
         },
         {
           "heading": "Campos do gateway e do ponto",
-          "body": "O assistente genérico de TAG ainda produz um vínculo incompatível com o contrato KNX/IP. A correção da autoria pela interface está pendente; os campos abaixo explicam o contrato, mas não há um roteiro validado para concluir esse vínculo pelo assistente atual. Não tente resolver alterando DPTs ou desabilitando segurança.\n\nConfigure a fonte e o vínculo usando o DPT real. Senhas e chaveiro são referências protegidas, não arquivos secretos dentro da aplicação.",
+          "body": "Em Engenharia → TAGs, selecione a fonte KNX/IP. Informe o endereço de comando, o endereço de retorno e o DPT. Clique em Usar configurações de binding, valide e aplique ao Workspace. Para escrita, use endereços de comando e retorno distintos. Senhas e chaveiro continuam em referências protegidas.",
           "fields": [
             {
               "key": "gatewayHost",
@@ -3430,7 +3430,7 @@
             {
               "key": "writeGroupAddress",
               "label": "Grupo de comando / endereço do vínculo",
-              "description": "Endereço em principal/intermediário/subgrupo para a escrita. No vínculo portátil este é o Address do TAG; para TAG somente leitura, confira o mapeamento do projeto KNX. O assistente genérico de TAG ainda produz um vínculo incompatível com o contrato KNX/IP. A correção da autoria pela interface está pendente; os campos abaixo explicam o contrato, mas não há um roteiro validado para concluir esse vínculo pelo assistente atual. Não tente resolver alterando DPTs ou desabilitando segurança.",
+              "description": "Endereço em três níveis para comando. O assistente grava este valor como endereço portátil. Para TAG somente leitura, confira o mapeamento do projeto KNX.",
               "example": "1/2/3",
               "constraints": ""
             },
@@ -3850,7 +3850,7 @@
         },
         {
           "heading": "Rede física, TAG e interface têm etapas distintas",
-          "body": "1. Identifique se a rede usa coordenador local suportado, Zigbee2MQTT externo ou controlador Z-Wave local. 2. Confirme rede/dispositivos preparados, acesso do servidor e material protegido, sem criar outra rede por engano. 3. Configure a fonte correspondente e confira as limitações de autoria/seleção do guia específico. 4. Com vínculo válido, confira o TAG, tipo, qualidade e feedback; salve/publique/ative pelo fluxo do projeto. 5. Acrescente tela, alarme e comando autorizado somente após conferir uma leitura conhecida.",
+          "body": "1. Identifique se a rede usa coordenador local suportado, Zigbee2MQTT externo ou controlador Z-Wave local. 2. Confirme rede/dispositivos preparados, acesso do servidor e material protegido, sem criar outra rede por engano. 3. Configure a fonte correspondente e confira os passos de autoria e seleção do guia específico. 4. Com vínculo válido, confira o TAG, tipo, qualidade e feedback; salve/publique/ative pelo fluxo do projeto. 5. Acrescente tela, alarme e comando autorizado somente após conferir uma leitura conhecida.",
           "fields": null
         }
       ],
@@ -3873,8 +3873,8 @@
           "fields": null
         },
         {
-          "heading": "Campos e limitação da autoria",
-          "body": "Os parâmetros de rede devem corresponder ao coordenador e ao estado já existentes. A autoria do vínculo pelo assistente genérico está incompleta: seus campos extras são recusados pelo Runtime. Os campos abaixo descrevem o que o driver exige; não há um fluxo corrigido de criação pelo assistente atual.",
+          "heading": "Campos do vínculo",
+          "body": "Use os parâmetros da rede já preparada. Em Engenharia → TAGs, selecione a fonte Zigbee nativo e informe IEEE, endpoint, cluster e atributo. Aplique o vínculo, valide e aplique ao Workspace.",
           "fields": [
             {
               "key": "hostResourceId",
@@ -3963,7 +3963,7 @@
             {
               "key": "communicationBinding",
               "label": "Autoria do vínculo nesta versão",
-              "description": "O assistente genérico atual grava os campos de identidade como ajustes extras, mas este driver exige que estejam apenas no endereço. O Runtime recusa o objeto gerado. A autoria pela interface aguarda correção; não contorne desabilitando validação.",
+              "description": "O assistente monta o endereço portátil com IEEE, endpoint, cluster e atributo.",
               "example": "",
               "constraints": ""
             }
@@ -4001,7 +4001,7 @@
         },
         {
           "heading": "Fonte e leitura do endereço",
-          "body": "As referências S0/S2 são opcionais no formato da fonte, mas os dispositivos seguros precisam do material correspondente à rede. Região RF e identidade NVM pertencem ao recurso do host. A autoria de vínculos novos pela interface está pendente: o descritor sem campos adicionais não produz o vínculo exigido pelo Runtime.",
+          "body": "As referências S0/S2 continuam vinculadas à rede segura. Região RF e identidade NVM pertencem ao recurso do host. Informe o endereço portátil tipado no TAG e aplique o vínculo.",
           "fields": [
             {
               "key": "hostResourceId",
@@ -4083,7 +4083,7 @@
             {
               "key": "communicationBinding",
               "label": "Autoria de um vínculo novo",
-              "description": "Este driver exige vínculo de comunicação versionado, além do Address. O assistente genérico não cria um vínculo novo quando o descritor não tem campos adicionais, como neste caso. Digitar só o endereço de um TAG novo não basta; a correção da autoria está pendente. Um vínculo válido já recebido por pacote/API é outra situação.",
+              "description": "Em Engenharia → TAGs, selecione a fonte Z-Wave JS, informe o endereço portátil tipado e clique em Usar configurações de binding. Valide e aplique ao Workspace.",
               "example": "",
               "constraints": ""
             }
@@ -4593,14 +4593,14 @@
             {
               "key": "valueOrder",
               "label": "Ordem dos bytes e palavras",
-              "description": "O descritor ainda declara Normal, ByteSwap, WordSwap e ByteAndWordSwap, mas o vínculo atual não aceita esse campo nos ajustes nem order no endereço. A ordem é representada pela transformação física compartilhada de bytes/palavras. Essa divergência faz parte da correção de autoria pendente; não copie o campo do catálogo para o vínculo como solução manual.",
+              "description": "Selecione Normal, ByteSwap, WordSwap ou ByteAndWordSwap conforme o ponto. O assistente grava a ordem na transformação física do vínculo.",
               "example": "Normal",
               "constraints": ""
             },
             {
               "key": "communicationBinding",
               "label": "Autoria do vínculo nesta versão",
-              "description": "O catálogo atual informa ao assistente genérico uma identidade de vínculo que difere da exigida pelo Runtime S7. A criação por esse caminho é recusada; aguarda correção. Os demais campos e o exemplo descrevem o vínculo S7 correto, não um fluxo de autoria já corrigido. Não altere IDs internos para contornar a validação. O campo valueOrder também precisa ser projetado para a transformação física, em vez de ser salvo como ajuste extra.",
+              "description": "Preencha a área, os offsets e o tipo físico no assistente de TAG. Use as configurações de binding para gerar o endereço e a transformação física antes de validar e aplicar.",
               "example": "",
               "constraints": ""
             }
@@ -4608,7 +4608,7 @@
         },
         {
           "heading": "Da fonte até uma leitura conferida",
-          "body": "A criação manual pelo assistente atual encontra a limitação de vínculo descrita acima. O exemplo demonstra os parâmetros de um vínculo válido para revisão, não instrui a forçar uma identidade interna na tela. Para um projeto com vínculo S7 já válido, confira fonte, leitura conhecida e qualidade após publicar/ativar pelo fluxo do projeto. Não marque leitura ou escrita como testada apenas porque o teste de conexão passou.",
+          "body": "Valide o vínculo no Workspace. Salve, publique e ative a revisão. Confira a leitura conhecida e a qualidade no Runtime.",
           "fields": null
         },
         {
@@ -4766,14 +4766,14 @@
             {
               "key": "bitIndex",
               "label": "Bit físico de um inteiro",
-              "description": "Opcional para projetar um bit de Sint/Int/Dint/Lint como Boolean: limites 7/15/31/63. Não se aplica a Real ou Bool. Não transforma a escrita em operação bit a bit segura; confira o suporte antes de comandar. O vínculo aceito usa o seletor físico compartilhado, não um ajuste extra chamado bitIndex; a projeção pelo assistente também está pendente.",
+              "description": "Opcional para projetar um bit de Sint/Int/Dint/Lint como Boolean: limites 7/15/31/63. Não se aplica a Real ou Bool. Não transforma a escrita em operação bit a bit segura; confira o suporte antes de comandar. O vínculo aceito usa o seletor físico compartilhado, não um ajuste extra chamado bitIndex; o assistente monta esse seletor.",
               "example": "",
               "constraints": ""
             },
             {
               "key": "communicationBinding",
               "label": "Autoria do vínculo nesta versão",
-              "description": "O Runtime guarda identidade simbólica no endereço portátil e exige ajustes extras vazios. O assistente genérico atual copia os campos desta tabela para ajustes extras e o vínculo gerado é recusado. A criação por esse caminho aguarda correção; o exemplo mostra o contrato de um ponto válido, não um assistente corrigido.",
+              "description": "Preencha o escopo, o programa quando aplicável, o símbolo e o tipo físico. O assistente monta o endereço portátil e grava o bit opcional no seletor do TAG. Valide e aplique ao Workspace.",
               "example": "",
               "constraints": ""
             }
@@ -4781,7 +4781,7 @@
         },
         {
           "heading": "Da fonte até uma leitura conferida",
-          "body": "A criação manual pelo assistente atual encontra a limitação de vínculo descrita acima. O exemplo mostra uma identidade de leitura válida para revisão. Em projeto com vínculo Logix já válido, confira fonte, símbolo, tipo e qualidade após publicar/ativar. Os serviços de Browse/importação/reconciliação anunciados precisam ter seus candidatos e vínculos conferidos antes de aplicar; não declare a importação bem-sucedida só porque o arquivo abriu.",
+          "body": "Valide o vínculo no Workspace. Depois de publicar e ativar, confira o símbolo, o tipo e a qualidade no Runtime. Revise os candidatos de navegação, importação e reconciliação antes de aplicar.",
           "fields": null
         },
         {
@@ -5907,7 +5907,7 @@
               "label": "Vínculo de comunicação",
               "description": "Declara a identidade e a versão da representação que o Runtime entende. Digitar só o endereço não cria esse objeto.",
               "example": "Vínculo Matter v1",
-              "constraints": "O assistente genérico atual não monta esse vínculo quando o catálogo não declara campos de ponto; não há passo gráfico completo prometido aqui."
+              "constraints": "Com a fonte Matter disponível no catálogo, informe o endereço portátil no TAG e aplique as configurações de binding antes de validar."
             },
             {
               "key": "contractVersion",
@@ -10449,7 +10449,7 @@
         },
         {
           "heading": "Gateway and point fields",
-          "body": "The generic TAG assistant still produces a binding incompatible with the KNX/IP contract. UI authoring correction is pending; the fields below explain the contract, but there is no validated walkthrough to complete this binding with the current assistant. Do not attempt to fix it by changing DPTs or disabling security.\n\nConfigure the source and binding using the actual DPT. Passwords/keyring are protected references, not secret files inside the application.",
+          "body": "In Engineering → TAGs, select the KNX/IP source. Enter the command address, feedback address and DPT. Apply the binding settings, validate and apply to the Workspace. Use distinct command and feedback addresses for writes. Passwords and keyrings remain protected references.",
           "fields": [
             {
               "key": "gatewayHost",
@@ -10503,7 +10503,7 @@
             {
               "key": "writeGroupAddress",
               "label": "Command group / binding address",
-              "description": "Address in main/middle/subgroup notation for writes. In the portable binding this is the TAG Address; for a read-only TAG check the KNX project mapping. The generic TAG assistant still produces a binding incompatible with the KNX/IP contract. UI authoring correction is pending; the fields below explain the contract, but there is no validated walkthrough to complete this binding with the current assistant. Do not attempt to fix it by changing DPTs or disabling security.",
+              "description": "Three-level command group address. The assistant stores it as the portable address. Check the KNX project mapping for read-only TAGs.",
               "example": "1/2/3",
               "constraints": ""
             },
@@ -10947,7 +10947,7 @@
         },
         {
           "heading": "Fields and authoring limit",
-          "body": "Network parameters must match the existing coordinator/state. Binding authoring in the generic assistant is incomplete: Runtime rejects its extra fields. The fields below describe driver requirements; the current assistant does not provide a corrected creation workflow.",
+          "body": "Use the prepared network settings. In Engineering → TAGs, select the Native Zigbee source and enter the IEEE address, endpoint, cluster and attribute. Apply the binding, validate and apply to the Workspace.",
           "fields": [
             {
               "key": "hostResourceId",
@@ -11036,7 +11036,7 @@
             {
               "key": "communicationBinding",
               "label": "Binding authoring in this version",
-              "description": "The current generic assistant stores identity fields as extra settings, but this driver requires them only in the address. Runtime rejects the generated object. UI authoring awaits correction; do not bypass validation.",
+              "description": "The assistant builds the portable address from the IEEE address, endpoint, cluster and attribute.",
               "example": "",
               "constraints": ""
             }
@@ -11074,7 +11074,7 @@
         },
         {
           "heading": "Source and address interpretation",
-          "body": "S0/S2 references are optional in source format, but secure devices need material matching the network. RF region and NVM identity belong to the host resource. New UI binding authoring is pending: the descriptor without extra fields does not produce the binding required by Runtime.",
+          "body": "S0/S2 references must match the secured network. The host resource defines the RF region and NVM identity. In the TAG editor, enter the typed portable address and apply the binding settings.",
           "fields": [
             {
               "key": "hostResourceId",
@@ -11156,7 +11156,7 @@
             {
               "key": "communicationBinding",
               "label": "Authoring a new binding",
-              "description": "This driver requires a versioned communication binding as well as Address. The generic assistant does not create a new binding when the descriptor has no extra fields, as here. Entering only a new TAG address is insufficient; authoring correction is pending. An existing valid binding received through package/API is a separate case.",
+              "description": "In Engineering → TAGs, select the Z-Wave JS source, enter the typed portable address and apply the binding settings. Validate and apply to the Workspace.",
               "example": "",
               "constraints": ""
             }
@@ -11666,14 +11666,14 @@
             {
               "key": "valueOrder",
               "label": "Byte and word order",
-              "description": "The descriptor still declares Normal, ByteSwap, WordSwap and ByteAndWordSwap, but the current binding does not accept this setting or order in the address. Ordering is represented by the shared physical byte/word transform. This mismatch is part of the pending authoring correction; do not copy the catalog field into the binding as a manual solution.",
+              "description": "Choose Normal, ByteSwap, WordSwap or ByteAndWordSwap. The assistant stores this in the physical value transform.",
               "example": "Normal",
               "constraints": ""
             },
             {
               "key": "communicationBinding",
               "label": "Binding authoring in this version",
-              "description": "The current catalog gives the generic assistant a binding identity different from the one required by the S7 Runtime. Creation through this path is rejected and awaits correction. Other fields and the example describe the correct S7 binding, not an already corrected authoring flow. Do not change internal IDs to bypass validation. The valueOrder field must also be projected to the physical transform rather than saved as an extra setting.",
+              "description": "Enter the area, offsets and physical type in the TAG assistant. Apply the binding settings to build the address and physical transform, then validate and apply to the Workspace.",
               "example": "",
               "constraints": ""
             }
@@ -11681,7 +11681,7 @@
         },
         {
           "heading": "From Data Source to a checked reading",
-          "body": "Manual creation through the current assistant encounters the binding limitation described above. The example demonstrates valid binding parameters for review; it does not instruct you to force an internal identity in the UI. For a project with an already valid S7 binding, verify the source, a known reading and quality after publishing/activating through the project workflow. A successful connection test does not establish tested reads or writes.",
+          "body": "Validate the binding in the Workspace. Save, publish and activate the revision. Check a known reading and its quality in Runtime.",
           "fields": null
         },
         {
@@ -11839,14 +11839,14 @@
             {
               "key": "bitIndex",
               "label": "Physical integer bit",
-              "description": "Optional Boolean projection from Sint/Int/Dint/Lint: maximum indices 7/15/31/63. Not applicable to Real or Bool. It does not turn a write into a safe bit operation; check support before issuing commands. An accepted binding uses the shared physical selector, not an extra bitIndex setting; assistant projection is also pending.",
+              "description": "Optional Boolean projection from Sint/Int/Dint/Lint: maximum indices 7/15/31/63. Not applicable to Real or Bool. It does not turn a write into a safe bit operation; check support before issuing commands. An accepted binding uses the shared physical selector, not an extra bitIndex setting; the assistant creates this selector.",
               "example": "",
               "constraints": ""
             },
             {
               "key": "communicationBinding",
               "label": "Binding authoring in this version",
-              "description": "Runtime stores symbolic identity in the portable address and requires empty extra settings. The current generic assistant copies the fields in this table into extra settings and its binding is rejected. Creation through this path awaits correction; the example shows a valid point contract, not a corrected assistant.",
+              "description": "Enter the scope, program if applicable, symbol and physical type. The assistant builds the portable address and stores the optional bit in the TAG selector. Validate and apply to the Workspace.",
               "example": "",
               "constraints": ""
             }
@@ -11854,7 +11854,7 @@
         },
         {
           "heading": "From Data Source to a checked reading",
-          "body": "Manual creation through the current assistant encounters the binding limitation described above. The example shows a valid read identity for review. For a project with an already valid Logix binding, verify source, symbol, type and quality after publishing/activating. Advertised Browse/import/reconciliation services require candidate and binding review before applying; opening a file does not establish a successful import.",
+          "body": "Validate the binding in the Workspace. After publishing and activating, verify the symbol, type and quality in Runtime. Review browse, import and reconciliation candidates before applying.",
           "fields": null
         },
         {
@@ -12980,7 +12980,7 @@
               "label": "Communication binding",
               "description": "Declares the representation identity and version understood by Runtime. Address text alone does not create this object.",
               "example": "Matter v1 binding",
-              "constraints": "The current generic assistant does not build this binding when the catalog declares no point fields; no complete graphical procedure is promised here."
+              "constraints": "When Matter is available in the catalog, enter the portable TAG address and apply the binding settings before validating."
             },
             {
               "key": "contractVersion",
@@ -17522,7 +17522,7 @@
         },
         {
           "heading": "Campos del gateway y del punto",
-          "body": "El asistente genérico de TAG todavía genera un vínculo incompatible con el contrato KNX/IP. La corrección de autoría por interfaz está pendiente; los campos siguientes explican el contrato, pero no hay recorrido validado para completarlo con el asistente actual. No intente resolverlo cambiando DPTs ni desactivando seguridad.\n\nConfigure la fuente y vínculo con el DPT real. Contraseñas/llavero son referencias protegidas, no archivos secretos dentro de la aplicación.",
+          "body": "En Ingeniería → TAGs, seleccione la fuente KNX/IP. Introduzca dirección de comando, retorno y DPT. Aplique el vínculo, valide y aplique al Workspace. Use direcciones de comando y retorno distintas para escritura. Contraseñas y llavero conservan sus referencias protegidas.",
           "fields": [
             {
               "key": "gatewayHost",
@@ -17576,7 +17576,7 @@
             {
               "key": "writeGroupAddress",
               "label": "Grupo de comando / dirección del vínculo",
-              "description": "Dirección en principal/intermedio/subgrupo para escritura. En el vínculo portable es Address del TAG; para un TAG de solo lectura compruebe el mapa del proyecto KNX. El asistente genérico de TAG todavía genera un vínculo incompatible con el contrato KNX/IP. La corrección de autoría por interfaz está pendiente; los campos siguientes explican el contrato, pero no hay recorrido validado para completarlo con el asistente actual. No intente resolverlo cambiando DPTs ni desactivando seguridad.",
+              "description": "Dirección de grupo de tres niveles para comando. El asistente la guarda como dirección portátil. Para TAGs de solo lectura, consulte el mapa del proyecto KNX.",
               "example": "1/2/3",
               "constraints": ""
             },
@@ -18019,8 +18019,8 @@
           "fields": null
         },
         {
-          "heading": "Campos y límite de autoría",
-          "body": "Los parámetros de red deben coincidir con coordinador/estado existentes. La autoría del vínculo en el asistente genérico es incompleta: Runtime rechaza sus campos extra. Los campos siguientes describen requisitos del driver; el asistente actual no ofrece un flujo de creación corregido.",
+          "heading": "Campos del vínculo",
+          "body": "Use la red preparada. En Ingeniería → TAGs, seleccione la fuente Zigbee nativo e introduzca IEEE, endpoint, clúster y atributo. Aplique el vínculo, valide y aplique al Workspace.",
           "fields": [
             {
               "key": "hostResourceId",
@@ -18109,7 +18109,7 @@
             {
               "key": "communicationBinding",
               "label": "Autoría del vínculo en esta versión",
-              "description": "El asistente genérico actual guarda campos de identidad como ajustes extra, pero este driver los exige solo en la dirección. Runtime rechaza el objeto generado. La autoría por interfaz espera corrección; no eluda la validación.",
+              "description": "El asistente genera la dirección portátil a partir de IEEE, endpoint, clúster y atributo.",
               "example": "",
               "constraints": ""
             }
@@ -18147,7 +18147,7 @@
         },
         {
           "heading": "Fuente e interpretación de dirección",
-          "body": "Las referencias S0/S2 son opcionales en el formato de fuente, pero los dispositivos seguros necesitan material de su red. Región RF e identidad NVM pertenecen al recurso del host. La autoría de vínculos nuevos por interfaz está pendiente: el descriptor sin campos adicionales no produce el vínculo exigido por Runtime.",
+          "body": "Las referencias S0/S2 deben corresponder a la red segura. El recurso del host define la región RF y la identidad NVM. En el editor de TAG, introduzca la dirección portátil tipada y aplique el vínculo.",
           "fields": [
             {
               "key": "hostResourceId",
@@ -18229,7 +18229,7 @@
             {
               "key": "communicationBinding",
               "label": "Autoría de un vínculo nuevo",
-              "description": "Este driver exige vínculo de comunicación versionado además de Address. El asistente genérico no crea un vínculo nuevo si el descriptor no tiene campos adicionales, como aquí. Escribir solo la dirección de un TAG nuevo no basta; la corrección de autoría está pendiente. Un vínculo válido recibido por paquete/API es un caso distinto.",
+              "description": "En Ingeniería → TAGs, seleccione la fuente Z-Wave JS, introduzca la dirección portátil tipada y aplique el vínculo. Valide y aplique al Workspace.",
               "example": "",
               "constraints": ""
             }
@@ -18739,14 +18739,14 @@
             {
               "key": "valueOrder",
               "label": "Orden de bytes y palabras",
-              "description": "El descriptor todavía declara Normal, ByteSwap, WordSwap y ByteAndWordSwap, pero el vínculo actual no admite este ajuste ni order en la dirección. El orden se representa mediante la transformación física compartida de bytes/palabras. Esta divergencia forma parte de la corrección pendiente; no copie el campo del catálogo al vínculo como solución manual.",
+              "description": "Seleccione Normal, ByteSwap, WordSwap o ByteAndWordSwap. El asistente guarda el orden en la transformación física.",
               "example": "Normal",
               "constraints": ""
             },
             {
               "key": "communicationBinding",
               "label": "Autoría del vínculo en esta versión",
-              "description": "El catálogo actual da al asistente genérico una identidad de vínculo distinta de la exigida por Runtime S7. Crear por esta vía se rechaza y espera corrección. Los demás campos y el ejemplo describen el vínculo S7 correcto, no un flujo de autoría ya corregido. No cambie IDs internos para eludir validación. El campo valueOrder también debe proyectarse a la transformación física en vez de guardarse como ajuste extra.",
+              "description": "Introduzca área, offsets y tipo físico en el asistente de TAG. Aplique el vínculo para generar la dirección y la transformación física. Valide y aplique al Workspace.",
               "example": "",
               "constraints": ""
             }
@@ -18754,7 +18754,7 @@
         },
         {
           "heading": "De la fuente a una lectura comprobada",
-          "body": "La creación manual mediante el asistente actual encuentra la limitación descrita arriba. El ejemplo demuestra parámetros de vínculo válido para revisión; no indica forzar identidad interna en la pantalla. En un proyecto con vínculo S7 ya válido, compruebe fuente, lectura conocida y calidad después de publicar/activar por el flujo del proyecto. Una conexión correcta no demuestra lectura ni escritura probadas.",
+          "body": "Valide el vínculo en el Workspace. Guarde, publique y active la revisión. Compruebe una lectura conocida y su calidad en Runtime.",
           "fields": null
         },
         {
@@ -18912,14 +18912,14 @@
             {
               "key": "bitIndex",
               "label": "Bit físico de un entero",
-              "description": "Proyección Boolean opcional desde Sint/Int/Dint/Lint: índices máximos 7/15/31/63. No aplica a Real o Bool. No convierte la escritura en operación segura de bit; compruebe el soporte antes de comandar. Un vínculo admitido usa el selector físico compartido, no un ajuste extra bitIndex; la proyección del asistente también está pendiente.",
+              "description": "Proyección Boolean opcional desde Sint/Int/Dint/Lint: índices máximos 7/15/31/63. No aplica a Real o Bool. No convierte la escritura en operación segura de bit; compruebe el soporte antes de comandar. Un vínculo admitido usa el selector físico compartido, no un ajuste extra bitIndex; el asistente crea ese selector.",
               "example": "",
               "constraints": ""
             },
             {
               "key": "communicationBinding",
               "label": "Autoría del vínculo en esta versión",
-              "description": "Runtime guarda identidad simbólica en dirección portátil y exige ajustes extra vacíos. El asistente genérico actual copia los campos de esta tabla a ajustes extra y el vínculo se rechaza. Crear por esta vía espera corrección; el ejemplo muestra el contrato de un punto válido, no un asistente corregido.",
+              "description": "Introduzca ámbito, programa si corresponde, símbolo y tipo físico. El asistente genera la dirección portátil y guarda el bit opcional en el selector del TAG. Valide y aplique al Workspace.",
               "example": "",
               "constraints": ""
             }
@@ -18927,7 +18927,7 @@
         },
         {
           "heading": "De la fuente a una lectura comprobada",
-          "body": "La creación manual con el asistente actual encuentra la limitación descrita arriba. El ejemplo muestra una identidad de lectura válida para revisión. En un proyecto con vínculo Logix ya válido, revise fuente, símbolo, tipo y calidad tras publicar/activar. Browse/importación/conciliación anunciados requieren revisar candidatos y vínculos antes de aplicar; abrir un archivo no demuestra importación correcta.",
+          "body": "Valide el vínculo en el Workspace. Después de publicar y activar, compruebe símbolo, tipo y calidad en Runtime. Revise candidatos de navegación, importación y conciliación antes de aplicar.",
           "fields": null
         },
         {
@@ -20053,7 +20053,7 @@
               "label": "Vínculo de comunicación",
               "description": "Declara identidad y versión de la representación entendida por Runtime. La dirección sola no crea este objeto.",
               "example": "Vínculo Matter v1",
-              "constraints": "El asistente genérico actual no construye el vínculo si el catálogo no declara campos de punto; aquí no se promete un procedimiento gráfico completo."
+              "constraints": "Cuando Matter esté disponible en el catálogo, introduzca la dirección portátil del TAG y aplique el vínculo antes de validar."
             },
             {
               "key": "contractVersion",

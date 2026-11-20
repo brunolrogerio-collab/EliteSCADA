@@ -4,8 +4,6 @@
 
 Check availability, prepare the source and distinguish reading an already-commissioned attribute from pairing a device.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786-MATTER: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.matter-test-workflow; fields=communicationBinding; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Start with availability
 
 Before configuring, check whether Matter Wi-Fi is available in your installation. SCADIVO is multiplatform, but this connector is an isolated preview for a Linux x64 host with a local helper process called a sidecar. It is not Matter availability for every installation.
@@ -43,7 +41,7 @@ The source accepts no public host, port or generic protocol settings. Its protec
 | TAG type | Match the actual attribute type; Boolean fits an on/off state. | Boolean | Boolean, Int16, Int32, Int64, Float, Double or String; do not assume other types. |
 | Read only | Start with reads to check value and quality before testing actuation. | true | Allowing TAG writes grants neither user permission nor device-attribute writability. |
 | Attribute address | Assemble the four real numbers in the shown format; not an IP address or pairing code. | node/123/endpoint/1/cluster/6/attribute/0 | Unsigned decimal without leading zeros; node 1 through UInt64 maximum, endpoint UInt16, cluster/attribute UInt32. |
-| Communication binding | Declares the representation identity and version understood by Runtime. Address text alone does not create this object. | Matter v1 binding | The current generic assistant does not build this binding when the catalog declares no point fields; no complete graphical procedure is promised here. |
+| Communication binding | Declares the representation identity and version understood by Runtime. Address text alone does not create this object. | Matter v1 binding | When Matter is available in the catalog, enter the portable TAG address and apply the binding settings before validating. |
 | Contract version | Identifies the binding-object format, not the commercial Matter version. | 1 | The current binding contract is 1. |
 | Schema identity | Identifies the Matter interpretation of the address; this is technical reference. | elitescada.driver.matter.wifi | Do not substitute the source configuration schema. |
 | Schema version | Specifies how binding content is interpreted. | 1 | The current planner accepts Matter schema v1. |

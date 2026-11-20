@@ -4,8 +4,6 @@
 
 Configure ISO-on-TCP distinguiendo conexión, acceso al DB y permiso de escritura.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786-S7: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.siemens-setup; fields=communicationBinding,valueOrder; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Prepare el lado del PLC
 
 Elija una variable conocida del programa del PLC y obtenga su dirección. Este driver S7 ISO-on-TCP lee direcciones absolutas: necesita saber dónde está el valor, no solo su nombre. No es navegación simbólica completa de TIA ni conexión OPC UA.
@@ -46,12 +44,12 @@ La ruta del TAG en SCADIVO identifica la variable de aplicación; área, DB, byt
 | Tipo físico en PLC | Elija el almacenamiento real: Boolean, Byte, SInt, UInt16, Int16, UInt32, Int32, Int64, Float32, Float64, String, WString, Date o DateTime. Float32 corresponde a TAG Float, Float64 a Double, texto a String y fechas a DateTime. El nombre del TAG no convierte memoria. | Float32 |  |
 | Capacidad de texto | Solo String/WString: capacidad declarada de 1–254 caracteres; no es tamaño de lectura numérica. Use cero en otros tipos. Reserve espacio real en DB para la cabecera del formato. | 0 |  |
 | Permitir escritura en este punto | Empiece con false para comprobar la lectura. true solo habilita un punto que también sea escribible en memoria/protocolo; ReadOnly del TAG, permisos de sesión y demás restricciones siguen vigentes. | false |  |
-| Orden de bytes y palabras | El descriptor todavía declara Normal, ByteSwap, WordSwap y ByteAndWordSwap, pero el vínculo actual no admite este ajuste ni order en la dirección. El orden se representa mediante la transformación física compartida de bytes/palabras. Esta divergencia forma parte de la corrección pendiente; no copie el campo del catálogo al vínculo como solución manual. | Normal |  |
-| Autoría del vínculo en esta versión | El catálogo actual da al asistente genérico una identidad de vínculo distinta de la exigida por Runtime S7. Crear por esta vía se rechaza y espera corrección. Los demás campos y el ejemplo describen el vínculo S7 correcto, no un flujo de autoría ya corregido. No cambie IDs internos para eludir validación. El campo valueOrder también debe proyectarse a la transformación física en vez de guardarse como ajuste extra. |  |  |
+| Orden de bytes y palabras | Seleccione Normal, ByteSwap, WordSwap o ByteAndWordSwap. El asistente guarda el orden en la transformación física. | Normal |  |
+| Autoría del vínculo en esta versión | Introduzca área, offsets y tipo físico en el asistente de TAG. Aplique el vínculo para generar la dirección y la transformación física. Valide y aplique al Workspace. |  |  |
 
 ### De la fuente a una lectura comprobada
 
-La creación manual mediante el asistente actual encuentra la limitación descrita arriba. El ejemplo demuestra parámetros de vínculo válido para revisión; no indica forzar identidad interna en la pantalla. En un proyecto con vínculo S7 ya válido, compruebe fuente, lectura conocida y calidad después de publicar/activar por el flujo del proyecto. Una conexión correcta no demuestra lectura ni escritura probadas.
+Valide el vínculo en el Workspace. Guarde, publique y active la revisión. Compruebe una lectura conocida y su calidad en Runtime.
 
 ### Ejemplo: REAL al inicio del DB1
 
@@ -93,8 +91,6 @@ La importación anunciada acepta exportaciones compatibles de PLC TAGs en XLSX, 
 
 Use acceso simbólico ControlLogix/CompactLogix y compruebe límites antes de importar o escribir.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786-LOGIX: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.logix-setup; fields=communicationBinding,bitIndex; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Qué conexión está configurando
 
 Empiece por un símbolo conocido de ControlLogix o CompactLogix, la referencia con nombre usada por el programa. Tenga IP, perfil y ruta reales y compruebe acceso externo al símbolo.
@@ -130,12 +126,12 @@ La identidad incluye ámbito, programa cuando corresponde, ruta y tipo nativo. N
 | Tipo nativo del símbolo | Lectura en esta versión: Bool, Sint, Int, Dint, Lint y Real, correspondientes a Boolean, Int16, Int16, Int32, Int64 y Float. Lreal/String pueden aparecer en catálogo/importación pero no están habilitados para lectura Runtime. Una estructura completa no es un escalar. | Real |  |
 | Acceso externo definido en PLC | ReadOnly permite leer; ReadWrite también permite escribir tipos compatibles; None bloquea acceso. Unknown no demuestra permiso de escritura. Este campo describe el símbolo; no modifica el PLC. | ReadOnly |  |
 | Símbolo constante | true identifica una constante del PLC e impide escritura. No use false para intentar volverla escribible. | false |  |
-| Bit físico de un entero | Proyección Boolean opcional desde Sint/Int/Dint/Lint: índices máximos 7/15/31/63. No aplica a Real o Bool. No convierte la escritura en operación segura de bit; compruebe el soporte antes de comandar. Un vínculo admitido usa el selector físico compartido, no un ajuste extra bitIndex; la proyección del asistente también está pendiente. |  |  |
-| Autoría del vínculo en esta versión | Runtime guarda identidad simbólica en dirección portátil y exige ajustes extra vacíos. El asistente genérico actual copia los campos de esta tabla a ajustes extra y el vínculo se rechaza. Crear por esta vía espera corrección; el ejemplo muestra el contrato de un punto válido, no un asistente corregido. |  |  |
+| Bit físico de un entero | Proyección Boolean opcional desde Sint/Int/Dint/Lint: índices máximos 7/15/31/63. No aplica a Real o Bool. No convierte la escritura en operación segura de bit; compruebe el soporte antes de comandar. Un vínculo admitido usa el selector físico compartido, no un ajuste extra bitIndex; el asistente crea ese selector. |  |  |
+| Autoría del vínculo en esta versión | Introduzca ámbito, programa si corresponde, símbolo y tipo físico. El asistente genera la dirección portátil y guarda el bit opcional en el selector del TAG. Valide y aplique al Workspace. |  |  |
 
 ### De la fuente a una lectura comprobada
 
-La creación manual con el asistente actual encuentra la limitación descrita arriba. El ejemplo muestra una identidad de lectura válida para revisión. En un proyecto con vínculo Logix ya válido, revise fuente, símbolo, tipo y calidad tras publicar/activar. Browse/importación/conciliación anunciados requieren revisar candidatos y vínculos antes de aplicar; abrir un archivo no demuestra importación correcta.
+Valide el vínculo en el Workspace. Después de publicar y activar, compruebe símbolo, tipo y calidad en Runtime. Revise candidatos de navegación, importación y conciliación antes de aplicar.
 
 ### Ejemplo: símbolo REAL de lectura
 

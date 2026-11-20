@@ -20,7 +20,7 @@ Este guia ajuda a decidir; não é uma tela nova de configuração. Não abra o 
 
 1. Identifique se a rede usa coordenador local suportado, Zigbee2MQTT externo ou controlador Z-Wave local.
 2. Confirme rede/dispositivos preparados, acesso do servidor e material protegido, sem criar outra rede por engano.
-3. Configure a fonte correspondente e confira as limitações de autoria/seleção do guia específico.
+3. Configure a fonte correspondente e confira os passos de autoria e seleção do guia específico.
 4. Com vínculo válido, confira o TAG, tipo, qualidade e feedback; salve/publique/ative pelo fluxo do projeto.
 5. Acrescente tela, alarme e comando autorizado somente após conferir uma leitura conhecida.
 
@@ -30,17 +30,15 @@ Este guia ajuda a decidir; não é uma tela nova de configuração. Não abra o 
 
 Prepare a fonte para o coordenador TI suportado e entenda o alcance limitado desta versão.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786-ZIGBEE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.zigbee-native-setup; fields=communicationBinding; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Instalação necessária
 
 Para este caminho, a rede e o dispositivo Zigbee já precisam estar preparados. Use um coordenador serial TI zStack/CC2652 compatível ligado ao servidor. Esta versão não oferece descoberta ou assistente de inclusão de Engenharia e não promete todos os dispositivos ou clusters Zigbee.
 
 A distribuição usa um processo auxiliar gerenciado para Windows ou Linux x64. Em contêiner, o host precisa disponibilizar o rádio físico e o armazenamento persistente do estado. Confira esses recursos antes de preencher a fonte.
 
-### Campos e limitação da autoria
+### Campos do vínculo
 
-Os parâmetros de rede devem corresponder ao coordenador e ao estado já existentes. A autoria do vínculo pelo assistente genérico está incompleta: seus campos extras são recusados pelo Runtime. Os campos abaixo descrevem o que o driver exige; não há um fluxo corrigido de criação pelo assistente atual.
+Use os parâmetros da rede já preparada. Em Engenharia → TAGs, selecione a fonte Zigbee nativo e informe IEEE, endpoint, cluster e atributo. Aplique o vínculo, valide e aplique ao Workspace.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -56,7 +54,7 @@ Os parâmetros de rede devem corresponder ao coordenador e ao estado já existen
 | Cluster suportado | Este driver nativo aceita genOnOff nesta versão; não oferece todos os clusters Zigbee nem medição analógica por este vínculo. | genOnOff |  |
 | Atributo suportado | Atributo onOff, com TAG Boolean. Combinar outro atributo ou tipo numérico é recusado. | onOff |  |
 | Endereço completo do TAG | Reúne IEEE/endpoint/cluster/atributo. O exemplo é de uma função On/Off; substitua pela identidade existente do dispositivo. | 00124b0000000001/1/genOnOff/onOff |  |
-| Autoria do vínculo nesta versão | O assistente genérico atual grava os campos de identidade como ajustes extras, mas este driver exige que estejam apenas no endereço. O Runtime recusa o objeto gerado. A autoria pela interface aguarda correção; não contorne desabilitando validação. |  |  |
+| Autoria do vínculo nesta versão | O assistente monta o endereço portátil com IEEE, endpoint, cluster e atributo. |  |  |
 
 ### Exemplo de uma função preparada
 
@@ -76,8 +74,6 @@ Confira recurso disponível, modelo/família, acesso serial e identidade de rede
 
 Use o controlador registrado no host e preserve a identidade exata de cada valor.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786-ZWAVE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.zwave-setup; fields=communicationBinding; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### O que este tipo faz
 
 Use este caminho para ler valores persistidos de uma rede Z-Wave já preparada. O controlador serial é local ao servidor; o processo auxiliar gerenciado usa comunicação interna limitada ao próprio host.
@@ -86,7 +82,7 @@ A instalação suporta Windows ou Linux x64. Em Docker, disponibilize também o 
 
 ### Fonte e leitura do endereço
 
-As referências S0/S2 são opcionais no formato da fonte, mas os dispositivos seguros precisam do material correspondente à rede. Região RF e identidade NVM pertencem ao recurso do host. A autoria de vínculos novos pela interface está pendente: o descritor sem campos adicionais não produz o vínculo exigido pelo Runtime.
+As referências S0/S2 continuam vinculadas à rede segura. Região RF e identidade NVM pertencem ao recurso do host. Informe o endereço portátil tipado no TAG e aplique o vínculo.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -101,7 +97,7 @@ As referências S0/S2 são opcionais no formato da fonte, mas os dispositivos se
 | Command Class | Código da classe a que o valor pertence. O exemplo 37 é de Switch Binary; o driver admite um conjunto limitado de valores persistidos e recusa classes fora desse escopo. Não é uma permissão da Authority. | 37 |  |
 | Propriedade e seu tipo | Use string/currentValue para a propriedade textual do exemplo. Propriedade number/1 e string/1 são identidades diferentes; não remova o tipo. Não presuma que currentValue seja gravável. | string/currentValue |  |
 | Chave opcional e seu tipo | key/none/- significa sem chave adicional. Quando existe uma chave, mantenha seu tipo number ou string e o conteúdo escapado do endereço; não omita partes do formato. | none/- |  |
-| Autoria de um vínculo novo | Este driver exige vínculo de comunicação versionado, além do Address. O assistente genérico não cria um vínculo novo quando o descritor não tem campos adicionais, como neste caso. Digitar só o endereço de um TAG novo não basta; a correção da autoria está pendente. Um vínculo válido já recebido por pacote/API é outra situação. |  |  |
+| Autoria de um vínculo novo | Em Engenharia → TAGs, selecione a fonte Z-Wave JS, informe o endereço portátil tipado e clique em Usar configurações de binding. Valide e aplique ao Workspace. |  |  |
 
 ### Exemplo: ler estado de uma chave binária
 

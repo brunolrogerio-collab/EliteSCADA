@@ -2542,7 +2542,12 @@ public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
                     using var connectionCancellation = CancellationTokenSource.CreateLinkedTokenSource(_shutdown.Token);
                     var clientToTarget = client.GetStream().CopyToAsync(target.GetStream(), connectionCancellation.Token);
                     var targetToClient = target.GetStream().CopyToAsync(client.GetStream(), connectionCancellation.Token);
-                    await Task.WhenAny(clientToTarget, targetToClient);
+                    var finished = await Task.WhenAny(clientToTarget, targetToClient);
+                    if (finished == clientToTarget && finished.IsCompletedSuccessfully)
+                    {
+                        target.Client.Shutdown(SocketShutdown.Send);
+                        await targetToClient;
+                    }
                     connectionCancellation.Cancel();
                     client.Close();
                     target.Close();

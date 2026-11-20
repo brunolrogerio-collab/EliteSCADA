@@ -48,7 +48,7 @@ const elements: VisualElementEngineering[] = renderDynamo ? [{
   'trend-harness-1',
   'trend-harness-primary',
   10,
-  [pressure, flow]
+  params.get('hidden') === 'all' ? [pressure, flow].map(pen => ({ ...pen, visible: false })) : [pressure, flow]
 )];
 const dynamoDefinitions: DynamoEngineering[] = renderDynamo ? [{
   id: 'test-dynamo-definition', key: 'test.fitted', name: 'Fitted test Dynamo',

@@ -163,7 +163,8 @@ export function TrendVisualElement({
   const [operatorPenVisibility, setOperatorPenVisibility] = React.useState<Readonly<Record<string, boolean>>>({});
   React.useEffect(() => setOperatorPenVisibility({}), [element.id, persistedPenSignature]);
   const visiblePens = React.useMemo(
-    () => pens.filter(pen => operatorPenVisibility[pen.id] ?? pen.visible),
+    () => pens.map(pen => ({ ...pen, visible: operatorPenVisibility[pen.id] ?? pen.visible }))
+      .filter(pen => pen.visible),
     [operatorPenVisibility, pens]
   );
   const mode = stringValue(values[VISUAL_PROPERTY_KEYS.trendMode], 'history');

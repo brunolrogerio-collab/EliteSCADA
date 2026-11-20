@@ -119,10 +119,13 @@
     'Volte a um instante do processo e acompanhe os valores históricos no próprio sinótico. Investigue ocorrências com o contexto visual da operação, em modo somente leitura.': 'Vuelve a un instante del proceso y consulta los valores históricos en el propio sinóptico. Investiga lo ocurrido con el contexto visual de la operación, en modo de solo lectura.',
     'Web significa que tudo precisa estar na nuvem?': '¿Usar la web significa que todo debe estar en la nube?'
   };
-  let language = 'pt';
+  const preferenceKey = 'scadivo-site-language';
+  const supportedLanguage = value => {
+    const language = value?.toLowerCase().split(/[-_]/)[0];
+    return ['pt', 'es', 'en'].includes(language) ? language : undefined;
+  };
 
-  function applyLanguage(next) {
-    language = ['en', 'es'].includes(next) ? next : 'pt';
+  function applyLanguage(language, remember = false) {
     document.documentElement.lang = language === 'pt' ? 'pt-BR' : language;
     for (const node of nodes) {
       const value = language === 'es' ? (spanish[node.dataset.pt] || node.dataset.en) : node.dataset[language];
@@ -134,14 +137,19 @@
       languageSelect.value = language;
       languageSelect.setAttribute('aria-label', language === 'pt' ? 'Idioma da interface' : language === 'en' ? 'Interface language' : 'Idioma de la interfaz');
     }
-    try { localStorage.setItem('scadivo-site-language', language); } catch { /* Keep language switching available when storage is blocked. */ }
+    if (remember) {
+      try { localStorage.setItem(preferenceKey, language); } catch { /* Switching still works when storage is blocked. */ }
+    }
     document.dispatchEvent(new CustomEvent('scadivo:languagechange', { detail: { language } }));
   }
 
-  languageSelect?.addEventListener('change', () => applyLanguage(languageSelect.value));
+  languageSelect?.addEventListener('change', () => applyLanguage(languageSelect.value, true));
+  const requested = supportedLanguage(new URLSearchParams(location.search).get('lang'));
   let saved;
-  try { saved = new URLSearchParams(location.search).get('lang') || localStorage.getItem('scadivo-site-language'); } catch { /* Portuguese remains the default. */ }
-  applyLanguage(saved);
+  try { saved = supportedLanguage(localStorage.getItem(preferenceKey)); } catch { /* Use the browser's language preferences. */ }
+  const preferred = (navigator.languages?.length ? navigator.languages : [navigator.language])
+    .map(supportedLanguage).find(Boolean);
+  applyLanguage(requested || saved || preferred || 'en', Boolean(requested));
 })();
 
 fetch('/portal/api/page-views/site', { method: 'POST', credentials: 'omit', keepalive: true }).catch(() => {});

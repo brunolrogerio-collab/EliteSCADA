@@ -14,10 +14,12 @@ Esta pasta contém somente a configuração da prova de conceito local do Discou
 
 - O tema versionado está em `theme/`. Ele usa a paleta oficial SCADIVO (azul-marinho, teal e âmbar), a marca em SVG e oculta a assinatura visual padrão da plataforma.
 - A configuração `run` aplica o nome público SCADIVO, avisos e títulos da configuração inicial sem marca da plataforma, as opções de idioma pela interface Rails e reescreve os tópicos iniciais com conteúdo da comunidade SCADIVO. `DISCOURSE_DEFAULT_LOCALE=pt_BR` define Português como padrão.
-- Visitantes podem selecionar Português, English ou Español no seletor compacto abaixo do cabeçalho. A escolha usa o parâmetro `tl` e o cookie local do Discourse. Sem seleção anterior, a interface respeita o idioma do navegador e usa Português como padrão.
+- Visitantes podem selecionar Português, English ou Español no seletor compacto abaixo do cabeçalho. O parâmetro `tl` e o cookie `locale` têm precedência sobre a escolha do navegador. O plugin `plugins/scadivo-visitor-locale` limita a detecção automática a PT-BR, ES e EN, respeita a ordem preferida do navegador e usa inglês quando não há correspondência.
 - Ao autenticar pelo Portal, o locale salvo no perfil SCADIVO é enviado pelo SSO e atualizado também para contas já existentes. Assim, o Portal é a fonte de idioma para usuários autenticados.
 - O tema substitui a marca quebrada do cabeçalho pelo wordmark SCADIVO, aplica a paleta da marca e esconde a assinatura de plataforma no rodapé. Instale e aplique o tema antes de abrir o fórum aos visitantes; confira também cabeçalho, login, rodapé, conteúdo inicial e seletor de idiomas.
 - O pacote do tema fica pronto para importar no fórum após o primeiro administrador concluir a configuração local. A configuração do nome, do aviso inicial e dos tópicos padrão é aplicada pelo container; a aplicação visual do tema continua pendente dessa etapa.
+
+Para validar o plugin na instância local existente, copie a pasta `plugins/scadivo-visitor-locale` para `/var/www/discourse/plugins/` no contêiner `scadivopoc` e reinicie o processo Unicorn. O contêiner precisa manter `allow_user_locale`, `set_locale_from_accept_language_header`, `set_locale_from_param` e `set_locale_from_cookie` habilitados. A cópia de homologação fica na camada do contêiner. Para uma implantação reproduzível, inclua a pasta no build da imagem antes de iniciar os processos do fórum. A reversão usa a imagem anterior ou a retirada dessa pasta seguida de reinício. O plugin não requer migração de banco.
 
 ## Configuração necessária
 

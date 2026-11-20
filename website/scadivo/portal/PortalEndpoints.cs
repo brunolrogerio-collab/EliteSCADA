@@ -24,6 +24,7 @@ public static class PortalEndpoints
                 publicRegistrationEnabled = configuration.GetValue<bool>("Portal:PublicRegistrationEnabled"),
                 registrationAgeCheck = PortalRegistrationAge.IsEnabled(configuration),
                 dataCopyEnabled = PortalDataCopy.IsEnabled(configuration),
+                supplementalCopyEnabled = PortalSupplementalCopy.IsEnabled(configuration),
                 legalPreview,
                 emailDeliveryConfigured = emailSettings.Value.Enabled,
                 communityEnabled = community.Enabled,

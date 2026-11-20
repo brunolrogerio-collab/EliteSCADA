@@ -26,6 +26,140 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
     private const string Password = "Scad1vo!";
 
     [Fact]
+    public async Task SupplementalCopyRequiresVerifiedBrowserAndSupportsSingleUseExpiryAndRevocation()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "scadivo-supplement-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var passwordFile = Path.Combine(root, "test-credential");
+        await File.WriteAllTextAsync(passwordFile, Password);
+        var configuration = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Portal"] = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+                ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!",
+            ["Portal:Bootstrap:PasswordFile"] = passwordFile,
+            ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
+            ["Portal:PublicUrl"] = "https://localhost/portal/",
+            ["Portal:SupplementalCopyEnabled"] = "true"
+        };
+        var clock = new OfflineTestClock();
+        const string admin = "/admin/privacy/supplement";
+        const string verify = "/privacy/supplement/verify";
+        const string download = "/privacy/supplement/download";
+        const string archive = """{"records":[{"message":"synthetic original message"}]}""";
+        try
+        {
+            await using var factory = Factory(configuration).WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(clock);
+            }));
+            var owner = await Login(factory, "scadivo.owner");
+            using var ownerClient = owner.Client;
+            using var claimantClient = Client(factory);
+            using var strangerClient = Client(factory);
+            var claimant = new Session(claimantClient, await Csrf(claimantClient));
+            var stranger = new Session(strangerClient, await Csrf(strangerClient));
+            await using var scope = factory.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+            var reference = "SC-" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+            db.EmailOutbox.Add(new EmailOutbox { TemplateKey = "contact.received", Reference = reference, Status = "sent" });
+            await db.SaveChangesAsync();
+
+            var evidence = new { reference, evidence = "original-thread", channelChecked = true };
+            using var withoutReview = await owner.Raw(admin, HttpMethod.Post, new { reference, evidence = "original-thread", channelChecked = false });
+            Assert.Equal(HttpStatusCode.BadRequest, withoutReview.StatusCode);
+            using var unauthenticated = await stranger.Raw(admin, HttpMethod.Post, evidence);
+            Assert.Equal(HttpStatusCode.Unauthorized, unauthenticated.StatusCode);
+
+            string TokenFrom(JsonElement record) => new Uri(record.GetProperty("url").GetString()!).Fragment.Split('=')[1];
+            async Task<(Guid Id, string Challenge)> Create()
+            {
+                var record = await owner.Send(admin, HttpMethod.Post, evidence);
+                return (record.GetProperty("id").GetGuid(), TokenFrom(record));
+            }
+            async Task<HttpResponseMessage> Upload(Guid id, string value)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, "api" + admin + $"/upload?id={id}");
+                request.Content = new ByteArrayContent(Encoding.UTF8.GetBytes(value));
+                request.Content.Headers.ContentType = new("application/json");
+                request.Headers.Add("X-CSRF-TOKEN", owner.Token);
+                request.Headers.Add("X-Privacy-Reviewed", "yes");
+                return await owner.Client.SendAsync(request);
+            }
+            async Task<string> Release(Guid id)
+            {
+                using var response = await Upload(id, archive);
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                return TokenFrom(await response.Content.ReadFromJsonAsync<JsonElement>());
+            }
+
+            var (id, challenge) = await Create();
+            using var premature = await Upload(id, archive);
+            Assert.Equal(HttpStatusCode.NotFound, premature.StatusCode);
+            using var unprotected = await claimantClient.PostAsJsonAsync("api" + verify, new { token = challenge });
+            Assert.Equal(HttpStatusCode.BadRequest, unprotected.StatusCode);
+            using var verified = await claimant.Raw(verify, HttpMethod.Post, new { token = challenge });
+            Assert.Equal(HttpStatusCode.OK, verified.StatusCode);
+            var receipt = verified.Headers.GetValues("Set-Cookie").Single(header => header.StartsWith("__Secure-scadivo.privacy.", StringComparison.Ordinal));
+            Assert.Contains("secure", receipt);
+            Assert.Contains("httponly", receipt);
+            Assert.Contains("samesite=strict", receipt);
+            using var replay = await stranger.Raw(verify, HttpMethod.Post, new { token = challenge });
+            Assert.Equal(HttpStatusCode.NotFound, replay.StatusCode);
+            using var malformed = await Upload(id, "not valid JSON");
+            Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
+            var downloadToken = await Release(id);
+            var stored = await db.SupplementalCopies.AsNoTracking().SingleAsync(row => row.Id == id);
+            Assert.NotNull(stored.ProtectedArchive);
+            Assert.DoesNotContain("synthetic original message", Encoding.UTF8.GetString(stored.ProtectedArchive), StringComparison.Ordinal);
+            Assert.Null(stored.ChallengeHash);
+            Assert.DoesNotContain(stored.DownloadHash!, downloadToken, StringComparison.Ordinal);
+            using var wrongBrowser = await stranger.Raw(download, HttpMethod.Post, new { token = downloadToken });
+            Assert.Equal(HttpStatusCode.NotFound, wrongBrowser.StatusCode);
+
+            var attempts = await Task.WhenAll(
+                claimant.Raw(download, HttpMethod.Post, new { token = downloadToken }),
+                claimant.Raw(download, HttpMethod.Post, new { token = downloadToken }));
+            using var success = Assert.Single(attempts, response => response.IsSuccessStatusCode);
+            using var alreadyUsed = Assert.Single(attempts, response => !response.IsSuccessStatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, alreadyUsed.StatusCode);
+            Assert.True(success.Headers.CacheControl!.NoStore);
+            Assert.Equal("attachment", success.Content.Headers.ContentDisposition!.DispositionType);
+            Assert.Equal(archive, await success.Content.ReadAsStringAsync());
+            var consumed = await db.SupplementalCopies.AsNoTracking().SingleAsync(row => row.Id == id);
+            Assert.Null(consumed.ProtectedArchive);
+            Assert.Null(consumed.BrowserHash);
+            Assert.Null(consumed.DownloadHash);
+            Assert.Equal(1, await db.Audit.CountAsync(row => row.ResourceId == id.ToString() && row.Action == "privacy.supplement.downloaded"));
+
+            var (expiring, expiringChallenge) = await Create();
+            using var verifiedBeforeExpiry = await claimant.Raw(verify, HttpMethod.Post, new { token = expiringChallenge });
+            Assert.Equal(HttpStatusCode.OK, verifiedBeforeExpiry.StatusCode);
+            var expiredDownload = await Release(expiring);
+            var (revocable, revokeChallenge) = await Create();
+            using var verifiedBeforeRevocation = await claimant.Raw(verify, HttpMethod.Post, new { token = revokeChallenge });
+            Assert.Equal(HttpStatusCode.OK, verifiedBeforeRevocation.StatusCode);
+            var revokedDownload = await Release(revocable);
+            using var revoked = await owner.Raw(admin + "/" + revocable, HttpMethod.Delete, new { });
+            Assert.Equal(HttpStatusCode.NoContent, revoked.StatusCode);
+            using var revokedAccess = await claimant.Raw(download, HttpMethod.Post, new { token = revokedDownload });
+            Assert.Equal(HttpStatusCode.NotFound, revokedAccess.StatusCode);
+            Assert.Null(await db.SupplementalCopies.Where(row => row.Id == revocable).Select(row => row.ProtectedArchive).SingleAsync());
+
+            var (_, staleChallenge) = await Create();
+            clock.UtcNow = clock.UtcNow.AddHours(25);
+            using var expired = await claimant.Raw(download, HttpMethod.Post, new { token = expiredDownload });
+            Assert.Equal(HttpStatusCode.NotFound, expired.StatusCode);
+            using var stale = await claimant.Raw(verify, HttpMethod.Post, new { token = staleChallenge });
+            Assert.Equal(HttpStatusCode.NotFound, stale.StatusCode);
+            var copies = scope.ServiceProvider.GetRequiredService<PortalSupplementalCopy>();
+            Assert.True(await copies.PurgeExpiredAsync(CancellationToken.None) > 0);
+            Assert.False(await db.SupplementalCopies.AnyAsync(row => row.Reference == reference && row.ExpiresAtUtc <= clock.UtcNow));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
     public async Task DataCopyReauthenticatesAndExportsOnlyTheSignedInAccount()
     {
         var root = Path.Combine(Path.GetTempPath(), "scadivo-data-copy-tests-" + Guid.NewGuid().ToString("N"));

@@ -971,6 +971,23 @@ namespace Scadivo.Portal.Data.Migrations
                     b.ToTable("Tickets");
                 });
 
+            modelBuilder.Entity("Scadivo.Portal.SupplementalCopy", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<string>("BrowserHash").HasMaxLength(64).HasColumnType("character varying(64)");
+                    b.Property<string>("ChallengeHash").HasMaxLength(64).HasColumnType("character varying(64)");
+                    b.Property<DateTimeOffset>("CreatedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<string>("DownloadHash").HasMaxLength(64).HasColumnType("character varying(64)");
+                    b.Property<string>("Evidence").IsRequired().HasMaxLength(24).HasColumnType("character varying(24)");
+                    b.Property<DateTimeOffset>("ExpiresAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<byte[]>("ProtectedArchive").HasColumnType("bytea");
+                    b.Property<string>("Reference").IsRequired().HasMaxLength(11).HasColumnType("character varying(11)");
+                    b.Property<string>("Status").IsRequired().HasMaxLength(16).HasColumnType("character varying(16)");
+                    b.HasKey("Id");
+                    b.HasIndex("ExpiresAtUtc");
+                    b.ToTable("SupplementalCopies");
+                });
+
             modelBuilder.Entity("Scadivo.Portal.Data.TicketMessage", b =>
                 {
                     b.Property<Guid>("Id")

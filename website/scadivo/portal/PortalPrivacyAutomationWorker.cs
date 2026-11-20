@@ -9,15 +9,26 @@ public sealed class PortalPrivacyAutomationOptions
 
 public sealed class PortalPrivacyAutomationWorker(
     IServiceScopeFactory scopes, IOptions<PortalPrivacyAutomationOptions> options,
-    IOptions<PortalContactMailboxRetentionOptions> mailboxOptions, PortalEmailSignal emailSignal,
+    IOptions<PortalContactMailboxRetentionOptions> mailboxOptions, PortalEmailSignal emailSignal, IConfiguration configuration,
     ILogger<PortalPrivacyAutomationWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!options.Value.InactivityNoticesEnabled && !mailboxOptions.Value.Enabled) return;
+        var supplementalCopiesEnabled = PortalSupplementalCopy.IsEnabled(configuration);
+        if (!options.Value.InactivityNoticesEnabled && !mailboxOptions.Value.Enabled && !supplementalCopiesEnabled) return;
         using var daily = new PeriodicTimer(TimeSpan.FromDays(1));
         do
         {
+            if (supplementalCopiesEnabled)
+            {
+                try
+                {
+                    await using var scope = scopes.CreateAsyncScope();
+                    await scope.ServiceProvider.GetRequiredService<PortalSupplementalCopy>().PurgeExpiredAsync(stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
+                catch (Exception error) { logger.LogWarning("Expired privacy copy purge failed ({ErrorType}).", error.GetType().Name); }
+            }
             if (options.Value.InactivityNoticesEnabled)
             {
                 try

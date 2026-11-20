@@ -119,6 +119,7 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddScoped<PortalOperations>();
 builder.Services.AddScoped<PortalDataCopy>();
+builder.Services.AddScoped<PortalSupplementalCopy>();
 builder.Services.AddScoped<PortalIndicators>();
 builder.Services.AddScoped<PortalAccountClosure>();
 builder.Services.AddScoped<PortalRetention>();
@@ -249,6 +250,7 @@ app.MapGet("/health", async (PortalDb db) => await db.Database.CanConnectAsync()
     ? Results.Ok(new { service = "scadivo-portal", status = "ok" }) : Results.StatusCode(503));
 var legalPreview = PortalLegalPreview.IsEnabled(app);
 app.MapPortalEndpoints(legalPreview);
+PortalSupplementalCopy.Map(app);
 PortalLegalPreview.MapDocuments(app, legalPreview);
 app.MapPortalLicensingEndpoints();
 app.UseDefaultFiles();

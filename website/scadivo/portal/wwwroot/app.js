@@ -172,6 +172,12 @@ function errorText(code) {
     'registration-age-invalid': tr('Informe uma data de nascimento válida, sem usar uma data futura.', 'Enter a valid date of birth that is not in the future.', 'Indica una fecha de nacimiento válida que no sea futura.'),
     'registration-minimum-age': tr('Você precisa ter 16 anos completos para se cadastrar.', 'You must be at least 16 years old to sign up.', 'Debes tener al menos 16 años cumplidos para registrarte.'),
     'data-copy-password-invalid': tr('Não foi possível confirmar sua senha atual.', 'We could not verify your current password.', 'No se pudo confirmar tu contraseña actual.'),
+    'privacy-link-unavailable': tr('O link não está disponível neste navegador. Se já usou o navegador da confirmação, fale com o atendimento.',
+      'This link is unavailable in this browser. If this is the browser you used to confirm, contact support.',
+      'El enlace no está disponible en este navegador. Si usaste este navegador para confirmar, contacta con soporte.'),
+    'privacy-check-required': tr('Confira o canal ou o conteúdo antes de continuar.', 'Verify the channel or review the copy before proceeding.', 'Verifica el canal o revisa la copia antes de continuar.'),
+    'privacy-reference-not-found': tr('Protocolo de contato não encontrado.', 'Contact reference not found.', 'No se encontró la referencia de contacto.'),
+    'privacy-copy-invalid-file': tr('Selecione um arquivo JSON válido de até 4 MB.', 'Select a valid JSON file up to 4 MB.', 'Selecciona un archivo JSON válido de hasta 4 MB.'),
     'invalid-indicators-period': tr('Selecione um período de até 90 dias, sem datas futuras.', 'Choose a period of up to 90 days, with no future dates.', 'Elige un periodo de hasta 90 días, sin fechas futuras.')
   };
   return errors[code] || tr('Não foi possível concluir. Tente novamente.', 'Unable to complete. Please try again.');
@@ -426,6 +432,7 @@ function invitation() {
 }
 async function render() {
   const version = ++state.version; renderHeader();
+  if (state.supplementalCopy) return portalSupplement.claimant(state.supplementalCopy);
   if (state.invite) return invitation();
   if (state.resetPassword) return passwordReset();
   if (state.confirmEmail) return emailConfirmation();
@@ -461,13 +468,7 @@ function privacyDataCopy() {
       field(tr('Senha atual', 'Current password'), input('currentPassword', 'password', '', { maxLength: 1024, autocomplete: 'current-password' }))
     ], tr('Solicitar e baixar cópia', 'Request and download a copy', 'Solicitar y descargar una copia'), async (data, formNode) => {
       formNode.reset();
-      const blob = await api('/privacy/data-copy', 'POST', data, true);
-      const url = URL.createObjectURL(blob);
-      const link = h('a', { href: url, download: 'scadivo-portal-data.json' });
-      document.body.append(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      saveDownloadedFile(await api('/privacy/data-copy', 'POST', data, true), 'scadivo-portal-data.json');
       feedback(tr('Download da cópia iniciado.', 'Your download has started.', 'Se inició la descarga de tu copia.'));
     }),
     p([tr('Os dados da Comunidade ficam disponíveis em Preferências → Conta → Exportar seus dados. ',
@@ -478,6 +479,14 @@ function privacyDataCopy() {
     p([tr('Para pedir registros adicionais de atendimento, use ', 'For additional correspondence, use ', 'Para solicitar correspondencia adicional, usa '),
       h('a', { href: contactUrl }, tr('Contato → Privacidade', 'Contact → Privacy', 'Contacto → Privacidad')), '.'])
   );
+}
+function saveDownloadedFile(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = h('a', { href: url, download: filename });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function profile() {
   const user = state.session.user;
@@ -554,9 +563,12 @@ async function admin() {
   const body = h('div');
   const items = { accounts: tr('Contas e convites', 'Accounts and invitations'), licensing: tr('Licenças', 'Licenses', 'Licencias'), downloads: tr('Downloads', 'Downloads', 'Descargas'), indicators: tr('Indicadores', 'Indicators', 'Indicadores'), templates: tr('Mensagens', 'Messages'), articles: 'FAQ', audit: tr('Auditoria', 'Audit') };
   if (overview.offlineMachineLicenseRequestsEnabled) items.licenseRequests = tr('Pedidos offline', 'Offline requests', 'Solicitudes sin conexión');
+  const privacy = state.session.supplementalCopyEnabled && state.session.user.owner;
+  if (privacy) items.privacy = tr('Privacidade', 'Privacy', 'Privacidad');
   const tabs = h('nav', { class: 'admin-subnav', 'aria-label': tr('Administração', 'Administration') }, Object.entries(items).map(([key, label]) => button(label, () => { state.adminTab = key; render(); }, `button ${state.adminTab === key ? 'primary' : 'secondary'}`)));
   const views = { accounts: accountsAdmin, licensing: portalLicensing.admin, downloads: portalDownloads.admin, indicators: portalIndicators.admin, templates: templatesAdmin, articles: faqAdmin, audit: auditAdmin };
   if (overview.offlineMachineLicenseRequestsEnabled) views.licenseRequests = portalOfflineLicensing.admin;
+  if (privacy) views.privacy = portalSupplement.administration;
   const node = await (views[state.adminTab] || accountsAdmin)(); body.append(node);
   const emailStatus = overview.emailDeliveryConfigured
     ? tr(`Envio de e-mail habilitado: ${overview.queuedMessages} na fila, ${overview.sentMessages} aceitas pelo SMTP e ${overview.failedMessages} com falha (${overview.bouncedMessages ?? 0} devolvidas após o aceite).`, `Email delivery enabled: ${overview.queuedMessages} queued, ${overview.sentMessages} accepted by SMTP and ${overview.failedMessages} failed (${overview.bouncedMessages ?? 0} returned after acceptance).`, `Envío de correo habilitado: ${overview.queuedMessages} en cola, ${overview.sentMessages} aceptados por SMTP y ${overview.failedMessages} con error (${overview.bouncedMessages ?? 0} devueltos después de la aceptación).`)
@@ -707,7 +719,11 @@ async function auditAdmin() {
 
 async function start() {
   const fragment = location.hash.slice(1);
-  if (fragment.startsWith('community-login=')) {
+  const supplemental = /^privacy-(verify|download)=(.*)$/.exec(fragment);
+  if (supplemental) {
+    state.supplementalCopy = { operation: supplemental[1], token: supplemental[2] };
+    history.replaceState(null, '', location.pathname + location.search);
+  } else if (fragment.startsWith('community-login=')) {
     try {
       state.communitySso = parseCommunitySso(fragment.slice('community-login='.length));
       sessionStorage.setItem(communitySsoStorageKey, JSON.stringify({ ...state.communitySso, savedAt: Date.now() }));
@@ -769,11 +785,14 @@ async function start() {
       feedback(tr('Sessão do portal encerrada. Para acessar a comunidade novamente, entre pelo fórum.', 'Portal session ended. To access the community again, sign in from the forum.', 'La sesión del portal se cerró. Para volver a la comunidad, inicia sesión desde el foro.'));
       return;
     }
-    if (continueCommunitySso()) return;
+    if (!state.supplementalCopy && continueCommunitySso()) return;
     render();
   } catch {
     app.replaceChildren(panel(tr('Portal indisponível', 'Portal unavailable'), p(tr('Não foi possível conectar. Aguarde um momento e tente novamente.', 'Unable to connect. Please wait a moment and try again.')), button(tr('Tentar novamente', 'Try again'), start)));
   }
 }
 start();
+window.addEventListener('hashchange', () => {
+  if (/^#privacy-(verify|download)=/.test(location.hash)) start();
+});
 fetch('/portal/api/page-views/portal', { method: 'POST', credentials: 'omit', keepalive: true }).catch(() => {});

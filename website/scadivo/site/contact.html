@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="language-select.css?v=20261023-mobile-header">
   <link rel="stylesheet" href="contacts.css">
   <script src="site.js?v=20261119-indicators" defer></script>
-  <script src="contact.js?v=20261120-data-copy" defer></script>
+  <script src="contact.js?v=20261120-privacy-supplement" defer></script>
 </head>
 <body class="contact-page">
   <header class="site-header">
@@ -60,6 +60,7 @@
           <label><span data-pt="Assunto" data-en="Subject">Assunto</span><select name="subjectKey" id="contact-subject" required></select></label>
         </div>
         <p class="contact-privacy" id="contact-data-copy" hidden><a id="contact-data-copy-link" href="/portal/#profile"></a> <span id="contact-data-copy-note"></span></p>
+        <p class="contact-privacy" id="contact-supplemental-copy" hidden></p>
         <label id="other-subject-wrap" class="other-subject-wrap" hidden><span data-pt="Qual é o assunto?" data-en="What is the subject?">Qual é o assunto?</span><input name="otherSubject" id="other-subject" type="text" maxlength="120" autocomplete="off"></label>
         <label><span data-pt="Mensagem" data-en="Message">Mensagem</span><textarea name="message" rows="7" minlength="10" maxlength="4000" required></textarea><small data-pt="De 10 a 4.000 caracteres." data-en="10 to 4,000 characters.">De 10 a 4.000 caracteres.</small></label>
         <label class="contact-honeypot" aria-hidden="true" tabindex="-1">Website<input name="website" type="text" tabindex="-1" autocomplete="off"></label>

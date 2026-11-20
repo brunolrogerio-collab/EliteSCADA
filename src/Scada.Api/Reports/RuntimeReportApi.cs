@@ -254,7 +254,7 @@ public sealed class RuntimeReportCatalog(
         return true;
     }
 
-    private async Task<EngineeringPackage?> ActivePackageAsync(CancellationToken cancellationToken)
+    internal async Task<EngineeringPackage?> ActivePackageAsync(CancellationToken cancellationToken)
     {
         var descriptor = runtime.Describe();
         if (string.IsNullOrWhiteSpace(descriptor.ProjectKey) || !descriptor.Revision.HasValue) return null;

@@ -22,6 +22,7 @@ export type TrendSample = Readonly<{
   timestamp: string;
   epochMilliseconds: number;
   value: number | null;
+  digital?: boolean;
   quality: string;
 }>;
 
@@ -202,9 +203,10 @@ function normalizeTrendSample(row: HistoricalQueryRow): TrendSample | null {
   if (!tagId || !timestamp) return null;
   const epochMilliseconds = Date.parse(timestamp);
   if (!Number.isFinite(epochMilliseconds)) return null;
-  const value = valueText === null ? null : Number(valueText);
+  const digital = row.cells.value?.kind === 'boolean';
+  const value = valueText === null ? null : digital ? Number(valueText === 'true') : Number(valueText);
   if (value !== null && !Number.isFinite(value)) return null;
-  return Object.freeze({ tagId, tagPath: tagPath ?? '', timestamp, epochMilliseconds, value, quality: quality ?? (value === null ? 'Gap' : 'Unknown') });
+  return Object.freeze({ tagId, tagPath: tagPath ?? '', timestamp, epochMilliseconds, value, ...(digital ? { digital } : {}), quality: quality ?? (value === null ? 'Gap' : 'Unknown') });
 }
 
 function cellText(row: HistoricalQueryRow, field: string): string | null {

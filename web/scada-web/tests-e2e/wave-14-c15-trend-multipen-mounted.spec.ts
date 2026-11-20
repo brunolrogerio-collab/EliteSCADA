@@ -367,6 +367,22 @@ test('C15 quality gaps are fail-safe even when quality chrome is hidden', async 
   await expect(page.getByTestId('visual-trend-legend')).not.toContainText('Uncertain');
 });
 
+test('digital samples render as steps and never bridge a historian gap', async ({ page }) => {
+  const now = Date.now();
+  const path = 'Area/Pump/Pressure';
+  const digital = (seconds: number, value: boolean) => {
+    const sample = row(tagOne, path, new Date(now - seconds * 1000).toISOString(), 0, 'Good');
+    sample.cells.value = { kind: 'boolean', value: String(value) };
+    return sample;
+  };
+  await page.route('**/api/historical/data-query', route => fulfillJson(route, historyResponse([
+    digital(20, false), digital(15, true), gapRow(tagOne, path, new Date(now - 10_000).toISOString()), digital(5, false)
+  ])));
+  await openHarness(page);
+  const series = page.getByTestId('visual-trend-series').first();
+  await expect(series).toHaveAttribute('d', /^M[^H]+H[^V]+V[^M]+M/);
+});
+
 test('C15 mounted Trend localizes no-data state in Spanish', async ({ page }) => {
   await page.route('**/api/historical/data-query', async route => {
     const request = route.request().postDataJSON();

@@ -47,6 +47,8 @@ export type HistoricalDataBrowserProps = Readonly<{
   errorMessage?: string | null;
   filterSummary?: readonly string[];
   advancedControls?: ReactNode;
+  savedQueryName?: string;
+  showPeriod?: boolean;
   onDraftChange?: (draft: HistoricalBrowserDraft) => void;
   onQueryRequested?: (draft: HistoricalBrowserDraft) => void;
 }>;
@@ -59,6 +61,8 @@ export function HistoricalDataBrowser({
   errorMessage = null,
   filterSummary = [],
   advancedControls,
+  savedQueryName,
+  showPeriod = true,
   onDraftChange,
   onQueryRequested
 }: HistoricalDataBrowserProps) {
@@ -97,7 +101,7 @@ export function HistoricalDataBrowser({
       </header>
 
       <div className="historical-browser__primary">
-        <fieldset className="historical-browser__choice">
+        {!savedQueryName && <fieldset className="historical-browser__choice">
           <legend>{text.dataset}</legend>
           <div className="historical-browser__segmented" role="group" aria-label={text.dataset}>
             {HISTORICAL_BROWSER_DATASET_KEYS.map(key => (
@@ -112,9 +116,9 @@ export function HistoricalDataBrowser({
               </button>
             ))}
           </div>
-        </fieldset>
+        </fieldset>}
 
-        <fieldset className="historical-browser__choice">
+        {showPeriod && <fieldset className="historical-browser__choice">
           <legend>{text.period}</legend>
           <div className="historical-browser__segmented" role="group" aria-label={text.period}>
             {HISTORICAL_BROWSER_RELATIVE_PRESETS.map(preset => (
@@ -137,9 +141,9 @@ export function HistoricalDataBrowser({
               {text.customPeriod}
             </button>
           </div>
-        </fieldset>
+        </fieldset>}
 
-        {draft.timeMode === 'absolute' && (
+        {showPeriod && draft.timeMode === 'absolute' && (
           <div className="historical-browser__absolute-period">
             <label>
               {text.start}
@@ -169,13 +173,13 @@ export function HistoricalDataBrowser({
           type="button"
           className="historical-browser__query"
           onClick={() => onQueryRequested?.(draft)}
-          disabled={!validation.ok || state === 'loading'}
+          disabled={(showPeriod && !validation.ok) || state === 'loading'}
         >
           {text.query}
         </button>
       </div>
 
-      {!validation.ok && (
+      {showPeriod && !validation.ok && (
         <div role="alert" className="historical-browser__validation">
           {validation.diagnostics.join(' ')}
         </div>
@@ -185,8 +189,8 @@ export function HistoricalDataBrowser({
 
       {state !== 'idle' && (
         <div className="historical-browser__summary" aria-live="polite">
-          <strong>{historicalDatasetLabel(draft.datasetKey, locale)}</strong>
-          <span>{historicalTimeSummary(draft, locale)}</span>
+          <strong>{savedQueryName ?? historicalDatasetLabel(draft.datasetKey, locale)}</strong>
+          {showPeriod && <span>{historicalTimeSummary(draft, locale)}</span>}
           {filterSummary.length > 0 && <span>{filterSummary.join(' · ')}</span>}
         </div>
       )}

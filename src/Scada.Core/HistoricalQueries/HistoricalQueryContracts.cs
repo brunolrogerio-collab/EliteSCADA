@@ -174,7 +174,15 @@ public sealed record HistoricalQueryRequest(
     [property: JsonPropertyName("filters")] IReadOnlyList<HistoricalFilter>? Filters = null,
     [property: JsonPropertyName("search")] string? Search = null,
     [property: JsonPropertyName("orderBy")] IReadOnlyList<HistoricalSort>? OrderBy = null,
-    [property: JsonPropertyName("page")] HistoricalPageRequest? Page = null);
+    [property: JsonPropertyName("page")] HistoricalPageRequest? Page = null)
+{
+    [JsonIgnore]
+    public HistoricalAlarmViewScope? AlarmView { get; init; }
+}
+
+public sealed record HistoricalAlarmViewScope(
+    Guid[]? AlarmIds, Guid[]? TagIds, short[]? Priorities, short[] States,
+    string? Search, Guid[]? SearchMatchingAlarmIds);
 
 public sealed record HistoricalColumn(
     [property: JsonPropertyName("field")] string Field,
@@ -211,7 +219,10 @@ public sealed record HistoricalQueryExecution(
     string? Search,
     HistoricalSort Sort,
     int PageSize,
-    HistoricalQueryPosition? After);
+    HistoricalQueryPosition? After)
+{
+    public HistoricalAlarmViewScope? AlarmView { get; init; }
+}
 
 public sealed record HistoricalProviderPage(
     IReadOnlyList<HistoricalQueryRow> Rows,

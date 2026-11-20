@@ -74,6 +74,7 @@ public static class HistoricalQueryApi
         // Report Preview executes only through the accepted Historical Query service,
         // so it is mounted with the same explicitly enabled historical feature bundle.
         app.MapReportExecutionEndpoints();
+        app.MapRuntimeSavedHistory();
         return historicalQuery;
     }
 

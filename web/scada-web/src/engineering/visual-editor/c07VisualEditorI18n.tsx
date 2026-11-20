@@ -3,6 +3,7 @@ import type { EngineeringLocale } from '../i18n';
 
 const ptBR = {
   toolbar: {
+    draw: 'Desenho', displayControls: 'Exibição e controles',
     aria: 'Operações de edição visual', history: 'Histórico', undo: 'Desfazer', redo: 'Refazer', copy: 'Copiar', paste: 'Colar',
     align: 'Alinhar', alignLeft: 'Alinhar à esquerda', alignHorizontalCenters: 'Alinhar centros horizontais', alignRight: 'Alinhar à direita', alignTop: 'Alinhar ao topo', alignVerticalMiddles: 'Alinhar centros verticais', alignBottom: 'Alinhar à base',
     distribute: 'Distribuir', distributeHorizontalCenters: 'Distribuir centros horizontalmente', distributeHorizontalSpacing: 'Distribuir espaçamento horizontal', distributeVerticalCenters: 'Distribuir centros verticalmente', distributeVerticalSpacing: 'Distribuir espaçamento vertical',
@@ -18,6 +19,9 @@ const ptBR = {
     fit: { cover: 'Cobrir', contain: 'Conter', stretch: 'Esticar', center: 'Centralizar', tile: 'Repetir' }
   },
   palette: {
+    group: 'Grupo', rectangle: 'Retângulo', ellipse: 'Elipse', line: 'Linha', polygon: 'Polígono',
+    text: 'Texto', image: 'Imagem', model3d: 'Modelo 3D', valueDisplay: 'Indicador de valor', trend: 'Tendência',
+    button: 'Botão', slider: 'Controle deslizante', numericInput: 'Entrada numérica',
     checkBox: 'Caixa de seleção', comboBox: 'Lista de opções',
     arc: 'Arco', bezier: 'Curva Bézier', alarmBrowser: 'Browser de Alarmes', eventBrowser: 'Browser de Eventos', videoPlayer: 'Vídeo', pdfViewer: 'Visualizador PDF', reportLauncher: 'Abrir relatório',
     measurementDial: 'Mostrador semicircular', measurementRing: 'Anel de medição', measurementBar: 'Barra graduada', measurementThermometer: 'Régua vertical', measurementBands: 'Faixas de intervalo', measurementTarget: 'Valor atual e meta', intelligenceSingleTargetDeviationV1: 'Medições sob uma condição'
@@ -39,6 +43,7 @@ type C07VisualEditorText = DeepString<typeof ptBR>;
 
 const en: C07VisualEditorText = {
   toolbar: {
+    draw: 'Draw', displayControls: 'Display and controls',
     aria: 'Visual authoring operations', history: 'History', undo: 'Undo', redo: 'Redo', copy: 'Copy', paste: 'Paste',
     align: 'Align', alignLeft: 'Align left', alignHorizontalCenters: 'Align horizontal centers', alignRight: 'Align right', alignTop: 'Align top', alignVerticalMiddles: 'Align vertical middles', alignBottom: 'Align bottom',
     distribute: 'Distribute', distributeHorizontalCenters: 'Distribute horizontal centers', distributeHorizontalSpacing: 'Distribute horizontal spacing', distributeVerticalCenters: 'Distribute vertical centers', distributeVerticalSpacing: 'Distribute vertical spacing',
@@ -54,6 +59,9 @@ const en: C07VisualEditorText = {
     fit: { cover: 'Cover', contain: 'Contain', stretch: 'Stretch', center: 'Center', tile: 'Tile' }
   },
   palette: {
+    group: 'Group', rectangle: 'Rectangle', ellipse: 'Ellipse', line: 'Line', polygon: 'Polygon',
+    text: 'Text', image: 'Image', model3d: '3D model', valueDisplay: 'Value display', trend: 'Trend',
+    button: 'Button', slider: 'Slider', numericInput: 'Numeric input',
     checkBox: 'CheckBox', comboBox: 'ComboBox',
     arc: 'Arc', bezier: 'Bezier curve', alarmBrowser: 'Alarm Browser', eventBrowser: 'Event Browser', videoPlayer: 'Video', pdfViewer: 'PDF viewer', reportLauncher: 'Report launcher',
     measurementDial: 'Semicircular dial', measurementRing: 'Measurement ring', measurementBar: 'Graduated bar', measurementThermometer: 'Vertical ruler', measurementBands: 'Range bands', measurementTarget: 'Actual vs target', intelligenceSingleTargetDeviationV1: 'Measurements under one condition'
@@ -72,6 +80,7 @@ const en: C07VisualEditorText = {
 
 const es: C07VisualEditorText = {
   toolbar: {
+    draw: 'Dibujo', displayControls: 'Visualización y controles',
     aria: 'Operaciones de edición visual', history: 'Historial', undo: 'Deshacer', redo: 'Rehacer', copy: 'Copiar', paste: 'Pegar',
     align: 'Alinear', alignLeft: 'Alinear a la izquierda', alignHorizontalCenters: 'Alinear centros horizontales', alignRight: 'Alinear a la derecha', alignTop: 'Alinear arriba', alignVerticalMiddles: 'Alinear centros verticales', alignBottom: 'Alinear abajo',
     distribute: 'Distribuir', distributeHorizontalCenters: 'Distribuir centros horizontalmente', distributeHorizontalSpacing: 'Distribuir espacio horizontal', distributeVerticalCenters: 'Distribuir centros verticalmente', distributeVerticalSpacing: 'Distribuir espacio vertical',
@@ -87,6 +96,9 @@ const es: C07VisualEditorText = {
     fit: { cover: 'Cubrir', contain: 'Contener', stretch: 'Estirar', center: 'Centrar', tile: 'Repetir' }
   },
   palette: {
+    group: 'Grupo', rectangle: 'Rectángulo', ellipse: 'Elipse', line: 'Línea', polygon: 'Polígono',
+    text: 'Texto', image: 'Imagen', model3d: 'Modelo 3D', valueDisplay: 'Indicador de valor', trend: 'Tendencia',
+    button: 'Botón', slider: 'Control deslizante', numericInput: 'Entrada numérica',
     checkBox: 'Casilla de verificación', comboBox: 'Lista de opciones',
     arc: 'Arco', bezier: 'Curva Bézier', alarmBrowser: 'Browser de Alarmas', eventBrowser: 'Browser de Eventos', videoPlayer: 'Vídeo', pdfViewer: 'Visor PDF', reportLauncher: 'Abrir informe',
     measurementDial: 'Indicador semicircular', measurementRing: 'Anillo de medición', measurementBar: 'Barra graduada', measurementThermometer: 'Regla vertical', measurementBands: 'Bandas de rango', measurementTarget: 'Valor actual y objetivo', intelligenceSingleTargetDeviationV1: 'Mediciones bajo una condición'

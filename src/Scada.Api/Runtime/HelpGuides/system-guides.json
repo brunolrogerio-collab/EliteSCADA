@@ -3458,7 +3458,7 @@
         },
         {
           "heading": "Verifique por etapas",
-          "body": "Confira primeiro disponibilidade do processo auxiliar e referências protegidas, depois host/porta/usuário/endereço individual e grupos/DPT/tipo do TAG. A autoria pelo assistente atual precisa da correção indicada acima. Com vínculo corretamente validado, salve/publique/ative pelo projeto e confira o retorno antes de escrever. Um envio aceito sem retorno não deve atualizar artificialmente o estado. Este driver não anuncia descoberta de Engenharia.",
+          "body": "Confira primeiro disponibilidade do processo auxiliar e referências protegidas, depois host/porta/usuário/endereço individual e grupos/DPT/tipo do TAG. Com vínculo corretamente validado, salve/publique/ative pelo projeto e confira o retorno antes de escrever. Um envio aceito sem retorno não deve atualizar artificialmente o estado. Este driver não anuncia descoberta de Engenharia.",
           "fields": null
         }
       ],
@@ -10531,7 +10531,7 @@
         },
         {
           "heading": "Verify in stages",
-          "body": "Check sidecar availability and protected references first, then host/port/user/individual address and groups/DPT/TAG type. Authoring with the current assistant requires the correction noted above. With a correctly validated binding, save/publish/activate through the project and check feedback before writing. Accepted sending without feedback must not artificially update state. This driver advertises no Engineering discovery.",
+          "body": "Check sidecar availability and protected references first, then host/port/user/individual address and groups/DPT/TAG type. With a correctly validated binding, save/publish/activate through the project and check feedback before writing. Accepted sending without feedback must not artificially update state. This driver advertises no Engineering discovery.",
           "fields": null
         }
       ],
@@ -17604,7 +17604,7 @@
         },
         {
           "heading": "Compruebe por etapas",
-          "body": "Compruebe primero proceso auxiliar y referencias protegidas, después host/puerto/usuario/dirección individual y grupos/DPT/tipo del TAG. La autoría con el asistente actual requiere la corrección indicada. Con vínculo correctamente validado guarde/publique/active mediante el proyecto y compruebe retorno antes de escribir. Un envío aceptado sin retorno no debe actualizar artificialmente el estado. Este driver no anuncia descubrimiento de Ingeniería.",
+          "body": "Compruebe primero proceso auxiliar y referencias protegidas, después host/puerto/usuario/dirección individual y grupos/DPT/tipo del TAG. Con vínculo correctamente validado guarde/publique/active mediante el proyecto y compruebe retorno antes de escribir. Un envío aceptado sin retorno no debe actualizar artificialmente el estado. Este driver no anuncia descubrimiento de Ingeniería.",
           "fields": null
         }
       ],

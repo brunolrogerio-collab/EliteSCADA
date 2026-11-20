@@ -148,7 +148,7 @@ test('operational Help explains session outcomes, server diagnostics and separat
   await page.screenshot({ path: testInfo.outputPath('help-recovery-mobile.png') });
 });
 
-test('Matter help is reachable without advertising a production driver or a complete graphical binding flow', async ({ page }, testInfo) => {
+test('Matter help is reachable and explains attribute binding and commissioning limits', async ({ page }, testInfo) => {
   await installCurrentHelpCatalog(page);
   await page.goto('/help?topic=drivers.overview');
   await page.locator('article').getByRole('link', { name: 'Matter Wi-Fi: preparar e entender a versão em teste', exact: true }).click();
@@ -158,7 +158,7 @@ test('Matter help is reachable without advertising a production driver or a comp
   await expect(article.getByRole('heading', { level: 2 })).toBeFocused();
   await expect(page.locator('[data-help-group="driverBuildings"]')).toHaveAttribute('open');
   await expect(article).toContainText('O SCADIVO é multiplataforma');
-  await expect(article).toContainText('não há passo gráfico completo prometido aqui');
+  await expect(article).toContainText('aplique as configurações de binding antes de validar');
   await expect(article).toContainText('Criar chave no host');
   await expect(article).toContainText('não contata dispositivos');
   await expect(article.getByRole('rowheader', { name: 'Endereço do atributo', exact: true })).toBeVisible();
@@ -167,10 +167,10 @@ test('Matter help is reachable without advertising a production driver or a comp
   await expect(page.locator('a[href="/help?topic=driver.matter.wifi"]')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('help-matter-desktop.png'), fullPage: true });
   await page.getByLabel('Idioma', { exact: true }).selectOption('en');
-  await expect(article).toContainText('no complete graphical procedure is promised here');
+  await expect(article).toContainText('apply the binding settings before validating');
   await expect(article).toContainText('Creating/verifying a key does not contact devices');
   await page.getByLabel('Language', { exact: true }).selectOption('es');
-  await expect(article).toContainText('no se promete un procedimiento gráfico completo');
+  await expect(article).toContainText('aplique el vínculo antes de validar');
   await page.setViewportSize({ width: 390, height: 844 });
   await article.getByRole('rowheader', { name: 'Vínculo de comunicación', exact: true }).scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -252,7 +252,7 @@ test('PLC guides distinguish routing, native types and conditional serial fields
   await expect(article.locator('h2')).toHaveText('Siemens S7: CPU, memória e primeira leitura');
   await expect(article.getByRole('rowheader', { name: 'Número do DB', exact: false })).toBeVisible();
   await expect(article).toContainText('o acesso a DB e cada ponto ainda precisa ser conferido');
-  await expect(article).toContainText('A criação por esse caminho é recusada');
+  await expect(article).toContainText('Preencha a área, os offsets e o tipo físico no assistente de TAG');
   await expect(article.locator('pre')).toContainText('s7iso:v1;area=DataBlock;db=1');
   await page.getByLabel('Idioma', { exact: true }).selectOption('en');
   await expect(article.locator('h2')).toHaveText('Siemens S7: CPU, memory and first reading');
@@ -283,18 +283,18 @@ test('radio guides explain prepared networks, current UI limits and source fresh
   await expect(article.locator('h2')).toHaveText('Zigbee e Z-Wave: escolher o caminho da conexão');
   await article.getByRole('link', { name: 'Zigbee nativo: coordenador e estado On/Off', exact: true }).click();
   await expect(article.getByRole('rowheader', { name: 'Cluster suportado', exact: false })).toBeVisible();
-  await expect(article).toContainText('O Runtime recusa o objeto gerado');
+  await expect(article).toContainText('O assistente monta o endereço portátil com IEEE, endpoint, cluster e atributo');
   await expect(article.locator('pre')).toContainText('"cluster":"genOnOff"');
   await page.getByLabel('Idioma', { exact: true }).selectOption('en');
   await expect(article.locator('h2')).toHaveText('Native Zigbee: coordinator and On/Off state');
-  await expect(article).toContainText('UI authoring awaits correction');
+  await expect(article).toContainText('The assistant builds the portable address from the IEEE address, endpoint, cluster and attribute');
   await page.getByLabel('Language', { exact: true }).selectOption('es');
   await expect(article.locator('h2')).toHaveText('Zigbee nativo: coordinador y estado On/Off');
-  await expect(article).toContainText('La autoría por interfaz espera corrección');
+  await expect(article).toContainText('El asistente genera la dirección portátil a partir de IEEE, endpoint, clúster y atributo');
   await article.getByRole('rowheader', { name: 'Autoría del vínculo en esta versión', exact: false }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath('help-native-zigbee-limit-desktop.png') });
   await page.goto('/help?topic=drivers.zwave-setup');
-  await expect(article).toContainText('Escribir solo la dirección de un TAG nuevo no basta');
+  await expect(article).toContainText('introduzca la dirección portátil tipada y aplique el vínculo');
   await expect(article.locator('pre')).toContainText('"readOnly":true');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/help?topic=drivers.zigbee2mqtt-setup');
@@ -307,22 +307,22 @@ test('radio guides explain prepared networks, current UI limits and source fresh
   await page.screenshot({ path: testInfo.outputPath('help-z2m-generated-identity-mobile.png') });
 });
 
-test('Home Building guidance keeps unavailable authoring steps honest in every locale', async ({ page }, testInfo) => {
+test('Home Building guidance explains explicit entity selection and TAG binding in every locale', async ({ page }, testInfo) => {
   await installCurrentHelpCatalog(page);
   await page.goto('/help?topic=drivers.homeassistant-setup');
   const article = page.locator('article');
   await expect(article.locator('h2')).toHaveText('Home Assistant Bridge: conectar e escolher entidades');
   await expect(article.getByRole('rowheader', { name: 'Seleção de entidades para incorporar', exact: false })).toBeVisible();
-  await expect(article).toContainText('não há seletor pronto', { ignoreCase: true });
+  await expect(article).toContainText('A descoberta usa somente os IDs informados', { ignoreCase: true });
   await page.getByLabel('Idioma', { exact: true }).selectOption('en');
   await expect(article.locator('h2')).toHaveText('Home Assistant Bridge: connect and select entities');
-  await expect(article).toContainText('There is no ready selector');
+  await expect(article).toContainText('Discovery uses only the IDs entered');
   await page.getByLabel('Language', { exact: true }).selectOption('es');
   await expect(article.locator('h2')).toHaveText('Home Assistant Bridge: conectar y elegir entidades');
-  await expect(article).toContainText('todavía no tiene selector');
+  await expect(article).toContainText('El descubrimiento usa solo los ID indicados');
   await page.goto('/help?topic=drivers.knx-setup');
   await expect(article.locator('h2')).toHaveText('KNX/IP Secure: túnel, DPT y estado confirmado');
-  await expect(article).toContainText('genera un vínculo incompatible');
+  await expect(article).toContainText('Use direcciones de comando y retorno distintas para escritura');
   await expect(article.locator('pre')).toContainText('"stateGroupAddress":"1/2/4"');
   await page.screenshot({ path: testInfo.outputPath('help-knx-limit-desktop.png'), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });

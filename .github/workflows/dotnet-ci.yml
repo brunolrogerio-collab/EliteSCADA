@@ -221,8 +221,8 @@ jobs:
           assert workspace['lastSavedAtUtc'] is not None
           assert workspace['securityRoleCount'] == 1
           # The retired legacy 72-dynamo set is gone; first-project setup seeds
-          # the current 23-item catalog. Static SVG assets remain separate.
-          assert workspace['dynamoCount'] == 23
+          # the current 15-item catalog. Static SVG assets remain separate.
+          assert workspace['dynamoCount'] == 15
           assert workspace['commandCount'] == 0
           PY
 

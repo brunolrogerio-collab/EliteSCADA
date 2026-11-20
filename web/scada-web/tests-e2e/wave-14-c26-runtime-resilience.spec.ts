@@ -106,6 +106,18 @@ async function installRuntimeShellContract(page: Page) {
   await page.route('**/api/engineering/persistence/status', route => route.fulfill({
     json: { enabled: true, hasProjects: true }
   }));
+  const session = {
+    sessionId: '26000000-0000-0000-0000-000000000401',
+    requestedClass: 'interactive',
+    grantedClass: 'interactive',
+    admissionReasonCode: 'InteractiveGranted',
+    capacityReasonCode: 'InteractiveSeatReserved'
+  };
+  await page.route('**/api/runtime/sessions', route => route.fulfill({
+    status: 201,
+    json: { ...session, clientInstanceId: route.request().postDataJSON().clientInstanceId }
+  }));
+  await page.route('**/api/runtime/sessions/*/heartbeat', route => route.fulfill({ json: session }));
 }
 
 test('C26 Runtime preserves the selected Screen across one transient projection transport failure and recovery', async ({ page }) => {
@@ -331,19 +343,6 @@ test('Runtime header returns to the startup Screen after repeated canvas navigat
       }
     }
   }));
-
-  const session = {
-    sessionId: '26000000-0000-0000-0000-000000000401',
-    requestedClass: 'interactive',
-    grantedClass: 'interactive',
-    admissionReasonCode: 'InteractiveGranted',
-    capacityReasonCode: 'InteractiveSeatReserved'
-  };
-  await page.route('**/api/runtime/sessions', route => route.fulfill({
-    status: 201,
-    json: { ...session, clientInstanceId: route.request().postDataJSON().clientInstanceId }
-  }));
-  await page.route('**/api/runtime/sessions/*/heartbeat', route => route.fulfill({ json: session }));
 
   await page.goto('/?screen=home');
   const navigator = page.getByTestId('runtime-visual-navigator');

@@ -82,6 +82,10 @@ A automação entregou três avisos no Mailpit, um em cada idioma. Uma conta que
 
 Antes da publicação, conferir e testar o canal oficial, as solicitações de acesso, correção e encerramento no Portal e na Comunidade, os fornecedores e países envolvidos, os cookies e as rotinas de retenção. Publicar aviso e termos com data e versão, com acesso antes do cadastro e pelos links do site, Portal e Comunidade. Preparar a versão final em PT-BR, EN e ES para o Portal e a Comunidade. Planos, pagamentos, cancelamento comercial e reembolso seguem na preparação do lançamento comercial.
 
+A versão 1.0 em homologação usa `SCADIVO_HOMOLOG_LEGAL_PREVIEW=true`. Os links ficam antes do formulário de cadastro e no aviso da visão geral. Os textos públicos definitivos dependem da identificação legal, data de vigência e autorização de publicação. A prévia e suas URLs ficam reservadas ao ambiente de desenvolvimento com a opção habilitada.
+
+Para verificar os avisos por e-mail, executar `dotnet Scadivo.Portal.dll --send-legal-preview-emails` no container da API de homologação. O comando usa os mesmos modelos HTML e texto do Portal e envia uma mensagem por idioma para endereços de teste no Mailpit local.
+
 ### Identificação comercial e fiscal na aquisição de licenças
 
 Na aquisição, pedir país e tipo de titular. Para pessoa física no Brasil, prever CPF e data de nascimento. Para pessoa jurídica no Brasil, prever CNPJ e identificar o representante apenas nos casos em que seus dados forem necessários. Para outros países, usar os identificadores equivalentes do titular e os formatos aplicáveis ao mercado. A finalidade é identificar o comprador, emitir documentos fiscais quando aplicável e manter os controles internos da aquisição.

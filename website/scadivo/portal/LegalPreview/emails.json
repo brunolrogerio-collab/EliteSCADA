@@ -1,0 +1,14 @@
+{
+  "pt-BR": {
+    "subject": "SCADIVO | Aviso de Privacidade e Termos de Uso 1.0",
+    "body": "Olá,\n\nO Aviso de Privacidade e os Termos de Uso 1.0 do SCADIVO entram em vigor em [data de vigência].\n\nO Aviso explica como usamos seus dados, por quanto tempo os guardamos e como exercer seus direitos. Os Termos descrevem as condições de participação no piloto, o acesso à Comunidade e o gerenciamento de licenças.\n\nConsulte os dois documentos no Portal em {{link}}. Para dúvidas sobre seus dados, use Contato → Privacidade.\n\nEquipe SCADIVO"
+  },
+  "en": {
+    "subject": "SCADIVO | Privacy Notice and Terms of Use 1.0",
+    "body": "Hello,\n\nThe SCADIVO Privacy Notice and Terms of Use 1.0 take effect on [effective date].\n\nThe Privacy Notice explains how we use your data, how long we keep it, and how to exercise your rights. The Terms cover eligibility for the pilot, Community access, and license management.\n\nRead both documents in the Portal at {{link}}. If you have questions about your data, use Contact → Privacy.\n\nThe SCADIVO team"
+  },
+  "es": {
+    "subject": "SCADIVO | Aviso de Privacidad y Términos de Uso 1.0",
+    "body": "Hola:\n\nEl Aviso de Privacidad y los Términos de Uso 1.0 de SCADIVO entran en vigor el [fecha de entrada en vigor].\n\nEl Aviso explica cómo usamos tus datos, durante cuánto tiempo los conservamos y cómo ejercer tus derechos. Los Términos describen las condiciones de participación en el piloto, el acceso a la Comunidad y la gestión de licencias.\n\nConsulta ambos documentos en el Portal en {{link}}. Si tienes dudas sobre tus datos, usa Contacto → Privacidad.\n\nEl equipo de SCADIVO"
+  }
+}

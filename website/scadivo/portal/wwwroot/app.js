@@ -325,8 +325,25 @@ function profileFields(user = {}) {
     h('label', { class: 'check-field' }, [marketing, tr('Quero receber novidades e informações comerciais por e-mail (opcional).', 'I would like to receive product news and commercial updates by email (optional).')])
   ];
 }
+function legalPreviewNotice() {
+  if (!state.session?.legalPreview) return null;
+  const url = '/portal/legal-preview/' + state.lang;
+  return h('section', { class: 'notice legal-preview-notice' }, [
+    h('h2', {}, tr('Aviso de Privacidade e Termos de Uso 1.0', 'Privacy Notice and Terms of Use 1.0', 'Aviso de Privacidad y Términos de Uso 1.0')),
+    p(tr('Prévia de homologação. Consulte como usamos seus dados e as condições do piloto.',
+      'Staging preview. Read how we use your data and the terms of the pilot.',
+      'Vista previa de homologación. Consulta cómo usamos tus datos y las condiciones del piloto.')),
+    h('div', { class: 'legal-preview-links' }, [
+      h('a', { href: url + '#privacy', target: '_blank', rel: 'noopener' },
+        tr('Ler o Aviso de Privacidade', 'Read the Privacy Notice', 'Leer el Aviso de Privacidad')),
+      h('a', { href: url + '#terms', target: '_blank', rel: 'noopener' },
+        tr('Ler os Termos de Uso', 'Read the Terms of Use', 'Leer los Términos de Uso'))
+    ])
+  ]);
+}
 function registration() {
   const card = panel(tr('Criar conta SCADIVO', 'Create a SCADIVO account'),
+    legalPreviewNotice(),
     p(tr('Depois do cadastro, enviaremos um link único para confirmar seu e-mail. O login será liberado somente após a confirmação.', 'After signup, we will send a unique link to confirm your email. Sign-in is enabled only after confirmation.')),
     form([
       field(tr('Nome de apresentação', 'Display name', 'Nombre visible'), input('displayName', 'text', '', { maxLength: 160, autocomplete: 'nickname' }), tr('Esse nome aparecerá na comunidade. Escolha como quer ser identificado.', 'This name will appear in the community. Choose how you want to be identified.', 'Este nombre aparecerá en la comunidad. Elige cómo quieres que te identifiquen.')),
@@ -403,7 +420,11 @@ async function render() {
   const body = content.querySelector('.content-body');
   try {
     const node = await ({ home, profile, support, downloads, faq, community, licenses, admin })[state.tab]();
-    if (version === state.version) body.replaceChildren(node);
+    if (version === state.version) {
+      body.replaceChildren(node);
+      const legal = state.tab === 'home' && legalPreviewNotice();
+      if (legal) body.prepend(legal);
+    }
   } catch (error) { if (version === state.version) body.replaceChildren(notice(error.message), button(tr('Tentar novamente', 'Try again'), render)); }
 }
 function home() {

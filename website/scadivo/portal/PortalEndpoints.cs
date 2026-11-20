@@ -9,7 +9,7 @@ namespace Scadivo.Portal;
 
 public static class PortalEndpoints
 {
-    public static void MapPortalEndpoints(this WebApplication app)
+    public static void MapPortalEndpoints(this WebApplication app, bool legalPreview)
     {
         app.MapGet("/api/session", async (HttpContext context, IAntiforgery antiforgery, PortalOperations operations,
             IOptions<PortalEmailOptions> emailSettings, IOptions<CommunitySsoOptions> communitySettings) =>
@@ -22,6 +22,7 @@ public static class PortalEndpoints
                 user = context.User.Identity?.IsAuthenticated == true ? await operations.Profile(context) : null,
                 csrfToken = token.RequestToken,
                 publicRegistrationEnabled = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<bool>("Portal:PublicRegistrationEnabled"),
+                legalPreview,
                 emailDeliveryConfigured = emailSettings.Value.Enabled,
                 communityEnabled = community.Enabled,
                 offlineMachineLicenseRequestsEnabled = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<bool>("Portal:OfflineMachineLicenseRequestsEnabled"),

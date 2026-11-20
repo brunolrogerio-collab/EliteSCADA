@@ -28,7 +28,7 @@ if (args.Contains("--healthcheck"))
 var retentionReport = args.Contains("--retention-report");
 var applyRetention = args.Contains("--apply-retention");
 var builder = WebApplication.CreateBuilder(args.Where(argument =>
-    argument is not ("--send-test-email" or "--retention-report" or "--apply-retention")).ToArray());
+    argument is not ("--send-test-email" or "--send-legal-preview-emails" or "--retention-report" or "--apply-retention")).ToArray());
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 65536);
 builder.Services.AddDbContext<PortalDb>(options => options.UseNpgsql(
     builder.Configuration.GetConnectionString("Portal") ?? throw new InvalidOperationException("Portal database is not configured.")));
@@ -199,6 +199,20 @@ if (args.Contains("--send-test-email"))
     }
     return;
 }
+if (args.Contains("--send-legal-preview-emails"))
+{
+    try
+    {
+        await PortalLegalPreview.SendTestEmailsAsync(app);
+        Console.WriteLine("Legal notices delivered to Mailpit in PT-BR, EN and ES.");
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Legal preview emails failed ({exception.GetType().Name}).");
+        Environment.ExitCode = 1;
+    }
+    return;
+}
 app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UsePathBase("/portal");
@@ -232,7 +246,9 @@ app.Use(async (context, next) =>
 });
 app.MapGet("/health", async (PortalDb db) => await db.Database.CanConnectAsync()
     ? Results.Ok(new { service = "scadivo-portal", status = "ok" }) : Results.StatusCode(503));
-app.MapPortalEndpoints();
+var legalPreview = PortalLegalPreview.IsEnabled(app);
+app.MapPortalEndpoints(legalPreview);
+PortalLegalPreview.MapDocuments(app, legalPreview);
 app.MapPortalLicensingEndpoints();
 app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache" });

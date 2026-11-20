@@ -29,3 +29,14 @@
   border-radius: 10px;
   background: #edf2f5;
 }
+
+.legal-preview-notice h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.legal-preview-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}

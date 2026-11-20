@@ -210,13 +210,16 @@ public sealed class PortalEmailDispatcher(
                 : spanish ? "\n\nEste enlace caduca en 24 horas y solo se puede usar una vez."
                 : "\n\nO link expira em 24 horas e pode ser usado uma única vez.";
         var replyToSubmitter = template.Key == "contact.notification";
+        var localPreviewLink = template.Key == PortalLegalPreview.EmailTemplateKey &&
+            Uri.TryCreate(link, UriKind.Absolute, out var previewUri) && previewUri.IsLoopback && previewUri.Scheme == "http"
+            ? link : null;
         return CreateMessage(settings, id, recipient,
             Render(english ? template.SubjectEn : spanish ? template.SubjectEs : template.SubjectPt), body,
-            replyToSubmitter ? replyTo : null, locale, replyToSubmitter);
+            replyToSubmitter ? replyTo : null, locale, replyToSubmitter, localPreviewLink);
     }
 
     public static MimeMessage CreateMessage(PortalEmailOptions settings, Guid id, string recipient, string subject,
-        string body, string? replyTo = null, string locale = "pt-BR", bool replyToSubmitter = false)
+        string body, string? replyTo = null, string locale = "pt-BR", bool replyToSubmitter = false, string? localPreviewLink = null)
     {
         var safeSubject = subject.Replace('\r', ' ').Replace('\n', ' ');
         var supportLink = locale switch
@@ -232,7 +235,7 @@ public sealed class PortalEmailDispatcher(
             _ => "Não responda a este e-mail. Se precisar de apoio, acesse nossa página de suporte:"
         };
         var plainBody = replyToSubmitter ? body : $"{body.TrimEnd()}\n\n{footerText}\n{supportLink}";
-        var htmlBody = RenderHtml(safeSubject, body, locale, supportLink, footerText, replyToSubmitter);
+        var htmlBody = RenderHtml(safeSubject, body, locale, supportLink, footerText, replyToSubmitter, localPreviewLink);
         var message = new MimeMessage
         {
             MessageId = $"{id:N}@scadivo.com",
@@ -257,9 +260,10 @@ public sealed class PortalEmailDispatcher(
     }
 
     private static string RenderHtml(string subject, string body, string locale, string supportLink, string footerText,
-        bool replyToSubmitter)
+        bool replyToSubmitter, string? localPreviewLink)
     {
         static string Encode(string value) => HtmlEncoder.Default.Encode(value);
+        var urlPattern = localPreviewLink is null ? @"https://[^\s<]+" : @"https://[^\s<]+|" + Regex.Escape(Encode(localPreviewLink));
         var actionLabel = locale == "es"
             ? subject.Contains("recuper", StringComparison.OrdinalIgnoreCase) || subject.Contains("restable", StringComparison.OrdinalIgnoreCase) || subject.Contains("contraseña", StringComparison.OrdinalIgnoreCase) ? "Restablecer mi contraseña"
                 : subject.Contains("confirm", StringComparison.OrdinalIgnoreCase) ? "Confirmar mi correo"
@@ -277,7 +281,7 @@ public sealed class PortalEmailDispatcher(
         string Format(string value)
         {
             var encoded = Encode(value);
-            return Regex.Replace(encoded, @"https://[^\s<]+", match =>
+            return Regex.Replace(encoded, urlPattern, match =>
             {
                 var url = match.Value.TrimEnd('.', ',', ';', ')', ']');
                 var suffix = match.Value[url.Length..];

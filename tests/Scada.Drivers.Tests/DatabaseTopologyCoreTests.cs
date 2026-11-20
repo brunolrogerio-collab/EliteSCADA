@@ -554,14 +554,17 @@ public sealed class DatabaseTopologyCoreTests
         Assert.NotNull(invalidTls.FailureCode);
     }
 
-    [Fact]
-    public async Task PostgreSqlOperations_MigratePreparedCore_AndPreserveSourceDatabase()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task PostgreSqlOperations_MigrateCoreAndHistorian_AndPreserveSourceDatabase(bool historianUsesPrimary)
     {
         var seed = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
         if (string.IsNullOrWhiteSpace(seed)) return;
 
         var sourceDatabase = "elitescada_db_source_" + Guid.NewGuid().ToString("N")[..12];
         var targetDatabase = "elitescada_db_target_" + Guid.NewGuid().ToString("N")[..12];
+        var historianDatabase = "elitescada_db_history_" + Guid.NewGuid().ToString("N")[..12];
         var admin = new NpgsqlConnectionStringBuilder(seed)
         {
             Database = "postgres",
@@ -580,9 +583,27 @@ public sealed class DatabaseTopologyCoreTests
 
         await CreateDatabaseAsync(admin.ConnectionString, sourceDatabase);
         await CreateDatabaseAsync(admin.ConnectionString, targetDatabase);
+        var historianTarget = historianUsesPrimary
+            ? target.ConnectionString
+            : new NpgsqlConnectionStringBuilder(target.ConnectionString) { Database = historianDatabase }.ConnectionString;
         try
         {
+            if (!historianUsesPrimary)
+                await CreateDatabaseAsync(admin.ConnectionString, historianDatabase);
+
             await PostgreSqlDeploymentDatabasePreparation.InitializeCoreAsync(source.ConnectionString);
+            await Scada.Historian.TimescaleDb.TimescaleDbDeploymentPreparation.InitializeAsync(source.ConnectionString);
+            var sampleId = Guid.NewGuid();
+            await using (var sourceConnection = new NpgsqlConnection(source.ConnectionString))
+            {
+                await sourceConnection.OpenAsync();
+                await using var insert = new NpgsqlCommand("""
+                    INSERT INTO elitescada.tag_history (tag_id, ts, quality, value)
+                    VALUES (@tag, TIMESTAMPTZ '2026-01-01 00:00:00+00', 0, '42.5'::jsonb);
+                    """, sourceConnection);
+                insert.Parameters.AddWithValue("tag", sampleId);
+                await insert.ExecuteNonQueryAsync();
+            }
 
             var options = new DatabaseTopologyOptions("unused", "unused", 18, 18, 2, 300);
             var operations = new PostgreSqlDatabaseTopologyOperations(options);
@@ -590,24 +611,38 @@ public sealed class DatabaseTopologyCoreTests
                 source.ConnectionString,
                 target.ConnectionString,
                 source.ConnectionString,
-                target.ConnectionString,
-                historianUsesPrimary: true);
+                historianTarget,
+                historianUsesPrimary);
 
             await operations.CopyAsync(
                 plan,
                 source.ConnectionString,
                 target.ConnectionString,
                 source.ConnectionString,
-                target.ConnectionString);
+                historianTarget);
 
             var verification = await operations.VerifyAsync(
                 plan,
                 source.ConnectionString,
                 target.ConnectionString,
                 source.ConnectionString,
-                target.ConnectionString);
+                historianTarget);
 
-            Assert.True(verification.Succeeded);
+            Assert.True(verification.Succeeded, verification.Diagnostic);
+            Assert.Equal(1, verification.SourceRows["elitescada.tag_history"]);
+            Assert.Equal(1, verification.TargetRows["elitescada.tag_history"]);
+            var readiness = await operations.ValidateCompatibilityAsync(
+                target.ConnectionString, historianTarget, historianUsesPrimary);
+            Assert.True(readiness.Compatible, readiness.Historian?.Diagnostic ?? readiness.Primary.Diagnostic);
+            if (!historianUsesPrimary)
+                Assert.False((await operations.TestAsync(historianTarget, requireTimescale: false)).SchemaCompatible);
+
+            await using var historian = new NpgsqlConnection(historianTarget);
+            await historian.OpenAsync();
+            await using var read = new NpgsqlCommand(
+                "SELECT value::text FROM elitescada.tag_history WHERE tag_id = @tag;", historian);
+            read.Parameters.AddWithValue("tag", sampleId);
+            Assert.Equal("42.5", await read.ExecuteScalarAsync());
             Assert.True(await TableExistsAsync(source.ConnectionString, "elitescada.authority_lifecycle_state"));
             Assert.True(await TableExistsAsync(target.ConnectionString, "elitescada.authority_lifecycle_state"));
         }
@@ -615,6 +650,8 @@ public sealed class DatabaseTopologyCoreTests
         {
             await DropDatabaseAsync(admin.ConnectionString, sourceDatabase);
             await DropDatabaseAsync(admin.ConnectionString, targetDatabase);
+            if (!historianUsesPrimary)
+                await DropDatabaseAsync(admin.ConnectionString, historianDatabase);
         }
     }
 

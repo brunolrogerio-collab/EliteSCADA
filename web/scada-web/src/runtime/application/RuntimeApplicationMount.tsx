@@ -264,7 +264,7 @@ function EngineeringRuntimeApplicationContent({
   const historyText = historicalBrowserCopy(locale);
   const fullscreenRoot = useRef<HTMLElement>(null);
   const mobile = useMobileRuntime();
-  const [requestedScreen, setRequestedScreen] = useState<string | null>(null);
+  const [screenRequest, setScreenRequest] = useState<{ screenKey: string; version: number } | null>(null);
   const [stationProfileId, setStationProfileId] = useState('');
   const [showStationPlan, setShowStationPlan] = useState(false);
   const [stationLaunchMessage, setStationLaunchMessage] = useState('');
@@ -295,7 +295,7 @@ function EngineeringRuntimeApplicationContent({
   const linkedScreen = (engineeringPackage.screens ?? []).find(screen =>
     screen.key.toLocaleLowerCase() === screenFromUrl?.toLocaleLowerCase()
   )?.key;
-  const activeScreenKey = requestedScreen ?? linkedScreen ?? startup.screenKey;
+  const activeScreenKey = screenRequest?.screenKey ?? linkedScreen ?? startup.screenKey;
   const stationProfiles = engineeringPackage.runtimePresentation?.stationProfiles ?? [];
   const selectedStation = stationProfiles.find(profile => profile.id === stationProfileId) ?? stationProfiles[0];
   const stationQuery = new URLSearchParams(window.location.search);
@@ -538,7 +538,10 @@ function EngineeringRuntimeApplicationContent({
     {!stationFixed ? (header?.links ?? []).map((link, index) => <button key={index} type="button"
       className={`runtime-operator-tool runtime-operator-tool--custom${link.visualAssetId ? ' runtime-operator-tool--custom-image' : ''}`}
       data-testid="runtime-custom-screen-link"
-      title={link.label} aria-label={link.label} onClick={() => { setRequestedScreen(link.screenKey); showOverview(); }}>
+      title={link.label} aria-label={link.label} onClick={() => {
+        setScreenRequest(previous => ({ screenKey: link.screenKey, version: (previous?.version ?? 0) + 1 }));
+        showOverview();
+      }}>
       {link.visualAssetId ? <img src={runtimeVisualAssetContentUrl(link.visualAssetId)} alt=""/> : <span>{link.label}</span>}
     </button>) : null}
   </div>;
@@ -641,6 +644,7 @@ function EngineeringRuntimeApplicationContent({
       <RuntimeVisualNavigator
         engineeringPackage={engineeringPackage}
         initialScreenKey={activeScreenKey}
+        screenRequestVersion={screenRequest?.version}
         fixedScreen={stationFixed}
         runtimeProjectKey={projection.projectKey ?? null}
         runtimeRevision={projection.revision ?? null}

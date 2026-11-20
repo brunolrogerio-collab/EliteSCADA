@@ -69,6 +69,18 @@ test('Performance V1B is transient, explicitly queried and unavailable in histor
 
   await indicator.getByRole('button', { name: 'Analyze' }).click();
   await expect(indicator.getByTestId('intelligence-performance-result')).toBeVisible();
+  const inputs = indicator.getByRole('article');
+  await expect(inputs).toHaveCount(2);
+  for (const [theme, background, text] of [
+    ['dark', 'rgb(23, 33, 43)', 'rgb(237, 243, 247)'],
+    ['light', 'rgb(248, 250, 252)', 'rgb(21, 33, 43)']
+  ]) {
+    await page.evaluate(value => { document.documentElement.dataset.appTheme = value; }, theme);
+    for (const card of await inputs.all()) {
+      await expect(card).toHaveCSS('background-color', background);
+      await expect(card.locator('dd').first()).toHaveCSS('color', text);
+    }
+  }
   expect(catalogRequests).toEqual([
     'GET /api/engineering/asset-process-intelligence/analytics/performance/v1/catalog'
   ]);

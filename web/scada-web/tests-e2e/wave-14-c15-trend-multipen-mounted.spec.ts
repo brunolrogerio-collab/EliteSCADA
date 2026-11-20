@@ -64,6 +64,25 @@ async function openHarness(page: Page, query = '') {
   await expect(page.getByTestId('visual-trend').first()).toBeVisible();
 }
 
+test('selecting a saved hidden measurement queries its history and draws its series', async ({ page }) => {
+  const queries: string[][] = [];
+  await page.route('**/api/historical/data-query', async route => {
+    const request = route.request().postDataJSON();
+    queries.push(request.definition.query.filters[0].values.map((value: { value: string }) => value.value));
+    const now = Date.now();
+    await fulfillJson(route, historyResponse([
+      row(tagOne, 'Area/Pump/Pressure', new Date(now - 10000).toISOString(), 7.2, 'Good'),
+      row(tagOne, 'Area/Pump/Pressure', new Date(now - 5000).toISOString(), 7.3, 'Good')
+    ], request));
+  });
+  await openHarness(page, '?locale=en&controls=on&hidden=all');
+  expect(queries).toEqual([]);
+  await page.getByRole('button', { name: 'Enable pen: Pressure' }).click();
+  await expect(page.getByTestId('visual-trend-series')).toHaveCount(1);
+  await expect(page.getByTestId('visual-trend-legend')).toContainText('7.3 bar');
+  expect(queries[0]).toEqual([tagOne]);
+});
+
 test('Trend axis labels adapt precision, locale and extreme values to seven characters', () => {
   expect(formatTrendAxisLabel(9999.99, 'pt-BR')).toBe('9999,99');
   expect(formatTrendAxisLabel(99999.9, 'pt-BR')).toBe('99999,9');

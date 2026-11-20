@@ -59,6 +59,7 @@ test('contextual deviation V2 is explicit, chronological, transient and validate
       }
       if (queries.length === 3) return route.fulfill({ status: 403, json: { code: 'INTELLIGENCE_EXECUTION_PERMIT_REQUIRED' } });
       if (queries.length === 4) return route.fulfill({ json: { ...deviationResponse(body), projectKey: 'stale-project' } });
+      if (queries.length === 5) return route.fulfill({ status: 413, json: { code: 'INTELLIGENCE_CONTEXTUAL_DEVIATION_VECTOR_V2_WINDOW_TOO_DENSE' } });
       return route.fulfill({ json: deviationResponse(body) });
     }
     return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
@@ -96,6 +97,9 @@ test('contextual deviation V2 is explicit, chronological, transient and validate
   expect(Date.parse(queries[0].referenceWindow.toUtc)).toBeLessThan(Date.parse(queries[0].evaluationWindow.fromUtc));
   expect(Date.parse(queries[0].evaluationWindow.fromUtc)).toBeLessThan(Date.parse(queries[0].evaluationWindow.toUtc));
   await expect(visual.getByRole('heading', { name: 'Plant.Pump.Current' })).toBeVisible();
+  await expect(visual.getByText(/Latest comparable reading in the result/i)).toBeVisible();
+  await expect(visual.getByText('Measured value', { exact: true })).toHaveCount(2);
+  await visual.getByText('Comparison details', { exact: true }).click();
   await expect(visual).not.toContainText('internal-signal-ref');
   await expect(visual.getByText(/Compares readings with the same synchronized source time/i)).toBeVisible();
   await expect(visual).not.toContainText('exact source timestamp match');
@@ -141,7 +145,10 @@ test('contextual deviation V2 is explicit, chronological, transient and validate
   await visual.getByRole('button', { name: 'Analyze' }).click();
   await expect(visual.getByRole('alert')).toContainText('does not match this Screen configuration');
   await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-result')).toHaveCount(0);
-  expect(queries).toHaveLength(4);
+  await analyze.click();
+  await expect(visual.getByRole('alert')).toContainText('Choose a shorter range.');
+  await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-result')).toHaveCount(0);
+  expect(queries).toHaveLength(5);
 });
 
 test('contextual deviation V3 explicitly selects Historian recorded time and keeps it distinct from source time', async ({ page }) => {
@@ -193,6 +200,8 @@ test('contextual deviation V3 explicitly selects Historian recorded time and kee
   const visual = page.getByTestId('runtime-intelligence-contextual-deviation-v2');
   await expect(visual).toBeVisible();
   await expect(visual.getByLabel('Timestamp basis')).toHaveValue('synchronized_source');
+  await expect(visual.getByText(/source times with explicit synchronization evidence/i)).toBeHidden();
+  await visual.getByText('How readings are matched', { exact: true }).click();
   await expect(visual.getByText(/source times with explicit synchronization evidence/i)).toBeVisible();
   await setWindow(visual, 'Reference from (local time)', 'Reference to (local time)', 'Evaluation from (local time)', 'Evaluation to (local time)',
     '2026-10-20T10:00', '2026-10-20T11:00', '2026-10-20T11:01', '2026-10-20T12:01');
@@ -208,8 +217,9 @@ test('contextual deviation V3 explicitly selects Historian recorded time and kee
   await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-result')).toBeVisible();
   expect(observedQueries).toHaveLength(1);
   expect(observedQueries[0]).toMatchObject({ timestampBasis: 'historian_observed', temporalToleranceSeconds: 10 });
-  await expect(visual.getByTestId('runtime-intelligence-contextual-deviation-result').getByText('SCADIVO recorded time', { exact: true })).toBeVisible();
   const result = visual.getByTestId('runtime-intelligence-contextual-deviation-result');
+  await result.getByText('Comparison details', { exact: true }).click();
+  await expect(result.getByText('SCADIVO recorded time', { exact: true })).toBeVisible();
   await expect(result).toContainText(/SCADIVO recorded the reading in Historian; it may lag behind the equipment measurement/i);
   await expect(result).not.toContainText('sourceTimestampUtc');
   await expect(result).not.toContainText('Synchronized source time');

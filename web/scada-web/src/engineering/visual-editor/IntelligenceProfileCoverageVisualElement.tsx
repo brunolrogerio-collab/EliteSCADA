@@ -12,6 +12,7 @@ import {
   type ProfileCoverageResponse
 } from '../AssetProcessIntelligenceCoveragePanel';
 import { useIntelligenceAnalyticsRuntimeContext } from '../../visual-runtime';
+import './IntelligenceRuntimeQuery.css';
 import './IntelligenceProfileCoverageVisualElement.css';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
@@ -46,7 +47,7 @@ export function IntelligenceProfileCoverageVisualElement({
     ? [authProfile.subjectId, authProfile.identityProvider ?? '', authProfile.expiresAtUtc ?? '', [...authProfile.roles].sort().join(',')].join('|')
     : 'anonymous';
   const contextKey = [runtime?.runtimeContextId ?? 'authoring', runtime?.projectKey ?? '', runtime?.activeRevision ?? '', runtime?.enabled ?? false, sessionKey].join('|');
-  const [fromLocal, setFromLocal] = useState(() => localDateTimeInput(new Date(Date.now() - 24 * 60 * 60 * 1000)));
+  const [fromLocal, setFromLocal] = useState(() => localDateTimeInput(new Date(Date.now() - 30 * 60 * 1000)));
   const [toLocal, setToLocal] = useState(() => localDateTimeInput(new Date()));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,6 +124,11 @@ export function IntelligenceProfileCoverageVisualElement({
 
   const rootStyle: CSSProperties = {
     ...style,
+    display: style.display === 'none' ? 'none' : 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    alignItems: 'start',
+    justifyContent: 'stretch',
+    whiteSpace: 'normal',
     boxSizing: 'border-box',
     overflow: 'auto',
     padding: 12,
@@ -133,7 +139,7 @@ export function IntelligenceProfileCoverageVisualElement({
   };
 
   return <div
-    className="visual-editor-object runtime-intelligence-coverage"
+    className="visual-editor-object runtime-intelligence-query runtime-intelligence-coverage"
     style={rootStyle}
     data-object-id={runtimeObjectId}
     data-runtime-object-id={runtimeObjectId}
@@ -160,10 +166,10 @@ export function IntelligenceProfileCoverageVisualElement({
                 {loading ? copy.loading : copy.analyze}
               </button>
             </form>
-            {!windowResult.window ? <p className="runtime-intelligence-coverage__error" role="alert">
+            {!windowResult.window ? <p className="runtime-intelligence-query__error" role="alert">
               {windowResult.error === 'missing' ? copy.windowRequired : copy.windowInvalid}
-            </p> : <p className="runtime-intelligence-coverage__notice">{copy.utcHint}</p>}
-            {error ? <p className="runtime-intelligence-coverage__error" role="alert">{error}</p> : null}
+            </p> : null}
+            {error ? <p className="runtime-intelligence-query__error" role="alert">{error}</p> : null}
             {result ? <CoverageResult result={result} locale={locale} copy={copy}/> : null}
           </>}
   </div>;

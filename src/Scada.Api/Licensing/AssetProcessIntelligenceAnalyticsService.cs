@@ -2639,6 +2639,10 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
     {
         var observations = new List<AssetProcessIntelligenceContextualDeviationVectorRawObservation>();
         var cursors = new HashSet<string>(StringComparer.Ordinal);
+        const int maximumRows = AssetProcessIntelligenceContextualDeviationVectorV2Catalog.MaximumRawRowsAcrossQuery;
+        // Keep the signed cursor's page size and allow a one-row probe for empty remaining signals.
+        var pageSize = Math.Clamp(maximumRows - budget.TotalRows, 1,
+            AssetProcessIntelligenceContextualDeviationVectorV2Catalog.QueryPageSize);
         string? cursor = null;
         var pageCount = 0;
         do
@@ -2652,11 +2656,6 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             var validation = await RevalidateContextualReferencePlansAsync(context, allPlans, cancellationToken);
             if (validation is not null) return ContextualDeviationVectorV2ObservationReadResult.Fail(validation);
 
-            var remaining = AssetProcessIntelligenceContextualDeviationVectorV2Catalog.MaximumRawRowsAcrossQuery - budget.TotalRows;
-            // Probe one row after reaching the aggregate ceiling: empty remaining signal/windows are valid,
-            // but any additional row or continuation cursor means the request cannot be completed exactly.
-            var pageSize = Math.Max(1, Math.Min(
-                AssetProcessIntelligenceContextualDeviationVectorV2Catalog.QueryPageSize, remaining));
             var query = new HistoricalQueryRequest(
                 HistoricalDatasets.HistorianSamplesV2,
                 HistoricalTimeRange.Absolute(window.FromUtc, window.ToUtc),
@@ -2671,9 +2670,7 @@ public sealed class AssetProcessIntelligenceAnalyticsService(
             if (validation is not null) return ContextualDeviationVectorV2ObservationReadResult.Fail(validation);
 
             var projected = budget.TotalRows + response.Rows.Count;
-            if (projected > AssetProcessIntelligenceContextualDeviationVectorV2Catalog.MaximumRawRowsAcrossQuery ||
-                (projected == AssetProcessIntelligenceContextualDeviationVectorV2Catalog.MaximumRawRowsAcrossQuery &&
-                 response.NextCursor is not null))
+            if (projected > maximumRows || (projected == maximumRows && response.NextCursor is not null))
                 return ContextualDeviationVectorV2ObservationReadResult.Fail(
                     WindowTooDense("INTELLIGENCE_CONTEXTUAL_DEVIATION_VECTOR_V2_WINDOW_TOO_DENSE"));
 

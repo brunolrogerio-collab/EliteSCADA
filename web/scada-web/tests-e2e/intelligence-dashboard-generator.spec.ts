@@ -82,6 +82,9 @@ test('dashboard generator builds a canonical editable screen from stable TAG ref
   expect(measurement?.properties).toMatchObject({ minimum: 0, maximum: 120 });
   expect(value?.properties).not.toHaveProperty('minimum');
   expect(trend?.properties?.pens).toHaveLength(2);
+  expect(screen.elements?.find(element => element.key === 'signal-label-current-1')?.properties?.text).toBe('Current (A)');
+  expect(screen.elements?.find(element => element.key === 'intelligence-trend-heading')?.properties?.text).toBe('Tendência histórica');
+  expect(screen.elements?.some(element => element.key === 'intelligence-dashboard-scope-note')).toBe(false);
   expect(trend?.properties?.pens).toEqual(expect.arrayContaining([
     expect.objectContaining({ visible: false })
   ]));
@@ -224,6 +227,8 @@ test('guided single-equipment dashboard creates four linked canonical screens wi
   expect(new Set(screens.map(screen => screen.key)).size).toBe(4);
   expect(new Set(screens.map(screen => screen.route)).size).toBe(4);
   expect(screens[0].elements?.some(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1)).toBe(false);
+  expect(screens[0].elements?.filter(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.button)
+    .map(element => element.properties?.text)).toEqual(['Dados disponíveis', 'Indicadores (KPI)', 'Comparar desvios']);
 
   for (const screen of screens) {
     const buttons = screen.elements?.filter(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.button) ?? [];

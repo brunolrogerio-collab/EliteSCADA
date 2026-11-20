@@ -136,7 +136,7 @@ type ResolvedSignal = Readonly<{
 type DashboardText = Readonly<{
   generatedTitle: (source: string) => string;
   assignmentSubtitle: (source: IntelligenceDashboardSource) => string;
-  signalLabel: (item: ResolvedSignal) => string;
+  trendTitle: string;
   summary: (counts: Readonly<{
     shown: number;
     supported: number;
@@ -237,7 +237,7 @@ function generateDashboardDraft(
       id: allocateId(), key: 'intelligence-dashboard-title', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
       properties: {
         x: 64, y: 38, width: 1792, height: 60,
-        [VISUAL_PROPERTY_KEYS.text]: screenName,
+        [VISUAL_PROPERTY_KEYS.text]: copy.generatedTitle(profileAssignment?.equipmentName ?? source.displayName),
         [VISUAL_PROPERTY_KEYS.fontSize]: 36,
         [VISUAL_PROPERTY_KEYS.fontWeight]: 700,
         [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
@@ -267,7 +267,8 @@ function generateDashboardDraft(
     const row = Math.floor(index / columns);
     const x = 64 + column * (cardWidth + columnGap);
     const y = 166 + row * (cardHeight + rowGap);
-    const label = copy.signalLabel(item);
+    const label = dashboardMeasurementLabel(item, source.kind);
+    const unit = item.tag.engineeringUnit?.trim();
     const choice = appearance?.measurements[item.tag.id];
     const scale = choice ? validScale(choice.minimum, choice.maximum) : validScale(item.tag.scaleMinimum, item.tag.scaleMaximum);
     if (choice && choice.layout !== 'value' && !scale) throw new Error(copy.invalidMeasurementScale(item.tag.name));
@@ -277,7 +278,7 @@ function generateDashboardDraft(
       id: allocateId(), key: `signal-label-${slug(item.signal.key)}-${index + 1}`, type: BUILTIN_VISUAL_OBJECT_TYPES.text,
       properties: {
         x, y, width: cardWidth, height: 32,
-        [VISUAL_PROPERTY_KEYS.text]: label,
+        [VISUAL_PROPERTY_KEYS.text]: unit ? `${label} (${unit})` : label,
         [VISUAL_PROPERTY_KEYS.fontSize]: 17,
         [VISUAL_PROPERTY_KEYS.fontWeight]: 600,
         [VISUAL_PROPERTY_KEYS.textColor]: '#CBD5E1',
@@ -323,11 +324,21 @@ function generateDashboardDraft(
     ...createTrendPen({
       id: item.tag.id,
       path: item.tag.path,
-      label: copy.signalLabel(item),
+      label: dashboardMeasurementLabel(item, source.kind),
       unit: item.tag.engineeringUnit
     }, index),
     visible: false
   }));
+  elements.push({
+    id: allocateId(), key: 'intelligence-trend-heading', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+    properties: {
+      x: 64, y: trendY - 30, width: hasProfileCoverage ? 800 : 1792, height: 26,
+      [VISUAL_PROPERTY_KEYS.text]: copy.trendTitle,
+      [VISUAL_PROPERTY_KEYS.fontSize]: 18,
+      [VISUAL_PROPERTY_KEYS.fontWeight]: 600,
+      [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0'
+    }
+  });
   elements.push({
     id: allocateId(), key: 'intelligence-source-trend', type: BUILTIN_VISUAL_OBJECT_TYPES.trend,
     properties: {
@@ -357,17 +368,6 @@ function generateDashboardDraft(
       }
     });
   }
-  elements.push({
-    id: allocateId(), key: 'intelligence-dashboard-scope-note', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
-    properties: {
-      x: 64, y: 990, width: 1792, height: 56,
-      [VISUAL_PROPERTY_KEYS.text]: summary,
-      [VISUAL_PROPERTY_KEYS.fontSize]: 14,
-      [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
-      [VISUAL_PROPERTY_KEYS.textWrap]: true
-    }
-  });
-
   return {
     ...draft,
     key,
@@ -591,13 +591,9 @@ function linkDashboardDrafts(
       ...element,
       properties: { ...element.properties, x: 1304 + (buttonIndex % 3) * 184, y: 40 + Math.floor(buttonIndex / 3) * 56 }
     }));
-    const titledElements = elements.map(element => {
-      if (element.type !== BUILTIN_VISUAL_OBJECT_TYPES.text || element.key !== 'intelligence-dashboard-scope-note') return element;
-      return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: viewRoles.map(role => navigationLabels[role]).join(' · ') } };
-    });
     return {
       ...screen,
-      elements: [...titledElements, ...positionedNavigation],
+      elements: [...elements, ...positionedNavigation],
       metadata: {
         ...(screen.metadata ?? {}),
         intelligenceDashboardGenerator: 'stage5b.9',
@@ -638,10 +634,10 @@ export function generateIntelligencePerformanceScreenDraft(
     : locale === 'es' ? `Rendimiento registrado · ${displayName}`
       : `Desempenho registrado · ${displayName}`;
   const subtitle = locale === 'en'
-    ? 'Runtime-only analysis · server-calculated · read-only · transient result'
+    ? 'Choose a period to calculate the performance indicators configured for this equipment.'
     : locale === 'es'
-      ? 'Análisis solo en Runtime · cálculo en servidor · solo lectura · resultado transitorio'
-      : 'Análise somente no Runtime · cálculo no servidor · somente leitura · resultado temporário';
+      ? 'Elija un período para calcular los indicadores de rendimiento configurados para este equipo.'
+      : 'Escolha um período para calcular os indicadores de desempenho configurados para este equipamento.';
   const elements: NonNullable<ScreenEngineering['elements']> = [
     {
       id: allocateId(), key: 'intelligence-performance-title', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
@@ -844,14 +840,14 @@ function generateIntelligenceProfileReportScreenDraft(
   const allocateId = createUniqueIdAllocator(createId);
   const title = referenceEvidence
     ? `${locale === 'pt-BR' ? 'Dados da referência' : locale === 'es' ? 'Datos de referencia' : 'Reference data'} · ${displayName}`
-    : locale === 'en' ? `Historical coverage · ${displayName}`
-    : locale === 'es' ? `Cobertura histórica · ${displayName}`
-      : `Cobertura histórica · ${displayName}`;
+    : locale === 'en' ? `Data availability · ${displayName}`
+    : locale === 'es' ? `Datos disponibles · ${displayName}`
+      : `Dados disponíveis · ${displayName}`;
   const subtitle = locale === 'en'
-    ? 'Runtime-only report · explicit request · read-only · transient result'
+    ? 'Check which measurements have usable readings before choosing a reference period.'
     : locale === 'es'
-      ? 'Informe solo en Runtime · solicitud explícita · read-only · resultado transitorio'
-      : 'Relatório somente no Runtime · solicitação explícita · somente leitura · resultado temporário';
+      ? 'Revise qué mediciones tienen lecturas utilizables antes de elegir un período de referencia.'
+      : 'Confira quais medições têm leituras aproveitáveis antes de escolher um período de referência.';
 
   return {
     ...draft,
@@ -1354,10 +1350,10 @@ export function generateIntelligenceContextualDeviationScreenDraft(
     : locale === 'es' ? `Desviación contextual · ${displayName}`
       : `Desvio contextual · ${displayName}`;
   const subtitle = locale === 'en'
-    ? 'Runtime-only · explicit comparison · per-signal descriptive evidence · transient result'
+    ? 'Compare measurements with a period of normal operation under similar conditions.'
     : locale === 'es'
-      ? 'Solo Runtime · comparación explícita · evidencia descriptiva por señal · resultado transitorio'
-      : 'Somente Runtime · comparação explícita · evidência descritiva por sinal · resultado temporário';
+      ? 'Compare las mediciones con un período de operación normal en condiciones similares.'
+      : 'Compare as medições com um período de operação normal em condições semelhantes.';
   const caution = locale === 'en'
     ? 'Each target is compared with its own joint-context reference distribution. The result is not a combined anomaly, diagnosis, fault classification or remaining-life estimate.'
     : locale === 'es'
@@ -1438,24 +1434,24 @@ function guidedDashboardNavigationLabels(locale: EngineeringLocale): Readonly<Re
 >> {
   if (locale === 'en') return {
     'process-stage-coverage': 'Member coverage', 'process-stage-insights': 'Member analyses', 'reference-evidence': 'Reference data', 'context-eligibility': 'Operating conditions', 'experimental-joint': 'Joint deviation (experimental)', 'current-frequency': 'Current at similar frequency', 'single-target': 'Measurement under a condition',
-    'values-trend': 'Values & trend',
-    'profile-coverage': 'Coverage',
-    performance: 'Performance',
-    'contextual-deviation': 'Contextual deviation'
+    'values-trend': 'Measurements & trend',
+    'profile-coverage': 'Data availability',
+    performance: 'Performance KPIs',
+    'contextual-deviation': 'Compare deviations'
   };
   if (locale === 'es') return {
     'process-stage-coverage': 'Cobertura por equipo', 'process-stage-insights': 'Análisis por equipo', 'reference-evidence': 'Datos de referencia', 'context-eligibility': 'Condiciones de operación', 'experimental-joint': 'Desviación conjunta (experimental)', 'current-frequency': 'Corriente a frecuencia similar', 'single-target': 'Medición bajo condición',
-    'values-trend': 'Valores y tendencia',
-    'profile-coverage': 'Cobertura',
-    performance: 'Rendimiento',
-    'contextual-deviation': 'Desviación contextual'
+    'values-trend': 'Mediciones y tendencia',
+    'profile-coverage': 'Datos disponibles',
+    performance: 'Indicadores (KPI)',
+    'contextual-deviation': 'Comparar desviaciones'
   };
   return {
     'process-stage-coverage': 'Cobertura por equipamento', 'process-stage-insights': 'Análises por equipamento', 'reference-evidence': 'Dados da referência', 'context-eligibility': 'Condições de operação', 'experimental-joint': 'Desvio conjunto (experimental)', 'current-frequency': 'Corrente em frequência semelhante', 'single-target': 'Medição sob condição',
-    'values-trend': 'Valores e tendência',
-    'profile-coverage': 'Cobertura',
-    performance: 'Desempenho',
-    'contextual-deviation': 'Desvio contextual'
+    'values-trend': 'Medições e tendência',
+    'profile-coverage': 'Dados disponíveis',
+    performance: 'Indicadores (KPI)',
+    'contextual-deviation': 'Comparar desvios'
   };
 }
 
@@ -1474,6 +1470,11 @@ function tagBinding(tag: TagEngineering & { id: string }, destination: string) {
     ...(unit ? { metadata: { engineeringUnit: unit } } : {}),
     tagReference: { tagId: tag.id }
   };
+}
+
+function dashboardMeasurementLabel(item: ResolvedSignal, sourceKind: IntelligenceDashboardSource['kind']): string {
+  const name = item.tag.name.trim() || item.tag.path;
+  return sourceKind === 'process-stage' ? `${item.assignment.equipmentName} · ${name}` : name;
 }
 
 function validScale(minimum: number | null | undefined, maximum: number | null | undefined): { minimum: number; maximum: number } | null {
@@ -1529,30 +1530,24 @@ function dashboardText(locale: EngineeringLocale): DashboardText {
   if (locale === 'en') return {
     invalidMeasurementScale: name => `Check the scale, bands or target for ${name}. Enter valid limits; they are not inferred.`,
     generatedTitle: source => `Intelligence · ${source}`,
-    assignmentSubtitle: source => source.kind === 'process-stage'
-      ? `Process stage · ${source.displayName} · read-only TAG overview`
-      : `Equipment and profile · ${source.displayName} · read-only TAG overview`,
-    signalLabel: item => `${item.assignment.equipmentName} · ${item.signal.key}${item.tag.engineeringUnit ? ` (${item.tag.engineeringUnit})` : ''}`,
+    assignmentSubtitle: source => source.kind === 'process-stage' ? 'Measurements by equipment' : source.assignments[0]?.profile.name ?? '',
+    trendTitle: 'Historical trend',
     summary: counts => `${counts.shown} value cards from ${counts.supported} numeric TAGs; ${counts.trended} TAG references configured in the historical trend, initially hidden until enabled in Runtime.${counts.missing ? ` ${counts.missing} missing references.` : ''}${counts.nonNumeric ? ` ${counts.nonNumeric} non-numeric signals omitted.` : ''}${counts.duplicates ? ` ${counts.duplicates} duplicate TAG references omitted.` : ''}${counts.omitted ? ` ${counts.omitted} additional numeric signals omitted from value cards.` : ''}${counts.profileCoverage === 'included' ? ' A separate profile-coverage report is available on this screen and runs only after an explicit Runtime request.' : counts.profileCoverage === 'unavailable' ? ' Profile coverage was omitted because canonical Equipment/profile references are unavailable.' : ''} Starter screen only: it does not calculate KPIs, aggregate coverage, deviations, efficiency, diagnosis, or predictions.`,
     noNumericSignals: 'This source has no resolvable numeric TAGs to place on a read-only dashboard.'
   };
   if (locale === 'es') return {
     invalidMeasurementScale: name => `Revise escala, intervalos o meta de ${name}. Indique límites válidos; no se infieren.`,
     generatedTitle: source => `Inteligencia · ${source}`,
-    assignmentSubtitle: source => source.kind === 'process-stage'
-      ? `Etapa del proceso · ${source.displayName} · resumen de TAG de solo lectura`
-      : `Equipo y perfil · ${source.displayName} · resumen de TAG de solo lectura`,
-    signalLabel: item => `${item.assignment.equipmentName} · ${item.signal.key}${item.tag.engineeringUnit ? ` (${item.tag.engineeringUnit})` : ''}`,
+    assignmentSubtitle: source => source.kind === 'process-stage' ? 'Mediciones por equipo' : source.assignments[0]?.profile.name ?? '',
+    trendTitle: 'Tendencia histórica',
     summary: counts => `${counts.shown} tarjetas de valor de ${counts.supported} TAG numéricos; ${counts.trended} referencias TAG configuradas en la tendencia histórica, ocultas hasta activarlas en Runtime.${counts.missing ? ` ${counts.missing} referencias ausentes.` : ''}${counts.nonNumeric ? ` ${counts.nonNumeric} señales no numéricas omitidas.` : ''}${counts.duplicates ? ` ${counts.duplicates} referencias TAG duplicadas omitidas.` : ''}${counts.omitted ? ` ${counts.omitted} señales numéricas adicionales omitidas de las tarjetas.` : ''}${counts.profileCoverage === 'included' ? ' Esta pantalla incluye un informe separado de cobertura del perfil que solo consulta Historian tras una solicitud explícita en Runtime.' : counts.profileCoverage === 'unavailable' ? ' Se omitió cobertura del perfil porque faltan referencias canónicas de Equipo/perfil.' : ''} Pantalla inicial: no deriva KPI de proceso, desviaciones, eficiencia, diagnóstico ni predicciones.`,
     noNumericSignals: 'Esta fuente no tiene TAG numéricos resolubles para una pantalla de solo lectura.'
   };
   return {
     invalidMeasurementScale: name => `Confira escala, faixas ou meta de ${name}. Informe limites válidos; eles não são inferidos.`,
     generatedTitle: source => `Inteligência · ${source}`,
-    assignmentSubtitle: source => source.kind === 'process-stage'
-      ? `Etapa do processo · ${source.displayName} · visão somente leitura dos TAGs`
-      : `Equipamento e perfil · ${source.displayName} · visão somente leitura dos TAGs`,
-    signalLabel: item => `${item.assignment.equipmentName} · ${item.signal.key}${item.tag.engineeringUnit ? ` (${item.tag.engineeringUnit})` : ''}`,
+    assignmentSubtitle: source => source.kind === 'process-stage' ? 'Medições por equipamento' : source.assignments[0]?.profile.name ?? '',
+    trendTitle: 'Tendência histórica',
     summary: counts => `${counts.shown} cartões de valor para ${counts.supported} TAGs numéricos; ${counts.trended} referências TAG configuradas na tendência histórica, ocultas até ativação no Runtime.${counts.missing ? ` ${counts.missing} referências ausentes.` : ''}${counts.nonNumeric ? ` ${counts.nonNumeric} sinais não numéricos omitidos.` : ''}${counts.duplicates ? ` ${counts.duplicates} referências TAG duplicadas omitidas.` : ''}${counts.omitted ? ` ${counts.omitted} sinais numéricos adicionais omitidos dos cartões.` : ''}${counts.profileCoverage === 'included' ? ' Esta tela inclui um relatório separado de cobertura do perfil, consultado somente após ação explícita no Runtime.' : counts.profileCoverage === 'unavailable' ? ' A cobertura do perfil foi omitida porque faltam referências canônicas de Equipamento/perfil.' : ''} Tela inicial: não calcula KPIs de processo, desvios, eficiência, diagnóstico nem predições.`,
     noNumericSignals: 'Esta origem não tem TAGs numéricos resolvíveis para uma tela somente leitura.'
   };

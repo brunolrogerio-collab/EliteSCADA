@@ -286,6 +286,10 @@ Before leaving this page, use Save process configuration to store profiles, meas
 
 If you change sections with unsaved edits, the system asks for confirmation. Cancel to return and save; confirming departure discards those local edits. This warning does not replace saving the project revision.
 
+### Where can I find deviation alarms?
+
+Engineering → Alarms lists the rules created in that editor. Intelligence deviation alarms belong to the equipment’s operating context. To change the measurement, limits or minimum time outside the range, open Engineering → Intelligence and select the context. When an alarm fires, open the Runtime Alarm Center and filter by the Intelligence area.
+
 ### If your access covers only part of the plant
 
 Creating a dashboard or editing a context requires Engineering editing permission and Intelligence management permission for the equipment involved. Plant-wide management is not required. Under Dashboard content, select an authorized equipment profile.

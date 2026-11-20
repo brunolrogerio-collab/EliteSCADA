@@ -63,6 +63,7 @@ type LoadState =
 const COPY = {
   'pt-BR': {
     noData: 'Sem dados',
+    selectMeasurements: 'Selecione as medições na legenda para ver o gráfico.',
     loadingHistory: 'Carregando histórico…',
     loadingLive: 'Conectando dados ao vivo…',
     historyError: 'Histórico indisponível',
@@ -89,6 +90,7 @@ const COPY = {
   },
   en: {
     noData: 'No data',
+    selectMeasurements: 'Select measurements in the legend to show them on the chart.',
     loadingHistory: 'Loading history…',
     loadingLive: 'Connecting live data…',
     historyError: 'History unavailable',
@@ -115,6 +117,7 @@ const COPY = {
   },
   es: {
     noData: 'Sin datos',
+    selectMeasurements: 'Seleccione las mediciones en la leyenda para ver el gráfico.',
     loadingHistory: 'Cargando histórico…',
     loadingLive: 'Conectando datos en vivo…',
     historyError: 'Histórico no disponible',
@@ -160,7 +163,8 @@ export function TrendVisualElement({
   const [operatorPenVisibility, setOperatorPenVisibility] = React.useState<Readonly<Record<string, boolean>>>({});
   React.useEffect(() => setOperatorPenVisibility({}), [element.id, persistedPenSignature]);
   const visiblePens = React.useMemo(
-    () => pens.filter(pen => operatorPenVisibility[pen.id] ?? pen.visible),
+    () => pens.map(pen => ({ ...pen, visible: operatorPenVisibility[pen.id] ?? pen.visible }))
+      .filter(pen => pen.visible),
     [operatorPenVisibility, pens]
   );
   const mode = stringValue(values[VISUAL_PROPERTY_KEYS.trendMode], 'history');
@@ -633,7 +637,8 @@ export function TrendVisualElement({
         ? (isLive ? text.loadingLive : text.loadingHistory)
         : state.kind === 'error'
           ? (isLive ? text.liveError : text.historyError)
-          : text.noData}
+          : operatorTimeRangeControls && showLegend && pens.length > 0 && visiblePens.length === 0
+            ? text.selectMeasurements : text.noData}
       </div> : null}
     </div>
 

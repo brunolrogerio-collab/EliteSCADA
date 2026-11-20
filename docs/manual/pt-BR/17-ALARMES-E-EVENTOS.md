@@ -10,6 +10,10 @@ Comece por uma condição simples: avisar quando a pressão chegar ao limite alt
 
 O alarme observa essa variável; ele não configura o sensor nem desliga a bomba sozinho. Combine limite e resposta operacional com o responsável pelo processo. Para aprender, use simulação, com permissão e bloqueio de Engenharia aplicáveis, sem atuar em equipamento real.
 
+### Onde encontro os alarmes de desvio?
+
+A lista de Engenharia → Alarmes mostra as regras criadas nesse editor. Os alarmes de desvio do Intelligence ficam no contexto operacional do equipamento. Para alterar a medição, os limites ou o tempo mínimo fora da faixa, abra Engenharia → Intelligence e selecione o contexto. Quando houver um disparo, abra a Central de Alarmes do Runtime e filtre pela área Intelligence.
+
 ### Qual tipo escolher
 
 Escolha o tipo pela pergunta que o alarme deve responder:

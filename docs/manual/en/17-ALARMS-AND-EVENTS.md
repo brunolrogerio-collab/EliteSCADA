@@ -10,6 +10,10 @@ Start with one simple condition: notify when pressure reaches its high limit. In
 
 The alarm observes that variable; it does not configure the sensor or stop the pump by itself. Agree the limit and operating response with the process owner. For learning, use simulation with the applicable Engineering permission and lock, without acting on real equipment.
 
+### Where can I find deviation alarms?
+
+Engineering → Alarms lists the rules created in that editor. Intelligence deviation alarms belong to the equipment’s operating context. To change the measurement, limits or minimum time outside the range, open Engineering → Intelligence and select the context. When an alarm fires, open the Runtime Alarm Center and filter by the Intelligence area.
+
 ### Choosing a type
 
 Choose the type by the question the alarm must answer:

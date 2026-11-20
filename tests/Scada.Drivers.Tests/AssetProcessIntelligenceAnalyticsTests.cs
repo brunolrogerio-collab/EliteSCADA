@@ -3408,6 +3408,30 @@ public sealed partial class AssetProcessIntelligenceAnalyticsTests
     }
 
     [Fact]
+    public async Task ContextualDeviationVectorV2_PreservesSignedCursorAtTheSharedRowLimit()
+    {
+        using var fixture = Fixture.Create();
+        var (request, _, targetB, _, _) = fixture.AddContextualDeviationVectorV2Signals();
+        request = request with
+        {
+            ReferenceWindow = Window(FromUtc, FromUtc.AddHours(24)),
+            EvaluationWindow = Window(FromUtc.AddHours(25), FromUtc.AddHours(26))
+        };
+        var queries = new HistoricalQueryService(
+            [new BudgetCursorProvider(targetB.Id, 199, 49_802, useSourceTime: true)],
+            new BudgetCursorAuthorizer(), new HistoricalQueryCursorCodec(new byte[32]),
+            () => FromUtc.AddDays(2));
+        fixture.Historian.RespondAsync = queries.QueryAsync;
+
+        var result = await fixture.ExecuteContextualDeviationVectorV2Async(request);
+
+        AssertStatus(StatusCodes.Status413PayloadTooLarge, result);
+        Assert.Equal("INTELLIGENCE_CONTEXTUAL_DEVIATION_VECTOR_V2_WINDOW_TOO_DENSE",
+            Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(Assert.IsAssignableFrom<IValueHttpResult>(result).Value).Code);
+        Assert.Equal(targetB.Id, fixture.Historian.Requests.Last().Filters!.Single().Values.Single().AsGuid());
+    }
+
+    [Fact]
     public async Task ContextualDeviationVectorV1_RejectsInvalidSelectionAndWrongAssignmentBeforeHistorianRead()
     {
         using var fixture = Fixture.Create();

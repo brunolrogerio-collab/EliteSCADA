@@ -588,6 +588,11 @@
           "fields": null
         },
         {
+          "heading": "Onde encontro os alarmes de desvio?",
+          "body": "A lista de Engenharia → Alarmes mostra as regras criadas nesse editor. Os alarmes de desvio do Intelligence ficam no contexto operacional do equipamento. Para alterar a medição, os limites ou o tempo mínimo fora da faixa, abra Engenharia → Intelligence e selecione o contexto. Quando houver um disparo, abra a Central de Alarmes do Runtime e filtre pela área Intelligence.",
+          "fields": null
+        },
+        {
           "heading": "Se você tem acesso somente a parte da planta",
           "body": "Para criar um painel ou editar um contexto, você precisa editar a Engenharia e gerenciar Intelligence nos equipamentos envolvidos. Não é necessário receber gestão de toda a planta. Em Conteúdo do painel, escolha o perfil de um equipamento autorizado.\n\nUma etapa pode reunir vários equipamentos. Se algum estiver fora do seu alcance de gestão, a geração dessa etapa fica bloqueada e a tela explica o motivo. Escolha um perfil autorizado ou peça ao administrador para revisar seu acesso. As outras vistas disponíveis continuam utilizáveis. Gerar um rascunho não grava a aplicação, não ativa análise e não consulta o histórico; revise o resultado no editor antes de aplicar e publicar."
         },
@@ -1332,6 +1337,11 @@
         {
           "heading": "Antes de começar",
           "body": "Comece por uma condição simples: avisar quando a pressão chegar ao limite alto. Em Engenharia > Alarmes, use um TAG de teste cujo valor, tipo, escala e unidade você já conferiu. Um TAG é a variável que fornece a leitura.\n\nO alarme observa essa variável; ele não configura o sensor nem desliga a bomba sozinho. Combine limite e resposta operacional com o responsável pelo processo. Para aprender, use simulação, com permissão e bloqueio de Engenharia aplicáveis, sem atuar em equipamento real.",
+          "fields": null
+        },
+        {
+          "heading": "Onde encontro os alarmes de desvio?",
+          "body": "A lista de Engenharia → Alarmes mostra as regras criadas nesse editor. Os alarmes de desvio do Intelligence ficam no contexto operacional do equipamento. Para alterar a medição, os limites ou o tempo mínimo fora da faixa, abra Engenharia → Intelligence e selecione o contexto. Quando houver um disparo, abra a Central de Alarmes do Runtime e filtre pela área Intelligence.",
           "fields": null
         },
         {
@@ -7651,6 +7661,11 @@
           "fields": null
         },
         {
+          "heading": "Where can I find deviation alarms?",
+          "body": "Engineering → Alarms lists the rules created in that editor. Intelligence deviation alarms belong to the equipment’s operating context. To change the measurement, limits or minimum time outside the range, open Engineering → Intelligence and select the context. When an alarm fires, open the Runtime Alarm Center and filter by the Intelligence area.",
+          "fields": null
+        },
+        {
           "heading": "If your access covers only part of the plant",
           "body": "Creating a dashboard or editing a context requires Engineering editing permission and Intelligence management permission for the equipment involved. Plant-wide management is not required. Under Dashboard content, select an authorized equipment profile.\n\nA stage may include several equipment items. If any is outside your management scope, generation for that stage is blocked and the screen explains why. Choose an authorized profile or ask the administrator to review your access. Other available views remain usable. Generating a draft does not save the application, activate analysis or query history; review it in the editor before applying and publishing."
         },
@@ -8395,6 +8410,11 @@
         {
           "heading": "Before you begin",
           "body": "Start with one simple condition: notify when pressure reaches its high limit. In Engineering > Alarms, use a test TAG whose value, type, scale and unit you have checked. A TAG is the variable providing the reading.\n\nThe alarm observes that variable; it does not configure the sensor or stop the pump by itself. Agree the limit and operating response with the process owner. For learning, use simulation with the applicable Engineering permission and lock, without acting on real equipment.",
+          "fields": null
+        },
+        {
+          "heading": "Where can I find deviation alarms?",
+          "body": "Engineering → Alarms lists the rules created in that editor. Intelligence deviation alarms belong to the equipment’s operating context. To change the measurement, limits or minimum time outside the range, open Engineering → Intelligence and select the context. When an alarm fires, open the Runtime Alarm Center and filter by the Intelligence area.",
           "fields": null
         },
         {
@@ -14714,6 +14734,11 @@
           "fields": null
         },
         {
+          "heading": "¿Dónde encuentro las alarmas de desviación?",
+          "body": "Ingeniería → Alarmas muestra las reglas creadas en ese editor. Las alarmas de desviación de Intelligence pertenecen al contexto operativo del equipo. Para cambiar la medición, los límites o el tiempo mínimo fuera del intervalo, abra Ingeniería → Intelligence y seleccione el contexto. Cuando se active una alarma, abra la Central de Alarmas de Runtime y filtre por el área Intelligence.",
+          "fields": null
+        },
+        {
           "heading": "Si su acceso cubre solo parte de la planta",
           "body": "Crear un panel o editar un contexto requiere editar Ingeniería y administrar Intelligence en los equipos involucrados. No necesita administrar toda la planta. En Contenido del panel, elija un perfil de equipo autorizado.\n\nUna etapa puede incluir varios equipos. Si alguno está fuera de su alcance de gestión, la generación de esa etapa queda bloqueada y la pantalla explica el motivo. Elija un perfil autorizado o pida al administrador revisar su acceso. Las demás vistas disponibles siguen utilizables. Generar un borrador no guarda la aplicación, activa análisis ni consulta el histórico; revíselo en el editor antes de aplicar y publicar."
         },
@@ -15458,6 +15483,11 @@
         {
           "heading": "Antes de empezar",
           "body": "Empiece por una condición sencilla: avisar cuando la presión alcance el límite alto. En Ingeniería > Alarmas, use un TAG de prueba con valor, tipo, escala y unidad comprobados. Un TAG es la variable que proporciona la lectura.\n\nLa alarma observa esa variable; no configura el sensor ni detiene la bomba sola. Acuerde límite y respuesta operacional con el responsable. Para aprender, use simulación con permiso y bloqueo de Ingeniería aplicables, sin actuar en equipos reales.",
+          "fields": null
+        },
+        {
+          "heading": "¿Dónde encuentro las alarmas de desviación?",
+          "body": "Ingeniería → Alarmas muestra las reglas creadas en ese editor. Las alarmas de desviación de Intelligence pertenecen al contexto operativo del equipo. Para cambiar la medición, los límites o el tiempo mínimo fuera del intervalo, abra Ingeniería → Intelligence y seleccione el contexto. Cuando se active una alarma, abra la Central de Alarmas de Runtime y filtre por el área Intelligence.",
           "fields": null
         },
         {

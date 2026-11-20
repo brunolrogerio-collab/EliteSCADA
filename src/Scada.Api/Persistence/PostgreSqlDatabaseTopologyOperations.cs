@@ -101,9 +101,16 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
         "elitescada.historian_storage_policy_state"
     ];
 
-    public async Task<DatabaseConnectionHealth> TestAsync(
+    public Task<DatabaseConnectionHealth> TestAsync(
         string connectionString,
         bool requireTimescale,
+        CancellationToken cancellationToken = default) =>
+        ProbeAsync(connectionString, requireTimescale, historianOnly: false, cancellationToken);
+
+    private async Task<DatabaseConnectionHealth> ProbeAsync(
+        string connectionString,
+        bool requireTimescale,
+        bool historianOnly,
         CancellationToken cancellationToken = default)
     {
         var checkedAt = DateTimeOffset.UtcNow;
@@ -134,7 +141,7 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
 
             var major = versionNumber / 10000;
             var timescaleCapable = !string.IsNullOrWhiteSpace(timescale);
-            var schemaCompatible = await HasCompatibleSchemaAsync(connection, cancellationToken);
+            var schemaCompatible = await HasCompatibleSchemaAsync(connection, historianOnly, cancellationToken);
             var postgresCompatible = major >= options.MinimumPostgreSqlMajor && major <= options.MaximumPostgreSqlMajor;
             var timescaleCompatible = !requireTimescale ||
                 (timescaleCapable && ParseMajor(timescale) >= options.MinimumTimescaleMajor);
@@ -180,7 +187,7 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
         var primary = await TestAsync(primaryConnectionString, historianUsesPrimary, cancellationToken);
         DatabaseConnectionHealth? historian = null;
         if (!historianUsesPrimary)
-            historian = await TestAsync(historianConnectionString, true, cancellationToken);
+            historian = await ProbeAsync(historianConnectionString, requireTimescale: true, historianOnly: true, cancellationToken);
 
         var compatible = primary is { Reachable: true, FailureCode: null, SchemaCompatible: true } &&
             (historianUsesPrimary || historian is { Reachable: true, FailureCode: null, SchemaCompatible: true });
@@ -435,8 +442,9 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
 
         var quotedColumns = string.Join(", ", columns.Select(QuoteIdentifier));
         var qualified = QuoteQualified(table);
+        // COPY table TO only reads the parent relation. SELECT also reads TimescaleDB chunks.
         await using var exporter = await source.BeginRawBinaryCopyAsync(
-            $"COPY {qualified} ({quotedColumns}) TO STDOUT (FORMAT BINARY)",
+            $"COPY (SELECT {quotedColumns} FROM {qualified}) TO STDOUT (FORMAT BINARY)",
             cancellationToken);
         await using var importer = await target.BeginRawBinaryCopyAsync(
             $"COPY {qualified} ({quotedColumns}) FROM STDIN (FORMAT BINARY)",
@@ -509,12 +517,16 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
 
     private static async Task<bool> HasCompatibleSchemaAsync(
         NpgsqlConnection connection,
+        bool historianOnly,
         CancellationToken cancellationToken)
     {
         await using var command = new NpgsqlCommand("""
             SELECT to_regclass('elitescada.schema_migrations') IS NOT NULL
+                OR (@historianOnly AND to_regclass('elitescada.tag_history') IS NOT NULL
+                    AND to_regclass('elitescada.historian_storage_policy_state') IS NOT NULL)
                 OR NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'elitescada');
             """, connection);
+        command.Parameters.AddWithValue("historianOnly", historianOnly);
         return (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
     }
 

@@ -558,6 +558,25 @@ public sealed class Zigbee2MqttBridgeTests
                 return transport;
             });
 
+        var inventory = new List<DriverDiscoveryCandidate>();
+        await foreach (var candidate in provider.DiscoverAsync(new DriverDiscoveryRequest(context)))
+            inventory.Add(candidate);
+        var device = Assert.Single(inventory);
+        Assert.Equal(Ieee, device.Metadata!["ieeeAddress"]);
+        Assert.Null(device.Materialization);
+
+        var unavailable = new List<DriverDiscoveryCandidate>();
+        await foreach (var candidate in provider.DiscoverAsync(new DriverDiscoveryRequest(
+            context,
+            new Dictionary<string, string>
+            {
+                [Zigbee2MqttEngineeringProvider.SelectedIeeeAddressesParameter] = "0x00124b000000ffff"
+            })))
+            unavailable.Add(candidate);
+        var missing = Assert.Single(unavailable);
+        Assert.Null(missing.Materialization);
+        Assert.Contains(missing.Issues!, issue => issue.Code == "Z2M_SELECTED_DEVICE_NOT_FOUND");
+
         var selectedCandidates = new List<DriverDiscoveryCandidate>();
         await foreach (var candidate in provider.DiscoverAsync(new DriverDiscoveryRequest(
                            context,

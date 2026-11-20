@@ -26,7 +26,7 @@
 .home-building__form h3, .home-building__list h3, .home-building__candidate-list h3, .home-building__candidate-detail h3, .home-building__existing-devices h3 { margin: 0; }
 .home-building__form label, .home-building__candidate-detail label, .home-building__device-toolbar label { display: grid; gap: .3rem; }
 .home-building__form label > span, .home-building__candidate-detail label > span, .home-building__device-toolbar label > span { font-weight: 600; }
-.home-building__form input, .home-building__form select, .home-building__candidate-detail input, .home-building__candidate-detail select, .home-building__device-toolbar select { width: 100%; min-height: 2.45rem; border: 1px solid var(--eng-border); border-radius: .5rem; padding: .45rem .6rem; color: var(--eng-text); background: var(--eng-input-bg); font: inherit; }
+.home-building__form input, .home-building__form select, .home-building__candidate-detail input, .home-building__candidate-detail select, .home-building__device-toolbar select, .home-building__device-toolbar textarea { width: 100%; min-height: 2.45rem; border: 1px solid var(--eng-border); border-radius: .5rem; padding: .45rem .6rem; color: var(--eng-text); background: var(--eng-input-bg); font: inherit; }
 .home-building__form small, .home-building__candidate-detail small, .home-building__device-toolbar small { color: var(--eng-muted); }
 .home-building__actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .home-building__rows { display: grid; gap: .4rem; }

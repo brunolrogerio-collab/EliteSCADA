@@ -576,6 +576,7 @@ function DevicesPanel({
   const [discovered, setDiscovered] = useState<DriverDiscoveryCandidateView[]>(
     [],
   );
+  const [entityIdsInput, setEntityIdsInput] = useState("");
   const [selectedCandidateId, setSelectedCandidateId] = useState("");
   const [deviceName, setDeviceName] = useState("");
   const [devicePath, setDevicePath] = useState("");
@@ -604,6 +605,10 @@ function DevicesPanel({
           source.driver.toLocaleLowerCase(),
       ) ?? null)
     : null;
+  const homeAssistant = source?.driver.toLowerCase() === "home-assistant";
+  const zigbee = source?.driver.toLowerCase() === "zigbee2mqtt";
+  const maximumResults = 100;
+  const entityIds = [...new Set(entityIdsInput.split(/[,;\r\n]+/).map(id => id.trim()).filter(Boolean))];
   const selected =
     discovered.find(
       (candidate) => candidate.candidateId === selectedCandidateId,
@@ -645,7 +650,7 @@ function DevicesPanel({
   };
 
   const discover = async () => {
-    if (!source?.id) return;
+    if (!source?.id || (homeAssistant && (entityIds.length === 0 || entityIds.length > maximumResults))) return;
     setBusy("discover");
     setMessage("");
     setDiscovered([]);
@@ -653,10 +658,40 @@ function DevicesPanel({
     invalidate();
     try {
       const results = await discoverEngineeringDataSource(source.id, {
-        maximumResults: 100,
+        maximumResults,
+        parameters: homeAssistant ? { selectedEntityIds: entityIds.join(",") } : undefined,
       });
       setDiscovered(results);
       if (results.length === 0) setMessage(text.noCandidates);
+    } catch (reason) {
+      setMessage(asMessage(reason));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const prepareZigbeeCandidate = async (item: DriverDiscoveryCandidateView) => {
+    const ieee = item.metadata?.ieeeAddress;
+    if (!source?.id || !zigbee || !ieee) return;
+
+    setBusy("discover");
+    setMessage("");
+    invalidate();
+    try {
+      const results = await discoverEngineeringDataSource(source.id, {
+        maximumResults,
+        parameters: { selectedIeeeAddresses: ieee },
+      });
+      const candidate = results.find(result =>
+        result.stableIdentity === item.stableIdentity && result.metadata?.ieeeAddress === ieee
+      );
+      if (!candidate) {
+        setMessage(results.flatMap(result => result.issues ?? [])[0]?.message ?? text.deviceUnavailable);
+        return;
+      }
+      setDiscovered(current => current.map(result => result.candidateId === item.candidateId ? candidate : result));
+      chooseCandidate(candidate);
+      if (!candidate.materialization && !candidate.issues?.length) setMessage(text.deviceUnavailable);
     } catch (reason) {
       setMessage(asMessage(reason));
     } finally {
@@ -743,8 +778,10 @@ function DevicesPanel({
           <select
             data-testid="home-building-device-source"
             value={sourceId}
+            disabled={busy !== null}
             onChange={(event) => {
               setSourceId(event.currentTarget.value);
+              setEntityIdsInput("");
               setDiscovered([]);
               setSelectedCandidateId("");
               setMessage("");
@@ -761,10 +798,28 @@ function DevicesPanel({
             ))}
           </select>
         </label>
+        {homeAssistant && <label>
+          <span>{text.entityIds}</span>
+          <textarea
+            value={entityIdsInput}
+            data-testid="home-building-entity-ids"
+            aria-describedby="home-building-entity-hint"
+            disabled={busy !== null}
+            rows={2}
+            onChange={event => {
+              setEntityIdsInput(event.currentTarget.value);
+              setDiscovered([]);
+              setSelectedCandidateId("");
+              setMessage("");
+              invalidate();
+            }}
+          />
+          <small id="home-building-entity-hint">{entityIds.length > maximumResults ? text.entityLimit : text.entityHint}</small>
+        </label>}
         <button
           type="button"
           className="primary"
-          disabled={!source || busy !== null}
+          disabled={!source || busy !== null || (homeAssistant && (entityIds.length === 0 || entityIds.length > maximumResults))}
           onClick={() => void discover()}
           data-testid="home-building-discover"
         >
@@ -796,6 +851,7 @@ function DevicesPanel({
                     <button
                       type="button"
                       className={`home-building__candidate${selectedCandidateId === item.candidateId ? " is-selected" : ""}`}
+                      disabled={busy !== null}
                       onClick={() => chooseCandidate(item)}
                       data-testid={`home-building-candidate-${item.candidateId}`}
                     >
@@ -860,6 +916,17 @@ function DevicesPanel({
                     {issue.message}
                   </p>
                 ))}
+                {zigbee && !materialization && selected.metadata?.ieeeAddress && (
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={busy !== null}
+                    onClick={() => void prepareZigbeeCandidate(selected)}
+                    data-testid="home-building-prepare-zigbee"
+                  >
+                    {busy === "discover" ? text.discovering : text.prepareDevice}
+                  </button>
+                )}
                 {materialization ? (
                   <>
                     <div className="home-building__candidate-summary">
@@ -1658,6 +1725,11 @@ function copy(locale: EngineeringLocale) {
       configureFirst:
         "Configure and apply an integration in the Integrations tab first. Browse-only drivers remain available through the existing TAG browser.",
       discover: "Discover devices",
+      entityIds: "Home Assistant entity IDs",
+      entityHint: "Copy the IDs from Home Assistant, one per line or separated by commas (up to 100).",
+      entityLimit: "Select up to 100 entity IDs.",
+      prepareDevice: "Prepare selected device",
+      deviceUnavailable: "The device is unavailable for incorporation. Refresh the inventory and check the driver details.",
       discovering: "Discovering…",
       discoveryResults: "Candidates",
       noCandidates: "No devices were returned by this discovery.",
@@ -1769,6 +1841,11 @@ function copy(locale: EngineeringLocale) {
       configureFirst:
         "Configure y aplique una integración primero. Los drivers solo de navegación siguen en el navegador de TAG existente.",
       discover: "Descubrir dispositivos",
+      entityIds: "ID de entidades de Home Assistant",
+      entityHint: "Copie los ID de Home Assistant, uno por línea o separados por comas (hasta 100).",
+      entityLimit: "Seleccione hasta 100 ID de entidad.",
+      prepareDevice: "Preparar dispositivo seleccionado",
+      deviceUnavailable: "El dispositivo no está disponible para incorporar. Actualice el inventario y revise los detalles del controlador.",
       discovering: "Descubriendo…",
       discoveryResults: "Candidatos",
       noCandidates: "No se encontraron dispositivos.",
@@ -1877,6 +1954,11 @@ function copy(locale: EngineeringLocale) {
     configureFirst:
       "Configure e aplique uma integração na aba Integrações. Drivers que só navegam continuam no navegador existente de TAGs.",
     discover: "Descobrir dispositivos",
+    entityIds: "IDs das entidades do Home Assistant",
+    entityHint: "Copie os IDs do Home Assistant, um por linha ou separados por vírgulas (até 100).",
+    entityLimit: "Selecione até 100 IDs de entidade.",
+    prepareDevice: "Preparar dispositivo selecionado",
+    deviceUnavailable: "O dispositivo está indisponível para incorporação. Atualize o inventário e confira os detalhes do driver.",
     discovering: "Descobrindo…",
     discoveryResults: "Candidatos",
     noCandidates: "A descoberta não retornou dispositivos.",

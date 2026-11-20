@@ -3215,7 +3215,7 @@
         },
         {
           "heading": "Sem candidato ou sem a função esperada",
-          "body": "Confira fonte salva, comunicação a partir do servidor e recursos anunciados pelo driver. KNX/IP Secure não anuncia descoberta de Engenharia; Home Assistant tem a limitação de seleção descrita em seu guia. Um recurso não mapeado não deve ser tratado como entregue: veja avisos e campos realmente gerados. Um gateway ou bridge pode oferecer um dispositivo sem que o SCADIVO tenha seu protocolo nativo. Não importe repetidamente para tentar corrigir rede ou permissões.",
+          "body": "Confira fonte salva, comunicação a partir do servidor e recursos anunciados pelo driver. KNX/IP Secure não anuncia descoberta de Engenharia; No Home Assistant, informe os IDs das entidades conforme o guia. Um recurso não mapeado não deve ser tratado como entregue: veja avisos e campos realmente gerados. Um gateway ou bridge pode oferecer um dispositivo sem que o SCADIVO tenha seu protocolo nativo. Não importe repetidamente para tentar corrigir rede ou permissões.",
           "fields": null
         }
       ],
@@ -3481,8 +3481,8 @@
           "fields": null
         },
         {
-          "heading": "Conexão, identidade e limite atual da seleção",
-          "body": "Teste de conexão confirma transporte/autenticação, não incorporação. Na versão atual, a tela genérica de descoberta não fornece seleção de entidades; uma seleção vazia não significa necessariamente falha de rede. Para um TAG conhecido, configure sua fonte e vínculo explicitamente no editor de TAGs e confira a leitura antes de ativar. Não há importação automática da instância inteira.",
+          "heading": "Conexão e seleção de entidades",
+          "body": "Teste a conexão da fonte. Em Engenharia → Home/Building → Dispositivos, selecione a integração e informe os IDs das entidades do Home Assistant, como sensor.temperature, um por linha ou separados por vírgulas. Clique em Descobrir dispositivos. Abra um resultado, confira os TAGs e valide antes de aplicar ao Workspace. Salve, publique e ative a revisão para usar no Runtime.",
           "fields": [
             {
               "key": "host",
@@ -3557,7 +3557,7 @@
             {
               "key": "selectedEntityIds",
               "label": "Seleção de entidades para incorporar",
-              "description": "O driver exige uma seleção explícita, mas a tela Home/Building desta versão ainda não permite escolher as entidades. A descoberta pode devolver seleção vazia sem dispositivo para incorporar, mesmo com conexão válida. Não há seletor pronto nessa tela; a correção está pendente.",
+              "description": "Informe até 100 IDs de entidade. Confira no Home Assistant o ID exato se uma entidade não aparecer nos resultados. A descoberta usa somente os IDs informados.",
               "example": "",
               "constraints": ""
             }
@@ -4116,7 +4116,7 @@
       "sections": [
         {
           "heading": "Instalação externa e fluxo disponível",
-          "body": "Escolha esta ponte se já tem Zigbee2MQTT e broker administrados fora do SCADIVO, com dispositivos associados à rede. Ela consulta essa instalação; não abre inclusão nem administra o coordenador. Zigbee nativo é outro caminho.\n\nO conector anuncia teste de conexão, descoberta e teste de leitura. Descoberta lista inventário; incorporar exige escolher o que entrará no projeto. A interface atual ainda tem uma limitação nessa seleção. A leitura de algumas estruturas aninhadas do inventário também espera correção, separadamente. Os passos adiante indicam esses limites para não prometer uma incorporação completa onde ela não está disponível.",
+          "body": "Use esta ponte com um broker e uma rede Zigbee2MQTT já configurados. Em Engenharia → Home/Building → Dispositivos, escolha a fonte e clique em Descobrir dispositivos para listar o inventário. Selecione um dispositivo e clique em Preparar dispositivo selecionado. Confira os TAGs, valide e aplique ao Workspace. Salve, publique e ative a revisão para usar no Runtime.",
           "fields": null
         },
         {
@@ -4259,8 +4259,8 @@
           ]
         },
         {
-          "heading": "Vínculos gerados e seleção ainda pendente",
-          "body": "Os campos técnicos abaixo são produzidos pelo serviço de incorporação, a partir da seleção e do inventário. Não são uma lista de IDs para o desenvolvedor inventar. Enquanto a tela não transmitir a seleção, listar um dispositivo não garante Equipamento/TAGs prontos. As funções escalares mapeadas são binary e numeric; capacidades funcionais dependem das propriedades suportadas.",
+          "heading": "Vínculos gerados pelo dispositivo selecionado",
+          "body": "A preparação usa o endereço IEEE da linha escolhida e os recursos anunciados no inventário. As funções escalares mapeadas são binary e numeric. As capacidades funcionais dependem das propriedades suportadas.",
           "fields": [
             {
               "key": "address",
@@ -4384,7 +4384,7 @@
             {
               "key": "selectedIeeeAddresses",
               "label": "Seleção explícita para incorporar",
-              "description": "O serviço aceita seleção de IEEE, mas a tela atual Home/Building não a envia. Sem seleção, a descoberta lista inventário sem conteúdo para incorporar; escolher uma linha na tela não refaz a solicitação com o IEEE. O fluxo de incorporação pela interface aguarda correção.",
+              "description": "Selecione um dispositivo do inventário e clique em Preparar dispositivo selecionado. O SCADIVO solicita a incorporação somente para o endereço IEEE desse dispositivo.",
               "example": "",
               "constraints": ""
             },
@@ -4411,7 +4411,7 @@
         },
         {
           "heading": "Resolver por camadas",
-          "body": "Sem conexão: confira host/porta/TLS/autenticação. Conectado sem inventário: confira baseTopic e bridge/state/devices. Inventário sem incorporação: confira a limitação de seleção da interface, não recadastre toda a rede. Valor Uncertain/Stale: confira retenção, last_seen e reconexão. Escrita sem confirmação: confira acesso anunciado, vínculo de confirmação, disponibilidade e relatório recente; não marque o TAG como confirmado só porque o broker aceitou a publicação.",
+          "body": "Sem conexão: confira host/porta/TLS/autenticação. Conectado sem inventário: confira baseTopic e bridge/state/devices. Inventário sem incorporação: atualize o inventário, selecione o dispositivo e confira os avisos de preparação. Valor Uncertain/Stale: confira retenção, last_seen e reconexão. Escrita sem confirmação: confira acesso anunciado, vínculo de confirmação, disponibilidade e relatório recente; não marque o TAG como confirmado só porque o broker aceitou a publicação.",
           "fields": null
         }
       ],
@@ -10288,7 +10288,7 @@
         },
         {
           "heading": "No candidate or missing function",
-          "body": "Check saved source, server-side connectivity and driver-advertised features. KNX/IP Secure advertises no Engineering discovery; Home Assistant has the selection limitation in its guide. An unmapped function is not delivered: inspect warnings and actual generated fields. A gateway/bridge can expose a device without SCADIVO having its native protocol. Do not repeatedly import to repair network or permissions.",
+          "body": "Check saved source, server-side connectivity and driver-advertised features. KNX/IP Secure advertises no Engineering discovery; For Home Assistant, enter the entity IDs as described in its guide. An unmapped function is not delivered: inspect warnings and actual generated fields. A gateway/bridge can expose a device without SCADIVO having its native protocol. Do not repeatedly import to repair network or permissions.",
           "fields": null
         }
       ],
@@ -10554,8 +10554,8 @@
           "fields": null
         },
         {
-          "heading": "Connection, identity and current selection limit",
-          "body": "Connection testing verifies transport/authentication, not incorporation. In the current version the generic discovery page does not supply entity selection; empty selection does not necessarily mean network failure. For a known TAG, configure its source/binding explicitly in the TAG editor and check the read before activation. There is no automatic whole-instance import.",
+          "heading": "Connection and entity selection",
+          "body": "Test the source connection. In Engineering → Home/Building → Devices, select the integration and enter the Home Assistant entity IDs, such as sensor.temperature, one per line or separated by commas. Click Discover devices. Open a result, review the TAGs and validate before applying to the Workspace. Save, publish and activate the revision for Runtime.",
           "fields": [
             {
               "key": "host",
@@ -10630,7 +10630,7 @@
             {
               "key": "selectedEntityIds",
               "label": "Entity selection for incorporation",
-              "description": "The driver requires explicit selection, but this version of the Home/Building page does not yet let you choose entities. Discovery can return an empty selection with no device to incorporate even with a valid connection. There is no ready selector on that page; the correction is pending.",
+              "description": "Enter up to 100 entity IDs. If an entity is missing from the results, check its exact ID in Home Assistant. Discovery uses only the IDs entered.",
               "example": "",
               "constraints": ""
             }
@@ -11189,7 +11189,7 @@
       "sections": [
         {
           "heading": "External installation and available workflow",
-          "body": "Choose this bridge when Zigbee2MQTT and its broker are managed outside SCADIVO and devices are already joined. It queries that installation; it does not open inclusion or administer the coordinator. Native Zigbee is another path.\n\nThe connector advertises connection testing, discovery and read testing. Discovery lists inventory; incorporation requires choosing what enters the project. The current UI still limits that selection. Reading some nested inventory structures also awaits a separate correction. Steps below identify those limits rather than promising a complete incorporation where unavailable.",
+          "body": "Use this bridge with an existing Zigbee2MQTT network and broker. In Engineering → Home/Building → Devices, choose the source and click Discover devices to list the inventory. Select a device and click Prepare selected device. Review the TAGs, validate and apply to the Workspace. Save, publish and activate the revision for Runtime.",
           "fields": null
         },
         {
@@ -11332,8 +11332,8 @@
           ]
         },
         {
-          "heading": "Generated bindings and pending selection",
-          "body": "Technical fields below are produced by incorporation from selection/inventory. They are not IDs for the developer to invent. Until the page sends selection, listing a device does not guarantee ready Equipment/TAGs. Mapped scalar exposes are binary and numeric; functional capabilities depend on supported properties.",
+          "heading": "Bindings generated for the selected device",
+          "body": "Preparation uses the IEEE address of the selected row and the features advertised in the inventory. Mapped scalar exposes are binary and numeric. Functional capabilities depend on the supported properties.",
           "fields": [
             {
               "key": "address",
@@ -11457,7 +11457,7 @@
             {
               "key": "selectedIeeeAddresses",
               "label": "Explicit incorporation selection",
-              "description": "The service accepts IEEE selection, but the current Home/Building page does not send it. Without selection discovery lists inventory without incorporation content; selecting a row does not reissue the request with IEEE. UI incorporation awaits correction.",
+              "description": "Select a device from the inventory and click Prepare selected device. SCADIVO requests incorporation for that device’s IEEE address only.",
               "example": "",
               "constraints": ""
             },
@@ -11484,7 +11484,7 @@
         },
         {
           "heading": "Troubleshoot by layer",
-          "body": "No connection: check host/port/TLS/authentication. Connected without inventory: check baseTopic and bridge/state/devices. Inventory without incorporation: check the UI selection limit rather than recreating the network. Uncertain/Stale values: check retention, last_seen and reconnection. Unconfirmed write: check advertised access, confirmation binding, availability and fresh report; do not confirm a TAG just because the broker accepted publication.",
+          "body": "No connection: check host/port/TLS/authentication. Connected without inventory: check baseTopic and bridge/state/devices. Inventory without incorporation: refresh the inventory, select the device and check the preparation warnings. Uncertain/Stale values: check retention, last_seen and reconnection. Unconfirmed write: check advertised access, confirmation binding, availability and fresh report; do not confirm a TAG just because the broker accepted publication.",
           "fields": null
         }
       ],
@@ -17361,7 +17361,7 @@
         },
         {
           "heading": "Sin candidato o función esperada",
-          "body": "Compruebe fuente guardada, conectividad desde el servidor y funciones anunciadas por el driver. KNX/IP Secure no anuncia descubrimiento de Ingeniería; Home Assistant tiene la limitación de selección de su guía. Una función no mapeada no se considera entregada: revise avisos y campos realmente generados. Un gateway/bridge puede exponer un dispositivo sin protocolo nativo en SCADIVO. No importe repetidamente para corregir red o permisos.",
+          "body": "Compruebe fuente guardada, conectividad desde el servidor y funciones anunciadas por el driver. KNX/IP Secure no anuncia descubrimiento de Ingeniería; Para Home Assistant, indique los ID de entidad siguiendo su guía. Una función no mapeada no se considera entregada: revise avisos y campos realmente generados. Un gateway/bridge puede exponer un dispositivo sin protocolo nativo en SCADIVO. No importe repetidamente para corregir red o permisos.",
           "fields": null
         }
       ],
@@ -17627,8 +17627,8 @@
           "fields": null
         },
         {
-          "heading": "Conexión, identidad y límite actual de selección",
-          "body": "Probar conexión verifica transporte/autenticación, no incorporación. En la versión actual la pantalla genérica de descubrimiento no proporciona selección de entidades; una selección vacía no significa necesariamente fallo de red. Para un TAG conocido configure fuente/vínculo explícitamente en el editor de TAGs y compruebe lectura antes de activar. No hay importación automática de toda la instancia.",
+          "heading": "Conexión y selección de entidades",
+          "body": "Pruebe la conexión de la fuente. En Ingeniería → Home/Building → Dispositivos, seleccione la integración e introduzca los ID de las entidades de Home Assistant, como sensor.temperature, uno por línea o separados por comas. Pulse Descubrir dispositivos. Abra un resultado, revise los TAGs y valide antes de aplicar al área de trabajo. Guarde, publique y active la revisión para usarla en Runtime.",
           "fields": [
             {
               "key": "host",
@@ -17703,7 +17703,7 @@
             {
               "key": "selectedEntityIds",
               "label": "Selección de entidades para incorporar",
-              "description": "El driver exige selección explícita, pero esta versión de la pantalla Home/Building todavía no permite elegir entidades. El descubrimiento puede devolver selección vacía sin dispositivo para incorporar aunque la conexión sea válida. Esa pantalla todavía no tiene selector; la corrección está pendiente.",
+              "description": "Introduzca hasta 100 ID de entidad. Si falta una entidad en los resultados, compruebe su ID exacto en Home Assistant. El descubrimiento usa solo los ID indicados.",
               "example": "",
               "constraints": ""
             }
@@ -18262,7 +18262,7 @@
       "sections": [
         {
           "heading": "Instalación externa y flujo disponible",
-          "body": "Elija este puente si Zigbee2MQTT y broker se gestionan fuera de SCADIVO y los dispositivos ya están asociados. Consulta esa instalación; no abre inclusión ni administra coordinador. Zigbee nativo es otro camino.\n\nEl conector anuncia prueba de conexión, descubrimiento y lectura. Descubrir lista inventario; incorporar exige elegir qué entra al proyecto. La interfaz actual limita esa selección. La lectura de algunas estructuras anidadas espera otra corrección separada. Los pasos indican esos límites sin prometer incorporación completa donde no existe.",
+          "body": "Use este puente con una red Zigbee2MQTT y un broker ya configurados. En Ingeniería → Home/Building → Dispositivos, elija la fuente y pulse Descubrir dispositivos para listar el inventario. Seleccione un dispositivo y pulse Preparar dispositivo seleccionado. Revise los TAGs, valide y aplique al área de trabajo. Guarde, publique y active la revisión para usarla en Runtime.",
           "fields": null
         },
         {
@@ -18405,8 +18405,8 @@
           ]
         },
         {
-          "heading": "Vínculos generados y selección pendiente",
-          "body": "Los campos técnicos siguientes los produce la incorporación desde selección/inventario. No son IDs que el desarrollador deba inventar. Hasta que la pantalla envíe selección, listar un dispositivo no garantiza Equipo/TAGs listos. Las funciones escalares mapeadas son binary y numeric; capacidades funcionales dependen de propiedades admitidas.",
+          "heading": "Vínculos generados para el dispositivo seleccionado",
+          "body": "La preparación usa la dirección IEEE de la fila elegida y las funciones anunciadas en el inventario. Las funciones escalares mapeadas son binary y numeric. Las capacidades funcionales dependen de las propiedades admitidas.",
           "fields": [
             {
               "key": "address",
@@ -18530,7 +18530,7 @@
             {
               "key": "selectedIeeeAddresses",
               "label": "Selección explícita para incorporar",
-              "description": "El servicio admite selección de IEEE, pero la pantalla Home/Building actual no la envía. Sin selección el descubrimiento lista inventario sin contenido para incorporar; elegir una fila no repite la solicitud con IEEE. La incorporación por interfaz espera corrección.",
+              "description": "Seleccione un dispositivo del inventario y pulse Preparar dispositivo seleccionado. SCADIVO solicita la incorporación solo para la dirección IEEE de ese dispositivo.",
               "example": "",
               "constraints": ""
             },
@@ -18557,7 +18557,7 @@
         },
         {
           "heading": "Resolver por capas",
-          "body": "Sin conexión: compruebe host/puerto/TLS/autenticación. Conectado sin inventario: compruebe baseTopic y bridge/state/devices. Inventario sin incorporación: compruebe límite de selección de interfaz en lugar de recrear la red. Valor Uncertain/Stale: compruebe retención, last_seen y reconexión. Escritura sin confirmar: compruebe acceso anunciado, vínculo de confirmación, disponibilidad e informe reciente; no confirme el TAG solo porque el broker aceptó la publicación.",
+          "body": "Sin conexión: compruebe host/puerto/TLS/autenticación. Conectado sin inventario: compruebe baseTopic y bridge/state/devices. Inventario sin incorporación: actualice el inventario, seleccione el dispositivo y revise los avisos de preparación. Valor Uncertain/Stale: compruebe retención, last_seen y reconexión. Escritura sin confirmar: compruebe acceso anunciado, vínculo de confirmación, disponibilidad e informe reciente; no confirme el TAG solo porque el broker aceptó la publicación.",
           "fields": null
         }
       ],

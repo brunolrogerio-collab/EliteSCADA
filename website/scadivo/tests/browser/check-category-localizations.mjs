@@ -71,6 +71,19 @@ try {
     await context.close();
   }
 
+  const explicitlySpanish = new URL(catalog);
+  explicitlySpanish.searchParams.set('tl', 'es');
+  for (let visit = 0; visit < 4; visit++) {
+    const context = await browser.newContext({ locale: 'en-GB' });
+    const page = await context.newPage();
+    await page.goto(explicitlySpanish.href, { waitUntil: 'load' });
+    await verifyCatalog(page, 'es');
+    await page.goto(catalog.href, { waitUntil: 'load' });
+    await verifyCatalog(page, 'es');
+    await context.close();
+  }
+  console.log('The same manual selection persisted in four independent sessions.');
+
   for (const mobile of [false, true]) {
     const options = mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : {};
     const context = await browser.newContext({ locale: 'en-GB', ...options });

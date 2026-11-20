@@ -57,10 +57,26 @@ module ScadivoCategoryDescriptionLocale
   end
 end
 
+module ScadivoManualLocaleCookie
+  def no_cache_bypass
+    if SiteSetting.set_locale_from_param && SiteSetting.set_locale_from_cookie
+      locale = @request.params[Discourse::LOCALE_PARAM]
+      return false if locale.is_a?(String) && I18n.locale_available?(locale)
+    end
+
+    super
+  end
+end
+
 after_initialize do
   Discourse.singleton_class.prepend(ScadivoVisitorLocale)
   # In 2026.1 the catalog still reads the original excerpts from this serializer.
   unless CategoryLocalization.method_defined?(:description_excerpt)
     SiteCategorySerializer.prepend(ScadivoCategoryDescriptionLocale)
+  end
+  # The manual selection must reach the controller that writes the locale cookie.
+  if defined?(Middleware::AnonymousCache::Helper) &&
+       Middleware::AnonymousCache::Helper.method_defined?(:no_cache_bypass)
+    Middleware::AnonymousCache::Helper.prepend(ScadivoManualLocaleCookie)
   end
 end

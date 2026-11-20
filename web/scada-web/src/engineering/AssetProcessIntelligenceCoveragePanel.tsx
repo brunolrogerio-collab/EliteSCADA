@@ -533,7 +533,11 @@ export function coverageErrorText(code: string, copy: CoverageCopy) {
     case 'INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE': return copy.blockedAuthorityUnavailable;
     case 'INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS': return copy.blockedScopeInactive;
     case 'INTELLIGENCE_EXECUTION_PERMIT_REQUIRED': return copy.blockedPermitRequired;
-    case 'INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE': return copy.windowTooDense;
+    case 'INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE':
+    case 'INTELLIGENCE_REFERENCE_EVIDENCE_WINDOW_TOO_DENSE':
+    case 'INTELLIGENCE_CONTEXT_ELIGIBILITY_WINDOW_TOO_DENSE':
+    case 'INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_WINDOW_TOO_DENSE':
+      return copy.windowTooDense;
     case 'INTELLIGENCE_WORKSPACE_CHANGED': return copy.blockedWorkspaceDirty;
     case 'HISTORICAL_QUERY_FORBIDDEN': return copy.runtimeUnavailable;
     case 'INVALID_RESPONSE': return copy.unavailableResponse;

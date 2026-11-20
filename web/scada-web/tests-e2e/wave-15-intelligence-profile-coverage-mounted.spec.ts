@@ -251,11 +251,16 @@ test('context eligibility uses the saved version, explains mismatches and discar
   await installWorkspace(page, { operatingContexts: true });
   let calls = 0;
   let stale = false;
+  let tooDense = false;
   await page.route('**/api/engineering/asset-process-intelligence/analytics/context-eligibility/v1/query', async route => {
     calls++;
     const request = route.request().postDataJSON();
     expect(request).toMatchObject({ scopeKind: 0, scopeId: equipmentId, assignmentId,
       operatingContextProfileId: '15000000-0000-0000-0000-000000000401', expectedProfileVersion: 3 });
+    if (tooDense) {
+      await route.fulfill({ status: 413, json: { code: 'INTELLIGENCE_CONTEXT_ELIGIBILITY_WINDOW_TOO_DENSE' } });
+      return;
+    }
     await route.fulfill({ json: { contractVersion: 1, projectKey: 'intelligence-coverage-test', activeRevision: 4,
       assignmentId, measurementProfileId: profileId, operatingContextProfileId: request.operatingContextProfileId,
       profileVersion: stale ? 2 : 3, referenceWindow: request.referenceWindow,
@@ -284,16 +289,25 @@ test('context eligibility uses the saved version, explains mismatches and discar
   await expect(panel.getByRole('alert')).toBeVisible();
   await expect(panel.getByTestId('intelligence-context-eligibility-result')).toHaveCount(0);
   expect(calls).toBe(2);
+  tooDense = true;
+  await panel.getByRole('button', { name: 'Consultar condições', exact: true }).click();
+  await expect(panel.getByRole('alert')).toContainText('Escolha um intervalo menor.');
+  await expect(panel.getByTestId('intelligence-context-eligibility-result')).toHaveCount(0);
 });
 
-test('reference evidence queries explicitly, clears changed periods and rejects another revision', async ({ page }) => {
+test('reference evidence queries explicitly, rejects another revision and explains a dense period', async ({ page }) => {
   await installWorkspace(page);
   let requests = 0;
   let revision = 4;
+  let tooDense = false;
   await page.route('**/api/engineering/asset-process-intelligence/analytics/reference-evidence/v1/query', async route => {
     requests++;
     const request = route.request().postDataJSON();
     expect(request).toMatchObject({ scopeKind: 0, scopeId: equipmentId, profileId });
+    if (tooDense) {
+      await route.fulfill({ status: 413, json: { code: 'INTELLIGENCE_REFERENCE_EVIDENCE_WINDOW_TOO_DENSE' } });
+      return;
+    }
     await route.fulfill({ json: { contractVersion: 1, projectKey: 'intelligence-coverage-test', activeRevision: revision,
       scopeId: equipmentId, profileId, referenceWindow: request.referenceWindow,
       referenceCohort: { completeRequiredNumericCohortCount: null, completeSelectedNumericCohortCount: 12,
@@ -318,6 +332,10 @@ test('reference evidence queries explicitly, clears changed periods and rejects 
   revision = 5;
   await panel.getByRole('button', { name: 'Consultar referência', exact: true }).click();
   await expect(panel.getByRole('alert')).toBeVisible();
+  await expect(panel.getByTestId('intelligence-reference-evidence-result')).toHaveCount(0);
+  tooDense = true;
+  await panel.getByRole('button', { name: 'Consultar referência', exact: true }).click();
+  await expect(panel.getByRole('alert')).toContainText('Escolha um intervalo menor.');
   await expect(panel.getByTestId('intelligence-reference-evidence-result')).toHaveCount(0);
 });
 

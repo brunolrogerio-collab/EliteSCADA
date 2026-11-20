@@ -140,7 +140,7 @@ export type ScriptDeleteResult = {
 
 export type CanonicalScriptPackage = {
   schema: 'scada.engineering';
-  schemaVersion: 10;
+  schemaVersion: 29;
   exportedAt: string;
   tags: never[];
   alarms: never[];

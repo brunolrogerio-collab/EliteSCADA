@@ -194,7 +194,8 @@ export function buildCanonicalScriptPackage(
 
   return {
     schema: 'scada.engineering',
-    schemaVersion: 10,
+    // Schema 29 supports partial imports into projects with resource folders.
+    schemaVersion: 29,
     exportedAt,
     tags: [],
     alarms: [],

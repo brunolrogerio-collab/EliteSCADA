@@ -319,3 +319,45 @@ test('C26 Runtime does not hide a genuine Active package HTTP 500 behind the las
   await expect(unavailable).toContainText('Active canonical Engineering payload is invalid');
   await expect(page.getByTestId('runtime-visual-navigator')).toHaveCount(0);
 });
+
+test('Runtime header returns to the startup Screen after repeated canvas navigation', async ({ page }) => {
+  await installRuntimeShellContract(page);
+  await page.route('**/api/runtime/application', route => route.fulfill({
+    json: {
+      ...runtimeProjection,
+      package: {
+        ...runtimeProjection.package,
+        runtimePresentation: { version: 1, header: { links: [{ label: 'Início', screenKey: 'home' }] } }
+      }
+    }
+  }));
+
+  const session = {
+    sessionId: '26000000-0000-0000-0000-000000000401',
+    requestedClass: 'interactive',
+    grantedClass: 'interactive',
+    admissionReasonCode: 'InteractiveGranted',
+    capacityReasonCode: 'InteractiveSeatReserved'
+  };
+  await page.route('**/api/runtime/sessions', route => route.fulfill({
+    status: 201,
+    json: { ...session, clientInstanceId: route.request().postDataJSON().clientInstanceId }
+  }));
+  await page.route('**/api/runtime/sessions/*/heartbeat', route => route.fulfill({ json: session }));
+
+  await page.goto('/?screen=home');
+  const navigator = page.getByTestId('runtime-visual-navigator');
+  const openSecondary = navigator.getByRole('button', { name: 'Abrir secundária' });
+  const returnHome = page.getByRole('button', { name: 'Início', exact: true });
+
+  for (const attempt of [1, 2]) {
+    await test.step(`Return ${attempt}`, async () => {
+      await openSecondary.click();
+      await expect(navigator.getByText('Tela secundária ativa')).toBeVisible();
+      await returnHome.click();
+      await expect(navigator).toHaveAttribute('data-active-screen-key', 'home');
+      await expect(openSecondary).toBeVisible();
+      await expect(navigator.getByText('Tela secundária ativa')).toHaveCount(0);
+    });
+  }
+});

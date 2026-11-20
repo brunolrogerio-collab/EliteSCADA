@@ -43,6 +43,7 @@ import { RuntimeHistoricalPlaybackReadOnlyError } from '../historical-playback/r
 export type RuntimeVisualNavigatorProps = Readonly<{
   engineeringPackage: Pick<EngineeringPackageView, 'screens' | 'popups' | 'dynamos' | 'equipment' | 'templates'>;
   initialScreenKey: string;
+  screenRequestVersion?: number;
   fixedScreen?: boolean;
   mobileOrientation?: 'landscape' | 'portrait';
   mobileScreens?: Readonly<Record<string, string>>;
@@ -85,6 +86,7 @@ const POPUP_FALLBACK_TITLE: Readonly<Record<EngineeringLocale, string>> = Object
 export function RuntimeVisualNavigator({
   engineeringPackage,
   initialScreenKey,
+  screenRequestVersion,
   fixedScreen = false,
   mobileOrientation = 'landscape',
   mobileScreens,
@@ -126,7 +128,7 @@ export function RuntimeVisualNavigator({
     setDiagnostic(next.diagnostic);
     clearFeedbackTimers(feedbackTimers.current);
     setActionFeedback(new Map());
-  }, [catalog, initialScreenKey]);
+  }, [catalog, initialScreenKey, screenRequestVersion]);
 
   useEffect(() => () => clearFeedbackTimers(feedbackTimers.current), []);
 

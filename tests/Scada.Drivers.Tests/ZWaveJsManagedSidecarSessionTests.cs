@@ -35,6 +35,7 @@ public sealed class ZWaveJsManagedSidecarSessionTests
         {
             Assert.Equal("welcome", welcome.RootElement.GetProperty("type").GetString());
             Assert.Equal(1, welcome.RootElement.GetProperty("protocolVersion").GetInt32());
+            Assert.True(server.IsConnected);
         }
 
         var point = CreatePoint();
@@ -70,7 +71,7 @@ public sealed class ZWaveJsManagedSidecarSessionTests
         Assert.InRange((observation.ObservedAt - now).Duration(), TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
 
-    [Fact(Skip = "Deferred under #804 while the Z-Wave welcome/connection-publication race is investigated.")]
+    [Fact]
     public async Task RpcServer_DisconnectFailsPendingOperationWithoutReplayingIt()
     {
         await using var server = new ZWaveJsRpcServer();
@@ -83,9 +84,29 @@ public sealed class ZWaveJsManagedSidecarSessionTests
         _ = await ReadRequiredLineAsync(reader);
 
         var pending = server.ReadAsync(CreatePoint()).AsTask();
-        _ = await ReadRequiredLineAsync(reader);
+        using var disconnectedRequest = JsonDocument.Parse(await ReadRequiredLineAsync(reader));
+        var disconnectedId = disconnectedRequest.RootElement.GetProperty("id").GetString();
         peer.Dispose();
         await Assert.ThrowsAsync<IOException>(() => pending.WaitAsync(TimeSpan.FromSeconds(3)));
+
+        using var replacement = new TcpClient();
+        await replacement.ConnectAsync(IPAddress.Loopback, server.Port);
+        await using var replacementWriter = new StreamWriter(replacement.GetStream(), leaveOpen: true) { AutoFlush = true };
+        using var replacementReader = new StreamReader(replacement.GetStream(), leaveOpen: true);
+        await replacementWriter.WriteLineAsync(JsonSerializer.Serialize(new { type = "hello", protocolVersion = 1, token = server.Token }));
+        using var welcome = JsonDocument.Parse(await ReadRequiredLineAsync(replacementReader));
+        Assert.Equal("welcome", welcome.RootElement.GetProperty("type").GetString());
+        Assert.True(server.IsConnected);
+
+        var point = CreatePoint();
+        var next = server.ReadAsync(point).AsTask();
+        using var nextRequest = JsonDocument.Parse(await ReadRequiredLineAsync(replacementReader));
+        var root = nextRequest.RootElement;
+        var nextId = root.GetProperty("id").GetString();
+        Assert.NotEqual(disconnectedId, nextId);
+        Assert.Equal(point.Tag.Id, root.GetProperty("tagId").GetGuid());
+        await replacementWriter.WriteLineAsync(JsonSerializer.Serialize(new { id = nextId, ok = true, value = 42 }));
+        Assert.Equal(42, (await next.WaitAsync(TimeSpan.FromSeconds(2))).GetInt32());
     }
 
     [Fact]

@@ -10,6 +10,8 @@ const translations = JSON.parse(await readFile(
 ));
 const picker = '#scadivo-community-language[data-scadivo-bound=true]';
 const plainText = value => value.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+const languageCases = [['pt-PT', 'pt-BR'], ['es-MX', 'es'], ['en-GB', 'en'], ['de-DE', 'en']];
+const mobileOptions = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true };
 
 function translated(entry, lang) {
   return lang === 'pt-BR'
@@ -30,11 +32,13 @@ async function verifyCatalog(page, lang, { mobile = false } = {}) {
     const heading = item.querySelector('h3');
     const link = heading?.querySelector('a') ?? item.querySelector('a[href*="/c/"]');
     const description = item.querySelector('.category-description');
+    const descriptionCell = description?.querySelector('td');
     return {
       slug: link?.getAttribute('href')?.match(/\/c\/([^/]+)\//)?.[1],
       name: heading?.innerText.trim(),
       description: description?.innerText.trim().replace(/\s+/g, ' '),
-      descriptionVisible: Boolean(description?.getClientRects().length)
+      descriptionVisible: Boolean(description?.getClientRects().length),
+      descriptionOverflows: Boolean(descriptionCell && descriptionCell.scrollWidth > descriptionCell.clientWidth + 1)
     };
   }));
   for (const entry of translations) {
@@ -42,16 +46,15 @@ async function verifyCatalog(page, lang, { mobile = false } = {}) {
     assert.ok(rendered, entry.slug);
     const expected = translated(entry, lang);
     assert.equal(rendered.name, expected.name, entry.slug);
-    if (!mobile) {
-      assert.equal(rendered.descriptionVisible, true, entry.slug);
-      assert.equal(rendered.description, plainText(expected.description), entry.slug);
-    }
+    assert.equal(rendered.descriptionVisible, true, entry.slug);
+    assert.equal(rendered.description, plainText(expected.description), entry.slug);
+    assert.equal(rendered.descriptionOverflows, false, entry.slug);
   }
 }
 
 const browser = await chromium.launch();
 try {
-  for (const [locale, lang] of [['pt-PT', 'pt-BR'], ['es-MX', 'es'], ['en-GB', 'en'], ['de-DE', 'en']]) {
+  for (const [locale, lang] of languageCases) {
     const context = await browser.newContext({ locale });
     const page = await context.newPage();
     const response = await page.goto(catalog.href, { waitUntil: 'load' });
@@ -71,6 +74,16 @@ try {
     await context.close();
   }
 
+  for (const [locale, lang] of languageCases) {
+    const context = await browser.newContext({ locale, ...mobileOptions });
+    const page = await context.newPage();
+    const response = await page.goto(catalog.href, { waitUntil: 'load' });
+    assert.equal(response.status(), 200);
+    await verifyCatalog(page, lang, { mobile: true });
+    console.log(`Mobile browser ${locale} → ${lang}. All eight descriptions are visible and localized.`);
+    await context.close();
+  }
+
   const explicitlySpanish = new URL(catalog);
   explicitlySpanish.searchParams.set('tl', 'es');
   for (let visit = 0; visit < 4; visit++) {
@@ -85,7 +98,7 @@ try {
   console.log('The same manual selection persisted in four independent sessions.');
 
   for (const mobile of [false, true]) {
-    const options = mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : {};
+    const options = mobile ? { ...mobileOptions, viewport: { width: 320, height: 740 } } : {};
     const context = await browser.newContext({ locale: 'en-GB', ...options });
     const page = await context.newPage();
     await page.goto(catalog.href, { waitUntil: 'load' });

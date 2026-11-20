@@ -27,5 +27,11 @@
 .runtime-intelligence-coverage .asset-process-intelligence__coverage-signals > article {
   background: var(--app-surface-elevated);
   color: var(--app-text-primary);
-  display: grid; gap: 5px; min-width: 0; padding: 8px; border: 1px solid var(--app-border, #475569); border-radius: 6px; }
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--app-border, #475569);
+  border-radius: 6px;
+}
 .runtime-intelligence-coverage .asset-process-intelligence__coverage-note { color: var(--app-text-secondary, #94a3b8); font-size: 11px; }

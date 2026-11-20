@@ -39,7 +39,6 @@ public sealed class ZWaveJsRpcServer : IAsyncDisposable
 {
     private const int MaximumFrameLength = 65_536;
     private static readonly TimeSpan OperationTimeout = TimeSpan.FromSeconds(45);
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<RpcReply>> _pending = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _writeGate = new(1, 1);
     private readonly object _sync = new();
     private TcpListener? _listener;
@@ -68,7 +67,7 @@ public sealed class ZWaveJsRpcServer : IAsyncDisposable
             _lifetime = lifetime;
             _token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
             _port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            _acceptTask = AcceptLoopAsync(listener, lifetime.Token);
+            _acceptTask = AcceptLoopAsync(listener, _token, lifetime.Token);
         }
     }
 
@@ -99,8 +98,11 @@ public sealed class ZWaveJsRpcServer : IAsyncDisposable
             lifetime?.Cancel();
             listener?.Stop();
         }
-        if (active is not null) await active.DisposeAsync().ConfigureAwait(false);
-        FailPending(new IOException("Z-Wave sidecar channel stopped."));
+        if (active is not null)
+        {
+            active.FailPending(new IOException("Z-Wave sidecar channel stopped."));
+            await active.DisposeAsync().ConfigureAwait(false);
+        }
         if (acceptTask is not null)
         {
             try { await acceptTask.WaitAsync(cancellationToken).ConfigureAwait(false); }
@@ -114,10 +116,14 @@ public sealed class ZWaveJsRpcServer : IAsyncDisposable
     private async ValueTask<JsonElement> SendAsync(string operation, ZWaveJsPoint point, object? value, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(point);
-        var connection = Volatile.Read(ref _active) ?? throw new IOException("Z-Wave sidecar is not connected.");
         var id = Guid.NewGuid().ToString("N");
         var completion = new TaskCompletionSource<RpcReply>(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (!_pending.TryAdd(id, completion)) throw new InvalidOperationException("Duplicate Z-Wave RPC request ID.");
+        RpcConnection connection;
+        lock (_sync)
+        {
+            connection = _active ?? throw new IOException("Z-Wave sidecar is not connected.");
+            if (!connection.Pending.TryAdd(id, completion)) throw new InvalidOperationException("Duplicate Z-Wave RPC request ID.");
+        }
         var dispatchAttempted = false;
         var definitiveReplyReceived = false;
         try
@@ -133,7 +139,11 @@ public sealed class ZWaveJsRpcServer : IAsyncDisposable
                 value
             }, JsonOptions);
             dispatchAttempted = true;
-            try { await WriteFrameAsync(connection.Stream, frame, cancellationToken).ConfigureAwait(false); }
+            try { await WriteFrameAsync(connection, frame, cancellationToken).ConfigureAwait(false); }
+            catch (ObjectDisposedException exception)
+            {
+                throw new IOException("Z-Wave sidecar disconnected before completing dispatch.", exception);
+            }
             finally { CryptographicOperations.ZeroMemory(frame); }
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(OperationTimeout);
@@ -158,10 +168,10 @@ public sealed class ZWaveJsRpcServer : IAsyncDisposable
         {
             throw new ZWaveJsWriteUnconfirmedException(point.Tag.Id, "RPC_OUTCOME_UNKNOWN", exception);
         }
-        finally { _pending.TryRemove(id, out _); }
+        finally { connection.Pending.TryRemove(id, out _); }
     }
 
-    private async Task AcceptLoopAsync(TcpListener listener, CancellationToken cancellationToken)
+    private async Task AcceptLoopAsync(TcpListener listener, string token, CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -174,19 +184,8 @@ public sealed class ZWaveJsRpcServer : IAsyncDisposable
             var connection = new RpcConnection(client);
             try
             {
-                if (!await AuthenticateAsync(connection, cancellationToken).ConfigureAwait(false))
-                {
-                    await connection.DisposeAsync().ConfigureAwait(false);
-                    continue;
-                }
-
-                RpcConnection? previous;
-                lock (_sync)
-                {
-                    previous = _active;
-                    _active = connection;
-                }
-                if (previous is not null) await previous.DisposeAsync().ConfigureAwait(false);
+                if (!await AuthenticateAsync(connection, token, cancellationToken).ConfigureAwait(false)) continue;
+                await PublishConnectionAsync(listener, connection, cancellationToken).ConfigureAwait(false);
                 await ReadLoopAsync(connection, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
@@ -201,12 +200,12 @@ public sealed class ZWaveJsRpcServer : IAsyncDisposable
                     if (ReferenceEquals(_active, connection)) _active = null;
                 }
                 await connection.DisposeAsync().ConfigureAwait(false);
-                FailPending(new IOException("Z-Wave sidecar disconnected; pending operations were not retried."));
+                connection.FailPending(new IOException("Z-Wave sidecar disconnected; pending operations were not retried."));
             }
         }
     }
 
-    private async Task<bool> AuthenticateAsync(RpcConnection connection, CancellationToken cancellationToken)
+    private async Task<bool> AuthenticateAsync(RpcConnection connection, string token, CancellationToken cancellationToken)
     {
         var frame = await connection.ReadFrameAsync(cancellationToken).ConfigureAwait(false);
         if (frame is null) return false;
@@ -215,7 +214,7 @@ public sealed class ZWaveJsRpcServer : IAsyncDisposable
         if (!TryString(root, "type", out var type) || type != "hello" ||
             !TryInt(root, "protocolVersion", out var protocolVersion) || protocolVersion != 1 ||
             !TryString(root, "token", out var suppliedToken)) return false;
-        var expected = Encoding.UTF8.GetBytes(Token);
+        var expected = Encoding.UTF8.GetBytes(token);
         var supplied = Encoding.UTF8.GetBytes(suppliedToken);
         try
         {
@@ -226,9 +225,26 @@ public sealed class ZWaveJsRpcServer : IAsyncDisposable
             CryptographicOperations.ZeroMemory(expected);
             CryptographicOperations.ZeroMemory(supplied);
         }
-        await WriteFrameAsync(connection.Stream,
-            JsonSerializer.SerializeToUtf8Bytes(new { type = "welcome", protocolVersion = 1 }, JsonOptions), cancellationToken).ConfigureAwait(false);
         return true;
+    }
+
+    private async Task PublishConnectionAsync(TcpListener listener, RpcConnection connection, CancellationToken cancellationToken)
+    {
+        await _writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            lock (_sync)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!ReferenceEquals(_listener, listener))
+                    throw new IOException("Z-Wave sidecar listener is no longer current.");
+                // Hold the write gate so the peer always sees welcome before any request.
+                Volatile.Write(ref _active, connection);
+            }
+            var welcome = JsonSerializer.SerializeToUtf8Bytes(new { type = "welcome", protocolVersion = 1 }, JsonOptions);
+            await WriteFrameCoreAsync(connection.Stream, welcome, cancellationToken).ConfigureAwait(false);
+        }
+        finally { _writeGate.Release(); }
     }
 
     private async Task ReadLoopAsync(RpcConnection connection, CancellationToken cancellationToken)
@@ -248,7 +264,7 @@ public sealed class ZWaveJsRpcServer : IAsyncDisposable
                 }
                 continue;
             }
-            if (!TryString(root, "id", out var id) || !_pending.TryGetValue(id, out var completion)) continue;
+            if (!TryString(root, "id", out var id) || !connection.Pending.TryGetValue(id, out var completion)) continue;
             var success = root.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.True;
             var uncertain = root.TryGetProperty("uncertain", out var uncertainElement) && uncertainElement.ValueKind == JsonValueKind.True;
             var errorCode = TryString(root, "errorCode", out var code) ? SafeErrorCode(code) : null;
@@ -257,23 +273,19 @@ public sealed class ZWaveJsRpcServer : IAsyncDisposable
         }
     }
 
-    private async Task WriteFrameAsync(Stream stream, byte[] payload, CancellationToken cancellationToken)
+    private async Task WriteFrameAsync(RpcConnection connection, byte[] payload, CancellationToken cancellationToken)
     {
-        if (payload.Length is 0 or > MaximumFrameLength) throw new InvalidDataException("Z-Wave RPC frame length is invalid.");
         await _writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            await stream.WriteAsync(payload.AsMemory(), cancellationToken).ConfigureAwait(false);
-            await stream.WriteAsync("\n"u8.ToArray(), cancellationToken).ConfigureAwait(false);
-            await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-        }
+        try { await WriteFrameCoreAsync(connection.Stream, payload, cancellationToken).ConfigureAwait(false); }
         finally { _writeGate.Release(); }
     }
 
-    private void FailPending(Exception exception)
+    private static async Task WriteFrameCoreAsync(Stream stream, byte[] payload, CancellationToken cancellationToken)
     {
-        foreach (var pending in _pending.Values) pending.TrySetException(exception);
-        _pending.Clear();
+        if (payload.Length is 0 or > MaximumFrameLength) throw new InvalidDataException("Z-Wave RPC frame length is invalid.");
+        await stream.WriteAsync(payload.AsMemory(), cancellationToken).ConfigureAwait(false);
+        await stream.WriteAsync("\n"u8.ToArray(), cancellationToken).ConfigureAwait(false);
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static bool TryString(JsonElement root, string name, out string value)
@@ -320,6 +332,14 @@ public sealed class ZWaveJsRpcServer : IAsyncDisposable
     {
         private readonly FrameReader _reader = new(client.GetStream(), MaximumFrameLength);
         public NetworkStream Stream { get; } = client.GetStream();
+        public ConcurrentDictionary<string, TaskCompletionSource<RpcReply>> Pending { get; } = new(StringComparer.Ordinal);
+
+        public void FailPending(IOException exception)
+        {
+            foreach (var pending in Pending.Values) pending.TrySetException(exception);
+            Pending.Clear();
+        }
+
         public ValueTask<byte[]?> ReadFrameAsync(CancellationToken cancellationToken) => _reader.ReadAsync(cancellationToken);
         public ValueTask DisposeAsync()
         {

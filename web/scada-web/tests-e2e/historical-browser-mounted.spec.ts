@@ -294,6 +294,7 @@ test('alarm center counts exactly the visible rows of the saved Alarm View', asy
   await page.route('**/api/alarms/definitions', route => fulfillJson(route, []));
   await page.route('**/api/alarms/suppressions', route => fulfillJson(route, {}, 503));
   await page.goto(harnessPath + '?alarm-center');
-  await expect(page.getByRole('row', { name: /High control/ })).toHaveCount(1);
+  await expect(page.locator('.runtime-alarm-list').getByRole('button')).toHaveCount(1);
+  await expect(page.locator('.runtime-alarm-list').getByRole('button', { name: /High control/ })).toBeVisible();
   await expect(page.locator('.runtime-alarm-summary-item').filter({ hasText: 'Visible alarms' }).locator('strong')).toHaveText('1');
 });

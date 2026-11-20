@@ -43,6 +43,14 @@ Synchronizing means synchronization is still in progress. Promoting and Demoting
 
 Check database availability separately from partner communication. Reaching the partner does not prove the database works. Increasing network tolerances to hide a database fault does not resolve it.
 
+### Open Runtime Web through the cluster address
+
+Open Runtime Web using one cluster URL configured by the network administrator on a load balancer, VIP or ingress gateway that accepts WebSockets. That address must reach both services and remove an unavailable server from the entry pool. The ingress does not choose or promote the Active node.
+
+When a request reaches Standby, the API forwards HTTP and TAG WebSocket traffic to the Active recognized by HA authority. The browser stays on the same origin, preserving cookies and session storage. An Authority change may still require a new sign-in.
+
+Open Runtime through the shared cluster URL to follow the Active. If you use a node’s direct address, you stay connected to that node. Enter each node’s direct API address in this screen, reachable by its partner; do not repeat the shared cluster URL. Use HTTPS between hosts. HTTP is accepted only for loopback addresses such as localhost. If authority is absent, stale, ambiguous, transferring or lacks valid protection, Runtime returns unavailable and does not execute on Standby.
+
 ### Choose the right operation
 
 Choose the action for the situation. Switchover is a planned transfer from effective Active to an eligible partner. Failback requests return to the preferred server when allowed. Recovery reconciles a failure or blocked condition.

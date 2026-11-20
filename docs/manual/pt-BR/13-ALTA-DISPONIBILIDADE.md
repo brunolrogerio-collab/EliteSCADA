@@ -43,6 +43,14 @@ Synchronizing indica sincronização ainda em curso. Promoting e Demoting são t
 
 Confira o banco e a comunicação com o parceiro separadamente. Alcançar o parceiro não prova que o banco funciona. Aumentar tolerâncias de rede para esconder uma falha de banco não resolve essa falha.
 
+### Acessar o Runtime Web pelo endereço do cluster
+
+Para abrir o Runtime Web, use uma única URL do cluster, configurada pelo responsável da rede em um balanceador, VIP ou gateway de entrada que aceite WebSocket. Esse endereço precisa alcançar os dois serviços e retirar um servidor indisponível da entrada. A infraestrutura de entrada não escolhe nem promove o Active.
+
+Quando uma solicitação chega ao Standby, a API encaminha HTTP e WebSocket de TAGs ao Active que a autoridade HA reconhece. O navegador continua na mesma origem; isso preserva cookies e o armazenamento da sessão. Uma mudança de Authority ainda pode exigir novo login.
+
+Abra o Runtime pela URL compartilhada do cluster para seguir o Active. Se usar o endereço direto de um nó, você ficará conectado àquele nó. Nos campos desta tela, informe o endereço direto da API de cada nó, alcançável pelo parceiro; não repita a URL compartilhada do cluster. Use HTTPS entre hosts. HTTP só é aceito para endereços de loopback, como localhost. Se a autoridade estiver ausente, antiga, ambígua, em transferência ou sem proteção válida, o Runtime responde como indisponível e não executa no Standby.
+
 ### Escolha a operação certa
 
 Escolha a ação conforme a situação. Switchover é a transferência planejada do Active efetivo para um parceiro elegível. Failback solicita retorno ao preferencial quando permitido. Recovery serve para reconciliar uma falha ou bloqueio.

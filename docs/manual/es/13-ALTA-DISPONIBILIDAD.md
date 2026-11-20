@@ -43,6 +43,14 @@ Synchronizing indica sincronización en curso. Promoting y Demoting son transici
 
 Compruebe por separado disponibilidad de base y comunicación con el asociado. Alcanzar el asociado no demuestra que la base funcione. Aumentar tolerancias de red para ocultar una falla de base no la resuelve.
 
+### Acceder a Runtime Web por la dirección del clúster
+
+Abra Runtime Web con una única URL del clúster, configurada por el responsable de red en un balanceador, VIP o gateway de entrada que acepte WebSocket. Esa dirección debe alcanzar ambos servicios y retirar de la entrada un servidor no disponible. La infraestructura de entrada no elige ni promueve el Active.
+
+Si una solicitud llega al Standby, la API reenvía HTTP y WebSocket de TAGs al Active reconocido por la autoridad HA. El navegador permanece en el mismo origen, conservando cookies y almacenamiento de sesión. Un cambio de Authority aún puede requerir volver a iniciar sesión.
+
+Abra Runtime desde la URL compartida del clúster para seguir al Active. Si usa la dirección directa de un nodo, permanecerá conectado a ese nodo. En esta pantalla indique la dirección directa de la API de cada nodo, accesible por el asociado; no repita la URL compartida del clúster. Use HTTPS entre hosts. HTTP solo se admite en direcciones de loopback, como localhost. Si la autoridad no existe, está antigua, es ambigua, está en transferencia o carece de protección válida, Runtime responde como no disponible y no ejecuta en Standby.
+
 ### Elija la operación correcta
 
 Elija la acción según la situación. Switchover transfiere de forma planificada del Active efectivo a un asociado elegible. Failback solicita volver al preferido cuando se permite. Recovery reconcilia fallas o bloqueos.

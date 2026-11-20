@@ -1,10 +1,10 @@
 # Scadivo — site preview
 
-Static, bilingual marketing site. No build step is required; runtime PNG assets are stored in `assets/`.
+Static marketing site in Portuguese, English and Spanish. No build step is required; runtime PNG assets are stored in `assets/`.
 
 ## Preview
 
-Open `index.html` in a modern browser or serve this folder as static files. Portuguese is the default; the EN button switches to English and remembers the choice in local storage.
+Open `index.html` in a modern browser or serve this folder as static files. On the first visit, the site uses the first supported language in the browser's preference list and falls back to English. The language selector and a supported `?lang=` link take precedence and save the selected language locally.
 
 ## Before public launch
 

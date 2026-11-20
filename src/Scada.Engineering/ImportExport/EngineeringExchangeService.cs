@@ -734,7 +734,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         }
         _securityScopeHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _securityPolicyHandler.Apply(package, mode, ref created, ref updated, ref skipped);
-        _engineeringLock.Replace(package.EngineeringLock);
+        if (package.EngineeringLock is not null)
+            _engineeringLock.Replace(package.EngineeringLock);
 
         if (package.ResourceOrganizations is null) skipped++;
         else

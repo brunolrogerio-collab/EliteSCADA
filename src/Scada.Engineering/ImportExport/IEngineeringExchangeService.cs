@@ -16,17 +16,23 @@ public interface IEngineeringExchangeService
     EngineeringPackage ParseJson(string json);
 
     /// <summary>
-    /// Parses an import payload while preserving the distinction between an omitted
-    /// RuntimePresentation field and an explicit/default presentation value.
+    /// Keeps omitted project settings out of a partial import. Full package parsing still
+    /// supplies the defaults used during project restoration.
     /// </summary>
     EngineeringPackage ParseJsonForImport(string json)
     {
         using var document = JsonDocument.Parse(json);
-        var includesRuntimePresentation = document.RootElement.ValueKind == JsonValueKind.Object &&
-            document.RootElement.EnumerateObject().Any(property =>
-                string.Equals(property.Name, "runtimePresentation", StringComparison.OrdinalIgnoreCase));
         var package = ParseJson(json);
-        return includesRuntimePresentation ? package : package with { RuntimePresentation = null };
+        var properties = document.RootElement.EnumerateObject();
+        var includesRuntimePresentation = properties.Any(property =>
+            string.Equals(property.Name, "runtimePresentation", StringComparison.OrdinalIgnoreCase));
+        var engineeringLock = properties.LastOrDefault(property =>
+            string.Equals(property.Name, "engineeringLock", StringComparison.OrdinalIgnoreCase));
+        return package with
+        {
+            RuntimePresentation = includesRuntimePresentation ? package.RuntimePresentation : null,
+            EngineeringLock = engineeringLock.Value.ValueKind == JsonValueKind.Object ? package.EngineeringLock : null
+        };
     }
 
     EngineeringPackage ParseTagsCsv(string csv);

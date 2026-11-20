@@ -85,6 +85,8 @@ test('wire enums normalize and minimal package preserves owned visual references
     normalizeVisualEventReference({ visualDefinitionId: id, visualObjectId: null, eventKind: 0, scriptId: otherId, entryPoint: 'initialize' })
   ];
   const packageData = buildCanonicalScriptPackage(script, references, '2026-08-28T00:00:00.000Z');
+  expect(packageData.schemaVersion).toBe(29);
+  expect(packageData).not.toHaveProperty('engineeringLock');
   expect(packageContainsOnlyScriptMutation(packageData)).toBeTruthy();
   expect(packageData.scripts).toHaveLength(1);
   expect(packageData.scripts[0]?.scope).toBe('clientVisual');

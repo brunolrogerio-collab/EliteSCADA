@@ -3,7 +3,9 @@ import type { CSSProperties } from 'react';
 import { useAuth } from '../../auth/AuthGate';
 import type { EngineeringLocale } from '../i18n';
 import { parseWindow, type WindowValue } from '../AssetProcessIntelligencePerformancePanel';
+import { coverageCopy } from '../AssetProcessIntelligenceCoveragePanel';
 import { useIntelligencePerformanceRuntimeContext } from '../../visual-runtime';
+import './IntelligenceRuntimeQuery.css';
 import './IntelligenceContextualDeviationVisualElement.css';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
@@ -255,6 +257,7 @@ export function IntelligenceContextualDeviationVisualElement({
       });
       const payload: unknown = await response.json().catch(() => null);
       if (!response.ok) {
+        if (response.status === 413) throw new DeviationVisualError('HTTP_413');
         const errorPayload = isRecord(payload) ? payload : null;
         const code = errorPayload && typeof errorPayload.code === 'string' ? errorPayload.code : `HTTP_${response.status}`;
         throw new DeviationVisualError(code);
@@ -271,7 +274,8 @@ export function IntelligenceContextualDeviationVisualElement({
       if (!requestController.signal.aborted && requestVersion.current === version) {
         const code = reason instanceof DeviationVisualError ? reason.code
           : reason instanceof Error ? reason.message : 'NETWORK_ERROR';
-        setError((copy.errors as Readonly<Record<string, string>>)[code] ?? copy.requestFailed);
+        setError(code === 'HTTP_413' ? coverageCopy(locale).windowTooDense
+          : (copy.errors as Readonly<Record<string, string>>)[code] ?? copy.requestFailed);
       }
     } finally {
       if (requestVersion.current === version) setLoading(false);
@@ -287,7 +291,7 @@ export function IntelligenceContextualDeviationVisualElement({
   };
 
   return <div
-    className="visual-editor-object runtime-intelligence-contextual-deviation"
+    className="visual-editor-object runtime-intelligence-query runtime-intelligence-contextual-deviation"
     style={rootStyle}
     data-object-id={runtimeObjectId}
     data-runtime-object-id={runtimeObjectId}
@@ -317,28 +321,34 @@ export function IntelligenceContextualDeviationVisualElement({
                 <label>{copy.evaluationFrom}<input type="datetime-local" value={evaluationFromLocal} disabled={loading} onChange={event => { invalidate(); setEvaluationFromLocal(event.currentTarget.value); }}/></label>
                 <label>{copy.evaluationTo}<input type="datetime-local" value={evaluationToLocal} disabled={loading} onChange={event => { invalidate(); setEvaluationToLocal(event.currentTarget.value); }}/></label>
               </fieldset>
-              <label>{basisCopy(locale).label}<select aria-label={basisCopy(locale).label} value={timestampBasis} disabled={loading} onChange={event => {
-                invalidate(); setTimestampBasis(event.currentTarget.value as TimestampBasis);
-              }}>
-                <option value="synchronized_source">{basisCopy(locale).source}</option>
-                <option value="historian_observed">{basisCopy(locale).observed}</option>
-              </select></label>
-              <p>{timestampBasis === 'historian_observed' ? basisCopy(locale).observedHint : basisCopy(locale).sourceHint}</p>
-              <label>{temporalCopy(locale).label}<select value={temporalToleranceSeconds} disabled={loading} onChange={event => { invalidate(); setTemporalToleranceSeconds(Number(event.currentTarget.value)); }}>
-                <option value={0}>{temporalCopy(locale).exact}</option>
-                {[10, 30, 60].map(seconds => <option key={seconds} value={seconds}>{seconds} s</option>)}
-              </select></label>
-              <p>{temporalCopy(locale).hint}</p>
+              <div className="runtime-intelligence-contextual-deviation__timing">
+                <label>{basisCopy(locale).label}<select aria-label={basisCopy(locale).label} value={timestampBasis} disabled={loading} onChange={event => {
+                  invalidate(); setTimestampBasis(event.currentTarget.value as TimestampBasis);
+                }}>
+                  <option value="synchronized_source">{basisCopy(locale).source}</option>
+                  <option value="historian_observed">{basisCopy(locale).observed}</option>
+                </select></label>
+                <label>{temporalCopy(locale).label}<select value={temporalToleranceSeconds} disabled={loading} onChange={event => { invalidate(); setTemporalToleranceSeconds(Number(event.currentTarget.value)); }}>
+                  <option value={0}>{temporalCopy(locale).exact}</option>
+                  {[10, 30, 60].map(seconds => <option key={seconds} value={seconds}>{seconds} s</option>)}
+                </select></label>
+                <details>
+                  <summary>{copy.timingDetails}</summary>
+                  <p>{timestampBasis === 'historian_observed' ? basisCopy(locale).observedHint : basisCopy(locale).sourceHint}</p>
+                  <p>{temporalCopy(locale).hint}</p>
+                </details>
+              </div>
               <button type="submit" disabled={loading || !configValid || !windowsValid}>
                 {loading ? copy.loading : copy.analyze}
               </button>
             </form>
-            {!referenceWindowResult.window || !evaluationWindowResult.window
-              ? <p className="runtime-intelligence-contextual-deviation__error" role="alert">{copy.windowInvalid}</p>
+            {!(referenceFromLocal && referenceToLocal && evaluationFromLocal && evaluationToLocal) ? null
+              : !referenceWindowResult.window || !evaluationWindowResult.window
+              ? <p className="runtime-intelligence-query__error" role="alert">{copy.windowInvalid}</p>
               : !windowsChronological
-                ? <p className="runtime-intelligence-contextual-deviation__error" role="alert">{copy.windowsOrder}</p>
-                : <p className="runtime-intelligence-contextual-deviation__hint">{copy.windowHint}</p>}
-            {error ? <p className="runtime-intelligence-contextual-deviation__error" role="alert">{error}</p> : null}
+                ? <p className="runtime-intelligence-query__error" role="alert">{copy.windowsOrder}</p>
+                : null}
+            {error ? <p className="runtime-intelligence-query__error" role="alert">{error}</p> : null}
             {result ? <DeviationResult result={result} locale={locale} copy={copy}/> : null}
           </>}
   </div>;
@@ -348,39 +358,58 @@ function DeviationResult({ result, locale, copy }: { result: Response; locale: E
   const formatter = new Intl.NumberFormat(locale === 'pt-BR' ? 'pt-BR' : locale, { maximumFractionDigits: 5 });
   const targets = new Map(result.targetStatistics.map(statistic => [statistic.signal.signalId, statistic.signal.tagPath]));
   const visibleVectors = result.evaluationVectors.slice(-MAX_VISIBLE_VECTORS);
+  const latestComparable = [...result.evaluationVectors].reverse().find(vector => vector.inJointContext);
   return <section className="runtime-intelligence-contextual-deviation__result" data-testid="runtime-intelligence-contextual-deviation-result" aria-live="polite">
     <section>
       <h3>{copy.summary}</h3>
+      <dl>
+        <Fact label={copy.referenceVectors} value={formatCount(result.jointContextReferenceVectorCount, locale)}/>
+        <Fact label={copy.inJointContext} value={formatCount(result.jointContextEvaluationVectorCount, locale)}/>
+      </dl>
+      {result.jointContextReferenceVectorCount === 0 || result.jointContextEvaluationVectorCount === 0
+        ? <p>{copy.noComparableSamples}</p> : null}
+    </section>
+    <section>
+      <h3>{copy.perTarget}</h3>
+      {latestComparable ? <p>{copy.latestComparable(formatTimestamp(vectorTime(latestComparable), locale))}</p> : null}
+      <div className="runtime-intelligence-contextual-deviation__targets">
+        {result.targetStatistics.map(statistic => {
+          const value = latestComparable?.targets.find(target => target.targetSignalId === statistic.signal.signalId);
+          const unit = statistic.signal.engineeringUnit;
+          const measurement = (amount: number | null) => amount === null || !unit ? formatOptional(amount, formatter)
+            : `${formatNumber(amount, formatter)} ${unit}`;
+          return <article key={statistic.signal.signalId}>
+            <h4>{statistic.signal.tagPath}</h4>
+            <dl>
+              <Fact label={copy.referenceMedian} value={measurement(statistic.referenceMedian)}/>
+              {value ? <>
+                <Fact label={copy.measuredValue} value={measurement(value.value)}/>
+                <Fact label={copy.difference} value={measurement(value.rawDifferenceFromReferenceMedian)}/>
+              </> : null}
+              <Fact label={copy.referenceMad} value={measurement(statistic.referenceMad)}/>
+              <Fact label={copy.referenceCount} value={formatCount(statistic.jointContextReferenceVectorCount, locale)}/>
+              <Fact label={copy.evaluationCount} value={formatCount(statistic.returnedJointContextEvaluationValueCount, locale)}/>
+              <Fact label={copy.robustScore} value={statistic.status === 'available' ? copy.available : unavailableReason(statistic.scoreUnavailableReason, copy)}/>
+            </dl>
+          </article>;
+        })}
+      </div>
+    </section>
+    <details>
+      <summary>{copy.comparisonDetails}</summary>
       <dl>
         <Fact label={basisCopy(locale).label} value={result.timestampBasis === OBSERVED_TIMESTAMP_BASIS ? basisCopy(locale).observed : basisCopy(locale).source}/>
         <Fact label={temporalCopy(locale).label} value={`${result.temporalToleranceSeconds ?? 0} s`}/>
         <Fact label={temporalCopy(locale).unmatchedReference} value={formatCount(result.unmatchedReferenceAnchorCount ?? 0, locale)}/>
         <Fact label={temporalCopy(locale).unmatchedEvaluation} value={formatCount(result.unmatchedEvaluationAnchorCount ?? 0, locale)}/>
-        <Fact label={copy.referenceVectors} value={formatCount(result.jointContextReferenceVectorCount, locale)}/>
         <Fact label={copy.evaluationVectors} value={formatCount(result.completeEvaluationVectorCount, locale)}/>
-        <Fact label={copy.inJointContext} value={formatCount(result.jointContextEvaluationVectorCount, locale)}/>
         <Fact label={copy.rawRows} value={formatCount(result.totalRawObservationCount, locale)}/>
         <Fact label={copy.provenance} value={describeVectorTimestampBasis(result.provenance.vectorTimestampBasis, locale)}/>
       </dl>
       <p>{copy.noCombinedDiagnosis}</p>
-    </section>
-    <section>
-      <h3>{copy.perTarget}</h3>
-      <div className="runtime-intelligence-contextual-deviation__targets">
-        {result.targetStatistics.map(statistic => <article key={statistic.signal.signalId}>
-          <h4>{statistic.signal.tagPath}</h4>
-          <dl>
-            <Fact label={copy.referenceMedian} value={formatOptional(statistic.referenceMedian, formatter)}/>
-            <Fact label={copy.referenceMad} value={formatOptional(statistic.referenceMad, formatter)}/>
-            <Fact label={copy.referenceCount} value={formatCount(statistic.jointContextReferenceVectorCount, locale)}/>
-            <Fact label={copy.evaluationCount} value={formatCount(statistic.returnedJointContextEvaluationValueCount, locale)}/>
-            <Fact label={copy.robustScore} value={statistic.status === 'available' ? copy.available : unavailableReason(statistic.scoreUnavailableReason, copy)}/>
-          </dl>
-        </article>)}
-      </div>
-    </section>
-    <section>
-      <h3>{copy.evaluationEvidence}</h3>
+    </details>
+    <details>
+      <summary>{copy.evaluationEvidence}</summary>
       <p>{copy.showingVectors(visibleVectors.length, result.returnedEvaluationVectorCount, result.omittedEvaluationVectorCount)}</p>
       <div className="runtime-intelligence-contextual-deviation__vectors">
         {visibleVectors.map(vector => <article key={vectorTime(vector)}>
@@ -394,7 +423,7 @@ function DeviationResult({ result, locale, copy }: { result: Response; locale: E
         </article>)}
         {visibleVectors.length === 0 ? <p>{copy.noEvaluationVectors}</p> : null}
       </div>
-    </section>
+    </details>
   </section>;
 }
 
@@ -608,11 +637,14 @@ function visualCopy(locale: EngineeringLocale) {
   if (locale === 'en') return {
     title: 'Contextual deviation', transient: 'Temporary read-only analysis', runtimeOnly: 'This visual is interactive only in live Runtime. The Engineering editor never queries Historian.',
     runtimeUnavailable: 'Queries are unavailable during playback or unless Runtime View and TrendUse are effective.', invalidConfig: 'The configured scope, assignment, profile, signals or canonical ranges are invalid. This visual fails closed.',
-    operatorAction: 'Historian is queried only after selecting Analyze. Reference and evaluation windows must be separate and chronological; each request rechecks server authorization.',
+    operatorAction: 'Choose a period of normal operation and the later period you want to check. The analysis compares readings under similar conditions.',
     reference: 'Reference window', evaluation: 'Evaluation window', referenceFrom: 'Reference from (local time)', referenceTo: 'Reference to (local time)', evaluationFrom: 'Evaluation from (local time)', evaluationTo: 'Evaluation to (local time)', analyze: 'Analyze', loading: 'Querying…',
     windowInvalid: 'Both windows must be valid and no longer than 31 days each.', windowsOrder: 'The reference window must end before the evaluation window begins.',
-    windowHint: 'Local times are sent as UTC. Windows must not overlap. Results and samples stay only in this Runtime view.', requestFailed: 'Request failed',
+    timingDetails: 'How readings are matched', requestFailed: 'Could not run the analysis. Check the periods and try again.',
     summary: 'Result summary', referenceVectors: 'Reference samples in both selected conditions', evaluationVectors: 'Complete evaluation samples', inJointContext: 'Evaluation samples in the selected conditions', rawRows: 'Historian records checked', provenance: 'How readings are matched',
+    comparisonDetails: 'Comparison details', measuredValue: 'Measured value',
+    latestComparable: (time: string) => `Latest comparable reading in the result (${time})`,
+    noComparableSamples: 'There are not enough comparable readings to draw a conclusion. Check the selected periods, operating conditions and timestamp basis.',
     noCombinedDiagnosis: 'Each target is described independently against the joint-context reference cohort. No combined anomaly, diagnosis, fault or remaining-life estimate is produced.',
     perTarget: 'Results by signal', referenceMedian: 'Reference median', referenceMad: 'Reference variation (median absolute deviation, MAD)', referenceCount: 'Samples in both reference conditions', evaluationCount: 'Evaluation samples returned', robustScore: 'Deviation relative to usual variation', available: 'Shown for each sample below', unavailable: 'Not available',
     evaluationEvidence: 'Evaluation samples', showingVectors: (shown: number, returned: number, omitted: number) => `Showing ${shown} most recent samples out of ${returned}; ${omitted} more were omitted because of the display limit.`,
@@ -629,11 +661,14 @@ function visualCopy(locale: EngineeringLocale) {
   if (locale === 'es') return {
     title: 'Desviación contextual', transient: 'Análisis temporal de solo lectura', runtimeOnly: 'Este visual solo es interactivo en Runtime en vivo. Engineering nunca consulta Historian.',
     runtimeUnavailable: 'No se puede consultar durante la reproducción ni sin Runtime View y TrendUse efectivos.', invalidConfig: 'El alcance, asignación, perfil, señales o rangos canónicos no son válidos. El visual se cierra de forma segura.',
-    operatorAction: 'Historian solo se consulta al seleccionar Analizar. Las ventanas deben ser cronológicas y separadas; el servidor revalida cada solicitud.',
+    operatorAction: 'Elija un período de operación normal y el período posterior que quiere revisar. El análisis compara lecturas en condiciones similares.',
     reference: 'Ventana de referencia', evaluation: 'Ventana de evaluación', referenceFrom: 'Desde referencia (hora local)', referenceTo: 'Hasta referencia (hora local)', evaluationFrom: 'Desde evaluación (hora local)', evaluationTo: 'Hasta evaluación (hora local)', analyze: 'Analizar', loading: 'Consultando…',
     windowInvalid: 'Cada ventana debe ser válida y tener como máximo 31 días.', windowsOrder: 'La ventana de referencia debe terminar antes de que comience la de evaluación.',
-    windowHint: 'Las horas locales se envían como UTC. Las ventanas no se superponen. Los resultados quedan solo en esta vista Runtime.', requestFailed: 'Falló la solicitud',
+    timingDetails: 'Cómo se asocian las lecturas', requestFailed: 'No se pudo realizar el análisis. Revise los períodos e inténtelo de nuevo.',
     summary: 'Resumen de resultados', referenceVectors: 'Muestras de referencia en ambas condiciones seleccionadas', evaluationVectors: 'Muestras completas de evaluación', inJointContext: 'Muestras de evaluación dentro de las condiciones', rawRows: 'Registros revisados en Historian', provenance: 'Cómo se comparan las lecturas',
+    comparisonDetails: 'Detalles de la comparación', measuredValue: 'Valor medido',
+    latestComparable: (time: string) => `Última lectura comparable del resultado (${time})`,
+    noComparableSamples: 'No hay lecturas comparables suficientes para llegar a una conclusión. Revise los períodos, las condiciones de operación y la base horaria.',
     noCombinedDiagnosis: 'Cada objetivo se describe por separado frente a la cohorte de referencia. No se genera anomalía combinada, diagnóstico, falla ni vida restante.',
     perTarget: 'Resultados por señal', referenceMedian: 'Mediana de referencia', referenceMad: 'Variación de referencia (desviación absoluta mediana, MAD)', referenceCount: 'Muestras en ambas condiciones de referencia', evaluationCount: 'Muestras de evaluación devueltas', robustScore: 'Desviación respecto a la variación habitual', available: 'Se muestra para cada muestra abajo', unavailable: 'No disponible',
     evaluationEvidence: 'Muestras de evaluación', showingVectors: (shown: number, returned: number, omitted: number) => `Se muestran las ${shown} muestras más recientes de ${returned}; se omitieron ${omitted} por el límite de visualización.`,
@@ -644,11 +679,14 @@ function visualCopy(locale: EngineeringLocale) {
   return {
     title: 'Desvio contextual', transient: 'Análise temporária somente para leitura', runtimeOnly: 'Este visual só é interativo no Runtime ao vivo. O Engineering nunca consulta o Historian.',
     runtimeUnavailable: 'Consultas não ficam disponíveis durante reprodução nem sem Runtime View e TrendUse efetivos.', invalidConfig: 'Escopo, associação, perfil, sinais ou faixas canônicas inválidas. O visual falha fechado.',
-    operatorAction: 'O Historian só é consultado ao selecionar Analisar. As janelas devem ser cronológicas e separadas; cada solicitação é revalidada pelo servidor.',
+    operatorAction: 'Escolha um período de operação normal e o período posterior que você quer verificar. A análise compara as leituras em condições semelhantes.',
     reference: 'Janela de referência', evaluation: 'Janela de avaliação', referenceFrom: 'Início da referência (horário local)', referenceTo: 'Fim da referência (horário local)', evaluationFrom: 'Início da avaliação (horário local)', evaluationTo: 'Fim da avaliação (horário local)', analyze: 'Analisar', loading: 'Consultando…',
     windowInvalid: 'Cada janela precisa ser válida e ter no máximo 31 dias.', windowsOrder: 'A janela de referência deve terminar antes do início da janela de avaliação.',
-    windowHint: 'Horários locais são enviados em UTC. As janelas não podem se sobrepor. Resultados e amostras ficam apenas nesta visualização Runtime.', requestFailed: 'Falha na solicitação',
+    timingDetails: 'Como as leituras são associadas', requestFailed: 'Não foi possível analisar. Confira os períodos e tente novamente.',
     summary: 'Resumo dos resultados', referenceVectors: 'Amostras de referência nas duas condições selecionadas', evaluationVectors: 'Amostras completas de avaliação', inJointContext: 'Amostras de avaliação nas condições selecionadas', rawRows: 'Registros consultados no Historian', provenance: 'Como as leituras são comparadas',
+    comparisonDetails: 'Detalhes da comparação', measuredValue: 'Valor medido',
+    latestComparable: (time: string) => `Última leitura comparável do resultado (${time})`,
+    noComparableSamples: 'Faltam leituras comparáveis para concluir. Confira os períodos, as condições de operação e a base de horário.',
     noCombinedDiagnosis: 'Cada alvo é descrito individualmente contra a coorte de referência. Não é produzida anomalia combinada, diagnóstico, falha ou estimativa de vida restante.',
     perTarget: 'Resultados por sinal', referenceMedian: 'Mediana de referência', referenceMad: 'Variação de referência (desvio absoluto mediano, MAD)', referenceCount: 'Amostras nas duas condições de referência', evaluationCount: 'Amostras de avaliação retornadas', robustScore: 'Desvio em relação à variação habitual', available: 'Exibido para cada amostra abaixo', unavailable: 'Indisponível',
     evaluationEvidence: 'Amostras de avaliação', showingVectors: (shown: number, returned: number, omitted: number) => `Exibindo as ${shown} amostras mais recentes de ${returned}; ${omitted} foram omitidas pelo limite de exibição.`,

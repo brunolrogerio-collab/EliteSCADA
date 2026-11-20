@@ -19,7 +19,10 @@ test('profile coverage is Runtime-only, explicitly queried and transient on inpu
     'INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS',
     'INTELLIGENCE_EXECUTION_PERMIT_REQUIRED'
   ];
-  await page.addInitScript(() => window.localStorage.setItem('elitescada.engineering.locale', 'en'));
+  await page.addInitScript(() => {
+    window.localStorage.setItem('elitescada.engineering.locale', 'en');
+    window.localStorage.setItem('elitescada.app.theme', 'light');
+  });
   await page.routeWebSocket('**/ws/tags', () => {});
   await page.route('**/api/**', async route => {
     const request = route.request();
@@ -71,6 +74,11 @@ test('profile coverage is Runtime-only, explicitly queried and transient on inpu
   await expect(runtime).toBeVisible();
   const visual = page.getByTestId('runtime-intelligence-profile-coverage');
   await expect(visual).toBeVisible();
+  await expect(visual).toHaveCSS('display', 'grid');
+  const from = visual.getByLabel('From (local time)');
+  const to = visual.getByLabel('To (local time)');
+  await expect(from).toHaveCSS('color-scheme', 'light');
+  expect(Date.parse(await to.inputValue()) - Date.parse(await from.inputValue())).toBe(30 * 60 * 1000);
   await expect(visual.getByRole('button', { name: 'Analyze coverage' })).toBeVisible();
   expect(queries).toEqual([]);
 

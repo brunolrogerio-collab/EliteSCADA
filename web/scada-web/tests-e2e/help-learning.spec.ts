@@ -300,7 +300,7 @@ test('radio guides explain prepared networks, current UI limits and source fresh
   await page.goto('/help?topic=drivers.zigbee2mqtt-setup');
   await expect(article.locator('h2')).toHaveText('Zigbee2MQTT Bridge: inventario, selección y actualidad');
   await expect(article.locator('pre')).toHaveCount(2);
-  await expect(article).toContainText('Sin selección el descubrimiento lista inventario');
+  await expect(article).toContainText('SCADIVO solicita la incorporación solo para la dirección IEEE de ese dispositivo');
   await expect(article).toContainText('puede ser Uncertain aunque retain sea false');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await article.getByRole('rowheader', { name: 'Identidad interna de fuente — automática', exact: false }).scrollIntoViewIfNeeded();

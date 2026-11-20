@@ -544,11 +544,6 @@ function EngineeringRuntimeApplicationContent({
       label={playbackText.title} icon="playback" active={playback.mode === 'historicalPlayback'}
       expanded={playbackOpen} controls="runtime-playback-overlay" onClick={togglePlayback}
     /> : null}
-    {showWindowTools ? <RuntimeOperatorTool
-      label={windowToolsLabel} icon="windows" active={windowToolsOpen} expanded={windowToolsOpen}
-      controls="runtime-window-tools"
-      onClick={() => { showOverview(); if (!windowToolsOpen) setWindowToolsOpen(true); }}
-    /> : null}
     {showFullscreenControl && !compact ? <RuntimeOperatorTool
       label={text.fullscreen} icon="fullscreen" active={false} onClick={() => void toggleFullscreen()}
     /> : null}
@@ -609,6 +604,13 @@ function EngineeringRuntimeApplicationContent({
         {controlsPosition !== 'left' ? <div className="runtime-operator-toolbar-slot" style={{ order: header?.controlsOrder ?? 2 }}>{runtimeToolbar}</div> : null}
         {header?.dateTime?.mode && header.dateTime.mode !== 'off' && (header.dateTime.position ?? 'right') === 'right'
           ? <RuntimeHeaderDateTime locale={locale} settings={header.dateTime} style={{ order: header.dateTime.order ?? 1 }}/> : null}
+        {showWindowTools ? <div className="runtime-operator-window-trigger">
+          <RuntimeOperatorTool
+            label={windowToolsLabel} icon="windows" active={windowToolsOpen} expanded={windowToolsOpen}
+            controls="runtime-window-tools"
+            onClick={() => { showOverview(); if (!windowToolsOpen) setWindowToolsOpen(true); }}
+          />
+        </div> : null}
         {compact ? <div className="runtime-operator-user-slot" data-testid="runtime-user-summary">
           <UserSessionMenu locale={locale} includeRuntimeSessionControls
             runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>

@@ -396,6 +396,7 @@
 .runtime-operator-context__screen { color:color-mix(in srgb,var(--runtime-header-foreground,var(--app-text-primary)) 76%,transparent); line-height:1.2; }
 .runtime-operator-context__revision { color:color-mix(in srgb,var(--runtime-header-foreground,var(--app-text-primary)) 68%,transparent); font-size:10px; }
 .runtime-operator-context > .runtime-playback-badge,.runtime-operator-context > .runtime-playback-live-shortcut { justify-self:center; }
+.runtime-operator-window-trigger { display: flex; flex: 0 0 auto; order: 3; }
 .runtime-window-tools {
   position: absolute;
   top: calc(100% + 4px);

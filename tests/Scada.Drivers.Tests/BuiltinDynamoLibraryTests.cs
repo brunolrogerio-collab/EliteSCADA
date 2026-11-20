@@ -29,15 +29,15 @@ public sealed class BuiltinDynamoLibraryTests
     {
         var definitions = BuiltinDynamoCatalogV1.Create();
 
-        Assert.Equal(23, definitions.Count);
-        Assert.Equal(23, definitions.Select(definition => definition.Key).Distinct(StringComparer.Ordinal).Count());
-        Assert.Equal(23, definitions.Select(definition => definition.Id).Distinct().Count());
+        Assert.Equal(15, definitions.Count);
+        Assert.Equal(15, definitions.Select(definition => definition.Key).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(15, definitions.Select(definition => definition.Id).Distinct().Count());
         Assert.Equal(3, definitions.Count(definition => definition.Metadata!["familyKey"] == "indicator.lamp"));
         Assert.Equal(3, definitions.Count(definition => definition.Metadata!["familyKey"] == "operator.button"));
-        Assert.Equal(5, definitions.Count(definition => definition.Metadata!["familyKey"] == "equipment.motor"));
-        Assert.Equal(5, definitions.Count(definition => definition.Metadata!["familyKey"] == "equipment.valve"));
+        Assert.Equal(2, definitions.Count(definition => definition.Metadata!["familyKey"] == "equipment.motor"));
+        Assert.Equal(3, definitions.Count(definition => definition.Metadata!["familyKey"] == "equipment.valve"));
         Assert.Single(definitions, definition => definition.Key == "pump.submersible");
-        Assert.Equal(6, definitions.Count(definition => definition.Metadata!["familyKey"] == "equipment.electrical"));
+        Assert.Equal(3, definitions.Count(definition => definition.Metadata!["familyKey"] == "equipment.electrical"));
         Assert.DoesNotContain(definitions, definition => definition.Key is "indicator.lamp.stacked" or
             "operator.button.guarded" or "motor.foot-mounted" or "valve.diaphragm");
 
@@ -111,10 +111,6 @@ public sealed class BuiltinDynamoLibraryTests
         Assert.Contains("M 40 40", horizontalMotor, StringComparison.Ordinal);
         Assert.Contains("data-elitescada-slot=\"state\"", horizontalMotor, StringComparison.Ordinal);
         Assert.Contains("#71818B", horizontalMotor, StringComparison.Ordinal);
-
-        var vfdMotor = Svg("motor.vfd-package");
-        Assert.Contains("width=\"27\"", vfdMotor, StringComparison.Ordinal);
-        Assert.Contains("height=\"11\"", vfdMotor, StringComparison.Ordinal);
 
         var gateValve = Svg("valve.gate");
         Assert.Contains("cx=\"150\"", gateValve, StringComparison.Ordinal);
@@ -210,41 +206,21 @@ public sealed class BuiltinDynamoLibraryTests
     public void ReplacementElectricalContacts_UseEvenPoleSpacingAndConsistentOpenBladeAlignment()
     {
         var definitions = BuiltinDynamoCatalogV1.Create().ToDictionary(item => item.Key, StringComparer.Ordinal);
-        foreach (var key in new[] { "electrical.contact-tri-horizontal", "electrical.contact-tri-vertical" })
-        {
-            var definition = definitions[key];
-            var fixedPoles = Enumerable.Range(0, 3).Select(pole =>
-                definition.Elements!.Single(element => element.Key == $"contact-{pole}-fixed")).ToArray();
-            var movingPoles = Enumerable.Range(0, 3).Select(pole =>
-                definition.Elements!.Single(element => element.Key == $"contact-{pole}-moving")).ToArray();
+        var definition = definitions["electrical.contact-tri-horizontal"];
+        var fixedPoles = Enumerable.Range(0, 3).Select(pole =>
+            definition.Elements!.Single(element => element.Key == $"contact-{pole}-fixed")).ToArray();
+        var movingPoles = Enumerable.Range(0, 3).Select(pole =>
+            definition.Elements!.Single(element => element.Key == $"contact-{pole}-moving")).ToArray();
+        for (var pole = 1; pole < 3; pole++)
+            Assert.Equal(24, fixedPoles[pole].Properties!["y"].GetDouble() - fixedPoles[pole - 1].Properties!["y"].GetDouble());
+        Assert.All(movingPoles, blade => Assert.Equal(14, blade.Properties!["rotation"].GetDouble()));
+        Assert.All(Enumerable.Range(0, 3), pole =>
+            Assert.Equal(fixedPoles[pole].Properties!["y"].GetDouble() - 1, movingPoles[pole].Properties!["y"].GetDouble()));
 
-            var vertical = key.EndsWith("vertical", StringComparison.Ordinal);
-            var axis = vertical ? "x" : "y";
-            var firstPosition = fixedPoles[0].Properties![axis].GetDouble();
-            for (var pole = 1; pole < 3; pole++)
-                Assert.Equal(vertical ? 31 : 24,
-                    fixedPoles[pole].Properties![axis].GetDouble() - fixedPoles[pole - 1].Properties![axis].GetDouble());
-
-            Assert.All(movingPoles, blade => Assert.Equal(14, blade.Properties!["rotation"].GetDouble()));
-            if (vertical)
-            {
-                Assert.All(Enumerable.Range(0, 3), pole =>
-                    Assert.Equal(fixedPoles[pole].Properties!["x"].GetDouble() - 1,
-                        movingPoles[pole].Properties!["x"].GetDouble()));
-                Assert.Equal(firstPosition, fixedPoles[0].Properties!["x"].GetDouble());
-            }
-            else
-            {
-                Assert.All(Enumerable.Range(0, 3), pole =>
-                    Assert.Equal(fixedPoles[pole].Properties!["y"].GetDouble() - 1,
-                        movingPoles[pole].Properties!["y"].GetDouble()));
-            }
-
-            var label = definition.Elements!.Single(element => element.Key == "equipment-label");
-            Assert.Equal(83, label.Properties!["y"].GetDouble());
-            Assert.True(movingPoles.Max(blade => blade.Properties!["y"].GetDouble() +
-                blade.Properties["height"].GetDouble()) < label.Properties["y"].GetDouble());
-        }
+        var label = definition.Elements!.Single(element => element.Key == "equipment-label");
+        Assert.Equal(83, label.Properties!["y"].GetDouble());
+        Assert.True(movingPoles.Max(blade => blade.Properties!["y"].GetDouble() +
+            blade.Properties["height"].GetDouble()) < label.Properties["y"].GetDouble());
     }
 
     [Fact]
@@ -392,7 +368,7 @@ public sealed class BuiltinDynamoLibraryTests
     public void ReplacementCatalogV1_EquipmentStatesAreNumericTagMapsWithoutLegacyCatalog()
     {
         var replacement = BuiltinDynamoCatalogV1.Create();
-        Assert.Equal(23, replacement.Count);
+        Assert.Equal(15, replacement.Count);
         Assert.All(replacement, definition => Assert.Equal("active", definition.Metadata!["catalogStatus"]));
         foreach (var definition in replacement.Where(definition => definition.Metadata!["familyKey"] is "equipment.motor" or "equipment.valve" or "equipment.pump"))
         {
@@ -490,7 +466,7 @@ public sealed class BuiltinDynamoLibraryTests
         var definitions = BuiltinDynamoCatalogV1.Create()
             .Where(definition => definition.Metadata!["familyKey"] is "equipment.motor" or "equipment.valve" or "equipment.electrical")
             .ToArray();
-        Assert.Equal(16, definitions.Length);
+        Assert.Equal(8, definitions.Length);
         Assert.All(definitions, definition =>
         {
             var state = Assert.Single(definition.Parameters!, parameter => parameter.Key == "state");

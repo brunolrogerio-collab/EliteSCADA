@@ -153,7 +153,7 @@ test('secure first-run creates the initial local Administrator, first project an
     // Dynamo artwork is stored in the project package for internal rendering,
     // but is intentionally excluded from the user-facing visual asset inventory.
     expect(workspace.body.visualAssetCount).toBe(0);
-    expect(workspace.body.dynamoCount).toBe(23);
+    expect(workspace.body.dynamoCount).toBe(15);
     expect(workspace.body.securityRoleCount).toBe(1);
 
     const securityRoles = await page.evaluate(async () => {
@@ -180,9 +180,9 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(canonicalProject.gateways).toHaveLength(0);
     expect(canonicalProject.scripts).toHaveLength(0);
     expect(canonicalProject.scriptVisualEventReferences).toHaveLength(0);
-    expect(canonicalProject.visualAssets).toHaveLength(23);
+    expect(canonicalProject.visualAssets).toHaveLength(15);
     expect(canonicalProject.reports).toHaveLength(0);
-    expect(canonicalProject.dynamos).toHaveLength(23);
+    expect(canonicalProject.dynamos).toHaveLength(15);
     expect(canonicalProject.dynamos.every((dynamo: { metadata?: Record<string, string> }) =>
       dynamo.metadata?.catalogGeneration === '3' && dynamo.metadata.catalogStatus === 'active')).toBeTruthy();
     expect(canonicalProject.securityRoles).toHaveLength(0);

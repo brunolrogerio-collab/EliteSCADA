@@ -16,7 +16,13 @@ module ScadivoVisitorLocale
       return locale if locale.is_a?(String) && I18n.locale_available?(locale)
     end
 
-    locale = locale_from_cookie(request)
+    # In 2026.1 the browser preference was read directly from the cookie.
+    locale =
+      if respond_to?(:locale_from_cookie)
+        locale_from_cookie(request)
+      elsif SiteSetting.set_locale_from_cookie
+        request.cookies["locale"]
+      end
     return locale if locale.is_a?(String) && I18n.locale_available?(locale)
 
     # A quality of zero means the browser explicitly excludes this language.

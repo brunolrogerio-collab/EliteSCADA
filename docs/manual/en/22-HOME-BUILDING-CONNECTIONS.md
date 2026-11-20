@@ -29,7 +29,7 @@ Capabilities such as OnOff, Temperature or Cover describe available functions: o
 
 ### No candidate or missing function
 
-Check saved source, server-side connectivity and driver-advertised features. KNX/IP Secure advertises no Engineering discovery; Home Assistant has the selection limitation in its guide. An unmapped function is not delivered: inspect warnings and actual generated fields. A gateway/bridge can expose a device without SCADIVO having its native protocol. Do not repeatedly import to repair network or permissions.
+Check saved source, server-side connectivity and driver-advertised features. KNX/IP Secure advertises no Engineering discovery; For Home Assistant, enter the entity IDs as described in its guide. An unmapped function is not delivered: inspect warnings and actual generated fields. A gateway/bridge can expose a device without SCADIVO having its native protocol. Do not repeatedly import to repair network or permissions.
 
 [Open this guide in installed Help](/help?topic=home-building.device-workflow)
 
@@ -129,17 +129,15 @@ Check sidecar availability and protected references first, then host/port/user/i
 
 One source connects to a user-managed Home Assistant; only selected entities enter the project.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-785: https://github.com/brunolrogerio-collab/EliteSCADA/issues/785; topic=drivers.homeassistant-setup; fields=selectedEntityIds; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Local bridge with explicit identity
 
 Use this source to connect to a Home Assistant installation already prepared by you or the network administrator. It must be reachable from the SCADIVO server. Prepare its authorized token as protected material before using the connection.
 
 HAB abbreviates Home Assistant Bridge; HA in SCADIVO still means High Availability. The bridge integrates supported entities, but does not manage Home Assistant accounts or copy its database. Home Assistant integrations do not thereby become native SCADIVO drivers.
 
-### Connection, identity and current selection limit
+### Connection and entity selection
 
-Connection testing verifies transport/authentication, not incorporation. In the current version the generic discovery page does not supply entity selection; empty selection does not necessarily mean network failure. For a known TAG, configure its source/binding explicitly in the TAG editor and check the read before activation. There is no automatic whole-instance import.
+Test the source connection. In Engineering → Home/Building → Devices, select the integration and enter the Home Assistant entity IDs, such as sensor.temperature, one per line or separated by commas. Click Discover devices. Open a result, review the TAGs and validate before applying to the Workspace. Save, publish and activate the revision for Runtime.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -153,7 +151,7 @@ Connection testing verifies transport/authentication, not incorporation. In the 
 | Minimum reconnect wait (ms) | Minimum wait after connection loss; avoid continuous attempts. It does not repair rejected authentication. | 1000 | 100–300000. |
 | Maximum reconnect wait (ms) | Limit on increasing wait; must be greater than or equal to the minimum. | 30000 | 100–3600000. |
 | Entity and field | Use the exact entity and field: entity:sensor.temperature:state for state; entity:light.room:attribute:brightness for an attribute. A display name is not entity_id. Renaming entity_id in Home Assistant requires reviewing the binding. | entity:sensor.temperature:state |  |
-| Entity selection for incorporation | The driver requires explicit selection, but this version of the Home/Building page does not yet let you choose entities. Discovery can return an empty selection with no device to incorporate even with a valid connection. There is no ready selector on that page; the correction is pending. |  |  |
+| Entity selection for incorporation | Enter up to 100 entity IDs. If an entity is missing from the results, check its exact ID in Home Assistant. Discovery uses only the IDs entered. |  |  |
 
 ### Address examples
 

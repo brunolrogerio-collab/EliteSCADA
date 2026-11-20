@@ -29,17 +29,6 @@
     "review": "Recheck read-only diagnostics versus actual retention controls and link the verified administration procedure. Do not turn the current indicators into claimed editable controls without an implemented UI."
   },
   {
-    "id": "HELP-REVIEW-AFTER-PRODUCT-785",
-    "issue": 785,
-    "topicId": "drivers.homeassistant-setup",
-    "fieldKeys": [
-      "selectedEntityIds"
-    ],
-    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
-    "reviewWhen": "The accepted Home/Building UI supplies explicit Home Assistant entity selection to the existing discovery contract.",
-    "review": "Replace the empty-selection limitation with the verified selection/preview/apply procedure; verify empty, missing and selected entities, no whole-instance import and all locales."
-  },
-  {
     "id": "HELP-REVIEW-AFTER-PRODUCT-786",
     "issue": 786,
     "topicId": "drivers.knx-setup",
@@ -49,17 +38,6 @@
     "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
     "reviewWhen": "The accepted TAG assistant emits a canonical KNX/IP binding that is accepted by the unchanged strict Runtime planner.",
     "review": "Remove the incompatible-authoring limitation only after real assistant output, saved/reopened binding and planner acceptance are checked. Keep command/state separation and unsupported-field rejection in all locales."
-  },
-  {
-    "id": "HELP-REVIEW-AFTER-PRODUCT-785-Z2M",
-    "issue": 785,
-    "topicId": "drivers.zigbee2mqtt-setup",
-    "fieldKeys": [
-      "selectedIeeeAddresses"
-    ],
-    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
-    "reviewWhen": "The accepted Home/Building flow forwards explicit IEEE selection and materializes only the selected Zigbee2MQTT devices.",
-    "review": "Replace inventory-only limitation with verified selection/preview/apply steps. Check empty inventory-only discovery, missing IEEE, identity metadata and all locales."
   },
   {
     "id": "HELP-REVIEW-AFTER-PRODUCT-786-ZIGBEE",
@@ -82,17 +60,6 @@
     "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
     "reviewWhen": "The accepted TAG assistant can create the required typed Z-Wave binding even when the descriptor has no extra fields.",
     "review": "Replace new-binding authoring limitation after component/persistence/planner verification. Preserve typed property/key identity, persistent-value scope and externally commissioned-network prerequisites."
-  },
-  {
-    "id": "HELP-REVIEW-AFTER-PRODUCT-787",
-    "issue": 787,
-    "topicId": "drivers.zigbee2mqtt-setup",
-    "fieldKeys": [
-      "inventoryFormat"
-    ],
-    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
-    "reviewWhen": "The accepted decoder and provider/Runtime paths consume the published nested definition.exposes inventory.",
-    "review": "Replace the format incompatibility limitation after testing the exact external example and preserving source/IEEE/endpoint/property identity, selection and bounds. Update documentation-characterization tests and all locales; closing the issue alone is insufficient."
   },
   {
     "id": "HELP-REVIEW-AFTER-PRODUCT-786-S7",

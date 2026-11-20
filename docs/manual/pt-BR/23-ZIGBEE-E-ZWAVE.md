@@ -121,15 +121,9 @@ Os TAGs admitidos são Boolean, Int16/Int32/Int64, Float/Double e String, dentro
 
 Conecte a uma instalação externa e diferencie inventário, incorporação e relatório recente.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-785-Z2M: https://github.com/brunolrogerio-collab/EliteSCADA/issues/785; topic=drivers.zigbee2mqtt-setup; fields=selectedIeeeAddresses; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
-<!-- HELP-REVIEW-AFTER-PRODUCT-787: https://github.com/brunolrogerio-collab/EliteSCADA/issues/787; topic=drivers.zigbee2mqtt-setup; fields=inventoryFormat; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Instalação externa e fluxo disponível
 
-Escolha esta ponte se já tem Zigbee2MQTT e broker administrados fora do SCADIVO, com dispositivos associados à rede. Ela consulta essa instalação; não abre inclusão nem administra o coordenador. Zigbee nativo é outro caminho.
-
-O conector anuncia teste de conexão, descoberta e teste de leitura. Descoberta lista inventário; incorporar exige escolher o que entrará no projeto. A interface atual ainda tem uma limitação nessa seleção. A leitura de algumas estruturas aninhadas do inventário também espera correção, separadamente. Os passos adiante indicam esses limites para não prometer uma incorporação completa onde ela não está disponível.
+Use esta ponte com um broker e uma rede Zigbee2MQTT já configurados. Em Engenharia → Home/Building → Dispositivos, escolha a fonte e clique em Descobrir dispositivos para listar o inventário. Selecione um dispositivo e clique em Preparar dispositivo selecionado. Confira os TAGs, valide e aplique ao Workspace. Salve, publique e ative a revisão para usar no Runtime.
 
 ### Campos da fonte
 
@@ -157,9 +151,9 @@ Host, tópico base e credenciais precisam corresponder ao broker realmente usado
 | Máximo de dispositivos no inventário | Limite de inventário/seleção para esta fonte. Não é promessa de capacidade de rádio e não remove as cotas de licença. | 256 | 1–4096. |
 | Máximo de funções por dispositivo | Limita as descrições de propriedades processadas por dispositivo. Expose é uma função/propriedade anunciada pelo Zigbee2MQTT, não um TAG automaticamente incorporado. | 256 | 1–2048. |
 
-### Vínculos gerados e seleção ainda pendente
+### Vínculos gerados pelo dispositivo selecionado
 
-Os campos técnicos abaixo são produzidos pelo serviço de incorporação, a partir da seleção e do inventário. Não são uma lista de IDs para o desenvolvedor inventar. Enquanto a tela não transmitir a seleção, listar um dispositivo não garante Equipamento/TAGs prontos. As funções escalares mapeadas são binary e numeric; capacidades funcionais dependem das propriedades suportadas.
+A preparação usa o endereço IEEE da linha escolhida e os recursos anunciados no inventário. As funções escalares mapeadas são binary e numeric. As capacidades funcionais dependem das propriedades suportadas.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -180,8 +174,8 @@ Os campos técnicos abaixo são produzidos pelo serviço de incorporação, a pa
 | Identidade do ponto — automática | Campo técnico gerado pelo serviço de incorporação. Combina fonte, IEEE, endpoint e propriedade; copiar de outra fonte é inválido. Não invente nem copie IDs entre fontes. |  |  |
 | Função do Equipamento — automática | Campo técnico gerado pelo serviço de incorporação. Exemplo Temperature ou OnOff; não é uma capability de segurança concedida ao usuário. Não invente nem copie IDs entre fontes. | Temperature |  |
 | Contrato de confirmação — automático | Campo técnico gerado pelo serviço de incorporação. Quando suportado, exige relatório de estado não retido compatível após o comando, com evidência de atualidade da origem. Não é confirmação de atuação física. Não invente nem copie IDs entre fontes. | non-retained-state-match |  |
-| Seleção explícita para incorporar | O serviço aceita seleção de IEEE, mas a tela atual Home/Building não a envia. Sem seleção, a descoberta lista inventário sem conteúdo para incorporar; escolher uma linha na tela não refaz a solicitação com o IEEE. O fluxo de incorporação pela interface aguarda correção. |  |  |
-| Formato do inventário — limitação atual | O formato externo põe as funções em definition.exposes; esta versão do parser procura exposes na raiz. Assim, um dispositivo pode ser listado sem gerar TAGs. A correção de compatibilidade está pendente, separadamente da seleção na interface. | definition.exposes |  |
+| Seleção explícita para incorporar | Selecione um dispositivo do inventário e clique em Preparar dispositivo selecionado. O SCADIVO solicita a incorporação somente para o endereço IEEE desse dispositivo. |  |  |
+| Formato do inventário | A Engenharia lê as funções de definition.exposes. Em inventários antigos, lê exposes na raiz do dispositivo quando o campo da definição está ausente. Quando ambos existem, vale a definição do dispositivo. | definition.exposes |  |
 
 ### Exemplo de inventário anunciado
 
@@ -227,6 +221,6 @@ Uma mensagem retida é Stale neste conector. Sem last_seen de origem mais recent
 
 ### Resolver por camadas
 
-Sem conexão: confira host/porta/TLS/autenticação. Conectado sem inventário: confira baseTopic e bridge/state/devices. Inventário sem incorporação: confira a limitação de seleção da interface, não recadastre toda a rede. Valor Uncertain/Stale: confira retenção, last_seen e reconexão. Escrita sem confirmação: confira acesso anunciado, vínculo de confirmação, disponibilidade e relatório recente; não marque o TAG como confirmado só porque o broker aceitou a publicação.
+Sem conexão: confira host/porta/TLS/autenticação. Conectado sem inventário: confira baseTopic e bridge/state/devices. Inventário sem incorporação: atualize o inventário, selecione o dispositivo e confira os avisos de preparação. Valor Uncertain/Stale: confira retenção, last_seen e reconexão. Escrita sem confirmação: confira acesso anunciado, vínculo de confirmação, disponibilidade e relatório recente; não marque o TAG como confirmado só porque o broker aceitou a publicação.
 
 [Abrir este guia na Ajuda instalada](/help?topic=drivers.zigbee2mqtt-setup)

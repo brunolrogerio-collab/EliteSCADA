@@ -384,7 +384,12 @@ test('Zigbee2MQTT prepares only the selected IEEE address before Preview and App
       ...inventory[0],
       materialization: {
         equipment: { ...item.equipment, path: 'Zigbee/selected', name: 'Selected device', stableDeviceIdentity: selectedIeee, capabilities: [] },
-        tags: [{ ...item.tags[0], path: 'Zigbee/selected/state', portableAddress: selectedIeee + ':state' }],
+        tags: [
+          { ...item.tags[0], candidateId: 'z2m-state', name: 'Zigbee state', dataType: 'Boolean',
+            path: 'Zigbee/selected/state', portableAddress: selectedIeee + ':state' },
+          { ...item.tags[0], candidateId: 'z2m-temperature', name: 'Zigbee temperature', dataType: 'Double', readOnly: true, engineeringUnit: 'C',
+            path: 'Zigbee/selected/temperature', portableAddress: selectedIeee + ':temperature' }
+        ],
         commands: []
       }
     }] });
@@ -400,7 +405,11 @@ test('Zigbee2MQTT prepares only the selected IEEE address before Preview and App
   await expect(page.getByTestId('home-building-preview-summary')).toContainText('Preview is valid');
   expect(calls.previewBody?.equipment).toHaveLength(1);
   expect(calls.previewBody?.equipment[0].sourceBindings[0].stableDeviceIdentity).toBe(selectedIeee);
-  expect(calls.previewBody?.tags).toHaveLength(1);
+  expect(calls.previewBody?.tags).toHaveLength(2);
+  expect(calls.previewBody?.tags).toEqual(expect.arrayContaining([
+    expect.objectContaining({ path: 'Zigbee/selected/state', dataType: 'boolean' }),
+    expect.objectContaining({ path: 'Zigbee/selected/temperature', dataType: 'double' })
+  ]));
   expect(calls.applyCalls).toBe(0);
   await page.getByTestId('home-building-device-apply').click();
   await expect.poll(() => calls.applyCalls).toBe(1);

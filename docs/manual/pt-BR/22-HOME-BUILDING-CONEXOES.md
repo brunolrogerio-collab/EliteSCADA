@@ -29,7 +29,7 @@ Capacidades como OnOff, Temperature ou Cover descrevem funções disponíveis: l
 
 ### Sem candidato ou sem a função esperada
 
-Confira fonte salva, comunicação a partir do servidor e recursos anunciados pelo driver. KNX/IP Secure não anuncia descoberta de Engenharia; Home Assistant tem a limitação de seleção descrita em seu guia. Um recurso não mapeado não deve ser tratado como entregue: veja avisos e campos realmente gerados. Um gateway ou bridge pode oferecer um dispositivo sem que o SCADIVO tenha seu protocolo nativo. Não importe repetidamente para tentar corrigir rede ou permissões.
+Confira fonte salva, comunicação a partir do servidor e recursos anunciados pelo driver. KNX/IP Secure não anuncia descoberta de Engenharia; No Home Assistant, informe os IDs das entidades conforme o guia. Um recurso não mapeado não deve ser tratado como entregue: veja avisos e campos realmente gerados. Um gateway ou bridge pode oferecer um dispositivo sem que o SCADIVO tenha seu protocolo nativo. Não importe repetidamente para tentar corrigir rede ou permissões.
 
 [Abrir este guia na Ajuda instalada](/help?topic=home-building.device-workflow)
 
@@ -129,17 +129,15 @@ Confira primeiro disponibilidade do processo auxiliar e referências protegidas,
 
 Uma fonte conecta ao Home Assistant gerenciado pelo usuário; somente entidades selecionadas entram no projeto.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-785: https://github.com/brunolrogerio-collab/EliteSCADA/issues/785; topic=drivers.homeassistant-setup; fields=selectedEntityIds; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Bridge local, com identidade explícita
 
 Use esta fonte para conectar a uma instalação Home Assistant já preparada por você ou pelo responsável da rede. Ela precisa ser alcançável pelo servidor SCADIVO. Prepare o token autorizado como material protegido antes de usar a conexão.
 
 HAB é a abreviação de Home Assistant Bridge; HA no SCADIVO continua significando Alta Disponibilidade. A ponte permite integrar as entidades suportadas, mas não gerencia contas Home Assistant nem copia sua base. Integrações do Home Assistant não se tornam, por isso, drivers nativos do SCADIVO.
 
-### Conexão, identidade e limite atual da seleção
+### Conexão e seleção de entidades
 
-Teste de conexão confirma transporte/autenticação, não incorporação. Na versão atual, a tela genérica de descoberta não fornece seleção de entidades; uma seleção vazia não significa necessariamente falha de rede. Para um TAG conhecido, configure sua fonte e vínculo explicitamente no editor de TAGs e confira a leitura antes de ativar. Não há importação automática da instância inteira.
+Teste a conexão da fonte. Em Engenharia → Home/Building → Dispositivos, selecione a integração e informe os IDs das entidades do Home Assistant, como sensor.temperature, um por linha ou separados por vírgulas. Clique em Descobrir dispositivos. Abra um resultado, confira os TAGs e valide antes de aplicar ao Workspace. Salve, publique e ative a revisão para usar no Runtime.
 
 | Campo | Para que serve e como preencher | Exemplo | Limites |
 | --- | --- | --- | --- |
@@ -153,7 +151,7 @@ Teste de conexão confirma transporte/autenticação, não incorporação. Na ve
 | Espera mínima para reconectar (ms) | Pausa mínima após perda de conexão; evite tentativas contínuas. Não resolve autenticação recusada. | 1000 | 100–300000. |
 | Espera máxima para reconectar (ms) | Limite da espera progressiva; precisa ser maior ou igual à espera mínima. | 30000 | 100–3600000. |
 | Entidade e campo | Use entidade exata e campo: entity:sensor.temperature:state para estado; entity:light.room:attribute:brightness para atributo. Nome de exibição não é entity_id. Renomear entity_id no Home Assistant exige revisar o vínculo. | entity:sensor.temperature:state |  |
-| Seleção de entidades para incorporar | O driver exige uma seleção explícita, mas a tela Home/Building desta versão ainda não permite escolher as entidades. A descoberta pode devolver seleção vazia sem dispositivo para incorporar, mesmo com conexão válida. Não há seletor pronto nessa tela; a correção está pendente. |  |  |
+| Seleção de entidades para incorporar | Informe até 100 IDs de entidade. Confira no Home Assistant o ID exato se uma entidade não aparecer nos resultados. A descoberta usa somente os IDs informados. |  |  |
 
 ### Exemplos de endereço
 

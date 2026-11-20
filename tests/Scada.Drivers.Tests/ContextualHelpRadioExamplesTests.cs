@@ -88,7 +88,7 @@ public sealed class ContextualHelpRadioExamplesTests
     [InlineData("pt-BR")]
     [InlineData("en")]
     [InlineData("es")]
-    public void PublishedInventoryDocumentsCurrentFormatLimitationAndInternalMaterializerKeepsSourceOwnedIds(string locale)
+    public void PublishedNestedInventoryMaterializesTypedTagsWithSourceOwnedIds(string locale)
     {
         var guide = ContextualHelpCatalog.Build(locale).Topics.Single(t => t.Id == "drivers.zigbee2mqtt-setup");
         var code = guide.Sections.Where(s => s.Code is not null).Select(s => s.Code!).Single(s => s.TrimStart().StartsWith('['));
@@ -97,17 +97,7 @@ public sealed class ContextualHelpRadioExamplesTests
         var settings = Zigbee2MqttConnectionSettings.Parse("z2m.demo", sourceId, new Dictionary<string, string> { ["host"] = fields["host"], ["baseTopic"] = fields["baseTopic"] });
         var inventory = Zigbee2MqttExposeMapper.ParseInventory(Encoding.UTF8.GetBytes(code), settings, "online");
         var device = Assert.Single(inventory.Devices);
-        // Documentation characterization of #787, not an acceptance test for interoperability.
-        // Fixing the decoder must update both this assertion and the marked Help limitation.
-        Assert.Empty(device.Exposes);
-        Assert.Empty(Zigbee2MqttExposeMapper.BuildMaterialization(sourceId, "z2m.demo", device).Tags!);
-        // Isolate the existing materializer from the decoder defect only inside this component test.
-        // This flattened diagnostic input is not an operational workaround or a published example.
-        var diagnosticInput = System.Text.Json.Nodes.JsonNode.Parse(code)!.AsArray();
-        diagnosticInput[0]!["exposes"] = diagnosticInput[0]!["definition"]!["exposes"]!.DeepClone();
-        var internalDevice = Assert.Single(Zigbee2MqttExposeMapper.ParseInventory(
-            Encoding.UTF8.GetBytes(diagnosticInput.ToJsonString()), settings, "online").Devices);
-        var materialized = Zigbee2MqttExposeMapper.BuildMaterialization(sourceId, "z2m.demo", internalDevice);
+        var materialized = Zigbee2MqttExposeMapper.BuildMaterialization(sourceId, "z2m.demo", device);
         Assert.Equal(2, materialized.Tags!.Count);
         foreach (var generated in materialized.Tags)
         {

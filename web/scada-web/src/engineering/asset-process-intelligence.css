@@ -130,7 +130,7 @@
   color: var(--text, #17212b);
   border: 1px solid var(--border, #cbd5e1);
   border-radius: 0.45rem;
-  background: var(--surface, #fff);
+  background: var(--surface, var(--app-surface-elevated));
 }
 
 .asset-process-intelligence__choice-list [aria-selected="true"] {
@@ -394,7 +394,7 @@
   padding: 0.85rem;
   border: 1px solid var(--border, #cbd5e1);
   border-radius: 0.4rem;
-  background: var(--surface, #fff);
+  background: var(--surface, var(--app-surface-elevated));
 }
 
 .asset-process-intelligence__performance {
@@ -438,7 +438,7 @@
   padding: 0.85rem;
   border: 1px solid var(--border, #cbd5e1);
   border-radius: 0.4rem;
-  background: var(--surface, #fff);
+  background: var(--surface, var(--app-surface-elevated));
 }
 
 .asset-process-intelligence__performance-result {
@@ -471,7 +471,7 @@
   padding: 0.85rem;
   border: 1px solid var(--border, #cbd5e1);
   border-radius: 0.4rem;
-  background: var(--surface, #fff);
+  background: var(--surface, var(--app-surface-elevated));
 }
 
 @media (max-width: 720px) {

@@ -29,7 +29,7 @@
 }
 
 .runtime-intelligence-performance__error {
-  color: var(--app-danger, #fca5a5);
+  color: var(--app-error);
 }
 
 .runtime-intelligence-performance__form {
@@ -83,6 +83,8 @@
 }
 
 .runtime-intelligence-performance .asset-process-intelligence__performance-inputs > article {
+  background: var(--app-surface-elevated);
+  color: var(--app-text-primary);
   display: grid;
   gap: 0.4rem;
   min-width: 0;

@@ -86,6 +86,12 @@ A versão 1.0 em homologação usa `SCADIVO_HOMOLOG_LEGAL_PREVIEW=true`. Os link
 
 Com `SCADIVO_HOMOLOG_AGE_CHECK=true`, a API do cadastro público exige a data declarada exclusivamente para calcular a elegibilidade. O cadastro é aceito a partir do 16º aniversário pelo calendário de São Paulo. A checagem ocorre antes de criar a conta ou enfileirar o e-mail de confirmação. A data declarada é descartada após o uso. A data de nascimento facultativa pode ser informada no perfil depois do cadastro. A opção vem desativada por padrão. A avaliação das medidas de aferição e proteção de adolescentes continua pendente para a publicação.
 
+#### Revisão técnica de elegibilidade e proteção
+
+O guia de fornecedores da ANPD avalia em conjunto a probabilidade de uso por menores, a facilidade de acesso e os riscos significativos. No SCADIVO, a revisão deve considerar a oferta a estudantes de 16 e 17 anos, o acesso ao fórum por SSO e os recursos de publicação e interação. A data declarada no cadastro público aplica a política de 16 anos completos. A aferição de idade, os acessos de contas existentes ou convidadas e a proteção na Comunidade exigem avaliação própria antes da abertura do piloto. O guia da ANPD sobre mecanismos de aferição permanecia preliminar na comunicação oficial consultada em 20/11/2026. [Guia de fornecedores](https://www.gov.br/anpd/pt-br/assuntos/noticias/anpd-publica-guia-que-esclarece-quem-deve-cumprir-e-quais-sao-as-responsabilidades-das-plataformas-na-protecao-de-criancas-e-adolescentes) · [Atualização da ANPD](https://www.gov.br/anpd/pt-br/assuntos/noticias/anpd-publica-balanco-de-seis-anos-de-atuacao)
+
+Para a revisão de lançamento, verificar quem pode contatar um perfil, quem vê os dados do perfil e das publicações, como denunciar e pedir revisão de moderação e como a equipe atende pedidos de adolescentes ou responsáveis. Usar as características do Portal e da Comunidade para decidir a comprovação proporcional e os dados mínimos que ela exigiria.
+
 Para verificar os avisos por e-mail, executar `dotnet Scadivo.Portal.dll --send-legal-preview-emails` no container da API de homologação. O comando usa os mesmos modelos HTML e texto do Portal e envia uma mensagem por idioma para endereços de teste no Mailpit local.
 
 ### Cópia de dados do titular
@@ -111,6 +117,14 @@ Esta etapa usa a caixa de homologação e dados sintéticos. A conferência de i
 No Chromium com Mailpit, a conta confirmada sem acesso e o titular com correspondência apenas na caixa passaram pelo formulário, conferência do canal, confirmação e download. Um segundo navegador recebeu recusa e a cópia só pôde ser baixada uma vez. Os testes da API também cobriram confirmação e entrega vencidas, revogação, tentativas concorrentes e remoção do arquivo protegido do banco. A opção vem desligada por padrão.
 
 A entrega de anexos passou em homologação com ZIPs de 6 e 31,9 MiB montados com duas partes recuperadas de e-mails sintéticos no Mailpit. A extração no formato recebido e os hashes do ZIP e de cada arquivo conferiram. A checagem incluiu recusa acima de 32 MiB, bloqueio em outro navegador e depois do primeiro download. A API também recusou ZIP truncado e caminho inválido, manteve a entrega JSON e permitiu somente uma transferência nas duas tentativas concorrentes do mesmo link.
+
+#### Ensaio de pré-lançamento e recuperação
+
+- O Compose de produção expõe `PORTAL_REGISTRATION_AGE_CHECK_ENABLED`, `PORTAL_DATA_COPY_ENABLED` e `PORTAL_SUPPLEMENTAL_COPY_ENABLED`, com valor padrão `false`. A prévia legal permanece restrita ao modo de desenvolvimento. A autorização de publicação e a versão definitiva dos textos seguem pendentes.
+- A homologação isolada em modo Production usou um proxy HTTPS e um certificado local validado. A API recusou o acesso à prévia legal, emitiu o cookie de confirmação como `Secure`, `HttpOnly` e `SameSite=Strict` e entregou um ZIP de 5 MiB com integridade conferida. Outro cliente e a reutilização do link receberam recusa. O cookie identifica somente a confirmação daquela entrega, fica limitado à rota de privacidade e expira em até 72 horas. O download o encerra e tem sua própria validade de até 24 horas.
+- O backup preserva o esquema de `SupplementalCopies` e exclui seus registros temporários. A restauração sintética preservou conta, referência de atendimento e auditoria e retornou zero entregas. Uma validação também rejeitou o banco com uma entrega ativa e aceitou o esquema anterior à criação da tabela. Após uma recuperação, qualquer entrega pendente exige confirmação e novo link pelo atendimento.
+
+A revisão dos textos em PT-BR, EN e ES confirmou as mesmas regras de idade mínima, prazos e anonimização. As três minutas descrevem 30 dias para cópias externas e avulsas, 12 meses para auditoria e reaplicação após a restauração de exclusões, correções e bloqueios posteriores à cópia. O ensaio acima comprova a exclusão das entregas temporárias do backup. Antes de publicar essas promessas, comprovar a política de rotação externa e de expurgo da auditoria e ensaiar a reaplicação das demais decisões em uma base recuperada. Manter a identificação legal, a vigência e os links definitivos em revisão até a autorização.
 
 ### Identificação comercial e fiscal na aquisição de licenças
 

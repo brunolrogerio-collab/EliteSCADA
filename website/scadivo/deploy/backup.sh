@@ -29,7 +29,9 @@ cleanup() {
 }
 trap cleanup EXIT
 test -s "$password"
-docker compose -f compose.yml exec -T database pg_dump -U scadivo_portal -d scadivo_portal -Fc > "$staging/database.dump"
+# Preserve the table schema but never restore private packages or one-use links from an earlier snapshot.
+docker compose -f compose.yml exec -T database pg_dump -U scadivo_portal -d scadivo_portal -Fc \
+  --exclude-table-data='public."SupplementalCopies"' > "$staging/database.dump"
 docker compose -f compose.yml exec -T scadivo-portal-api tar czf - -C /app/keys . > "$staging/keys.tar.gz"
 date -u '+SCADIVO portal backup %Y-%m-%dT%H:%M:%SZ' > "$staging/manifest.txt"
 archive="$destination/portal-$(date -u +%Y%m%dT%H%M%SZ).tar.gz.enc"

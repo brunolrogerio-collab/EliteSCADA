@@ -21,4 +21,15 @@ fi
 docker compose -f compose.yml exec -T database createdb -U scadivo_portal portal_restore_check
 docker compose -f compose.yml exec -T database pg_restore -U scadivo_portal -d portal_restore_check --exit-on-error < "$staging/database.dump"
 docker compose -f compose.yml exec -T database psql -U scadivo_portal -d portal_restore_check -v ON_ERROR_STOP=1 -c 'SELECT count(*) AS restored_accounts FROM "AspNetUsers"; SELECT count(*) AS restored_faq FROM "FaqArticles";'
+docker compose -f compose.yml exec -T database psql -U scadivo_portal -d portal_restore_check -v ON_ERROR_STOP=1 <<'SQL'
+DO $check$
+BEGIN
+  IF to_regclass('public."SupplementalCopies"') IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM public."SupplementalCopies") THEN
+      RAISE EXCEPTION 'The backup contains temporary privacy deliveries';
+    END IF;
+  END IF;
+END
+$check$;
+SQL
 printf 'Portal backup decrypted, keys present, database restored successfully. Production database unchanged.\n'

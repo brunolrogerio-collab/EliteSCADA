@@ -39,6 +39,9 @@ services:
       Portal__KeyDirectory: /app/keys
       Portal__TrustedProxyNetworks: 10.11.0.0/16
       Portal__PublicRegistrationEnabled: ${PORTAL_PUBLIC_REGISTRATION_ENABLED:-false}
+      Portal__RegistrationAgeCheckEnabled: ${PORTAL_REGISTRATION_AGE_CHECK_ENABLED:-false}
+      Portal__DataCopyEnabled: ${PORTAL_DATA_COPY_ENABLED:-false}
+      Portal__SupplementalCopyEnabled: ${PORTAL_SUPPLEMENTAL_COPY_ENABLED:-false}
       Portal__OfflineMachineLicenseRequestsEnabled: ${PORTAL_OFFLINE_MACHINE_LICENSE_REQUESTS_ENABLED:-false}
       Portal__Community__Enabled: ${PORTAL_COMMUNITY_ENABLED:-false}
       Portal__Community__DiscourseUrl: ${PORTAL_COMMUNITY_DISCOURSE_URL:-}

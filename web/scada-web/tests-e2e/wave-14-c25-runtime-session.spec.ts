@@ -245,8 +245,19 @@ test('each Runtime window auto-admits with a distinct logical client identity', 
 
   await page.goto('/');
   await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  const windowsButton = page.getByRole('button', { name: 'Janelas', exact: true });
+  const tools = page.getByTestId('runtime-window-tools');
+  await expect(windowsButton).toHaveAttribute('aria-expanded', 'false');
+  await expect(tools).toHaveCount(0);
+  const header = page.locator('.runtime-operator-bar');
+  const closedHeight = await header.evaluate(element => element.getBoundingClientRect().height);
+  await windowsButton.click();
+  await expect(tools).toBeVisible();
+  await expect(tools.getByTestId('runtime-station-launcher')).toHaveCount(0);
+  expect(await header.evaluate(element => element.getBoundingClientRect().height)).toBe(closedHeight);
+
   const popupPromise = page.context().waitForEvent('page');
-  await page.getByRole('link', { name: 'Abrir esta tela em outra janela' }).click();
+  await tools.getByRole('link', { name: 'Abrir esta tela em outra janela' }).click();
   const secondWindow = await popupPromise;
   await expect(secondWindow).toHaveURL(/\?screen=home$/);
   await expect(secondWindow.getByTestId('runtime-engineering-application')).toBeVisible();
@@ -327,6 +338,7 @@ test('starting a four-window station opens isolated Runtime sessions with the co
     };
     page.context().on('page', onPage);
   });
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
   await page.getByRole('button', { name: 'Iniciar estação' }).click();
   await allWindowsOpened;
 
@@ -433,6 +445,7 @@ test('station launcher reports when the server rejects a window for exhausted li
     };
     page.context().on('page', onPage);
   });
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
   await page.getByRole('button', { name: 'Iniciar estação' }).click();
   await allWindowsOpened;
 
@@ -464,6 +477,7 @@ test('blocked station popups provide a manual link for every configured screen',
 
   await page.goto('/');
   await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
   await page.getByRole('button', { name: 'Iniciar estação' }).click();
 
   const status = page.getByRole('status').filter({ hasText: 'O navegador bloqueou 2 de 2 janelas' });
@@ -1429,25 +1443,30 @@ test('a two-screen station launches only the Active revision after save, publish
   await page.setViewportSize({ width: 1600, height: 950 });
   await page.goto('/');
   await expect(page.getByTestId('runtime-engineering-application')).toHaveAttribute('data-runtime-revision', '8');
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
   await expect(page.getByTestId('runtime-station-launcher')).toHaveCount(0);
 
   await lifecycleAction('/api/engineering/persistence/launch-demo/save');
   await page.reload();
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
   await expect(page.getByTestId('runtime-station-launcher')).toHaveCount(0);
   await lifecycleAction('/api/engineering/persistence/launch-demo/revisions/9/publish');
   await page.reload();
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
   await expect(page.getByTestId('runtime-station-launcher')).toHaveCount(0);
 
   await lifecycleAction('/api/engineering/persistence/launch-demo/published/activate');
   await page.reload();
   const launcher = page.getByTestId('runtime-station-launcher');
+  await expect(launcher).toHaveCount(0);
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
   await expect(launcher).toBeVisible();
+  await expect(launcher.getByRole('combobox')).toHaveCount(0);
   await expect(launcher).toContainText('Revisão Active 9');
-  await launcher.getByRole('button', { name: 'Conferir janelas' }).click();
   const plan = page.getByTestId('runtime-station-plan');
   await expect(plan).toContainText('Janela 1: Visão geral · Navegação');
   await expect(plan).toContainText('Janela 2: Bombas da estação · Tela fixa');
-  await expect(plan).toContainText('arraste cada uma para o monitor físico');
+  await expect(launcher).toContainText('arraste cada uma para o monitor físico');
 
   // Fullscreen is entered by a genuine user click; the station launcher must
   // remain usable in desktop fullscreen, without adding OS-specific APIs.

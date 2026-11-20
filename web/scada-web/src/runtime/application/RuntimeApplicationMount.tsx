@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMobileRuntime } from '../useMobileRuntime';
 import { appShellText, useAppShellLocale } from '../../appShellI18n';
 import { UserSessionMenu } from '../../auth/UserSessionMenu';
@@ -265,8 +265,9 @@ function EngineeringRuntimeApplicationContent({
   const fullscreenRoot = useRef<HTMLElement>(null);
   const mobile = useMobileRuntime();
   const [screenRequest, setScreenRequest] = useState<{ screenKey: string; version: number } | null>(null);
+  const [visibleScreenKey, setVisibleScreenKey] = useState<string | null>(null);
   const [stationProfileId, setStationProfileId] = useState('');
-  const [showStationPlan, setShowStationPlan] = useState(false);
+  const [windowToolsOpen, setWindowToolsOpen] = useState(false);
   const [stationLaunchMessage, setStationLaunchMessage] = useState('');
   const [stationRecoveryLinks, setStationRecoveryLinks] = useState<RuntimeStationRecoveryLink[]>([]);
   const [stationAdmissionReports, setStationAdmissionReports] = useState<RuntimeStationWindowReport[]>([]);
@@ -301,13 +302,24 @@ function EngineeringRuntimeApplicationContent({
   const stationQuery = new URLSearchParams(window.location.search);
   const stationFixed = stationQuery.get('stationMode') === 'fixed';
   const isStationChild = stationQuery.has('stationRun');
+  const showStationLauncher = !mobile && !isStationChild && selectedStation !== undefined;
+  const showWindowTools = !compact || showStationLauncher;
+  const windowToolsLabel = locale === 'pt-BR' ? 'Janelas' : locale === 'es' ? 'Ventanas' : 'Windows';
+  const duplicateWindowLabel = locale === 'pt-BR' ? 'Abrir esta tela em outra janela'
+    : locale === 'es' ? 'Abrir esta pantalla en otra ventana' : 'Open this screen in another window';
+  const closeWindowsLabel = locale === 'pt-BR' ? 'Fechar' : locale === 'es' ? 'Cerrar' : 'Close';
+  const setVisualScope = playback.setVisualScope;
+  const onVisualContextChange = useCallback((context: Parameters<typeof setVisualScope>[0]) => {
+    setVisibleScreenKey(context.screenKey);
+    setVisualScope(context);
+  }, [setVisualScope]);
   const stationLabels = locale === 'en'
-    ? { inspect: 'Check windows', window: 'Window', navigation: 'Navigation', fixed: 'Fixed screen', active: 'Active revision', instruction: 'Open the windows, then move each to a physical monitor. Automatic positioning and fullscreen are not guaranteed by the browser.' }
+    ? { window: 'Window', navigation: 'Navigation', fixed: 'Fixed screen', active: 'Active revision', instruction: 'Open the windows, then move each to a physical monitor. Automatic positioning and fullscreen are not guaranteed by the browser.' }
     : locale === 'es'
-      ? { inspect: 'Revisar ventanas', window: 'Ventana', navigation: 'Navegación', fixed: 'Pantalla fija', active: 'Revisión Active', instruction: 'Abra las ventanas y mueva cada una al monitor físico deseado. El navegador no garantiza posición ni pantalla completa automáticas.' }
-      : { inspect: 'Conferir janelas', window: 'Janela', navigation: 'Navegação', fixed: 'Tela fixa', active: 'Revisão Active', instruction: 'Abra as janelas e arraste cada uma para o monitor físico desejado. O navegador não garante posicionamento nem tela cheia automáticos.' };
+      ? { window: 'Ventana', navigation: 'Navegación', fixed: 'Pantalla fija', active: 'Revisión Active', instruction: 'Abra las ventanas y mueva cada una al monitor físico deseado. El navegador no garantiza posición ni pantalla completa automáticas.' }
+      : { window: 'Janela', navigation: 'Navegação', fixed: 'Tela fixa', active: 'Revisão Active', instruction: 'Abra as janelas e arraste cada uma para o monitor físico desejado. O navegador não garante posicionamento nem tela cheia automáticos.' };
   const activeScreen = (engineeringPackage.screens ?? []).find(screen =>
-    screen.key.toLocaleLowerCase() === activeScreenKey?.toLocaleLowerCase()
+    screen.key.toLocaleLowerCase() === (visibleScreenKey ?? activeScreenKey)?.toLocaleLowerCase()
   );
   const projectTitle = projection.projectName || projection.projectKey || text.runtime;
   const headerHeight = Math.max(56, Math.min(168, header?.height ?? 56));
@@ -419,7 +431,6 @@ function EngineeringRuntimeApplicationContent({
 
   const startStation = () => {
     if (!selectedStation) return;
-    setShowStationPlan(false);
     const runId = createRuntimeStationRunId();
     stationAdmissionChannelRef.current?.close();
     if (stationAdmissionTimeoutRef.current !== null) window.clearTimeout(stationAdmissionTimeoutRef.current);
@@ -489,7 +500,7 @@ function EngineeringRuntimeApplicationContent({
   const toggleAlarms = () => {
     setAlarmsOpen(current => {
       const next = !current;
-      if (next) { setHistoryOpen(false); setPlaybackOpen(false); }
+      if (next) { setHistoryOpen(false); setPlaybackOpen(false); setWindowToolsOpen(false); }
       return next;
     });
   };
@@ -498,12 +509,13 @@ function EngineeringRuntimeApplicationContent({
     setHistoryOpen(false);
     setAlarmsOpen(false);
     setPlaybackOpen(false);
+    setWindowToolsOpen(false);
   };
 
   const toggleHistory = () => {
     setHistoryOpen(current => {
       const next = !current;
-      if (next) { setAlarmsOpen(false); setPlaybackOpen(false); }
+      if (next) { setAlarmsOpen(false); setPlaybackOpen(false); setWindowToolsOpen(false); }
       return next;
     });
   };
@@ -511,14 +523,14 @@ function EngineeringRuntimeApplicationContent({
   const togglePlayback = () => {
     setPlaybackOpen(current => {
       const next = !current;
-      if (next) { setHistoryOpen(false); setAlarmsOpen(false); }
+      if (next) { setHistoryOpen(false); setAlarmsOpen(false); setWindowToolsOpen(false); }
       return next;
     });
   };
 
   const runtimeToolbar = <div className="runtime-operator-toolbar" role="toolbar" aria-label={text.runtime}>
     {header?.overviewVisible !== false && <RuntimeOperatorTool
-      label={text.runtimeOverview} icon="overview" active={!historyOpen && !alarmsOpen} onClick={showOverview}
+      label={text.runtimeOverview} icon="overview" active={!historyOpen && !alarmsOpen && !windowToolsOpen} onClick={showOverview}
     />}
     {showHistoryNavigation && header?.historyVisible !== false ? <RuntimeOperatorTool
       label={text.runtimeHistory} icon="history" active={historyOpen} expanded={historyOpen}
@@ -531,6 +543,11 @@ function EngineeringRuntimeApplicationContent({
     {playbackAvailable && header?.playbackVisible !== false ? <RuntimeOperatorTool
       label={playbackText.title} icon="playback" active={playback.mode === 'historicalPlayback'}
       expanded={playbackOpen} controls="runtime-playback-overlay" onClick={togglePlayback}
+    /> : null}
+    {showWindowTools ? <RuntimeOperatorTool
+      label={windowToolsLabel} icon="windows" active={windowToolsOpen} expanded={windowToolsOpen}
+      controls="runtime-window-tools"
+      onClick={() => { showOverview(); if (!windowToolsOpen) setWindowToolsOpen(true); }}
     /> : null}
     {showFullscreenControl && !compact ? <RuntimeOperatorTool
       label={text.fullscreen} icon="fullscreen" active={false} onClick={() => void toggleFullscreen()}
@@ -589,18 +606,6 @@ function EngineeringRuntimeApplicationContent({
         </> : null}
       </div>
       <div className="runtime-operator-side runtime-operator-side--right">
-        {!mobile && !isStationChild && stationProfiles.length ? <div className="runtime-operator-station-controls" data-testid="runtime-station-launcher">
-          <select aria-label={locale === 'pt-BR' ? 'Estação do Runtime' : locale === 'es' ? 'Estación Runtime' : 'Runtime station'} value={selectedStation?.id ?? ''} onChange={event => { setStationProfileId(event.currentTarget.value); setShowStationPlan(false); }}>
-            {stationProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name} ({profile.windows.length})</option>)}
-          </select>
-          <button type="button" aria-expanded={showStationPlan} onClick={() => setShowStationPlan(value => !value)}>{stationLabels.inspect}</button>
-          <button type="button" onClick={startStation}>{locale === 'pt-BR' ? 'Iniciar estação' : locale === 'es' ? 'Iniciar estación' : 'Start station'}</button>
-          <span className="runtime-station-active-revision">{stationLabels.active} {projection.revision}</span>
-        </div> : null}
-        {!compact ? <a className="runtime-operator-tool" href={`/?screen=${encodeURIComponent(activeScreenKey ?? '')}`}
-          target="_blank" rel="noopener noreferrer"
-          aria-label={locale === 'pt-BR' ? 'Abrir esta tela em outra janela' : locale === 'es' ? 'Abrir esta pantalla en otra ventana' : 'Open this screen in another window'}
-          title={locale === 'pt-BR' ? 'Abrir esta tela em outra janela' : locale === 'es' ? 'Abrir esta pantalla en otra ventana' : 'Open this screen in another window'}>↗</a> : null}
         {controlsPosition !== 'left' ? <div className="runtime-operator-toolbar-slot" style={{ order: header?.controlsOrder ?? 2 }}>{runtimeToolbar}</div> : null}
         {header?.dateTime?.mode && header.dateTime.mode !== 'off' && (header.dateTime.position ?? 'right') === 'right'
           ? <RuntimeHeaderDateTime locale={locale} settings={header.dateTime} style={{ order: header.dateTime.order ?? 1 }}/> : null}
@@ -609,33 +614,53 @@ function EngineeringRuntimeApplicationContent({
             runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
         </div> : null}
       </div>
-      {showStationPlan && selectedStation && !isStationChild ? <div className="runtime-station-launch-status" data-testid="runtime-station-plan">
-        <strong>{selectedStation.name} · {selectedStation.windows.length} {locale === 'en' ? 'windows' : locale === 'es' ? 'ventanas' : 'janelas'}</strong>
-        <ol>{selectedStation.windows.map((slot, index) => <li key={index}>
-          {stationLabels.window} {index + 1}: {(engineeringPackage.screens ?? []).find(screen => screen.key === slot.screenKey)?.name || slot.screenKey} · {slot.mode === 'fixed' ? stationLabels.fixed : stationLabels.navigation}
-        </li>)}</ol>
-        <p>{stationLabels.instruction}</p>
-      </div> : null}
-      {stationLaunchMessage ? <div role="status" className="runtime-station-launch-status">
-        <span>{stationLaunchMessage}</span>
-        {stationAdmissionReports.length ? <ul aria-label={runtimeStationAdmissionListLabel(locale)} data-testid="runtime-station-admission-results">
-          {stationAdmissionReports.map(report => <li key={report.slot} data-testid={`runtime-station-window-${report.slot + 1}-status`}>
-            {runtimeStationAdmissionLabel(report, locale)}
-          </li>)}
-        </ul> : null}
-        {stationRecoveryLinks.map(recovery => <a key={`${recovery.runId}-${recovery.index}`} href={recovery.href} target="_blank" rel="noopener noreferrer"
-          onClick={event => {
-            let child: Window | null = null;
-            try { child = window.open(recovery.href, '_blank'); } catch { /* The browser's normal link behavior remains available. */ }
-            if (!child) return;
-            event.preventDefault();
-            trackStationWindow(recovery.runId, recovery.index, recovery.href, child);
-          }}>
-          {recovery.reason === 'closed'
-            ? locale === 'pt-BR' ? `Reabrir tela ${recovery.index + 1}` : locale === 'es' ? `Reabrir pantalla ${recovery.index + 1}` : `Reopen screen ${recovery.index + 1}`
-            : locale === 'pt-BR' ? `Abrir tela ${recovery.index + 1}` : locale === 'es' ? `Abrir pantalla ${recovery.index + 1}` : `Open screen ${recovery.index + 1}`}
-        </a>)}
-      </div> : null}
+      {showWindowTools && windowToolsOpen ? <aside id="runtime-window-tools" className="runtime-window-tools"
+        aria-label={windowToolsLabel} data-testid="runtime-window-tools"
+        onKeyDown={event => { if (event.key === 'Escape') setWindowToolsOpen(false); }}>
+        <div className="runtime-operator-overlay-header">
+          <strong>{windowToolsLabel}</strong>
+          <button type="button" className="runtime-operator-button" onClick={() => setWindowToolsOpen(false)}>{closeWindowsLabel}</button>
+        </div>
+        <div className="runtime-window-tools__content">
+          {!compact ? <a className="runtime-operator-button" href={`/?screen=${encodeURIComponent(visibleScreenKey ?? activeScreenKey ?? '')}`}
+            target="_blank" rel="noopener noreferrer">{duplicateWindowLabel}</a> : null}
+          {showStationLauncher && selectedStation ? <div className="runtime-window-tools__station" data-testid="runtime-station-launcher">
+            {stationProfiles.length > 1 ? <label>
+              {locale === 'pt-BR' ? 'Estação do Runtime' : locale === 'es' ? 'Estación Runtime' : 'Runtime station'}
+              <select value={selectedStation.id} onChange={event => setStationProfileId(event.currentTarget.value)}>
+                {stationProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name} ({profile.windows.length})</option>)}
+              </select>
+            </label> : <strong>{selectedStation.name}</strong>}
+            <ol data-testid="runtime-station-plan">{selectedStation.windows.map((slot, index) => <li key={index}>
+              {stationLabels.window} {index + 1}: {(engineeringPackage.screens ?? []).find(screen => screen.key === slot.screenKey)?.name || slot.screenKey} · {slot.mode === 'fixed' ? stationLabels.fixed : stationLabels.navigation}
+            </li>)}</ol>
+            <p>{stationLabels.instruction}</p>
+            <button type="button" className="runtime-operator-button" onClick={startStation}>
+              {locale === 'pt-BR' ? 'Iniciar estação' : locale === 'es' ? 'Iniciar estación' : 'Start station'}
+            </button>
+            <span className="runtime-station-active-revision">{stationLabels.active} {projection.revision}</span>
+          </div> : null}
+          {stationLaunchMessage ? <div role="status" className="runtime-window-tools__status">
+            <span>{stationLaunchMessage}</span>
+            {stationAdmissionReports.length ? <ul aria-label={runtimeStationAdmissionListLabel(locale)} data-testid="runtime-station-admission-results">
+              {stationAdmissionReports.map(report => <li key={report.slot} data-testid={`runtime-station-window-${report.slot + 1}-status`}>
+                {runtimeStationAdmissionLabel(report, locale)}
+              </li>)}
+            </ul> : null}
+            {stationRecoveryLinks.map(recovery => <a key={`${recovery.runId}-${recovery.index}`} href={recovery.href} target="_blank" rel="noopener noreferrer"
+              onClick={event => {
+                let child: Window | null = null;
+                try { child = window.open(recovery.href, '_blank'); } catch { /* The browser's normal link behavior remains available. */ }
+                if (!child) return;
+                event.preventDefault();
+                trackStationWindow(recovery.runId, recovery.index, recovery.href, child);
+              }}>
+              {recovery.reason === 'closed'
+                ? locale === 'pt-BR' ? `Reabrir tela ${recovery.index + 1}` : locale === 'es' ? `Reabrir pantalla ${recovery.index + 1}` : `Reopen screen ${recovery.index + 1}`
+                : locale === 'pt-BR' ? `Abrir tela ${recovery.index + 1}` : locale === 'es' ? `Abrir pantalla ${recovery.index + 1}` : `Open screen ${recovery.index + 1}`}
+            </a>)}
+          </div> : null}        </div>
+      </aside> : null}
     </header> : <div className="runtime-hidden-header-session" aria-label={text.runtime}>
       <UserSessionMenu locale={locale} includeRuntimeSessionControls runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
     </div>}
@@ -657,7 +682,7 @@ function EngineeringRuntimeApplicationContent({
         scriptContext={scriptContext}
         emptyLabel={text.emptyVisual}
         visualAssetUrl={runtimeVisualAssetContentUrl}
-        onVisualContextChange={playback.setVisualScope}
+        onVisualContextChange={onVisualContextChange}
       />
     </section>
 
@@ -685,7 +710,7 @@ function EngineeringRuntimeApplicationContent({
   </main>;
 }
 
-type RuntimeOperatorIconName = 'overview' | 'history' | 'alarms' | 'playback' | 'fullscreen' | 'exitFullscreen';
+type RuntimeOperatorIconName = 'overview' | 'history' | 'alarms' | 'playback' | 'windows' | 'fullscreen' | 'exitFullscreen';
 
 function RuntimeOperatorTool({
   label,
@@ -782,6 +807,12 @@ function RuntimeOperatorIcon({ name }: { name: RuntimeOperatorIconName }) {
   if (name === 'playback') {
     return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
       <circle cx="10" cy="10" r="6.5" /><path d="M8.2 6.8 13 10l-4.8 3.2Z" />
+    </svg>;
+  }
+  if (name === 'windows') {
+    return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+      <rect x="3" y="7" width="10" height="9" rx="1" />
+      <path d="M7 7V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3" />
     </svg>;
   }
   if (name === 'fullscreen') {

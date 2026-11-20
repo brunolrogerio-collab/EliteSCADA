@@ -167,6 +167,9 @@ function errorText(code) {
     ...portalOfflineLicensing.errors(),
     ...portalDownloads.errors(),
     'profile-changed': tr('O perfil mudou enquanto você salvava. Atualize a página e tente novamente.', 'Your profile changed while saving. Reload the page and try again.', 'El perfil cambió mientras guardabas. Recarga la página y vuelve a intentarlo.'),
+    'registration-age-required': tr('Informe sua data de nascimento para verificar a idade.', 'Enter your date of birth to check your age.', 'Indica tu fecha de nacimiento para comprobar tu edad.'),
+    'registration-age-invalid': tr('Informe uma data de nascimento válida, sem usar uma data futura.', 'Enter a valid date of birth that is not in the future.', 'Indica una fecha de nacimiento válida que no sea futura.'),
+    'registration-minimum-age': tr('Você precisa ter 16 anos completos para se cadastrar.', 'You must be at least 16 years old to sign up.', 'Debes tener al menos 16 años cumplidos para registrarte.'),
     'invalid-indicators-period': tr('Selecione um período de até 90 dias, sem datas futuras.', 'Choose a period of up to 90 days, with no future dates.', 'Elige un periodo de hasta 90 días, sin fechas futuras.')
   };
   return errors[code] || tr('Não foi possível concluir. Tente novamente.', 'Unable to complete. Please try again.');
@@ -308,7 +311,7 @@ const activityAreaOptions = () => [
   ['education-research', tr('Ensino e pesquisa', 'Education and research')],
   ['other', tr('Outra área', 'Other')]
 ];
-function profileFields(user = {}) {
+function profileFields(user = {}, { includeDateOfBirth = true } = {}) {
   const profileType = select('profileType', profileTypeOptions(), user.profileType || '');
   const activityArea = select('activityArea', activityAreaOptions(), user.activityArea || '');
   const otherInput = input('activityAreaOther', 'text', user.activityAreaOther || '', { maxLength: 120, required: user.activityArea === 'other' });
@@ -320,7 +323,10 @@ function profileFields(user = {}) {
     h('div', { class: 'form-row' }, [field(tr('Tipo de perfil (opcional)', 'Profile type (optional)', 'Tipo de perfil (opcional)'), profileType), field(tr('Área de atuação (opcional)', 'Activity area (optional)', 'Área de actividad (opcional)'), activityArea)]),
     otherField,
     field(tr('Empresa, escola ou vínculo (opcional)', 'Company, school or affiliation (optional)', 'Empresa, escuela o afiliación (opcional)'), input('organizationOrSchool', 'text', user.organizationOrSchool || '', { required: false, maxLength: 200 })),
-    h('div', { class: 'form-row' }, [field(tr('Telefone (opcional)', 'Phone (optional)'), input('phoneNumber', 'tel', user.phoneNumber || '', { required: false, maxLength: 40, autocomplete: 'tel' })), field(tr('Data de nascimento (opcional)', 'Date of birth (optional)'), input('dateOfBirth', 'date', user.dateOfBirth || '', { required: false }))]),
+    h('div', { class: 'form-row' }, [
+      field(tr('Telefone (opcional)', 'Phone (optional)'), input('phoneNumber', 'tel', user.phoneNumber || '', { required: false, maxLength: 40, autocomplete: 'tel' })),
+      includeDateOfBirth && field(tr('Data de nascimento (opcional)', 'Date of birth (optional)'), input('dateOfBirth', 'date', user.dateOfBirth || '', { required: false }))
+    ]),
     field(tr('Endereço (opcional)', 'Address (optional)'), input('address', 'text', user.address || '', { required: false, maxLength: 300, autocomplete: 'street-address' })),
     h('label', { class: 'check-field' }, [marketing, tr('Quero receber novidades e informações comerciais por e-mail (opcional).', 'I would like to receive product news and commercial updates by email (optional).')])
   ];
@@ -342,6 +348,7 @@ function legalPreviewNotice() {
   ]);
 }
 function registration() {
+  const checkAge = state.session?.registrationAgeCheck === true;
   const card = panel(tr('Criar conta SCADIVO', 'Create a SCADIVO account'),
     legalPreviewNotice(),
     p(tr('Depois do cadastro, enviaremos um link único para confirmar seu e-mail. O login será liberado somente após a confirmação.', 'After signup, we will send a unique link to confirm your email. Sign-in is enabled only after confirmation.')),
@@ -350,9 +357,14 @@ function registration() {
       field(tr('Nome de usuário', 'Username', 'Nombre de usuario'), input('username', 'text', '', { minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'username' }), tr('Precisa estar disponível e ter de 3 a 20 caracteres. Você poderá entrar com ele ou com seu e-mail.', 'Must be available and 3 to 20 characters long. You can sign in with it or with your email.', 'Debe estar disponible y tener de 3 a 20 caracteres. Puedes iniciar sesión con este nombre o con tu correo.')),
       field(tr('E-mail', 'Email'), input('email', 'email', '', { maxLength: 256, autocomplete: 'email' })),
       field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), state.lang, { required: true })),
+      checkAge && field(tr('Data de nascimento para verificar a idade', 'Date of birth for the age check', 'Fecha de nacimiento para comprobar la edad'),
+        input('eligibilityDateOfBirth', 'date', '', { autocomplete: 'bday' }),
+        tr('A idade mínima é de 16 anos completos. A data é usada apenas para essa checagem.',
+          'You must be at least 16 years old. We use this date only to check your age.',
+          'La edad mínima es de 16 años cumplidos. Usamos esta fecha únicamente para comprobar tu edad.')),
       field(tr('Senha', 'Password'), input('password', 'password', '', { minLength: 8, maxLength: 1024, autocomplete: 'new-password' }), tr('Mínimo de 8 caracteres, com maiúscula, minúscula e número.', 'At least 8 characters, with uppercase, lowercase and a number.')),
       field(tr('Repita a senha', 'Repeat password'), input('confirmation', 'password', '', { minLength: 8, maxLength: 1024, autocomplete: 'new-password' })),
-      ...profileFields()
+      ...profileFields({}, { includeDateOfBirth: !checkAge })
     ], tr('Cadastrar e enviar confirmação', 'Sign up and send confirmation'), async data => {
       if (data.password !== data.confirmation) throw new Error(tr('As senhas não coincidem.', 'The passwords do not match.'));
       const { confirmation, ...registrationData } = data;

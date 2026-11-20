@@ -12,7 +12,7 @@ public static class PortalEndpoints
     public static void MapPortalEndpoints(this WebApplication app, bool legalPreview)
     {
         app.MapGet("/api/session", async (HttpContext context, IAntiforgery antiforgery, PortalOperations operations,
-            IOptions<PortalEmailOptions> emailSettings, IOptions<CommunitySsoOptions> communitySettings) =>
+            IOptions<PortalEmailOptions> emailSettings, IOptions<CommunitySsoOptions> communitySettings, IConfiguration configuration) =>
         {
             var token = antiforgery.GetAndStoreTokens(context);
             var community = communitySettings.Value;
@@ -21,11 +21,12 @@ public static class PortalEndpoints
                 authenticated = context.User.Identity?.IsAuthenticated == true,
                 user = context.User.Identity?.IsAuthenticated == true ? await operations.Profile(context) : null,
                 csrfToken = token.RequestToken,
-                publicRegistrationEnabled = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<bool>("Portal:PublicRegistrationEnabled"),
+                publicRegistrationEnabled = configuration.GetValue<bool>("Portal:PublicRegistrationEnabled"),
+                registrationAgeCheck = PortalRegistrationAge.IsEnabled(configuration),
                 legalPreview,
                 emailDeliveryConfigured = emailSettings.Value.Enabled,
                 communityEnabled = community.Enabled,
-                offlineMachineLicenseRequestsEnabled = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<bool>("Portal:OfflineMachineLicenseRequestsEnabled"),
+                offlineMachineLicenseRequestsEnabled = configuration.GetValue<bool>("Portal:OfflineMachineLicenseRequestsEnabled"),
                 communityStartUrl = community.Enabled ? community.LoginStartUrl : null
             });
         });

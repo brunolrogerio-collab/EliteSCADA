@@ -20,7 +20,7 @@ public sealed record AcceptInviteInput(string? UserId, string? Token, string? Pa
     string? Address, DateOnly? DateOfBirth, bool? MarketingEmailOptIn);
 public sealed record RegisterInput(string? Username, string? DisplayName, string? Email, string? Password, string? Locale, string? ProfileType,
     string? ActivityArea, string? ActivityAreaOther, string? OrganizationOrSchool, string? PhoneNumber,
-    string? Address, DateOnly? DateOfBirth, bool? MarketingEmailOptIn);
+    string? Address, DateOnly? DateOfBirth, bool? MarketingEmailOptIn, JsonElement EligibilityDateOfBirth = default);
 public sealed record ConfirmEmailInput(string? UserId, string? Token);
 public sealed record ResendConfirmationInput(string? Email);
 public sealed record PasswordRecoveryInput(string? Email);
@@ -42,7 +42,7 @@ public sealed record DownloadReleaseInput(string? Version, string? Platform, str
 
 public sealed class PortalOperations(
     PortalDb db, UserManager<PortalUser> users, SignInManager<PortalUser> signIn, IConfiguration configuration,
-    IOptions<PortalEmailOptions> emailSettings, PortalEmailSignal emailSignal, PortalLicensingOperations licensing)
+    IOptions<PortalEmailOptions> emailSettings, PortalEmailSignal emailSignal, PortalLicensingOperations licensing, TimeProvider clock)
 {
     private static readonly HashSet<string> ProfileTypes = ["student", "professional", "organization"];
     private static readonly HashSet<string> ActivityAreas = ["industrial-automation", "buildings-facilities", "residential", "utilities", "integrator-consulting", "education-research", "other"];
@@ -173,6 +173,10 @@ public sealed class PortalOperations(
     {
         if (!configuration.GetValue<bool>("Portal:PublicRegistrationEnabled")) return Results.NotFound();
         if (!emailSettings.Value.Enabled) return Results.Json(new { error = "email-not-configured" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        var checkAge = PortalRegistrationAge.IsEnabled(configuration);
+        if (checkAge && PortalRegistrationAge.ErrorFor(input.EligibilityDateOfBirth, clock.GetUtcNow()) is { } ageError)
+            return Invalid(ageError);
+        var profileDateOfBirth = checkAge ? null : input.DateOfBirth;
         var email = input.Email?.Trim();
         var username = input.Username?.Trim();
         if (input.Password is null || input.Password.Length < 8 || input.Password.Length > 1024)
@@ -181,7 +185,7 @@ public sealed class PortalOperations(
         if (!Valid(input.DisplayName, 1, 160) || !ValidLocale(input.Locale) || !Valid(email, 5, 256) || !MailAddress.TryCreate(email, out var parsedEmail) ||
             !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase) ||
             !ValidProfile(input.ProfileType, input.ActivityArea, input.ActivityAreaOther, input.OrganizationOrSchool,
-                input.PhoneNumber, input.Address, input.DateOfBirth)) return Invalid("profile-fields-required");
+                input.PhoneNumber, input.Address, profileDateOfBirth)) return Invalid("profile-fields-required");
 
         // Keep the response identical for an existing address so public registration cannot enumerate accounts.
         if (await users.FindByEmailAsync(email!) is not null) return Results.Accepted(uri: null, value: new { status = "check-email" });
@@ -202,7 +206,7 @@ public sealed class PortalOperations(
             OrganizationOrSchool = input.OrganizationOrSchool?.Trim() ?? "",
             PhoneNumber = string.IsNullOrWhiteSpace(input.PhoneNumber) ? null : input.PhoneNumber.Trim(),
             Address = string.IsNullOrWhiteSpace(input.Address) ? null : input.Address.Trim(),
-            DateOfBirth = input.DateOfBirth,
+            DateOfBirth = profileDateOfBirth,
             MarketingEmailOptIn = input.MarketingEmailOptIn == true,
             MarketingEmailOptInAtUtc = input.MarketingEmailOptIn == true ? DateTimeOffset.UtcNow : null
         };

@@ -45,7 +45,7 @@ Você pode solicitar confirmação e acesso aos seus dados, correção e, nos ca
 
 ### Termos de uso do piloto
 
-O Portal SCADIVO é operado por **[identificação do operador]** e oferece conta, suporte, acesso à Comunidade e gerenciamento de licenças. Mantenha os dados da sua conta atualizados e proteja suas credenciais. Ao usar uma organização, aja dentro das permissões concedidas por ela. Esta versão dos termos se aplica ao piloto, voltado ao público técnico maior de 16 anos. **[Preencher data de vigência e validar o procedimento de elegibilidade antes da publicação.]**
+O Portal SCADIVO é operado por **[identificação do operador]** e oferece conta, suporte, acesso à Comunidade e gerenciamento de licenças. Mantenha os dados da sua conta atualizados e proteja suas credenciais. Ao usar uma organização, aja dentro das permissões concedidas por ela. Esta versão dos termos se aplica ao piloto, voltado ao público técnico a partir de 16 anos completos. **[Preencher data de vigência e validar o procedimento de elegibilidade antes da publicação.]**
 
 Os direitos de uso do SCADIVO seguem a licença emitida para o titular. A modalidade, os recursos e a validade são os definidos na licença. Licenças vinculadas à conta podem exigir renovação online. A licença offline por máquina depende do vínculo ao equipamento e das condições da emissão.
 
@@ -61,7 +61,7 @@ Use **[canal oficial]** para suporte, dúvidas e solicitações relativas à con
 | Localização dos dados | Confirmar a região contratada para o VPS e para o serviço de e-mail, além de eventual sincronização externa dos backups. Usar a documentação contratual para definir se há transferência internacional e quais garantias se aplicam. |
 | Campos de perfil | Tipo de perfil, área de atuação e empresa/escola são facultativos. Telefone, endereço e data de nascimento continuam opcionais. A retirada desses campos ou de valores já armazenados precisa de avaliação separada. |
 | Retenção e fim da conta | Prazos aprovados: 30 dias para cadastros sem confirmação, revisão após 12 meses sem uso com aviso prévio, 12 meses para chamados e contatos encerrados, inclusive na caixa de atendimento, e 90 dias para registros de entrega de e-mail. Preservar licenças vigentes e anonimizar a autoria pública no fórum, avaliando remoção quando aplicável. Definir a guarda após encerramento de licenças, auditoria, registros de acesso, indicadores e backup externo. |
-| Público e moderação | Piloto para público técnico maior de 16 anos. A faixa inclui adolescentes. Validar as medidas de proteção e elegibilidade aplicáveis antes da publicação. Aprovar quem recebe contestações e como comunicar mudanças relevantes nos termos. [Lei 15.211/2025](https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2025/lei/l15211.htm) |
+| Público e moderação | Piloto para público técnico a partir de 16 anos completos. A faixa inclui adolescentes. Validar as medidas de proteção e elegibilidade aplicáveis antes da publicação. Aprovar quem recebe contestações e como comunicar mudanças relevantes nos termos. [Lei 15.211/2025](https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2025/lei/l15211.htm) |
 
 ### Encerramento de conta e de sessão na Comunidade
 
@@ -83,6 +83,8 @@ A automação entregou três avisos no Mailpit, um em cada idioma. Uma conta que
 Antes da publicação, conferir e testar o canal oficial, as solicitações de acesso, correção e encerramento no Portal e na Comunidade, os fornecedores e países envolvidos, os cookies e as rotinas de retenção. Publicar aviso e termos com data e versão, com acesso antes do cadastro e pelos links do site, Portal e Comunidade. Preparar a versão final em PT-BR, EN e ES para o Portal e a Comunidade. Planos, pagamentos, cancelamento comercial e reembolso seguem na preparação do lançamento comercial.
 
 A versão 1.0 em homologação usa `SCADIVO_HOMOLOG_LEGAL_PREVIEW=true`. Os links ficam antes do formulário de cadastro e no aviso da visão geral. Os textos públicos definitivos dependem da identificação legal, data de vigência e autorização de publicação. A prévia e suas URLs ficam reservadas ao ambiente de desenvolvimento com a opção habilitada.
+
+Com `SCADIVO_HOMOLOG_AGE_CHECK=true`, a API do cadastro público exige a data declarada exclusivamente para calcular a elegibilidade. O cadastro é aceito a partir do 16º aniversário pelo calendário de São Paulo. A checagem ocorre antes de criar a conta ou enfileirar o e-mail de confirmação. A data declarada é descartada após o uso. A data de nascimento facultativa pode ser informada no perfil depois do cadastro. A opção vem desativada por padrão. A avaliação das medidas de aferição e proteção de adolescentes continua pendente para a publicação.
 
 Para verificar os avisos por e-mail, executar `dotnet Scadivo.Portal.dll --send-legal-preview-emails` no container da API de homologação. O comando usa os mesmos modelos HTML e texto do Portal e envia uma mensagem por idioma para endereços de teste no Mailpit local.
 

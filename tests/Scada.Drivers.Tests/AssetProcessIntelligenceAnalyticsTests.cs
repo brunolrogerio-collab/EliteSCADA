@@ -1410,9 +1410,9 @@ public sealed partial class AssetProcessIntelligenceAnalyticsTests
             => ValueTask.FromResult(HistoricalAuthorizationDecision.Allow());
     }
 
-    private sealed class BudgetCursorProvider(Guid secondTagId, int firstCount, int secondCount) : IHistoricalDatasetProvider
+    private sealed class BudgetCursorProvider(Guid secondTagId, int firstCount, int secondCount, bool useSourceTime = false) : IHistoricalDatasetProvider
     {
-        public string Dataset => HistoricalDatasets.HistorianSamples;
+        public string Dataset => useSourceTime ? HistoricalDatasets.HistorianSamplesV2 : HistoricalDatasets.HistorianSamples;
         public Task<HistoricalProviderPage> QueryAsync(HistoricalQueryExecution query, CancellationToken cancellationToken = default)
         {
             var tagId = Assert.Single(Assert.Single(query.Filters).Values).AsGuid();
@@ -1420,7 +1420,15 @@ public sealed partial class AssetProcessIntelligenceAnalyticsTests
             var offset = query.After is null ? 0 : int.Parse(query.After.TieBreaker, System.Globalization.CultureInfo.InvariantCulture);
             var count = Math.Min(query.PageSize, total - offset);
             var timestamp = FromUtc.AddMinutes(1);
-            var rows = Enumerable.Range(0, count).Select(_ => Row(tagId, timestamp, "Good", HistoricalQueryValue.FromDouble(5))).ToArray();
+            var value = HistoricalQueryValue.FromDouble(5);
+            var rows = Enumerable.Range(0, count).Select(index =>
+            {
+                if (!useSourceTime)
+                    return Row(tagId, timestamp, "Good", value);
+
+                var sampleTime = timestamp.AddSeconds(offset + index);
+                return V2Row(tagId, sampleTime, "Good", value, sampleTime, "Synchronized");
+            }).ToArray();
             HistoricalQueryPosition? next = offset + count < total
                 ? new(HistoricalQueryValue.FromDateTime(timestamp), timestamp, (offset + count).ToString(System.Globalization.CultureInfo.InvariantCulture))
                 : null;
@@ -5221,6 +5229,39 @@ public sealed partial class AssetProcessIntelligenceAnalyticsTests
             Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
         Assert.Equal("HISTORICAL_RESPONSE_INVALID", error.Code);
         Assert.IsNotType<AssetProcessIntelligenceReferenceEvidenceV1Response>(error);
+    }
+
+    [Theory]
+    [InlineData(49_801, StatusCodes.Status200OK)]
+    [InlineData(49_802, StatusCodes.Status413PayloadTooLarge)]
+    public async Task ReferenceEvidenceV1_PreservesSignedCursorAcrossTheFinalPageOfA24HourWindow(
+        int secondCount, int expectedStatus)
+    {
+        using var fixture = Fixture.Create();
+        var second = fixture.AddProfileSignal("zz-frequency", "drive-frequency", TagDataType.Double, "Hz");
+        var queries = new HistoricalQueryService(
+            [new BudgetCursorProvider(second.Id, 199, secondCount, useSourceTime: true)],
+            new BudgetCursorAuthorizer(), new HistoricalQueryCursorCodec(new byte[32]),
+            () => FromUtc.AddDays(2));
+        fixture.Historian.RespondAsync = queries.QueryAsync;
+        var profileId = fixture.Workspace.AssetProcessIntelligence.Snapshot().Profiles!.Single().Id;
+        var request = new AssetProcessIntelligenceReferenceEvidenceV1QueryRequest(
+            fixture.ScopeKind, fixture.ScopeId, profileId, Window(FromUtc, FromUtc.AddHours(24)), null);
+
+        var result = await fixture.ExecuteReferenceEvidenceV1Async(request);
+
+        AssertStatus(expectedStatus, result);
+        var payload = Assert.IsAssignableFrom<IValueHttpResult>(result).Value;
+        if (expectedStatus == StatusCodes.Status200OK)
+        {
+            var evidence = Assert.IsType<AssetProcessIntelligenceReferenceEvidenceV1Response>(payload);
+            Assert.Equal(50_000, evidence.TotalRawObservationCount);
+        }
+        else
+        {
+            Assert.Equal("INTELLIGENCE_REFERENCE_EVIDENCE_WINDOW_TOO_DENSE",
+                Assert.IsType<AssetProcessIntelligenceAnalyticsApiError>(payload).Code);
+        }
     }
 
     [Fact]

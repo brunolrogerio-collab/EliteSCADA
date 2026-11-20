@@ -1,0 +1,14 @@
+es:
+  js:
+    skip_links_label: "Enlaces para omitir la navegación"
+    post:
+      heading_anchor: "Enlace al encabezado"
+    topics:
+      bulk:
+        select: "Seleccionar varios temas"
+    chat:
+      search:
+        title: "Buscar en el chat"
+    sidebar:
+      start_new_dm:
+        text: "Nuevo mensaje directo"

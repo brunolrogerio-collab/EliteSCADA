@@ -1,0 +1,14 @@
+pt_BR:
+  js:
+    skip_links_label: "Links para pular a navegação"
+    post:
+      heading_anchor: "Link para o título da seção"
+    topics:
+      bulk:
+        select: "Selecionar vários tópicos"
+    chat:
+      search:
+        title: "Pesquisar no chat"
+    sidebar:
+      start_new_dm:
+        text: "Nova mensagem direta"

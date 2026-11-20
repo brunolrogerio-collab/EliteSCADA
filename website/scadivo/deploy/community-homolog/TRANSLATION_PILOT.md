@@ -8,6 +8,16 @@ A versão publicada, 2026.1.4 (`2c3ac01e`), dispõe da localização nativa. Hab
 
 Antes de publicar, validar a conta de teste entrando pelo Portal com cada idioma do perfil. Conferir o título na lista, o corpo do tópico, o controle para ver o original e o retorno a português. Para visitante, conferir a seleção de idioma e os links de categorias. Para reversão, retirar as localizações novas ou restaurar as anteriores sem editar o texto original.
 
+## Categorias públicas
+
+O [pacote de categorias](category-localizations.json) contém os nomes e as descrições das oito categorias públicas em inglês e espanhol. As traduções são dadas à localização nativa, vinculadas ao endereço estável de cada categoria. O português permanece como referência e o pacote preserva o link das regras.
+
+Na versão 2026.1.4, a página de categorias usa um campo de resumo distinto da descrição localizada. O plugin `scadivo-visitor-locale` entrega o resumo localizado nessa versão. Versões com suporte nativo ao resumo usam seu próprio tratamento. O ajuste não muda permissões, endereços ou tópicos.
+
+Com a localização de conteúdo já habilitada, execute `bundle exec rails runner apply-category-localizations.rb category-localizations.json` no diretório da aplicação, apontando para as cópias dos arquivos no ambiente escolhido. O script confere os oito textos de origem e a visibilidade pública antes de gravar as localizações em uma transação. Faça uma cópia de segurança das localizações e da imagem antes da publicação. Valide em uma janela anônima com PT, EN e ES, troque no seletor e recarregue o catálogo. Na lista móvel a descrição pode ficar oculta, então confira também o catálogo no desktop.
+
+Com as dependências de navegador instaladas, execute `node tests/browser/check-category-localizations.mjs <URL-da-Comunidade>` a partir de `website/scadivo` para repetir as verificações anônimas.
+
 O teste local em `eafa0d12` usou os serviços nativos de criação e seleção de localizações. Os dois tópicos sintéticos passaram em português, inglês e espanhol (6/6), com links preservados. Os dados de teste foram revertidos ao fim da transação. A navegação autenticada e a publicação das traduções no domínio real ainda precisam ser verificadas.
 
 ## Tradução automática de contribuições

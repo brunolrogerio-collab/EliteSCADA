@@ -529,6 +529,60 @@ public sealed class Zigbee2MqttBridgeTests
         Assert.Throws<FormatException>(() => Zigbee2MqttExposeMapper.ParseInventory("[]"u8.ToArray(), Settings(Guid.NewGuid(), maximumDevices: 1, maximumInboundPayloadBytes: 1)));
     }
 
+    [Theory]
+    [InlineData("", 1, true)]
+    [InlineData("\"definition\":{},", 1, true)]
+    [InlineData("\"definition\":{\"exposes\":[]},", 0, true)]
+    [InlineData("\"definition\":null,", 1, false)]
+    public void Inventory_UsesLegacyExposesOnlyWhenDefinitionHasNoExposes(string definition, int expectedCount, bool supported)
+    {
+        var payload = $$"""
+            [{
+                "ieee_address": "{{Ieee}}", "friendly_name": "lamp-main",
+                "supported": {{(supported ? "true" : "false")}},
+                {{definition}}
+                "exposes": [{ "type": "numeric", "property": "temperature", "access": 1 }]
+            }]
+            """;
+
+        var device = Assert.Single(Zigbee2MqttExposeMapper.ParseInventory(
+            Encoding.UTF8.GetBytes(payload), Settings(Guid.NewGuid())).Devices);
+        Assert.Equal(expectedCount, device.Exposes.Count);
+        Assert.Equal(supported, device.Supported);
+        if (!supported)
+            Assert.Contains(device.Issues!, issue => issue.Code == "Z2M_DEVICE_UNSUPPORTED");
+    }
+
+    [Fact]
+    public void Inventory_NestedDefinitionWinsAndRetainsValidationAndBounds()
+    {
+        const string legacy = """
+            {"type":"numeric","property":"temperature","access":1,"unit":"legacy"}
+            """;
+        const string nested = """
+            {"type":"numeric","property":"temperature","access":1,"unit":"C"}
+            """;
+        byte[] Payload(string exposes) => Encoding.UTF8.GetBytes($$"""
+            [{
+                "ieee_address":"{{Ieee}}","friendly_name":"lamp-main","supported":true,
+                "definition":{"exposes":{{exposes}}},
+                "exposes":[{{legacy}}]
+            }]
+            """);
+
+        var settings = Settings(Guid.NewGuid());
+        var device = Assert.Single(Zigbee2MqttExposeMapper.ParseInventory(Payload($"[{nested}]"), settings).Devices);
+        Assert.Equal("C", Assert.Single(device.Exposes).Unit);
+        Assert.Throws<FormatException>(() => Zigbee2MqttExposeMapper.ParseInventory(Payload("null"), settings));
+        var duplicates = Payload($"[{nested},{nested}]");
+        Assert.Contains("duplicate endpoint/property", Assert.Throws<FormatException>(() =>
+            Zigbee2MqttExposeMapper.ParseInventory(duplicates, settings)).Message);
+        Assert.Contains("limit", Assert.Throws<FormatException>(() =>
+            Zigbee2MqttExposeMapper.ParseInventory(duplicates, settings with { MaximumExposesPerDevice = 1 })).Message);
+        var deep = new string('[', 24) + "0" + new string(']', 24);
+        Assert.ThrowsAny<JsonException>(() => Zigbee2MqttExposeMapper.ParseInventory(Payload(deep), settings));
+    }
+
     [Fact]
     public async Task Engineering_DiscoverySelectsMaterializationAndPointReadRequiresFreshPeerReport()
     {
@@ -1029,13 +1083,15 @@ public sealed class Zigbee2MqttBridgeTests
           "friendly_name": "{{friendlyName}}",
           "supported": true,
           "model_id": "ZB-01",
-          "definition": { "vendor": "Example" },
-          "exposes": [
-            { "type": "binary", "property": "state", "access": 7, "value_on": "ON", "value_off": "OFF" },
-            { "type": "numeric", "property": "temperature", "access": 5, "unit": "°C", "value_min": -10, "value_max": 80, "value_step": 0.5 },
-            { "type": "numeric", "property": "linkquality", "access": 1, "category": "diagnostic" },
-            { "type": "action", "property": "action", "access": 1 }
-          ]
+          "definition": {
+            "vendor": "Example",
+            "exposes": [
+              { "type": "binary", "property": "state", "access": 7, "value_on": "ON", "value_off": "OFF" },
+              { "type": "numeric", "property": "temperature", "access": 5, "unit": "°C", "value_min": -10, "value_max": 80, "value_step": 0.5 },
+              { "type": "numeric", "property": "linkquality", "access": 1, "category": "diagnostic" },
+              { "type": "action", "property": "action", "access": 1 }
+            ]
+          }
         }
         """;
 

@@ -121,15 +121,9 @@ Los tipos TAG admitidos son Boolean, Int16/Int32/Int64, Float/Double y String de
 
 Conecte a una instalación externa y distinga inventario, incorporación e informes recientes.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-785-Z2M: https://github.com/brunolrogerio-collab/EliteSCADA/issues/785; topic=drivers.zigbee2mqtt-setup; fields=selectedIeeeAddresses; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
-<!-- HELP-REVIEW-AFTER-PRODUCT-787: https://github.com/brunolrogerio-collab/EliteSCADA/issues/787; topic=drivers.zigbee2mqtt-setup; fields=inventoryFormat; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Instalación externa y flujo disponible
 
-Elija este puente si Zigbee2MQTT y broker se gestionan fuera de SCADIVO y los dispositivos ya están asociados. Consulta esa instalación; no abre inclusión ni administra coordinador. Zigbee nativo es otro camino.
-
-El conector anuncia prueba de conexión, descubrimiento y lectura. Descubrir lista inventario; incorporar exige elegir qué entra al proyecto. La interfaz actual limita esa selección. La lectura de algunas estructuras anidadas espera otra corrección separada. Los pasos indican esos límites sin prometer incorporación completa donde no existe.
+Use este puente con una red Zigbee2MQTT y un broker ya configurados. En Ingeniería → Home/Building → Dispositivos, elija la fuente y pulse Descubrir dispositivos para listar el inventario. Seleccione un dispositivo y pulse Preparar dispositivo seleccionado. Revise los TAGs, valide y aplique al área de trabajo. Guarde, publique y active la revisión para usarla en Runtime.
 
 ### Campos de fuente
 
@@ -157,9 +151,9 @@ Host, tópico base y credenciales deben coincidir con el broker usado realmente 
 | Máximo de dispositivos en inventario | Límite de inventario/selección para esta fuente. No promete capacidad de radio ni elimina cuotas de licencia. | 256 | 1–4096. |
 | Máximo de funciones por dispositivo | Limita descripciones de propiedades procesadas por dispositivo. Expose es una función/propiedad anunciada por Zigbee2MQTT, no un TAG incorporado automáticamente. | 256 | 1–2048. |
 
-### Vínculos generados y selección pendiente
+### Vínculos generados para el dispositivo seleccionado
 
-Los campos técnicos siguientes los produce la incorporación desde selección/inventario. No son IDs que el desarrollador deba inventar. Hasta que la pantalla envíe selección, listar un dispositivo no garantiza Equipo/TAGs listos. Las funciones escalares mapeadas son binary y numeric; capacidades funcionales dependen de propiedades admitidas.
+La preparación usa la dirección IEEE de la fila elegida y las funciones anunciadas en el inventario. Las funciones escalares mapeadas son binary y numeric. Las capacidades funcionales dependen de las propiedades admitidas.
 
 | Campo | Finalidad y cómo rellenarlo | Ejemplo | Límites |
 | --- | --- | --- | --- |
@@ -180,8 +174,8 @@ Los campos técnicos siguientes los produce la incorporación desde selección/i
 | Identidad del punto — automática | Campo técnico generado por incorporación. Combina fuente, IEEE, endpoint y propiedad; copiar desde otra fuente es inválido. No invente ni copie IDs entre fuentes. |  |  |
 | Función del Equipo — automática | Campo técnico generado por incorporación. Por ejemplo Temperature u OnOff; no es capability de seguridad concedida al usuario. No invente ni copie IDs entre fuentes. | Temperature |  |
 | Contrato de confirmación — automático | Campo técnico generado por incorporación. Si se admite exige informe de estado no retenido compatible tras el comando, con evidencia de actualidad de origen. No prueba actuación física. No invente ni copie IDs entre fuentes. | non-retained-state-match |  |
-| Selección explícita para incorporar | El servicio admite selección de IEEE, pero la pantalla Home/Building actual no la envía. Sin selección el descubrimiento lista inventario sin contenido para incorporar; elegir una fila no repite la solicitud con IEEE. La incorporación por interfaz espera corrección. |  |  |
-| Formato de inventario — límite actual | El formato externo incluye funciones en definition.exposes; esta versión del parser busca exposes en la raíz. Por ello puede listar un dispositivo sin producir TAGs. La corrección de compatibilidad está pendiente por separado de la selección en interfaz. | definition.exposes |  |
+| Selección explícita para incorporar | Seleccione un dispositivo del inventario y pulse Preparar dispositivo seleccionado. SCADIVO solicita la incorporación solo para la dirección IEEE de ese dispositivo. |  |  |
+| Formato de inventario | Ingeniería lee las funciones de definition.exposes. En inventarios antiguos, lee exposes en la raíz del dispositivo cuando falta ese campo en la definición. Si están presentes ambos, prevalece la definición del dispositivo. | definition.exposes |  |
 
 ### Ejemplo de inventario anunciado
 
@@ -227,6 +221,6 @@ Un mensaje retenido es Stale en este conector. Sin last_seen de origen posterior
 
 ### Resolver por capas
 
-Sin conexión: compruebe host/puerto/TLS/autenticación. Conectado sin inventario: compruebe baseTopic y bridge/state/devices. Inventario sin incorporación: compruebe límite de selección de interfaz en lugar de recrear la red. Valor Uncertain/Stale: compruebe retención, last_seen y reconexión. Escritura sin confirmar: compruebe acceso anunciado, vínculo de confirmación, disponibilidad e informe reciente; no confirme el TAG solo porque el broker aceptó la publicación.
+Sin conexión: compruebe host/puerto/TLS/autenticación. Conectado sin inventario: compruebe baseTopic y bridge/state/devices. Inventario sin incorporación: actualice el inventario, seleccione el dispositivo y revise los avisos de preparación. Valor Uncertain/Stale: compruebe retención, last_seen y reconexión. Escritura sin confirmar: compruebe acceso anunciado, vínculo de confirmación, disponibilidad e informe reciente; no confirme el TAG solo porque el broker aceptó la publicación.
 
 [Abrir esta guía en Ayuda instalada](/help?topic=drivers.zigbee2mqtt-setup)

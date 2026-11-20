@@ -72,7 +72,12 @@ public static class Zigbee2MqttExposeMapper
             if (!supported)
                 issues.Add(Warning("Z2M_DEVICE_UNSUPPORTED", "Zigbee2MQTT does not declare this device supported; its exposes are shown for inventory review but cannot be materialized into Runtime TAGs."));
             var count = 0;
-            if (item.TryGetProperty("exposes", out var exposesElement))
+            // The bridge's device definition is authoritative when both formats are present.
+            var hasDefinitionExposes = item.TryGetProperty("definition", out var definition)
+                && definition.ValueKind == JsonValueKind.Object
+                && definition.TryGetProperty("exposes", out _);
+            var exposeOwner = hasDefinitionExposes ? definition : item;
+            if (exposeOwner.TryGetProperty("exposes", out var exposesElement))
             {
                 if (exposesElement.ValueKind != JsonValueKind.Array)
                     throw new FormatException($"Zigbee2MQTT device '{ieee}' exposes must be an array.");

@@ -4390,8 +4390,8 @@
             },
             {
               "key": "inventoryFormat",
-              "label": "Formato do inventário — limitação atual",
-              "description": "O formato externo põe as funções em definition.exposes; esta versão do parser procura exposes na raiz. Assim, um dispositivo pode ser listado sem gerar TAGs. A correção de compatibilidade está pendente, separadamente da seleção na interface.",
+              "label": "Formato do inventário",
+              "description": "A Engenharia lê as funções de definition.exposes. Em inventários antigos, lê exposes na raiz do dispositivo quando o campo da definição está ausente. Quando ambos existem, vale a definição do dispositivo.",
               "example": "definition.exposes",
               "constraints": ""
             }
@@ -11463,8 +11463,8 @@
             },
             {
               "key": "inventoryFormat",
-              "label": "Inventory format — current limitation",
-              "description": "The external format puts exposes in definition.exposes; this parser version looks for exposes at the root. A device can therefore be listed without producing TAGs. Compatibility correction is pending separately from UI selection.",
+              "label": "Inventory format",
+              "description": "Engineering reads capabilities from definition.exposes. For older inventories, it reads exposes at the device root when the definition field is absent. When both are present, the device definition takes precedence.",
               "example": "definition.exposes",
               "constraints": ""
             }
@@ -18536,8 +18536,8 @@
             },
             {
               "key": "inventoryFormat",
-              "label": "Formato de inventario — límite actual",
-              "description": "El formato externo incluye funciones en definition.exposes; esta versión del parser busca exposes en la raíz. Por ello puede listar un dispositivo sin producir TAGs. La corrección de compatibilidad está pendiente por separado de la selección en interfaz.",
+              "label": "Formato de inventario",
+              "description": "Ingeniería lee las funciones de definition.exposes. En inventarios antiguos, lee exposes en la raíz del dispositivo cuando falta ese campo en la definición. Si están presentes ambos, prevalece la definición del dispositivo.",
               "example": "definition.exposes",
               "constraints": ""
             }

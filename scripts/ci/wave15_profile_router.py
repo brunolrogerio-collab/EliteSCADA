@@ -137,7 +137,7 @@ WEB_PROFILES = {
 
 E2E_PROFILE_DEFAULTS = {
     "APP_SHELL": ("tests-e2e/app-shell.spec.ts", "tests-e2e/effective-capabilities-contract.spec.ts"),
-    "UI_EDITOR": ("tests-e2e/app-shell.spec.ts", "tests-e2e/visual-editor-workspace.spec.ts"),
+    "UI_EDITOR": ("tests-e2e/app-shell.spec.ts", "tests-e2e/visual-editor-workspace.spec.ts", "tests-e2e/palette-358-mounted.spec.ts"),
     "SCRIPT_ENGINEERING": ("tests-e2e/script-engineering-workspace-contract.spec.ts",),
     "SCRIPT_RUNTIME": ("tests-e2e/python-runtime-host.spec.ts",),
     "RUNTIME_RENDERER": ("tests-e2e/runtime.spec.ts", "tests-e2e/wave-14-c25-runtime-session.spec.ts"),

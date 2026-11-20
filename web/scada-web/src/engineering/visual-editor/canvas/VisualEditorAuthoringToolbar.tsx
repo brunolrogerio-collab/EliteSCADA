@@ -35,7 +35,7 @@ export function VisualEditorAuthoringToolbar({
 }) {
   const editorText = useC07VisualEditorText();
   const text = editorText.toolbar;
-  const palette = editorText.palette as Readonly<Record<string, string>>;
+  const palette = editorText.palette;
   const state = useMemo(
     () => buildVisualEditorAuthoringToolbarState(screen, selectedObjectIds),
     [screen, selectedObjectIds]
@@ -85,34 +85,34 @@ export function VisualEditorAuthoringToolbar({
   };
 
   const inserts = [
-    [BUILTIN_VISUAL_OBJECT_TYPES.group, '⊞', 'group', 'Group'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.rectangle, '▭', 'rectangle', 'Rectangle'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.ellipse, '◯', 'ellipse', 'Ellipse'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.line, '╱', 'line', 'Line'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.arc, '◜', 'arc', 'Arc'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.bezier, '⌒', 'bezier', 'Bezier curve'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.polygon, '⬠', 'polygon', 'Polygon'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.text, 'T', 'text', 'Text'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.image, '▧', 'image', 'Image'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.model3d, '◈', 'model3d', '3D model'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer, '▶', 'videoPlayer', 'Video'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer, 'PDF', 'pdfViewer', 'PDF viewer'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher, '▤', 'reportLauncher', 'Report launcher'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay, '#', 'valueDisplay', 'Value display'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.trend, '⌁', 'trend', 'Trend'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser, '!', 'alarmBrowser', 'Alarm browser'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser, '≡', 'eventBrowser', 'Event browser'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.button, '▰', 'button', 'Button'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.checkBox, '☑', 'checkBox', 'CheckBox'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.comboBox, '▾', 'comboBox', 'ComboBox'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.slider, '☷', 'slider', 'Slider'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.numericInput, '123', 'numericInput', 'Numeric input'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.measurementDial, '◔', 'measurementDial', 'Measurement dial'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.measurementRing, '◉', 'measurementRing', 'Measurement ring'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.measurementBar, '▰', 'measurementBar', 'Graduated bar'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer, '↕', 'measurementThermometer', 'Vertical thermometer'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.measurementBands, '▥', 'measurementBands', 'Range bands'],
-    [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, '⊙', 'measurementTarget', 'Actual vs target']
+    [BUILTIN_VISUAL_OBJECT_TYPES.group, '⊞', 'group'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.rectangle, '▭', 'rectangle'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.ellipse, '◯', 'ellipse'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.line, '╱', 'line'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.arc, '◜', 'arc'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.bezier, '⌒', 'bezier'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.polygon, '⬠', 'polygon'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.text, 'T', 'text'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.image, '▧', 'image'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.model3d, '◈', 'model3d'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer, '▶', 'videoPlayer'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer, 'PDF', 'pdfViewer'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher, '▤', 'reportLauncher'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay, '#', 'valueDisplay'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.trend, '⌁', 'trend'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser, '!', 'alarmBrowser'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser, '≡', 'eventBrowser'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.button, '▰', 'button'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.checkBox, '☑', 'checkBox'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.comboBox, '▾', 'comboBox'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.slider, '☷', 'slider'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.numericInput, '123', 'numericInput'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementDial, '◔', 'measurementDial'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementRing, '◉', 'measurementRing'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementBar, '▰', 'measurementBar'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer, '↕', 'measurementThermometer'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementBands, '▥', 'measurementBands'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, '⊙', 'measurementTarget']
   ] as const;
 
   const embedded = placement === 'arrangement';
@@ -123,19 +123,19 @@ export function VisualEditorAuthoringToolbar({
     data-testid={embedded ? 'visual-editor-arrangement-toolbar' : 'visual-editor-authoring-toolbar'}
   >
     {placement !== 'arrangement' ? <>
-    <ToolbarGroup label="Draw">
-      {inserts.slice(0, 7).map(([objectType, glyph, labelKey, fallbackLabel]) => <Tool
+    <ToolbarGroup label={text.draw}>
+      {inserts.slice(0, 7).map(([objectType, glyph, labelKey]) => <Tool
         key={objectType}
-        label={palette[labelKey] ?? fallbackLabel}
+        label={palette[labelKey]}
         disabled={!onInsertObject}
         onClick={() => onInsertObject?.(objectType)}
         dataObjectType={objectType}
       >{glyph}</Tool>)}
     </ToolbarGroup>
-    <ToolbarGroup label="Display and controls">
-      {inserts.slice(7).map(([objectType, glyph, labelKey, fallbackLabel]) => <Tool
+    <ToolbarGroup label={text.displayControls}>
+      {inserts.slice(7).map(([objectType, glyph, labelKey]) => <Tool
         key={objectType}
-        label={palette[labelKey] ?? fallbackLabel}
+        label={palette[labelKey]}
         disabled={!onInsertObject}
         onClick={() => onInsertObject?.(objectType)}
         dataObjectType={objectType}

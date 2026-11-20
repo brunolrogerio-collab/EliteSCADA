@@ -56,4 +56,3 @@ for (const locale of ['pt-BR', 'en', 'es'] as const) {
     }
   }
 }
-

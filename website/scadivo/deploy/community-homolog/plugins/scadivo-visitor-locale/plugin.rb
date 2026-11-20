@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # name: scadivo-visitor-locale
-# version: 1.0.0
+# version: 1.1.0
 
 require "http_accept_language"
 
@@ -35,4 +35,48 @@ module ScadivoVisitorLocale
   end
 end
 
-after_initialize { Discourse.singleton_class.prepend(ScadivoVisitorLocale) }
+module ScadivoCategoryDescriptionLocale
+  def description_text
+    description = translated_category_description
+    return super unless description
+
+    ERB::Util.html_escape(Nokogiri::HTML5.fragment(description).text.strip).html_safe
+  end
+
+  def description_excerpt
+    description = translated_category_description
+    description ? PrettyText.excerpt(PrettyText.cook(description), 300) : super
+  end
+
+  private
+
+  def translated_category_description
+    return if object.uncategorized? || !ContentLocalization.show_translated_category?(object, scope)
+
+    object.get_localization&.description.presence
+  end
+end
+
+module ScadivoManualLocaleCookie
+  def no_cache_bypass
+    if SiteSetting.set_locale_from_param && SiteSetting.set_locale_from_cookie
+      locale = @request.params[Discourse::LOCALE_PARAM]
+      return false if locale.is_a?(String) && I18n.locale_available?(locale)
+    end
+
+    super
+  end
+end
+
+after_initialize do
+  Discourse.singleton_class.prepend(ScadivoVisitorLocale)
+  # In 2026.1 the catalog still reads the original excerpts from this serializer.
+  unless CategoryLocalization.method_defined?(:description_excerpt)
+    SiteCategorySerializer.prepend(ScadivoCategoryDescriptionLocale)
+  end
+  # The manual selection must reach the controller that writes the locale cookie.
+  if defined?(Middleware::AnonymousCache::Helper) &&
+       Middleware::AnonymousCache::Helper.method_defined?(:no_cache_bypass)
+    Middleware::AnonymousCache::Helper.prepend(ScadivoManualLocaleCookie)
+  end
+end

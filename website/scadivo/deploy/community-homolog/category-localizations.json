@@ -1,0 +1,122 @@
+[
+  {
+    "slug": "comece-aqui",
+    "sourceTitle": "Comece aqui",
+    "sourceDescription": "Leia as boas-vindas e as <a href=\"/t/regras-da-comunidade-scadivo/4\">regras da comunidade</a> antes de publicar.",
+    "translations": {
+      "en": {
+        "name": "Get Started",
+        "description": "Read the welcome post and the <a href=\"/t/regras-da-comunidade-scadivo/4\">community rules</a> before posting."
+      },
+      "es": {
+        "name": "Empieza aquí",
+        "description": "Lee el mensaje de bienvenida y las <a href=\"/t/regras-da-comunidade-scadivo/4\">reglas de la comunidad</a> antes de publicar."
+      }
+    }
+  },
+  {
+    "slug": "ideias-melhorias",
+    "sourceTitle": "Ideias e melhorias",
+    "sourceDescription": "Apresente uma sugestão por tópico. Explique o problema que deseja resolver, o contexto de uso e o resultado esperado. As contribuições ajudam a orientar a evolução do SCADIVO; não representam compromisso de implementação.",
+    "translations": {
+      "en": {
+        "name": "Ideas and Improvements",
+        "description": "Share one suggestion per topic. Explain the problem you want to solve, how you would use the feature, and the outcome you expect. Suggestions help guide SCADIVO’s development and carry no commitment to implementation."
+      },
+      "es": {
+        "name": "Ideas y mejoras",
+        "description": "Presenta una sugerencia por tema. Explica el problema que quieres resolver, el contexto de uso y el resultado esperado. Las contribuciones ayudan a orientar el desarrollo de SCADIVO y no implican un compromiso de implementación."
+      }
+    }
+  },
+  {
+    "slug": "duvidas-solucao-problemas",
+    "sourceTitle": "Dúvidas e solução de problemas",
+    "sourceDescription": "Antes de abrir um tópico, pesquise se o assunto já existe. Inclua a versão do SCADIVO, o objetivo, os passos para reproduzir e o que esperava que acontecesse.",
+    "translations": {
+      "en": {
+        "name": "Questions and Troubleshooting",
+        "description": "Before starting a topic, search for an existing discussion. Include your SCADIVO version, your goal, the steps to reproduce the issue, and what you expected to happen."
+      },
+      "es": {
+        "name": "Preguntas y solución de problemas",
+        "description": "Antes de abrir un tema, busca si ya existe una conversación sobre el asunto. Incluye la versión de SCADIVO, el objetivo, los pasos para reproducir el problema y lo que esperabas que ocurriera."
+      }
+    }
+  },
+  {
+    "slug": "instalacao-e-configuracao",
+    "sourceTitle": "Instalação e configuração",
+    "sourceDescription": "Este espaço é para requisitos, instalação e configuração do SCADIVO em Windows, Linux, Docker e edge computing.",
+    "translations": {
+      "en": {
+        "name": "Installation and Configuration",
+        "description": "Discuss SCADIVO requirements, installation, and configuration on Windows, Linux, Docker, and edge computing devices."
+      },
+      "es": {
+        "name": "Instalación y configuración",
+        "description": "Este espacio es para conversar sobre los requisitos, la instalación y la configuración de SCADIVO en Windows, Linux, Docker y dispositivos de computación en el borde."
+      }
+    }
+  },
+  {
+    "slug": "engenharia-operacao-projetos",
+    "sourceTitle": "Engenharia, operação e projetos",
+    "sourceDescription": "Conversas sobre tags, telas, alarmes, eventos, fontes de dados, redundância, históricos e tendências, além de aplicações residenciais, prediais e industriais.",
+    "translations": {
+      "en": {
+        "name": "Engineering, Operations, and Projects",
+        "description": "Discuss tags, screens, alarms, events, data sources, redundancy, historical data, and trends, as well as residential, building, and industrial applications."
+      },
+      "es": {
+        "name": "Ingeniería, operación y proyectos",
+        "description": "Conversaciones sobre tags, pantallas, alarmas, eventos, fuentes de datos, redundancia, históricos y tendencias, además de aplicaciones residenciales, para edificios e industriales."
+      }
+    }
+  },
+  {
+    "slug": "scripts-python-automacoes",
+    "sourceTitle": "Scripts Python e automações",
+    "sourceDescription": "Compartilhe dúvidas e exemplos de scripts Python e automações de qualquer complexidade.",
+    "translations": {
+      "en": {
+        "name": "Python Scripts and Automation",
+        "description": "Share questions and examples of Python scripts and automation at any level of complexity."
+      },
+      "es": {
+        "name": "Scripts de Python y automatización",
+        "description": "Comparte preguntas y ejemplos de scripts de Python y automatizaciones de cualquier nivel de complejidad."
+      }
+    }
+  },
+  {
+    "slug": "integracoes-protocolos",
+    "sourceTitle": "Integrações e protocolos",
+    "sourceDescription": "Espaço para integração com equipamentos, controladores, bancos de dados e protocolos de comunicação.",
+    "translations": {
+      "en": {
+        "name": "Integrations and Protocols",
+        "description": "Discuss integrations with equipment, controllers, databases, and communication protocols."
+      },
+      "es": {
+        "name": "Integraciones y protocolos",
+        "description": "Espacio para hablar sobre la integración con equipos, controladores, bases de datos y protocolos de comunicación."
+      }
+    }
+  },
+  {
+    "slug": "comunicados-scadivo",
+    "sourceTitle": "Comunicados SCADIVO",
+    "sourceDescription": "A equipe publica aqui novidades, versões e comunicados oficiais. Esta categoria é somente para leitura; use <strong>Ideias e melhorias</strong> para enviar sugestões.",
+    "translations": {
+      "en": {
+        "name": "SCADIVO Announcements",
+        "description": "The team posts news, releases, and official announcements here. This category is read-only. Share suggestions in <strong>Ideas and Improvements</strong>."
+      },
+      "es": {
+        "name": "Comunicados de SCADIVO",
+        "description": "El equipo publica aquí novedades, versiones y comunicados oficiales. Esta categoría es de solo lectura. Comparte tus sugerencias en <strong>Ideas y mejoras</strong>."
+      }
+    }
+  }
+]

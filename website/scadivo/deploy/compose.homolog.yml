@@ -54,6 +54,7 @@ services:
       Portal__PublicRegistrationEnabled: 'true'
       Portal__LegalPreviewEnabled: ${SCADIVO_HOMOLOG_LEGAL_PREVIEW:-false}
       Portal__RegistrationAgeCheckEnabled: ${SCADIVO_HOMOLOG_AGE_CHECK:-false}
+      Portal__DataCopyEnabled: ${SCADIVO_HOMOLOG_DATA_COPY:-false}
       Portal__OfflineMachineLicenseRequestsEnabled: 'true'
       Portal__Email__Enabled: 'true'
       Portal__Email__Host: portal-mailpit-homolog

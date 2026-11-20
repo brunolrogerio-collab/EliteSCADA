@@ -2,10 +2,11 @@
 
 const state = { session: null, lang: 'pt-BR', tab: 'home', adminTab: 'accounts', invite: null, confirmEmail: null, resetPassword: null, communitySso: null, recover: false, register: false, pendingEmail: '', version: 0 };
 const communitySsoStorageKey = 'scadivo.portal.community-sso';
+const dataCopyRequested = new URLSearchParams(location.search).get('privacy') === 'data-copy';
 try {
   const requested = new URLSearchParams(location.search).get('lang');
   const remembered = localStorage.getItem('scadivo.portal.lang') || localStorage.getItem('scadivo-site-language');
-  const preferred = ['en', 'es'].includes(requested) ? requested : remembered;
+  const preferred = ['pt-BR', 'en', 'es'].includes(requested) ? requested : remembered;
   state.lang = ['en', 'es'].includes(preferred) ? preferred : 'pt-BR';
 } catch { /* Portuguese remains the default when storage is unavailable. */ }
 const app = document.querySelector('#app');
@@ -170,12 +171,14 @@ function errorText(code) {
     'registration-age-required': tr('Informe sua data de nascimento para verificar a idade.', 'Enter your date of birth to check your age.', 'Indica tu fecha de nacimiento para comprobar tu edad.'),
     'registration-age-invalid': tr('Informe uma data de nascimento válida, sem usar uma data futura.', 'Enter a valid date of birth that is not in the future.', 'Indica una fecha de nacimiento válida que no sea futura.'),
     'registration-minimum-age': tr('Você precisa ter 16 anos completos para se cadastrar.', 'You must be at least 16 years old to sign up.', 'Debes tener al menos 16 años cumplidos para registrarte.'),
+    'data-copy-password-invalid': tr('Não foi possível confirmar sua senha atual.', 'We could not verify your current password.', 'No se pudo confirmar tu contraseña actual.'),
     'invalid-indicators-period': tr('Selecione um período de até 90 dias, sem datas futuras.', 'Choose a period of up to 90 days, with no future dates.', 'Elige un periodo de hasta 90 días, sin fechas futuras.')
   };
   return errors[code] || tr('Não foi possível concluir. Tente novamente.', 'Unable to complete. Please try again.');
 }
-async function api(path, method = 'GET', body) {
+async function api(path, method = 'GET', body, download = false) {
   const response = await fetch(`/portal/api${path}`, { method, credentials: 'same-origin', headers: method === 'GET' ? {} : { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': state.session?.csrfToken || '' }, body: body == null ? undefined : JSON.stringify(body) });
+  if (download && response.ok) return response.blob();
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
     if (response.status === 401 && !path.includes('/auth/login')) {
@@ -246,7 +249,12 @@ function renderHeader() {
 }
 function login() {
   const intro = h('section', { class: 'login-intro' }, [badge(tr('ÁREA DO CLIENTE · PILOTO', 'CUSTOMER PORTAL · PILOT')), h('h1', {}, tr('Uma conta. Mais conexão com seu projeto.', 'One account. Closer to your project.')), p(tr('Suporte, conhecimento e distribuição oficial do SCADIVO, em um ambiente próprio para clientes e integradores.', 'SCADIVO support, knowledge and official distribution, in a dedicated environment for customers and integrators.')), h('div', { class: 'intro-features' }, [panel(tr('Suporte privado', 'Private support'), p(tr('Converse com a equipe e acompanhe seus chamados.', 'Talk to the team and track your requests.'))), panel(tr('Conhecimento e downloads', 'Knowledge and downloads'), p(tr('FAQ pesquisável e catálogo de versões oficiais.', 'Searchable FAQ and official release catalog.')))]), notice(tr('Este portal tem contas próprias. O acesso à engenharia da demonstração é independente.', 'This portal has its own accounts. Demo engineering access is separate.'))]);
-  const card = panel(tr('Entre no portal', 'Sign in to the portal'), p(tr('Use seu e-mail ou nome de usuário.', 'Use your email or username.')), form([
+  const card = panel(tr('Entre no portal', 'Sign in to the portal'),
+    state.session?.dataCopyEnabled && dataCopyRequested && notice(tr(
+      'Entre para solicitar e baixar uma cópia dos seus dados do Portal.',
+      'Sign in to request and download a copy of your Portal data.',
+      'Inicia sesión para solicitar y descargar una copia de tus datos del Portal.')),
+    p(tr('Use seu e-mail ou nome de usuário.', 'Use your email or username.')), form([
     field(tr('E-mail ou usuário', 'Email or username'), input('username', 'text', state.pendingEmail, { autocomplete: 'username', maxLength: 256 })),
     field(tr('Senha', 'Password'), input('password', 'password', '', { autocomplete: 'current-password', maxLength: 1024 }))
   ], tr('Entrar', 'Sign in'), async data => { await api('/auth/login', 'POST', data); await session(); state.pendingEmail = ''; if (continueCommunitySso()) return; render(); }));
@@ -442,6 +450,35 @@ async function render() {
 function home() {
   return h('div', {}, [panel(`${tr('Olá', 'Hello')}, ${state.session.user.displayName}.`, p(tr('Este é seu ponto de encontro com o SCADIVO. Comece pelo conhecimento, abra uma conversa privada ou acompanhe as versões disponibilizadas pela equipe.', 'This is your SCADIVO hub. Explore the knowledge base, start a private conversation or follow releases made available by the team.'))), h('div', { class: 'content-grid' }, ['faq', 'support', 'downloads', 'profile'].map(id => panel(labels()[id], p(({ faq: tr('Encontre respostas sobre implantação e uso.', 'Find answers about deployment and use.'), support: tr('Acompanhe suas conversas com a equipe.', 'Follow your conversations with the team.'), downloads: tr('Somente arquivos de distribuição aprovados.', 'Approved distribution files only.'), profile: tr('Mantenha seu perfil e senha atualizados.', 'Keep your profile and password up to date.') })[id]), button(tr('Acessar →', 'Open →'), () => navigate(id))))), notice(tr('O SCADIVO é gratuito para até 200 TAGs. Organize suas aplicações e consulte os direitos de uso na aba Licenças.', 'SCADIVO is free for up to 200 tags. Organize your applications and view entitlements in the Licenses tab.', 'SCADIVO es gratuito hasta 200 TAGs. Organiza tus aplicaciones y consulta los derechos de uso en la pestaña Licencias.'))]);
 }
+function privacyDataCopy() {
+  const communityUrl = state.session.communityStartUrl;
+  const contactUrl = '/contato?area=contato&subject=privacy&lang=' + state.lang;
+  return panel(tr('Cópia dos meus dados', 'Copy of my data', 'Copia de mis datos'),
+    p(tr('Confirme sua senha atual para baixar os dados da sua conta do Portal em formato JSON.',
+      'Confirm your current password to download your Portal account data as a JSON file.',
+      'Confirma tu contraseña actual para descargar los datos de tu cuenta del Portal en formato JSON.')),
+    form([
+      field(tr('Senha atual', 'Current password'), input('currentPassword', 'password', '', { maxLength: 1024, autocomplete: 'current-password' }))
+    ], tr('Solicitar e baixar cópia', 'Request and download a copy', 'Solicitar y descargar una copia'), async (data, formNode) => {
+      formNode.reset();
+      const blob = await api('/privacy/data-copy', 'POST', data, true);
+      const url = URL.createObjectURL(blob);
+      const link = h('a', { href: url, download: 'scadivo-portal-data.json' });
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      feedback(tr('Download da cópia iniciado.', 'Your download has started.', 'Se inició la descarga de tu copia.'));
+    }),
+    p([tr('Os dados da Comunidade ficam disponíveis em Preferências → Conta → Exportar seus dados. ',
+      'Community data is available under Preferences → Account → Export your data. ',
+      'Los datos de la Comunidad están disponibles en Preferencias → Cuenta → Exportar tus datos. '),
+    communityUrl && h('a', { href: new URL('/my/preferences/account', communityUrl).href },
+      tr('Abrir preferências da Comunidade', 'Open Community preferences', 'Abrir las preferencias de la Comunidad'))]),
+    p([tr('Para pedir registros adicionais de atendimento, use ', 'For additional correspondence, use ', 'Para solicitar correspondencia adicional, usa '),
+      h('a', { href: contactUrl }, tr('Contato → Privacidade', 'Contact → Privacy', 'Contacto → Privacidad')), '.'])
+  );
+}
 function profile() {
   const user = state.session.user;
   const accountUsername = user.userName?.toLowerCase() === user.email?.toLowerCase() ? '' : user.userName;
@@ -460,7 +497,7 @@ function profile() {
     field(tr('Nova senha', 'New password'), input('newPassword', 'password', '', { autocomplete: 'new-password', minLength: 8 }), tr('Mínimo de 8 caracteres, maiúscula, minúscula e número.', 'At least 8 characters, uppercase, lowercase and a number.')),
     field(tr('Repita a nova senha', 'Repeat new password'), input('confirmation', 'password', '', { autocomplete: 'new-password', minLength: 8 }))
   ], tr('Atualizar senha', 'Update password'), async (data, node) => { if (data.newPassword !== data.confirmation) throw new Error(tr('As senhas não coincidem.', 'The passwords do not match.')); await api('/profile/password', 'POST', data); await session(); node.reset(); feedback(tr('Senha atualizada.', 'Password updated.')); }))]);
-  return h('div', {}, [languagePreference(), account]);
+  return h('div', {}, [state.session.dataCopyEnabled && privacyDataCopy(), languagePreference(), account]);
 }
 async function support() {
   const tickets = await api('/support');

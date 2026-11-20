@@ -23,6 +23,7 @@ public static class PortalEndpoints
                 csrfToken = token.RequestToken,
                 publicRegistrationEnabled = configuration.GetValue<bool>("Portal:PublicRegistrationEnabled"),
                 registrationAgeCheck = PortalRegistrationAge.IsEnabled(configuration),
+                dataCopyEnabled = PortalDataCopy.IsEnabled(configuration),
                 legalPreview,
                 emailDeliveryConfigured = emailSettings.Value.Enabled,
                 communityEnabled = community.Enabled,
@@ -49,6 +50,8 @@ public static class PortalEndpoints
 
         var account = app.MapGroup("/api").RequireAuthorization().RequireRateLimiting("writes");
         account.MapGet("/profile", (HttpContext context, PortalOperations operations) => operations.Profile(context));
+        account.MapPost("/privacy/data-copy", (DataCopyInput input, HttpContext context, PortalDataCopy copy, CancellationToken token) =>
+            copy.DownloadAsync(input, context, token)).RequireRateLimiting("auth");
         account.MapPut("/profile", (ProfileInput input, HttpContext context, PortalOperations operations) => operations.UpdateProfile(input, context));
         account.MapPut("/profile/locale", (ProfileLocaleInput input, HttpContext context, PortalOperations operations) => operations.UpdateProfileLocale(input, context));
         account.MapPost("/profile/password", (PasswordInput input, HttpContext context, PortalOperations operations) => operations.ChangePassword(input, context));

@@ -118,6 +118,7 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 40, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 builder.Services.AddScoped<PortalOperations>();
+builder.Services.AddScoped<PortalDataCopy>();
 builder.Services.AddScoped<PortalIndicators>();
 builder.Services.AddScoped<PortalAccountClosure>();
 builder.Services.AddScoped<PortalRetention>();

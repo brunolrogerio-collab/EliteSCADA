@@ -26,6 +26,81 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
     private const string Password = "Scad1vo!";
 
     [Fact]
+    public async Task DataCopyReauthenticatesAndExportsOnlyTheSignedInAccount()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "scadivo-data-copy-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var passwordFile = Path.Combine(root, "test-credential");
+        await File.WriteAllTextAsync(passwordFile, Password);
+        var configuration = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Portal"] = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+                ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!",
+            ["Portal:Bootstrap:PasswordFile"] = passwordFile,
+            ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
+            ["Portal:PublicUrl"] = "https://localhost/portal/",
+            ["Portal:DataCopyEnabled"] = "true"
+        };
+        const string path = "/privacy/data-copy";
+        try
+        {
+            await using var factory = Factory(configuration);
+            await using var scope = factory.Services.CreateAsyncScope();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<PortalUser>>();
+            async Task<PortalUser> Account(string label)
+            {
+                var user = new PortalUser
+                {
+                    UserName = label + Guid.NewGuid().ToString("N")[..8],
+                    EmailConfirmed = true,
+                    InvitationAccepted = true
+                };
+                user.Email = user.UserName + "@example.test";
+                Assert.True((await users.CreateAsync(user, Password)).Succeeded);
+                return user;
+            }
+            var account = await Account("export");
+            var other = await Account("unrelated");
+            var signedIn = await Login(factory, account.UserName!);
+            using var signedInClient = signedIn.Client;
+            var own = await signedIn.Send("/support", HttpMethod.Post,
+                new { subject = "My privacy test", category = "technical", body = "Message from the requesting account" });
+            var otherSession = await Login(factory, other.UserName!);
+            using var otherClient = otherSession.Client;
+            await otherSession.Send("/support", HttpMethod.Post,
+                new { subject = "Other privacy test", category = "technical", body = "Message from the unrelated account" });
+
+            using var anonymous = Client(factory);
+            var anonymousSession = new Session(anonymous, await Csrf(anonymous));
+            using var unauthenticated = await anonymousSession.Raw(path, HttpMethod.Post, new { currentPassword = Password });
+            Assert.Equal(HttpStatusCode.Unauthorized, unauthenticated.StatusCode);
+            using var noCsrf = await signedInClient.PostAsJsonAsync("api" + path, new { currentPassword = Password });
+            Assert.Equal(HttpStatusCode.BadRequest, noCsrf.StatusCode);
+            using var wrong = await signedIn.Raw(path, HttpMethod.Post, new { currentPassword = Password + "-wrong" });
+            Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
+            Assert.Equal("data-copy-password-invalid", (await wrong.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
+
+            using var copy = await signedIn.Raw(path, HttpMethod.Post, new { currentPassword = Password, userId = other.Id });
+            Assert.Equal(HttpStatusCode.OK, copy.StatusCode);
+            Assert.True(copy.Headers.CacheControl!.NoStore);
+            Assert.Equal("attachment", copy.Content.Headers.ContentDisposition!.DispositionType);
+            Assert.Equal("application/json", copy.Content.Headers.ContentType!.MediaType);
+            var data = await copy.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(account.Id, data.GetProperty("account").GetProperty("id").GetString());
+            Assert.Equal(own.GetProperty("id").GetGuid(), data.GetProperty("supportTickets").EnumerateArray().Single().GetProperty("id").GetGuid());
+            Assert.Equal("Message from the requesting account", data.GetProperty("supportMessages").EnumerateArray().Single().GetProperty("body").GetString());
+            var serialized = data.GetRawText();
+            Assert.DoesNotContain(other.Id, serialized, StringComparison.Ordinal);
+            Assert.DoesNotContain("Message from the unrelated account", serialized, StringComparison.Ordinal);
+            Assert.DoesNotContain("passwordHash", serialized, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("securityStamp", serialized, StringComparison.OrdinalIgnoreCase);
+            var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+            Assert.Equal(1, await db.Audit.CountAsync(row => row.ActorId == account.Id && row.Action == "privacy.data-copy.generated"));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
     public async Task InactivityNoticeQueueDeduplicatesAndProtectsRecentAndLicensedAccounts()
     {
         const string template = "account.inactivity-notice";

@@ -144,6 +144,7 @@ test('Intelligence generates visible equipment and process dashboards in the can
   await expect(editor.locator('.visual-editor-header-status')).toContainText('7 objetos');
   await expect(editor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
   await expect(editor.getByTestId('runtime-intelligence-profile-coverage')).toBeVisible();
+  await expect(editor.getByTestId('visual-editor-canonical-layer').getByText('Tendência histórica', { exact: true })).toBeVisible();
   await expect(editor.locator('[data-widget-type="core.measurementDial"]')).toBeVisible();
   await expect(editor.getByTestId('visual-editor-preview')).toBeEnabled();
   await expect(editor.getByTestId('visual-editor-apply')).toBeDisabled();
@@ -174,7 +175,7 @@ test('Intelligence generates visible equipment and process dashboards in the can
   await expect(page).toHaveURL(/\/engineering\/screens$/);
   const coverageEditor = page.getByTestId('visual-editor-workspace');
   await expect(coverageEditor).toBeVisible();
-  await expect(coverageEditor.getByLabel('Nome de exibição')).toHaveValue(/Cobertura histórica · Pump P-101 · Pump process profile/);
+  await expect(coverageEditor.getByLabel('Nome de exibição')).toHaveValue(/Dados disponíveis · Pump P-101 · Pump process profile/);
   await expect(coverageEditor.getByTestId('visual-editor-canonical-layer')).toBeVisible();
   await expect(coverageEditor.getByTestId('visual-editor-apply')).toBeDisabled();
 

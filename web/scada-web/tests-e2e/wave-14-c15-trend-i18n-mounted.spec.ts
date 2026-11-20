@@ -70,7 +70,11 @@ test('C15 mounted Runtime Trend exposes Portuguese no-data state', async ({ page
     });
   });
 
-  await page.goto(`${trendHarness}?locale=pt-BR`);
+  await page.goto(`${trendHarness}?locale=pt-BR&controls=on`);
   await expect(page.getByTestId('visual-trend').first()).toBeVisible();
   await expect(page.getByTestId('visual-trend-empty').first()).toHaveText('Sem dados');
+  const chart = page.getByTestId('visual-trend').first();
+  const activeMeasurements = chart.locator('[data-testid="visual-trend-pen-toggle"][aria-pressed="true"]');
+  while (await activeMeasurements.count() > 0) await activeMeasurements.first().click();
+  await expect(chart.getByTestId('visual-trend-empty')).toHaveText('Selecione as medições na legenda para ver o gráfico.');
 });

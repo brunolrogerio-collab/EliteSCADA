@@ -175,6 +175,9 @@ public static class HistoricalQueryValidator
                     nameof(filters));
 
             var values = filter.Values.Select(value => NormalizeValue(definition.Type, value)).ToArray();
+            if (dataset.Id == HistoricalDatasets.AlarmEvents && field == "priority" &&
+                values.Any(value => value.AsNumber() is not (1 or 2 or 3 or 4)))
+                throw new ArgumentException("Alarm priority must be an integer from 1 to 4.", nameof(filters));
             normalized.Add(new HistoricalFilter(field, filter.Operator, values));
         }
 

@@ -7,6 +7,8 @@ import { hasRuntimeCapability, useEffectiveCapabilities } from '../../auth/effec
 import { ApplicationBrand, resolveApplicationBranding } from '../../branding/ApplicationBranding';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import { RuntimeAlarmCenter } from '../RuntimeAlarmCenter';
+import { loadRuntimeAlarms } from '../alarmCenterApi';
+import { loadSavedHistoryCatalog, type SavedHistoryCatalog } from '../historical-browser/historicalQueryApi';
 import { HistoricalDataBrowserRuntime } from '../historical-browser/HistoricalDataBrowserRuntime';
 import { historicalBrowserCopy } from '../historical-browser/historicalBrowserI18n';
 import { HistoricalPlaybackProvider, useHistoricalPlayback } from '../historical-playback/HistoricalPlaybackContext';
@@ -278,6 +280,21 @@ function EngineeringRuntimeApplicationContent({
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [alarmsOpen, setAlarmsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [savedHistory, setSavedHistory] = useState<SavedHistoryCatalog>({ queries: [], views: [] });
+  const [savedAlarmKey, setSavedAlarmKey] = useState('');
+  const overlayOpen = historyOpen || alarmsOpen;
+  useEffect(() => {
+    if (!overlayOpen) return;
+    const controller = new AbortController();
+    void loadSavedHistoryCatalog(controller.signal).then(catalog => {
+      if (controller.signal.aborted) return;
+      setSavedHistory(catalog);
+      setSavedAlarmKey(current => catalog.views.some(view => view.key === current) ? current : '');
+    }).catch(() => {});
+    return () => controller.abort();
+  }, [overlayOpen, projection.projectKey, projection.revision]);
+  const loadSavedAlarms = useCallback((signal?: AbortSignal) =>
+    loadRuntimeAlarms(true, signal, savedAlarmKey), [savedAlarmKey]);
   const [playbackOpen, setPlaybackOpen] = useState(false);
   const engineeringPackage = projection.package!;
   const header = engineeringPackage.runtimePresentation?.header;
@@ -661,7 +678,8 @@ function EngineeringRuntimeApplicationContent({
                 ? locale === 'pt-BR' ? `Reabrir tela ${recovery.index + 1}` : locale === 'es' ? `Reabrir pantalla ${recovery.index + 1}` : `Reopen screen ${recovery.index + 1}`
                 : locale === 'pt-BR' ? `Abrir tela ${recovery.index + 1}` : locale === 'es' ? `Abrir pantalla ${recovery.index + 1}` : `Open screen ${recovery.index + 1}`}
             </a>)}
-          </div> : null}        </div>
+          </div> : null}
+        </div>
       </aside> : null}
     </header> : <div className="runtime-hidden-header-session" aria-label={text.runtime}>
       <UserSessionMenu locale={locale} includeRuntimeSessionControls runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
@@ -694,7 +712,8 @@ function EngineeringRuntimeApplicationContent({
         <button type="button" className="runtime-operator-button" onClick={() => setHistoryOpen(false)}>{historyText.closeHistory}</button>
       </div>
       <div className="runtime-operator-overlay-content runtime-history-overlay-content">
-        <HistoricalDataBrowserRuntime locale={locale} />
+        <HistoricalDataBrowserRuntime locale={locale} savedQueries={savedHistory.queries}
+          alarmViews={savedHistory.views} alarmViewKey={savedAlarmKey} onAlarmViewChange={setSavedAlarmKey} />
       </div>
     </aside> : null}
 
@@ -706,7 +725,14 @@ function EngineeringRuntimeApplicationContent({
         <button type="button" className="runtime-operator-button" onClick={() => setAlarmsOpen(false)}>{text.closeAlarms}</button>
       </div>
       <div className="runtime-operator-overlay-content">
-        <RuntimeAlarmCenter locale={locale} visible={alarmsOpen} />
+        {savedHistory.views.length > 0 && <label>
+          {locale === 'pt-BR' ? 'Filtro salvo de alarmes' : locale === 'es' ? 'Filtro de alarmas guardado' : 'Saved alarm filter'}
+          <select value={savedAlarmKey} onChange={event => setSavedAlarmKey(event.target.value)}>
+            <option value="">{locale === 'pt-BR' ? 'Todos' : locale === 'es' ? 'Todas' : 'All'}</option>
+            {savedHistory.views.map(view => <option key={view.key} value={view.key}>{view.name}</option>)}
+          </select>
+        </label>}
+        <RuntimeAlarmCenter locale={locale} visible={alarmsOpen} loader={loadSavedAlarms} />
       </div>
     </aside>
   </main>;

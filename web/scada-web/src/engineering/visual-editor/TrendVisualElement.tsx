@@ -847,7 +847,10 @@ function TrendSeriesPath({
     const fractionY = (sample.value - domain.minimum) / Math.max(Number.EPSILON, domain.maximum - domain.minimum);
     const x = plot.left + fractionX * (plot.right - plot.left);
     const y = plot.bottom - fractionY * (plot.bottom - plot.top);
-    commands.push(`${drawing ? 'L' : 'M'}${clamp(x, plot.left, plot.right).toFixed(2)} ${clamp(y, plot.top, plot.bottom).toFixed(2)}`);
+    const xCoordinate = clamp(x, plot.left, plot.right).toFixed(2);
+    const yCoordinate = clamp(y, plot.top, plot.bottom).toFixed(2);
+    if (drawing && sample.digital) commands.push('H' + xCoordinate, 'V' + yCoordinate);
+    else commands.push((drawing ? 'L' : 'M') + xCoordinate + ' ' + yCoordinate);
     drawing = true;
   }
   if (commands.length === 0) return null;

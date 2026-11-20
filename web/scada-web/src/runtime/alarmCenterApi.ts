@@ -14,10 +14,11 @@ const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export async function loadRuntimeAlarms(
   activeOnly: boolean,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  alarmViewKey?: string
 ): Promise<RuntimeAlarmCenterEndpoint<RuntimeAlarmCenterItem[]>> {
   return loadAlarmEndpoint<RuntimeAlarmCenterItem[]>(
-    `${API}/api/alarms?activeOnly=${activeOnly ? 'true' : 'false'}`,
+    `${API}/api/alarms?activeOnly=${activeOnly ? 'true' : 'false'}${alarmViewKey ? '&alarmViewKey=' + encodeURIComponent(alarmViewKey) : ''}`,
     signal
   );
 }

@@ -134,6 +134,23 @@ public sealed class HistoricalQueryCoreTests
             HistoricalQueryValidator.Validate(multipleSorts));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2.5)]
+    [InlineData(800)]
+    public void Validator_RejectsPriorityOutsideCanonicalAlarmRange(double priority)
+    {
+        var request = new HistoricalQueryRequest(
+            HistoricalDatasets.AlarmEvents,
+            HistoricalTimeRange.Relative(3600),
+            Filters:
+            [
+                new HistoricalFilter("priority", HistoricalFilterOperator.Eq,
+                    [HistoricalQueryValue.FromNumber(priority)])
+            ]);
+        Assert.Throws<ArgumentException>(() => HistoricalQueryValidator.Validate(request));
+    }
+
     [Fact]
     public void Validator_ResolvesConfigurableRelativeRangeAndRejectsInvalidAbsoluteRange()
     {

@@ -141,6 +141,20 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
                 $" AND (position(lower(@{name}) in lower(tag_path)) > 0 OR position(lower(@{name}) in lower(COALESCE(message, ''))) > 0)");
         }
 
+        if (query.AlarmView is { } view)
+        {
+            AppendViewConstraint("alarm_id", view.AlarmIds, sql, command);
+            AppendViewConstraint("tag_id", view.TagIds, sql, command);
+            AppendViewConstraint("priority", view.Priorities, sql, command);
+            AppendViewConstraint("state", view.States, sql, command);
+            if (view.Search is not null)
+            {
+                command.Parameters.AddWithValue("view_search", view.Search);
+                command.Parameters.AddWithValue("view_search_ids", view.SearchMatchingAlarmIds ?? []);
+                sql.Append(" AND (alarm_id = ANY(@view_search_ids) OR position(lower(@view_search) in lower(COALESCE(message, ''))) > 0)");
+            }
+        }
+
         var sortColumn = query.Sort.Field switch
         {
             "timestamp" => "timestamp_utc",
@@ -302,6 +316,15 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
             values,
             command,
             ref parameterIndex);
+    }
+
+    private static void AppendViewConstraint<T>(
+        string column, T[]? values, StringBuilder sql, NpgsqlCommand command)
+    {
+        if (values is null) return;
+        var parameter = "view_" + column;
+        command.Parameters.AddWithValue(parameter, values);
+        sql.Append($" AND {column} = ANY(@{parameter})");
     }
 
     private static string BuildPriorityFilter(

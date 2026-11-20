@@ -492,6 +492,7 @@ app.MapGet("/api/history/{tagId:guid}", async (
 
 app.MapGet("/api/alarms", async (
     bool? activeOnly,
+    string? alarmViewKey,
     HttpContext context,
     ScadaRuntimeFacade runtime,
     AlarmSuppressionRuntimeProjection suppressionProjection,
@@ -519,7 +520,17 @@ app.MapGet("/api/alarms", async (
     try
     {
         var snapshot = await suppressionProjection.BuildAsync(runtime, ct);
-        return Results.Ok(AlarmSuppressionRuntimeProjection.ProjectAlarms(visible, snapshot));
+        var projected = AlarmSuppressionRuntimeProjection.ProjectAlarms(visible, snapshot);
+        if (string.IsNullOrWhiteSpace(alarmViewKey)) return Results.Ok(projected);
+
+        var catalog = context.RequestServices.GetService<Scada.Api.Reports.RuntimeReportCatalog>();
+        var package = catalog is null ? null : await catalog.ActivePackageAsync(ct);
+        var view = RuntimeSavedHistory.FindAlarmView(package, alarmViewKey);
+        if (view is null) return Results.NotFound();
+        var definitions = runtime.AlarmDefinitions().ToDictionary(alarm => alarm.Id);
+        var byId = visible.ToDictionary(alarm => alarm.DefinitionId);
+        return Results.Ok(projected.Where(alarm => AlarmViewMatcher.Matches(view.Filter,
+            RuntimeSavedHistory.AlarmFacts(byId[alarm.DefinitionId], definitions.GetValueOrDefault(alarm.DefinitionId)))).ToArray());
     }
     catch (AlarmSuppressionUnavailableException)
     {

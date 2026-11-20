@@ -35,6 +35,7 @@ jobs:
         with:
           node-version: '22'
       - run: node --check portal/wwwroot/app.js
+      - run: node --check portal/wwwroot/privacy-supplement.js
       - run: node --check portal/wwwroot/licensing.js
       - run: node --check portal/wwwroot/offline-licensing.js
       - run: node --check portal/wwwroot/downloads.js

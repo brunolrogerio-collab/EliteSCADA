@@ -8,6 +8,9 @@
   const otherInput = document.querySelector('#other-subject');
   const status = document.querySelector('#contact-status');
   const submit = document.querySelector('#contact-submit');
+  const dataCopy = document.querySelector('#contact-data-copy');
+  const supplementalCopy = document.querySelector('#contact-supplemental-copy');
+  let dataCopyAvailability;
   const subjects = {
     commercial: [
       ['commercial-info', 'Informações comerciais', 'Commercial information', 'Información comercial'],
@@ -33,6 +36,34 @@
   };
 
   function language() { return document.documentElement.lang === 'en' ? 'en' : document.documentElement.lang === 'es' ? 'es' : 'pt'; }
+  async function updateDataCopy() {
+    if (category.value !== 'contact' || subject.value !== 'privacy') {
+      dataCopy.hidden = true;
+      supplementalCopy.hidden = true;
+      return;
+    }
+    dataCopyAvailability ??= fetch('/portal/api/session', { credentials: 'same-origin', cache: 'no-store' })
+      .then(async response => response.ok ? await response.json() : null)
+      .catch(() => null);
+    const session = await dataCopyAvailability;
+    if (!session || category.value !== 'contact' || subject.value !== 'privacy') return;
+
+    const locale = language();
+    const link = document.querySelector('#contact-data-copy-link');
+    link.href = '/portal/?privacy=data-copy&lang=' + (locale === 'pt' ? 'pt-BR' : locale) + '#profile';
+    link.textContent = locale === 'en' ? 'Request a copy of my data' : locale === 'es' ? 'Solicitar una copia de mis datos' : 'Pedir uma cópia dos meus dados';
+    document.querySelector('#contact-data-copy-note').textContent = locale === 'en'
+      ? 'Sign in to the Portal to download your copy. For other requests, use the form below.'
+      : locale === 'es' ? 'Inicia sesión en el Portal para descargar tu copia. Para otras solicitudes, usa el formulario.'
+      : 'Entre no Portal para baixar sua cópia. Para outros pedidos, use o formulário.';
+    dataCopy.hidden = session.dataCopyEnabled !== true;
+    supplementalCopy.textContent = locale === 'en'
+      ? 'If you lost access to your account or need a copy of past emails, request it using this form. Keep the reference number. Support will verify your identity before releasing the copy.'
+      : locale === 'es'
+        ? 'Si perdiste acceso a tu cuenta o necesitas una copia de correos anteriores, solicítala con este formulario. Guarda la referencia. Soporte verificará tu identidad antes de liberar la copia.'
+        : 'Se perdeu o acesso à conta ou precisa de uma cópia de e-mails anteriores, use este formulário. Guarde o protocolo. O atendimento verificará a sua identidade antes de liberar a cópia.';
+    supplementalCopy.hidden = session.supplementalCopyEnabled !== true;
+  }
   function updateSubjects() {
     const previous = subject.value;
     subject.replaceChildren(...subjects[category.value].map(([value, pt, en, es]) => {
@@ -46,19 +77,25 @@
     otherWrap.hidden = !isOther;
     otherInput.required = isOther;
     if (!isOther) otherInput.value = '';
+    updateDataCopy();
   }
   function setStatus(message, kind = '') {
     status.textContent = message;
     status.className = `contact-status ${kind}`;
   }
 
-  const requestedCategory = new URLSearchParams(location.search).get('area');
+  const query = new URLSearchParams(location.search);
+  const requestedCategory = query.get('area');
   const categoryByQuery = { comercial: 'commercial', ventas: 'commercial', sales: 'commercial', suporte: 'support', soporte: 'support', support: 'support', contato: 'contact', contacto: 'contact', 'contacto-general': 'contact', contact: 'contact' };
   if (categoryByQuery[requestedCategory]) category.value = categoryByQuery[requestedCategory];
   category.addEventListener('change', updateSubjects);
   subject.addEventListener('change', updateSubjects);
   document.addEventListener('scadivo:languagechange', updateSubjects);
   updateSubjects();
+  if (category.value === 'contact' && query.get('subject') === 'privacy') {
+    subject.value = 'privacy';
+    updateSubjects();
+  }
 
   form.addEventListener('submit', async event => {
     event.preventDefault();

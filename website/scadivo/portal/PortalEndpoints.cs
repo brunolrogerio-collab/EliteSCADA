@@ -9,10 +9,10 @@ namespace Scadivo.Portal;
 
 public static class PortalEndpoints
 {
-    public static void MapPortalEndpoints(this WebApplication app)
+    public static void MapPortalEndpoints(this WebApplication app, bool legalPreview)
     {
         app.MapGet("/api/session", async (HttpContext context, IAntiforgery antiforgery, PortalOperations operations,
-            IOptions<PortalEmailOptions> emailSettings, IOptions<CommunitySsoOptions> communitySettings) =>
+            IOptions<PortalEmailOptions> emailSettings, IOptions<CommunitySsoOptions> communitySettings, IConfiguration configuration) =>
         {
             var token = antiforgery.GetAndStoreTokens(context);
             var community = communitySettings.Value;
@@ -21,10 +21,14 @@ public static class PortalEndpoints
                 authenticated = context.User.Identity?.IsAuthenticated == true,
                 user = context.User.Identity?.IsAuthenticated == true ? await operations.Profile(context) : null,
                 csrfToken = token.RequestToken,
-                publicRegistrationEnabled = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<bool>("Portal:PublicRegistrationEnabled"),
+                publicRegistrationEnabled = configuration.GetValue<bool>("Portal:PublicRegistrationEnabled"),
+                registrationAgeCheck = PortalRegistrationAge.IsEnabled(configuration),
+                dataCopyEnabled = PortalDataCopy.IsEnabled(configuration),
+                supplementalCopyEnabled = PortalSupplementalCopy.IsEnabled(configuration),
+                legalPreview,
                 emailDeliveryConfigured = emailSettings.Value.Enabled,
                 communityEnabled = community.Enabled,
-                offlineMachineLicenseRequestsEnabled = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<bool>("Portal:OfflineMachineLicenseRequestsEnabled"),
+                offlineMachineLicenseRequestsEnabled = configuration.GetValue<bool>("Portal:OfflineMachineLicenseRequestsEnabled"),
                 communityStartUrl = community.Enabled ? community.LoginStartUrl : null
             });
         });
@@ -47,6 +51,8 @@ public static class PortalEndpoints
 
         var account = app.MapGroup("/api").RequireAuthorization().RequireRateLimiting("writes");
         account.MapGet("/profile", (HttpContext context, PortalOperations operations) => operations.Profile(context));
+        account.MapPost("/privacy/data-copy", (DataCopyInput input, HttpContext context, PortalDataCopy copy, CancellationToken token) =>
+            copy.DownloadAsync(input, context, token)).RequireRateLimiting("auth");
         account.MapPut("/profile", (ProfileInput input, HttpContext context, PortalOperations operations) => operations.UpdateProfile(input, context));
         account.MapPut("/profile/locale", (ProfileLocaleInput input, HttpContext context, PortalOperations operations) => operations.UpdateProfileLocale(input, context));
         account.MapPost("/profile/password", (PasswordInput input, HttpContext context, PortalOperations operations) => operations.ChangePassword(input, context));
@@ -59,10 +65,7 @@ public static class PortalEndpoints
             var id = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
             var users = http.RequestServices.GetRequiredService<UserManager<PortalUser>>();
             var user = id is null ? null : await users.FindByIdAsync(id);
-            if (user is null) return Results.Unauthorized();
-            return user.ProfileComplete
-                ? await next(context)
-                : Results.Json(new { error = "profile-incomplete" }, statusCode: StatusCodes.Status428PreconditionRequired);
+            return user is null ? Results.Unauthorized() : await next(context);
         });
         members.MapGet("/faq", (string? q, string? lang, PortalOperations operations) => operations.Faq(q, lang));
         members.MapGet("/support", (HttpContext context, PortalOperations operations) => operations.Tickets(context));
@@ -86,6 +89,10 @@ public static class PortalEndpoints
         admin.MapGet("/overview", (PortalOperations operations) => operations.Overview());
         admin.MapGet("/accounts", (PortalOperations operations) => operations.Accounts());
         admin.MapPut("/accounts/{id}/access", (string id, AccountAccessInput input, HttpContext context, PortalOperations operations) => operations.UpdateAccountAccess(id, input, context));
+        admin.MapPut("/accounts/{id}/closure", (string id, HttpContext context, PortalAccountClosure closure) => closure.Close(id, context))
+            .RequireAuthorization("Owner");
+        admin.MapGet("/privacy/inactivity", (PortalRetention retention, CancellationToken cancellationToken) => retention.InactivityReview(cancellationToken))
+            .RequireAuthorization("Owner");
         admin.MapPut("/accounts/{id}/administration", (string id, AdministrationAccessInput input, HttpContext context, PortalOperations operations) => operations.UpdateAdministration(id, input, context));
         admin.MapGet("/downloads", (PortalOperations operations) => operations.AdminReleases());
         admin.MapPost("/downloads", (DownloadReleaseInput input, HttpContext context, PortalOperations operations) => operations.SaveRelease(null, input, context));

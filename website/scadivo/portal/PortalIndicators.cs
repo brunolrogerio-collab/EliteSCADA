@@ -27,14 +27,15 @@ public sealed class PortalIndicators(PortalDb db, TimeProvider clock)
         if (end > today || end < start || end.DayNumber - start.DayNumber >= 90)
             return Results.BadRequest(new { error = "invalid-indicators-period" });
 
-        var profiles = db.Users.AsNoTracking().Where(user => user.EmailConfirmed && user.InvitationAccepted
-            && !user.IsSuspended && user.ProfileType != "" && user.ActivityArea != "" && user.OrganizationOrSchool != "");
+        var profiles = db.Users.AsNoTracking().Where(user => user.EmailConfirmed && user.InvitationAccepted && !user.IsSuspended && user.ClosedAtUtc == null);
         var total = await profiles.CountAsync(cancellationToken);
         var types = await profiles.GroupBy(user => user.ProfileType)
             .Select(group => new { label = group.Key, count = group.Count() }).ToListAsync(cancellationToken);
         var areas = await profiles.GroupBy(user => user.ActivityArea)
             .Select(group => new { label = group.Key, count = group.Count() }).ToListAsync(cancellationToken);
-        var affiliations = await profiles.GroupBy(user => user.OrganizationOrSchool.Trim().ToLower())
+        var withAffiliation = profiles.Where(user => user.OrganizationOrSchool.Trim() != "");
+        var affiliationCount = await withAffiliation.CountAsync(cancellationToken);
+        var affiliations = await withAffiliation.GroupBy(user => user.OrganizationOrSchool.Trim().ToLower())
             .Select(group => new { label = group.Min(user => user.OrganizationOrSchool), count = group.Count() })
             .Where(group => group.count >= 3).OrderByDescending(group => group.count).ThenBy(group => group.label)
             .ToListAsync(cancellationToken);
@@ -66,7 +67,12 @@ public sealed class PortalIndicators(PortalDb db, TimeProvider clock)
         return Results.Ok(new
         {
             from = start, to = end, traffic, downloads,
-            profiles = new { total, types, areas, affiliations, otherAffiliations = Math.Max(0, total - affiliations.Sum(x => x.count)) }
+            profiles = new
+            {
+                total, types, areas, affiliations,
+                otherAffiliations = Math.Max(0, affiliationCount - affiliations.Sum(x => x.count)),
+                missingAffiliations = Math.Max(0, total - affiliationCount)
+            }
         });
     }
 

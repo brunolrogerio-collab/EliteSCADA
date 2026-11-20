@@ -88,7 +88,7 @@ for (const owner of [true, false]) {
   test(`an incomplete ${owner ? 'owner' : 'member'} can save the preferred language separately`, async ({ page }) => {
     const { calls, browserErrors } = await fixture(page, { locale: 'pt-BR', owner, profileComplete: false });
     await page.setViewportSize({ width: owner ? 1440 : 360, height: 900 });
-    if (owner) await page.getByRole('button', { name: 'Minha conta', exact: true }).click();
+    await page.getByRole('button', { name: 'Minha conta', exact: true }).click();
 
     const preference = page.getByLabel('Idioma preferido', { exact: false });
     await expect(preference).toHaveValue('pt-BR');
@@ -101,6 +101,7 @@ for (const owner of [true, false]) {
     await page.reload();
     await expect(page.getByLabel('Idioma preferido', { exact: false })).toHaveValue('es');
     await expect(page.locator('select[name="profileType"]')).toHaveValue('');
+    await expect(page.locator('select[name="profileType"]')).not.toHaveAttribute('required', '');
     await expect(page.locator('input[name="organizationOrSchool"]')).toHaveValue('');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(owner ? 1440 : 360);
     expect(browserErrors).toEqual([]);

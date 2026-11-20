@@ -2,10 +2,11 @@
 
 const state = { session: null, lang: 'pt-BR', tab: 'home', adminTab: 'accounts', invite: null, confirmEmail: null, resetPassword: null, communitySso: null, recover: false, register: false, pendingEmail: '', version: 0 };
 const communitySsoStorageKey = 'scadivo.portal.community-sso';
+const dataCopyRequested = new URLSearchParams(location.search).get('privacy') === 'data-copy';
 try {
   const requested = new URLSearchParams(location.search).get('lang');
   const remembered = localStorage.getItem('scadivo.portal.lang') || localStorage.getItem('scadivo-site-language');
-  const preferred = ['en', 'es'].includes(requested) ? requested : remembered;
+  const preferred = ['pt-BR', 'en', 'es'].includes(requested) ? requested : remembered;
   state.lang = ['en', 'es'].includes(preferred) ? preferred : 'pt-BR';
 } catch { /* Portuguese remains the default when storage is unavailable. */ }
 const app = document.querySelector('#app');
@@ -143,8 +144,7 @@ function errorText(code) {
   const errors = {
     'invalid-credentials': tr('Usuário ou senha inválidos. Após várias tentativas, aguarde 15 minutos.', 'Invalid username or password. After repeated attempts, wait 15 minutes.'),
     'invalid-input': tr('Confira os campos informados.', 'Check the information entered.'),
-    'profile-fields-required': tr('Preencha os campos obrigatórios do perfil e confira os dados opcionais.', 'Complete the required profile fields and check the optional information.'),
-    'profile-incomplete': tr('Complete seu perfil antes de navegar pelo portal.', 'Complete your profile before using the portal.'),
+    'profile-fields-required': tr('Confira os dados da conta e os campos de perfil que você preencheu.', 'Check your account details and any profile fields you filled in.', 'Comprueba tus datos de cuenta y los campos de perfil que completaste.'),
     'password-requirements': tr('A senha precisa ter ao menos 8 caracteres, incluindo maiúscula, minúscula e número.', 'The password needs at least 8 characters, including uppercase, lowercase and a number.'),
     'email-not-configured': tr('O envio de confirmação está temporariamente indisponível. Tente mais tarde.', 'Email confirmation is temporarily unavailable. Please try again later.'),
     'invalid-email': tr('Informe um endereço de e-mail válido.', 'Enter a valid email address.'),
@@ -155,6 +155,9 @@ function errorText(code) {
     'account-already-exists': tr('Esse usuário ou e-mail já está cadastrado.', 'This username or email is already registered.'),
     'account-not-created': tr('Use um nome de usuário com letras, números, ponto ou hífen.', 'Use a username with letters, numbers, a dot or a hyphen.'),
     'owner-account-protected': tr('Contas proprietárias não podem ser suspensas por este controle.', 'Owner accounts cannot be suspended with this control.', 'Las cuentas propietarias no se pueden suspender con este control.'),
+    'staff-account-protected': tr('Remova a permissão administrativa antes de encerrar a conta.', 'Remove the administrative role before closing the account.', 'Retira el permiso administrativo antes de cerrar la cuenta.'),
+    'account-not-eligible-for-closure': tr('O encerramento exige uma conta ativa e confirmada.', 'Closure requires an active and confirmed account.', 'El cierre requiere una cuenta activa y confirmada.'),
+    'account-closed': tr('Esta conta já foi encerrada.', 'This account is closed.', 'Esta cuenta ya está cerrada.'),
     'account-not-updated': tr('A conta mudou durante a operação. Atualize a página e tente novamente.', 'The account changed during this operation. Refresh the page and try again.', 'La cuenta cambió durante la operación. Actualiza la página e inténtalo de nuevo.'),
     'account-not-ready-for-administration': tr('Para receber administração, a conta precisa estar ativa e com o e-mail confirmado.', 'Administrative access requires an active account with a confirmed email.', 'Para recibir acceso administrativo, la cuenta debe estar activa y tener el correo confirmado.'),
     'password-not-changed': tr('Confira a senha atual. A nova senha precisa ter ao menos 8 caracteres, maiúscula, minúscula e número.', 'Check your current password. The new password needs at least 8 characters, uppercase, lowercase and a number.'),
@@ -165,12 +168,28 @@ function errorText(code) {
     ...portalOfflineLicensing.errors(),
     ...portalDownloads.errors(),
     'profile-changed': tr('O perfil mudou enquanto você salvava. Atualize a página e tente novamente.', 'Your profile changed while saving. Reload the page and try again.', 'El perfil cambió mientras guardabas. Recarga la página y vuelve a intentarlo.'),
+    'registration-age-required': tr('Informe sua data de nascimento para verificar a idade.', 'Enter your date of birth to check your age.', 'Indica tu fecha de nacimiento para comprobar tu edad.'),
+    'registration-age-invalid': tr('Informe uma data de nascimento válida, sem usar uma data futura.', 'Enter a valid date of birth that is not in the future.', 'Indica una fecha de nacimiento válida que no sea futura.'),
+    'registration-minimum-age': tr('Você precisa ter 16 anos completos para se cadastrar.', 'You must be at least 16 years old to sign up.', 'Debes tener al menos 16 años cumplidos para registrarte.'),
+    'data-copy-password-invalid': tr('Não foi possível confirmar sua senha atual.', 'We could not verify your current password.', 'No se pudo confirmar tu contraseña actual.'),
+    'privacy-link-unavailable': tr('O link não está disponível neste navegador. Se já usou o navegador da confirmação, fale com o atendimento.',
+      'This link is unavailable in this browser. If this is the browser you used to confirm, contact support.',
+      'El enlace no está disponible en este navegador. Si usaste este navegador para confirmar, contacta con soporte.'),
+    'privacy-check-required': tr('Confira o canal ou o conteúdo antes de continuar.', 'Verify the channel or review the copy before proceeding.', 'Verifica el canal o revisa la copia antes de continuar.'),
+    'privacy-reference-not-found': tr('Protocolo de contato não encontrado.', 'Contact reference not found.', 'No se encontró la referencia de contacto.'),
+    'privacy-copy-invalid-file': tr('Use um JSON válido ou um ZIP com arquivos e nomes válidos. Confira se o ZIP contém até 1.024 itens e 128 MB após a extração.',
+      'Use valid JSON or a ZIP with valid files and names. Check that the ZIP contains up to 1,024 entries and 128 MB after extraction.',
+      'Usa un JSON válido o un ZIP con archivos y nombres válidos. Comprueba que el ZIP tenga hasta 1.024 elementos y 128 MB al extraerlo.'),
+    'privacy-copy-file-too-large': tr('O limite é de 32 MB para ZIP e 4 MB para JSON.', 'The limit is 32 MB for ZIP and 4 MB for JSON.', 'El límite es de 32 MB para ZIP y 4 MB para JSON.'),
+    'privacy-copy-busy': tr('O Portal está processando outras transferências. Tente novamente em instantes.',
+      'The Portal is processing other transfers. Try again shortly.', 'El Portal está procesando otras transferencias. Inténtalo en unos instantes.'),
     'invalid-indicators-period': tr('Selecione um período de até 90 dias, sem datas futuras.', 'Choose a period of up to 90 days, with no future dates.', 'Elige un periodo de hasta 90 días, sin fechas futuras.')
   };
   return errors[code] || tr('Não foi possível concluir. Tente novamente.', 'Unable to complete. Please try again.');
 }
-async function api(path, method = 'GET', body) {
+async function api(path, method = 'GET', body, download = false) {
   const response = await fetch(`/portal/api${path}`, { method, credentials: 'same-origin', headers: method === 'GET' ? {} : { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': state.session?.csrfToken || '' }, body: body == null ? undefined : JSON.stringify(body) });
+  if (download && response.ok) return response.blob();
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
     if (response.status === 401 && !path.includes('/auth/login')) {
@@ -200,7 +219,7 @@ function parseCommunitySso(encoded) {
 }
 function continueCommunitySso() {
   const user = state.session?.user;
-  if (!state.communitySso || !user || (!user.owner && !user.profileComplete)) return false;
+  if (!state.communitySso || !user) return false;
   const query = new URLSearchParams(state.communitySso);
   state.communitySso = null;
   try { sessionStorage.removeItem(communitySsoStorageKey); } catch { /* The request remains in memory for this navigation. */ }
@@ -241,7 +260,12 @@ function renderHeader() {
 }
 function login() {
   const intro = h('section', { class: 'login-intro' }, [badge(tr('ÁREA DO CLIENTE · PILOTO', 'CUSTOMER PORTAL · PILOT')), h('h1', {}, tr('Uma conta. Mais conexão com seu projeto.', 'One account. Closer to your project.')), p(tr('Suporte, conhecimento e distribuição oficial do SCADIVO, em um ambiente próprio para clientes e integradores.', 'SCADIVO support, knowledge and official distribution, in a dedicated environment for customers and integrators.')), h('div', { class: 'intro-features' }, [panel(tr('Suporte privado', 'Private support'), p(tr('Converse com a equipe e acompanhe seus chamados.', 'Talk to the team and track your requests.'))), panel(tr('Conhecimento e downloads', 'Knowledge and downloads'), p(tr('FAQ pesquisável e catálogo de versões oficiais.', 'Searchable FAQ and official release catalog.')))]), notice(tr('Este portal tem contas próprias. O acesso à engenharia da demonstração é independente.', 'This portal has its own accounts. Demo engineering access is separate.'))]);
-  const card = panel(tr('Entre no portal', 'Sign in to the portal'), p(tr('Use seu e-mail ou nome de usuário.', 'Use your email or username.')), form([
+  const card = panel(tr('Entre no portal', 'Sign in to the portal'),
+    state.session?.dataCopyEnabled && dataCopyRequested && notice(tr(
+      'Entre para solicitar e baixar uma cópia dos seus dados do Portal.',
+      'Sign in to request and download a copy of your Portal data.',
+      'Inicia sesión para solicitar y descargar una copia de tus datos del Portal.')),
+    p(tr('Use seu e-mail ou nome de usuário.', 'Use your email or username.')), form([
     field(tr('E-mail ou usuário', 'Email or username'), input('username', 'text', state.pendingEmail, { autocomplete: 'username', maxLength: 256 })),
     field(tr('Senha', 'Password'), input('password', 'password', '', { autocomplete: 'current-password', maxLength: 1024 }))
   ], tr('Entrar', 'Sign in'), async data => { await api('/auth/login', 'POST', data); await session(); state.pendingEmail = ''; if (continueCommunitySso()) return; render(); }));
@@ -295,9 +319,9 @@ function passwordReset() {
   card.classList.add('login-card'); app.replaceChildren(h('div', { class: 'invite-layout' }, card));
 }
 
-const profileTypeOptions = () => [['', tr('Selecione seu perfil', 'Select your profile')], ['student', tr('Estudante', 'Student')], ['professional', tr('Profissional', 'Professional')], ['organization', tr('Organização', 'Organization')]];
+const profileTypeOptions = () => [['', tr('Não informado', 'Not provided', 'Sin indicar')], ['student', tr('Estudante', 'Student')], ['professional', tr('Profissional', 'Professional')], ['organization', tr('Organização', 'Organization')]];
 const activityAreaOptions = () => [
-  ['', tr('Selecione sua área', 'Select your area')],
+  ['', tr('Não informada', 'Not provided', 'Sin indicar')],
   ['industrial-automation', tr('Automação industrial e processos', 'Industrial automation and process')],
   ['buildings-facilities', tr('Edificações e instalações', 'Buildings and facilities')],
   ['residential', tr('Aplicações residenciais', 'Residential applications')],
@@ -306,34 +330,60 @@ const activityAreaOptions = () => [
   ['education-research', tr('Ensino e pesquisa', 'Education and research')],
   ['other', tr('Outra área', 'Other')]
 ];
-function profileFields(user = {}) {
-  const profileType = select('profileType', profileTypeOptions(), user.profileType || '', { required: true });
-  const activityArea = select('activityArea', activityAreaOptions(), user.activityArea || '', { required: true });
+function profileFields(user = {}, { includeDateOfBirth = true } = {}) {
+  const profileType = select('profileType', profileTypeOptions(), user.profileType || '');
+  const activityArea = select('activityArea', activityAreaOptions(), user.activityArea || '');
   const otherInput = input('activityAreaOther', 'text', user.activityAreaOther || '', { maxLength: 120, required: user.activityArea === 'other' });
   const otherField = field(tr('Qual área?', 'Which area?'), otherInput, tr('Obrigatório se escolher “Outra área”.', 'Required when “Other” is selected.'));
   const updateOther = () => { otherField.hidden = activityArea.value !== 'other'; otherInput.required = activityArea.value === 'other'; };
   activityArea.addEventListener('change', updateOther); updateOther();
   const marketing = input('marketingEmailOptIn', 'checkbox', 'yes', { checked: user.marketingEmailOptIn === true, required: false });
   return [
-    h('div', { class: 'form-row' }, [field(tr('Perfil', 'Profile'), profileType), field(tr('Área de atuação', 'Activity area'), activityArea)]),
+    h('div', { class: 'form-row' }, [field(tr('Tipo de perfil (opcional)', 'Profile type (optional)', 'Tipo de perfil (opcional)'), profileType), field(tr('Área de atuação (opcional)', 'Activity area (optional)', 'Área de actividad (opcional)'), activityArea)]),
     otherField,
-    field(tr('Empresa, escola ou vínculo (obrigatório)', 'Company, school or affiliation (required)'), input('organizationOrSchool', 'text', user.organizationOrSchool || '', { maxLength: 200, placeholder: tr('Autônomo/independente', 'Independent') }), tr('Obrigatório. Se não houver empresa ou escola, informe “Autônomo/independente”.', 'Required. If you have no company or school, enter “Independent”.')),
-    h('div', { class: 'form-row' }, [field(tr('Telefone (opcional)', 'Phone (optional)'), input('phoneNumber', 'tel', user.phoneNumber || '', { required: false, maxLength: 40, autocomplete: 'tel' })), field(tr('Data de nascimento (opcional)', 'Date of birth (optional)'), input('dateOfBirth', 'date', user.dateOfBirth || '', { required: false }))]),
+    field(tr('Empresa, escola ou vínculo (opcional)', 'Company, school or affiliation (optional)', 'Empresa, escuela o afiliación (opcional)'), input('organizationOrSchool', 'text', user.organizationOrSchool || '', { required: false, maxLength: 200 })),
+    h('div', { class: 'form-row' }, [
+      field(tr('Telefone (opcional)', 'Phone (optional)'), input('phoneNumber', 'tel', user.phoneNumber || '', { required: false, maxLength: 40, autocomplete: 'tel' })),
+      includeDateOfBirth && field(tr('Data de nascimento (opcional)', 'Date of birth (optional)'), input('dateOfBirth', 'date', user.dateOfBirth || '', { required: false }))
+    ]),
     field(tr('Endereço (opcional)', 'Address (optional)'), input('address', 'text', user.address || '', { required: false, maxLength: 300, autocomplete: 'street-address' })),
     h('label', { class: 'check-field' }, [marketing, tr('Quero receber novidades e informações comerciais por e-mail (opcional).', 'I would like to receive product news and commercial updates by email (optional).')])
   ];
 }
+function legalPreviewNotice() {
+  if (!state.session?.legalPreview) return null;
+  const url = '/portal/legal-preview/' + state.lang;
+  return h('section', { class: 'notice legal-preview-notice' }, [
+    h('h2', {}, tr('Aviso de Privacidade e Termos de Uso 1.0', 'Privacy Notice and Terms of Use 1.0', 'Aviso de Privacidad y Términos de Uso 1.0')),
+    p(tr('Prévia de homologação. Consulte como usamos seus dados e as condições do piloto.',
+      'Staging preview. Read how we use your data and the terms of the pilot.',
+      'Vista previa de homologación. Consulta cómo usamos tus datos y las condiciones del piloto.')),
+    h('div', { class: 'legal-preview-links' }, [
+      h('a', { href: url + '#privacy', target: '_blank', rel: 'noopener' },
+        tr('Ler o Aviso de Privacidade', 'Read the Privacy Notice', 'Leer el Aviso de Privacidad')),
+      h('a', { href: url + '#terms', target: '_blank', rel: 'noopener' },
+        tr('Ler os Termos de Uso', 'Read the Terms of Use', 'Leer los Términos de Uso'))
+    ])
+  ]);
+}
 function registration() {
+  const checkAge = state.session?.registrationAgeCheck === true;
   const card = panel(tr('Criar conta SCADIVO', 'Create a SCADIVO account'),
+    legalPreviewNotice(),
     p(tr('Depois do cadastro, enviaremos um link único para confirmar seu e-mail. O login será liberado somente após a confirmação.', 'After signup, we will send a unique link to confirm your email. Sign-in is enabled only after confirmation.')),
     form([
       field(tr('Nome de apresentação', 'Display name', 'Nombre visible'), input('displayName', 'text', '', { maxLength: 160, autocomplete: 'nickname' }), tr('Esse nome aparecerá na comunidade. Escolha como quer ser identificado.', 'This name will appear in the community. Choose how you want to be identified.', 'Este nombre aparecerá en la comunidad. Elige cómo quieres que te identifiquen.')),
       field(tr('Nome de usuário', 'Username', 'Nombre de usuario'), input('username', 'text', '', { minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'username' }), tr('Precisa estar disponível e ter de 3 a 20 caracteres. Você poderá entrar com ele ou com seu e-mail.', 'Must be available and 3 to 20 characters long. You can sign in with it or with your email.', 'Debe estar disponible y tener de 3 a 20 caracteres. Puedes iniciar sesión con este nombre o con tu correo.')),
       field(tr('E-mail', 'Email'), input('email', 'email', '', { maxLength: 256, autocomplete: 'email' })),
       field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), state.lang, { required: true })),
+      checkAge && field(tr('Data de nascimento para verificar a idade', 'Date of birth for the age check', 'Fecha de nacimiento para comprobar la edad'),
+        input('eligibilityDateOfBirth', 'date', '', { autocomplete: 'bday' }),
+        tr('A idade mínima é de 16 anos completos. A data é usada apenas para essa checagem.',
+          'You must be at least 16 years old. We use this date only to check your age.',
+          'La edad mínima es de 16 años cumplidos. Usamos esta fecha únicamente para comprobar tu edad.')),
       field(tr('Senha', 'Password'), input('password', 'password', '', { minLength: 8, maxLength: 1024, autocomplete: 'new-password' }), tr('Mínimo de 8 caracteres, com maiúscula, minúscula e número.', 'At least 8 characters, with uppercase, lowercase and a number.')),
       field(tr('Repita a senha', 'Repeat password'), input('confirmation', 'password', '', { minLength: 8, maxLength: 1024, autocomplete: 'new-password' })),
-      ...profileFields()
+      ...profileFields({}, { includeDateOfBirth: !checkAge })
     ], tr('Cadastrar e enviar confirmação', 'Sign up and send confirmation'), async data => {
       if (data.password !== data.confirmation) throw new Error(tr('As senhas não coincidem.', 'The passwords do not match.'));
       const { confirmation, ...registrationData } = data;
@@ -372,22 +422,6 @@ function languagePreference() {
     feedback(tr('Idioma salvo.', 'Language saved.', 'Idioma guardado.'));
   }));
 }
-function completeProfile() {
-  const user = state.session.user;
-  const accountUsername = user.userName?.toLowerCase() === user.email?.toLowerCase() ? '' : user.userName;
-  const card = panel(tr('Complete seu perfil', 'Complete your profile'),
-    p(tr('Para continuar no portal, informe seu perfil, área de atuação e empresa/escola. Os demais campos são opcionais.', 'To continue, tell us your profile, activity area and company/school. The remaining fields are optional.')),
-    form([
-      field(tr('Nome de apresentação', 'Display name', 'Nombre visible'), input('displayName', 'text', user.displayName, { maxLength: 160, autocomplete: 'nickname' }), tr('Esse nome aparecerá na comunidade. Escolha como quer ser identificado.', 'This name will appear in the community. Choose how you want to be identified.', 'Este nombre aparecerá en la comunidad. Elige cómo quieres que te identifiquen.')),
-      field(tr('Nome de usuário', 'Username', 'Nombre de usuario'), input('username', 'text', accountUsername || '', { minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'username' }), tr('Precisa estar disponível e ter de 3 a 20 caracteres. Você poderá entrar com ele ou com seu e-mail.', 'Must be available and 3 to 20 characters long. You can sign in with it or with your email.', 'Debe estar disponible y tener de 3 a 20 caracteres. Puedes iniciar sesión con este nombre o con tu correo.')),
-      ...profileFields(user)
-    ], tr('Salvar e continuar', 'Save and continue'), async data => {
-      await api('/profile', 'PUT', data); await session(); state.tab = 'home'; if (continueCommunitySso()) return; render();
-    })
-  );
-  card.classList.add('login-card', 'small-space');
-  app.replaceChildren(h('div', { class: 'invite-layout' }, [languagePreference(), card]));
-}
 function invitation() {
   app.replaceChildren(h('div', { class: 'invite-layout' }, panel(tr('Bem-vindo ao SCADIVO', 'Welcome to SCADIVO'), p(tr('Defina a senha da sua conta convidada. O link é pessoal e válido por 24 horas.', 'Set the password for your invited account. The personal link is valid for 24 hours.')), form([
     field(tr('Idioma preferido', 'Preferred language'), select('locale', localeOptions(), state.lang, { required: true })),
@@ -403,13 +437,13 @@ function invitation() {
 }
 async function render() {
   const version = ++state.version; renderHeader();
+  if (state.supplementalCopy) return portalSupplement.claimant(state.supplementalCopy);
   if (state.invite) return invitation();
   if (state.resetPassword) return passwordReset();
   if (state.confirmEmail) return emailConfirmation();
   if (state.recover && state.session?.emailDeliveryConfigured) return passwordRecovery();
   if (state.register && state.session?.publicRegistrationEnabled) return registration();
   if (!state.session?.authenticated) return login();
-  if (!state.session.user.owner && !state.session.user.profileComplete) return completeProfile();
   const tabs = labels();
   if (!tabs[state.tab] || (state.tab === 'admin' && !isPortalAdministrator())) state.tab = 'home';
   const nav = h('nav', { class: 'portal-nav', 'aria-label': tr('Portal do cliente', 'Customer portal') }, Object.entries(tabs).filter(([id]) => id !== 'admin' || isPortalAdministrator()).map(([id, label]) => button(label, () => navigate(id), `nav-item${state.tab === id ? ' active' : ''}`)));
@@ -418,25 +452,66 @@ async function render() {
   const body = content.querySelector('.content-body');
   try {
     const node = await ({ home, profile, support, downloads, faq, community, licenses, admin })[state.tab]();
-    if (version === state.version) body.replaceChildren(node);
+    if (version === state.version) {
+      body.replaceChildren(node);
+      const legal = state.tab === 'home' && legalPreviewNotice();
+      if (legal) body.prepend(legal);
+    }
   } catch (error) { if (version === state.version) body.replaceChildren(notice(error.message), button(tr('Tentar novamente', 'Try again'), render)); }
 }
 function home() {
   return h('div', {}, [panel(`${tr('Olá', 'Hello')}, ${state.session.user.displayName}.`, p(tr('Este é seu ponto de encontro com o SCADIVO. Comece pelo conhecimento, abra uma conversa privada ou acompanhe as versões disponibilizadas pela equipe.', 'This is your SCADIVO hub. Explore the knowledge base, start a private conversation or follow releases made available by the team.'))), h('div', { class: 'content-grid' }, ['faq', 'support', 'downloads', 'profile'].map(id => panel(labels()[id], p(({ faq: tr('Encontre respostas sobre implantação e uso.', 'Find answers about deployment and use.'), support: tr('Acompanhe suas conversas com a equipe.', 'Follow your conversations with the team.'), downloads: tr('Somente arquivos de distribuição aprovados.', 'Approved distribution files only.'), profile: tr('Mantenha seu perfil e senha atualizados.', 'Keep your profile and password up to date.') })[id]), button(tr('Acessar →', 'Open →'), () => navigate(id))))), notice(tr('O SCADIVO é gratuito para até 200 TAGs. Organize suas aplicações e consulte os direitos de uso na aba Licenças.', 'SCADIVO is free for up to 200 tags. Organize your applications and view entitlements in the Licenses tab.', 'SCADIVO es gratuito hasta 200 TAGs. Organiza tus aplicaciones y consulta los derechos de uso en la pestaña Licencias.'))]);
+}
+function privacyDataCopy() {
+  const communityUrl = state.session.communityStartUrl;
+  const contactUrl = '/contato?area=contato&subject=privacy&lang=' + state.lang;
+  return panel(tr('Cópia dos meus dados', 'Copy of my data', 'Copia de mis datos'),
+    p(tr('Confirme sua senha atual para baixar os dados da sua conta do Portal em formato JSON.',
+      'Confirm your current password to download your Portal account data as a JSON file.',
+      'Confirma tu contraseña actual para descargar los datos de tu cuenta del Portal en formato JSON.')),
+    form([
+      field(tr('Senha atual', 'Current password'), input('currentPassword', 'password', '', { maxLength: 1024, autocomplete: 'current-password' }))
+    ], tr('Solicitar e baixar cópia', 'Request and download a copy', 'Solicitar y descargar una copia'), async (data, formNode) => {
+      formNode.reset();
+      saveDownloadedFile(await api('/privacy/data-copy', 'POST', data, true), 'scadivo-portal-data.json');
+      feedback(tr('Download da cópia iniciado.', 'Your download has started.', 'Se inició la descarga de tu copia.'));
+    }),
+    p([tr('Os dados da Comunidade ficam disponíveis em Preferências → Conta → Exportar seus dados. ',
+      'Community data is available under Preferences → Account → Export your data. ',
+      'Los datos de la Comunidad están disponibles en Preferencias → Cuenta → Exportar tus datos. '),
+    communityUrl && h('a', { href: new URL('/my/preferences/account', communityUrl).href },
+      tr('Abrir preferências da Comunidade', 'Open Community preferences', 'Abrir las preferencias de la Comunidad'))]),
+    p([tr('Para pedir registros adicionais de atendimento, use ', 'For additional correspondence, use ', 'Para solicitar correspondencia adicional, usa '),
+      h('a', { href: contactUrl }, tr('Contato → Privacidade', 'Contact → Privacy', 'Contacto → Privacidad')), '.'])
+  );
+}
+function saveDownloadedFile(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = h('a', { href: url, download: filename });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function profile() {
   const user = state.session.user;
   const accountUsername = user.userName?.toLowerCase() === user.email?.toLowerCase() ? '' : user.userName;
   const account = h('div', { class: 'content-grid' }, [panel(tr('Seu perfil', 'Your profile'), p(`${tr('Usuário', 'Username')}: ${user.userName}`), p(`${tr('E-mail', 'Email')}: ${user.email || tr('Ainda não informado', 'Not provided yet')}`), form([
     field(tr('Nome de apresentação', 'Display name', 'Nombre visible'), input('displayName', 'text', user.displayName, { maxLength: 160, autocomplete: 'nickname' }), tr('Esse nome aparecerá na comunidade. Escolha como quer ser identificado.', 'This name will appear in the community. Choose how you want to be identified.', 'Este nombre aparecerá en la comunidad. Elige cómo quieres que te identifiquen.')),
-    field(tr('Nome de usuário', 'Username', 'Nombre de usuario'), input('username', 'text', accountUsername || '', { minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'username' }), tr('Precisa estar disponível e ter de 3 a 20 caracteres. Você poderá entrar com ele ou com seu e-mail.', 'Must be available and 3 to 20 characters long. You can sign in with it or with your email.', 'Debe estar disponible y tener de 3 a 20 caracteres. Puedes iniciar sesión con este nombre o con tu correo.')),
+    field(tr('Nome de usuário', 'Username', 'Nombre de usuario'), input('username', 'text', accountUsername || '', { required: Boolean(accountUsername), minLength: 3, maxLength: 20, pattern: '[A-Za-z0-9_][A-Za-z0-9._-]{1,18}[A-Za-z0-9]', autocomplete: 'username' }), tr('Precisa estar disponível e ter de 3 a 20 caracteres. Você poderá entrar com ele ou com seu e-mail.', 'Must be available and 3 to 20 characters long. You can sign in with it or with your email.', 'Debe estar disponible y tener de 3 a 20 caracteres. Puedes iniciar sesión con este nombre o con tu correo.')),
     ...profileFields(user)
-  ], tr('Salvar perfil', 'Save profile'), async data => { await api('/profile', 'PUT', data); await session(); feedback(tr('Perfil atualizado.', 'Profile updated.')); render(); }), h('div', { class: 'organization-list' }, user.organizations.map(org => p(`${org.name} · ${org.role}`)))), panel(tr('Alterar senha', 'Change password'), form([
+  ], tr('Salvar perfil', 'Save profile'), async data => {
+    await api('/profile', 'PUT', {
+      ...data, profileType: data.profileType ?? '', activityArea: data.activityArea ?? '',
+      organizationOrSchool: data.organizationOrSchool ?? ''
+    });
+    await session(); feedback(tr('Perfil atualizado.', 'Profile updated.')); render();
+  }), h('div', { class: 'organization-list' }, user.organizations.map(org => p(`${org.name} · ${org.role}`)))), panel(tr('Alterar senha', 'Change password'), form([
     field(tr('Senha atual', 'Current password'), input('currentPassword', 'password', '', { autocomplete: 'current-password' })),
     field(tr('Nova senha', 'New password'), input('newPassword', 'password', '', { autocomplete: 'new-password', minLength: 8 }), tr('Mínimo de 8 caracteres, maiúscula, minúscula e número.', 'At least 8 characters, uppercase, lowercase and a number.')),
     field(tr('Repita a nova senha', 'Repeat new password'), input('confirmation', 'password', '', { autocomplete: 'new-password', minLength: 8 }))
   ], tr('Atualizar senha', 'Update password'), async (data, node) => { if (data.newPassword !== data.confirmation) throw new Error(tr('As senhas não coincidem.', 'The passwords do not match.')); await api('/profile/password', 'POST', data); await session(); node.reset(); feedback(tr('Senha atualizada.', 'Password updated.')); }))]);
-  return h('div', {}, [languagePreference(), account]);
+  return h('div', {}, [state.session.dataCopyEnabled && privacyDataCopy(), languagePreference(), account]);
 }
 async function support() {
   const tickets = await api('/support');
@@ -493,9 +568,12 @@ async function admin() {
   const body = h('div');
   const items = { accounts: tr('Contas e convites', 'Accounts and invitations'), licensing: tr('Licenças', 'Licenses', 'Licencias'), downloads: tr('Downloads', 'Downloads', 'Descargas'), indicators: tr('Indicadores', 'Indicators', 'Indicadores'), templates: tr('Mensagens', 'Messages'), articles: 'FAQ', audit: tr('Auditoria', 'Audit') };
   if (overview.offlineMachineLicenseRequestsEnabled) items.licenseRequests = tr('Pedidos offline', 'Offline requests', 'Solicitudes sin conexión');
+  const privacy = state.session.supplementalCopyEnabled && state.session.user.owner;
+  if (privacy) items.privacy = tr('Privacidade', 'Privacy', 'Privacidad');
   const tabs = h('nav', { class: 'admin-subnav', 'aria-label': tr('Administração', 'Administration') }, Object.entries(items).map(([key, label]) => button(label, () => { state.adminTab = key; render(); }, `button ${state.adminTab === key ? 'primary' : 'secondary'}`)));
   const views = { accounts: accountsAdmin, licensing: portalLicensing.admin, downloads: portalDownloads.admin, indicators: portalIndicators.admin, templates: templatesAdmin, articles: faqAdmin, audit: auditAdmin };
   if (overview.offlineMachineLicenseRequestsEnabled) views.licenseRequests = portalOfflineLicensing.admin;
+  if (privacy) views.privacy = portalSupplement.administration;
   const node = await (views[state.adminTab] || accountsAdmin)(); body.append(node);
   const emailStatus = overview.emailDeliveryConfigured
     ? tr(`Envio de e-mail habilitado: ${overview.queuedMessages} na fila, ${overview.sentMessages} aceitas pelo SMTP e ${overview.failedMessages} com falha (${overview.bouncedMessages ?? 0} devolvidas após o aceite).`, `Email delivery enabled: ${overview.queuedMessages} queued, ${overview.sentMessages} accepted by SMTP and ${overview.failedMessages} failed (${overview.bouncedMessages ?? 0} returned after acceptance).`, `Envío de correo habilitado: ${overview.queuedMessages} en cola, ${overview.sentMessages} aceptados por SMTP y ${overview.failedMessages} con error (${overview.bouncedMessages ?? 0} devueltos después de la aceptación).`)
@@ -507,6 +585,7 @@ async function admin() {
 }
 function accountAccessAction(account) {
   if (account.owner) return badge(tr('Proprietário', 'Owner', 'Propietario'));
+  if (account.closedAtUtc) return badge(tr('Encerrada', 'Closed', 'Cerrada'));
   const action = button(account.isSuspended ? tr('Reativar', 'Reactivate', 'Reactivar') : tr('Suspender', 'Suspend', 'Suspender'), async () => {
     const message = account.isSuspended
       ? tr('Reativar esta conta? Será necessário entrar novamente.', 'Reactivate this account? A new sign-in will be required.', '¿Reactivar esta cuenta? Será necesario iniciar sesión de nuevo.')
@@ -520,7 +599,23 @@ function accountAccessAction(account) {
     } catch (error) { feedback(error.message, true); }
     finally { action.disabled = false; }
   });
-  return action;
+  if (!state.session.user.owner || account.administrator || account.isSuspended || !account.emailConfirmed || !account.invitationAccepted) return action;
+  const close = button(tr('Encerrar conta', 'Close account', 'Cerrar cuenta'), async () => {
+    const message = tr(
+      'Encerrar o acesso ao Portal e preservar as licenças vigentes? Depois, trate a sessão e a autoria na Comunidade.',
+      'Close Portal access and preserve current licenses? Then handle the session and authorship in the Community.',
+      '¿Cerrar el acceso al Portal y conservar las licencias vigentes? Después, gestiona la sesión y la autoría en la Comunidad.'
+    );
+    if (!window.confirm(`${account.userName}\n\n${message}`)) return;
+    close.disabled = true;
+    try {
+      await api(`/admin/accounts/${encodeURIComponent(account.id)}/closure`, 'PUT');
+      await render();
+      feedback(tr('Conta encerrada no Portal. Conclua o atendimento no fórum.', 'Account closed in the Portal. Finish the request in the forum.', 'Cuenta cerrada en el Portal. Completa la solicitud en el foro.'));
+    } catch (error) { feedback(error.message, true); }
+    finally { close.disabled = false; }
+  });
+  return h('div', { class: 'form-stack' }, [action, close]);
 }
 async function accountsAdmin() {
   const accounts = await api('/admin/accounts');
@@ -537,11 +632,12 @@ async function accountsAdmin() {
   }), invitationResult), panel(tr('Contas do portal', 'Portal accounts'),
     p(tr('Suspender preserva os dados da conta e encerra o acesso ao portal. Sessões já abertas no fórum são administradas no próprio fórum.', 'Suspension preserves account data and ends portal access. Existing forum sessions are managed in the forum itself.', 'La suspensión conserva los datos de la cuenta y cierra el acceso al portal. Las sesiones ya abiertas en el foro se administran en el propio foro.')),
     p(tr('A administração da equipe SCADIVO permite gerenciar contas, suporte, mensagens, FAQ, downloads e licenças. Ela é independente das funções nas organizações de clientes.', 'SCADIVO staff administration can manage accounts, support, messages, FAQ, downloads and licenses. It is independent of roles in customer organizations.', 'La administración del equipo SCADIVO permite gestionar cuentas, soporte, mensajes, FAQ, descargas y licencias. Es independiente de los roles en las organizaciones de clientes.')),
-    table([tr('Usuário', 'Username'), tr('Nome', 'Name'), tr('Situação', 'Status'), tr('Administração', 'Administration', 'Administración'), tr('Acesso', 'Access', 'Acceso')], accounts.map(account => [account.userName, account.displayName, badge(account.isSuspended ? tr('Suspensa', 'Suspended', 'Suspendida') : account.invitationAccepted && (account.emailConfirmed || account.owner) ? tr('Ativa', 'Active') : account.invitationAccepted ? tr('Aguardando confirmação', 'Awaiting confirmation', 'Pendiente de confirmación') : account.email ? tr('Aguardando ativação', 'Awaiting activation') : tr('Convite pendente', 'Pending invitation')), accountAdministrationAction(account), accountAccessAction(account)]))));
+    table([tr('Usuário', 'Username'), tr('Nome', 'Name'), tr('Situação', 'Status'), tr('Administração', 'Administration', 'Administración'), tr('Acesso', 'Access', 'Acceso')], accounts.map(account => [account.userName, account.displayName, badge(account.closedAtUtc ? tr('Encerrada', 'Closed', 'Cerrada') : account.isSuspended ? tr('Suspensa', 'Suspended', 'Suspendida') : account.invitationAccepted && (account.emailConfirmed || account.owner) ? tr('Ativa', 'Active') : account.invitationAccepted ? tr('Aguardando confirmação', 'Awaiting confirmation', 'Pendiente de confirmación') : account.email ? tr('Aguardando ativação', 'Awaiting activation') : tr('Convite pendente', 'Pending invitation')), accountAdministrationAction(account), accountAccessAction(account)]))));
   return result;
 }
 function accountAdministrationAction(account) {
   if (account.owner) return badge(tr('Proprietário', 'Owner', 'Propietario'));
+  if (account.closedAtUtc) return '—';
   const action = button(account.administrator ? tr('Remover administração', 'Remove administration', 'Retirar administración') : tr('Conceder administração', 'Grant administration', 'Conceder administración'), async () => {
     const message = account.administrator
       ? tr('Remover a administração desta conta? As sessões atuais serão encerradas e o próximo login terá acesso de usuário.', 'Remove administration from this account? Current sessions will end and the next sign-in will have user access.', '¿Retirar la administración de esta cuenta? Se cerrarán las sesiones actuales y el próximo acceso tendrá permisos de usuario.')
@@ -628,7 +724,11 @@ async function auditAdmin() {
 
 async function start() {
   const fragment = location.hash.slice(1);
-  if (fragment.startsWith('community-login=')) {
+  const supplemental = /^privacy-(verify|download)=(.*)$/.exec(fragment);
+  if (supplemental) {
+    state.supplementalCopy = { operation: supplemental[1], token: supplemental[2] };
+    history.replaceState(null, '', location.pathname + location.search);
+  } else if (fragment.startsWith('community-login=')) {
     try {
       state.communitySso = parseCommunitySso(fragment.slice('community-login='.length));
       sessionStorage.setItem(communitySsoStorageKey, JSON.stringify({ ...state.communitySso, savedAt: Date.now() }));
@@ -690,11 +790,14 @@ async function start() {
       feedback(tr('Sessão do portal encerrada. Para acessar a comunidade novamente, entre pelo fórum.', 'Portal session ended. To access the community again, sign in from the forum.', 'La sesión del portal se cerró. Para volver a la comunidad, inicia sesión desde el foro.'));
       return;
     }
-    if (continueCommunitySso()) return;
+    if (!state.supplementalCopy && continueCommunitySso()) return;
     render();
   } catch {
     app.replaceChildren(panel(tr('Portal indisponível', 'Portal unavailable'), p(tr('Não foi possível conectar. Aguarde um momento e tente novamente.', 'Unable to connect. Please wait a moment and try again.')), button(tr('Tentar novamente', 'Try again'), start)));
   }
 }
 start();
+window.addEventListener('hashchange', () => {
+  if (/^#privacy-(verify|download)=/.test(location.hash)) start();
+});
 fetch('/portal/api/page-views/portal', { method: 'POST', credentials: 'omit', keepalive: true }).catch(() => {});

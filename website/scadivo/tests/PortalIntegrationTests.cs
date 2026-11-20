@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
@@ -24,6 +25,376 @@ namespace Scadivo.Portal.Tests;
 public sealed class PortalIntegrationTests(ITestOutputHelper output)
 {
     private const string Password = "Scad1vo!";
+
+    [Fact]
+    public async Task SupplementalCopyRequiresVerifiedBrowserAndSupportsSingleUseExpiryAndRevocation()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "scadivo-supplement-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var passwordFile = Path.Combine(root, "test-credential");
+        await File.WriteAllTextAsync(passwordFile, Password);
+        var configuration = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Portal"] = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+                ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!",
+            ["Portal:Bootstrap:PasswordFile"] = passwordFile,
+            ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
+            ["Portal:PublicUrl"] = "https://localhost/portal/",
+            ["Portal:SupplementalCopyEnabled"] = "true"
+        };
+        var clock = new OfflineTestClock();
+        const string admin = "/admin/privacy/supplement";
+        const string verify = "/privacy/supplement/verify";
+        const string download = "/privacy/supplement/download";
+        const string archive = """{"records":[{"message":"synthetic original message"}]}""";
+        const string attachmentPath = "anexos/relatorio.bin";
+        var attachment = RandomNumberGenerator.GetBytes(6 * 1024 * 1024);
+        byte[] Pack(string path, byte[] content)
+        {
+            using var output = new MemoryStream();
+            using (var zip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                using (var messages = new StreamWriter(zip.CreateEntry("mensagens.json").Open()))
+                    messages.Write(archive);
+                using var file = zip.CreateEntry(path, CompressionLevel.NoCompression).Open();
+                file.Write(content);
+            }
+            return output.ToArray();
+        }
+        var package = Pack(attachmentPath, attachment);
+        Assert.True(package.Length > 4 * 1024 * 1024);
+        try
+        {
+            await using var factory = Factory(configuration).WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(clock);
+            }));
+            var owner = await Login(factory, "scadivo.owner");
+            using var ownerClient = owner.Client;
+            using var claimantClient = Client(factory);
+            using var strangerClient = Client(factory);
+            var claimant = new Session(claimantClient, await Csrf(claimantClient));
+            var stranger = new Session(strangerClient, await Csrf(strangerClient));
+            await using var scope = factory.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+            var reference = "SC-" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+            db.EmailOutbox.Add(new EmailOutbox { TemplateKey = "contact.received", Reference = reference, Status = "sent" });
+            await db.SaveChangesAsync();
+
+            var evidence = new { reference, evidence = "original-thread", channelChecked = true };
+            using var withoutReview = await owner.Raw(admin, HttpMethod.Post, new { reference, evidence = "original-thread", channelChecked = false });
+            Assert.Equal(HttpStatusCode.BadRequest, withoutReview.StatusCode);
+            using var unauthenticated = await stranger.Raw(admin, HttpMethod.Post, evidence);
+            Assert.Equal(HttpStatusCode.Unauthorized, unauthenticated.StatusCode);
+
+            string TokenFrom(JsonElement record) => new Uri(record.GetProperty("url").GetString()!).Fragment.Split('=')[1];
+            async Task<(Guid Id, string Challenge)> Create()
+            {
+                var record = await owner.Send(admin, HttpMethod.Post, evidence);
+                return (record.GetProperty("id").GetGuid(), TokenFrom(record));
+            }
+            async Task<HttpResponseMessage> Upload(Guid id, byte[] bytes, string mediaType = "application/json")
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, "api" + admin + $"/upload?id={id}");
+                request.Content = new ByteArrayContent(bytes);
+                request.Content.Headers.ContentType = new(mediaType);
+                request.Headers.Add("X-CSRF-TOKEN", owner.Token);
+                request.Headers.Add("X-Privacy-Reviewed", "yes");
+                return await owner.Client.SendAsync(request);
+            }
+            async Task<string> Release(Guid id, byte[]? copy = null)
+            {
+                using var response = copy is null ? await Upload(id, Encoding.UTF8.GetBytes(archive)) : await Upload(id, copy, "application/zip");
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                return TokenFrom(await response.Content.ReadFromJsonAsync<JsonElement>());
+            }
+
+            var (id, challenge) = await Create();
+            using var premature = await Upload(id, package, "application/zip");
+            Assert.Equal(HttpStatusCode.NotFound, premature.StatusCode);
+            using var unprotected = await claimantClient.PostAsJsonAsync("api" + verify, new { token = challenge });
+            Assert.Equal(HttpStatusCode.BadRequest, unprotected.StatusCode);
+            using var verified = await claimant.Raw(verify, HttpMethod.Post, new { token = challenge });
+            Assert.Equal(HttpStatusCode.OK, verified.StatusCode);
+            var receipt = verified.Headers.GetValues("Set-Cookie").Single(header => header.StartsWith("__Secure-scadivo.privacy.", StringComparison.Ordinal));
+            Assert.Contains("secure", receipt);
+            Assert.Contains("httponly", receipt);
+            Assert.Contains("samesite=strict", receipt);
+            using var replay = await stranger.Raw(verify, HttpMethod.Post, new { token = challenge });
+            Assert.Equal(HttpStatusCode.NotFound, replay.StatusCode);
+            using var malformed = await Upload(id, "not valid JSON"u8.ToArray());
+            Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
+            using var truncated = await Upload(id, package[..^65], "application/zip");
+            Assert.Equal(HttpStatusCode.BadRequest, truncated.StatusCode);
+            using var unsafePath = await Upload(id, Pack("../outside.bin", [1, 2, 3]), "application/zip");
+            Assert.Equal(HttpStatusCode.BadRequest, unsafePath.StatusCode);
+            using var oversizedJson = await Upload(id, package);
+            Assert.Equal(HttpStatusCode.RequestEntityTooLarge, oversizedJson.StatusCode);
+            var downloadToken = await Release(id, package);
+            var stored = await db.SupplementalCopies.AsNoTracking().SingleAsync(row => row.Id == id);
+            Assert.NotNull(stored.ProtectedArchive);
+            Assert.False(stored.ProtectedArchive.AsSpan().StartsWith(package));
+            Assert.Null(stored.ChallengeHash);
+            Assert.DoesNotContain(stored.DownloadHash!, downloadToken, StringComparison.Ordinal);
+            using var wrongBrowser = await stranger.Raw(download, HttpMethod.Post, new { token = downloadToken });
+            Assert.Equal(HttpStatusCode.NotFound, wrongBrowser.StatusCode);
+
+            var attempts = await Task.WhenAll(
+                claimant.Raw(download, HttpMethod.Post, new { token = downloadToken }),
+                claimant.Raw(download, HttpMethod.Post, new { token = downloadToken }));
+            using var success = Assert.Single(attempts, response => response.IsSuccessStatusCode);
+            using var alreadyUsed = Assert.Single(attempts, response => !response.IsSuccessStatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, alreadyUsed.StatusCode);
+            Assert.True(success.Headers.CacheControl!.NoStore);
+            Assert.Equal("attachment", success.Content.Headers.ContentDisposition!.DispositionType);
+            Assert.Equal("application/zip", success.Content.Headers.ContentType!.MediaType);
+            Assert.Equal("scadivo-copia-complementar.zip", success.Content.Headers.ContentDisposition.FileName);
+            var received = await success.Content.ReadAsByteArrayAsync();
+            Assert.Equal(SHA256.HashData(package), SHA256.HashData(received));
+            using (var unpacked = new ZipArchive(new MemoryStream(received)))
+            {
+                using var reader = new StreamReader(unpacked.GetEntry("mensagens.json")!.Open());
+                Assert.Equal(archive, await reader.ReadToEndAsync());
+                using var attachmentStream = unpacked.GetEntry(attachmentPath)!.Open();
+                Assert.Equal(SHA256.HashData(attachment), await SHA256.HashDataAsync(attachmentStream));
+            }
+            var consumed = await db.SupplementalCopies.AsNoTracking().SingleAsync(row => row.Id == id);
+            Assert.Null(consumed.ProtectedArchive);
+            Assert.Null(consumed.BrowserHash);
+            Assert.Null(consumed.DownloadHash);
+            Assert.Equal(1, await db.Audit.CountAsync(row => row.ResourceId == id.ToString() && row.Action == "privacy.supplement.downloaded"));
+
+            var (expiring, expiringChallenge) = await Create();
+            using var verifiedBeforeExpiry = await claimant.Raw(verify, HttpMethod.Post, new { token = expiringChallenge });
+            Assert.Equal(HttpStatusCode.OK, verifiedBeforeExpiry.StatusCode);
+            var expiredDownload = await Release(expiring);
+            var (revocable, revokeChallenge) = await Create();
+            using var verifiedBeforeRevocation = await claimant.Raw(verify, HttpMethod.Post, new { token = revokeChallenge });
+            Assert.Equal(HttpStatusCode.OK, verifiedBeforeRevocation.StatusCode);
+            var revokedDownload = await Release(revocable);
+            using var revoked = await owner.Raw(admin + "/" + revocable, HttpMethod.Delete, new { });
+            Assert.Equal(HttpStatusCode.NoContent, revoked.StatusCode);
+            using var revokedAccess = await claimant.Raw(download, HttpMethod.Post, new { token = revokedDownload });
+            Assert.Equal(HttpStatusCode.NotFound, revokedAccess.StatusCode);
+            Assert.Null(await db.SupplementalCopies.Where(row => row.Id == revocable).Select(row => row.ProtectedArchive).SingleAsync());
+
+            var (legacy, legacyChallenge) = await Create();
+            using var verifiedForJson = await claimant.Raw(verify, HttpMethod.Post, new { token = legacyChallenge });
+            Assert.Equal(HttpStatusCode.OK, verifiedForJson.StatusCode);
+            var jsonDownload = await Release(legacy);
+            using var jsonResponse = await claimant.Raw(download, HttpMethod.Post, new { token = jsonDownload });
+            Assert.Equal(HttpStatusCode.OK, jsonResponse.StatusCode);
+            Assert.Equal("application/json", jsonResponse.Content.Headers.ContentType!.MediaType);
+            Assert.Equal(archive, await jsonResponse.Content.ReadAsStringAsync());
+
+            var (_, staleChallenge) = await Create();
+            clock.UtcNow = clock.UtcNow.AddHours(25);
+            using var expired = await claimant.Raw(download, HttpMethod.Post, new { token = expiredDownload });
+            Assert.Equal(HttpStatusCode.NotFound, expired.StatusCode);
+            using var stale = await claimant.Raw(verify, HttpMethod.Post, new { token = staleChallenge });
+            Assert.Equal(HttpStatusCode.NotFound, stale.StatusCode);
+            var copies = scope.ServiceProvider.GetRequiredService<PortalSupplementalCopy>();
+            Assert.True(await copies.PurgeExpiredAsync(CancellationToken.None) > 0);
+            Assert.False(await db.SupplementalCopies.AnyAsync(row => row.Reference == reference && row.ExpiresAtUtc <= clock.UtcNow));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task DataCopyReauthenticatesAndExportsOnlyTheSignedInAccount()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "scadivo-data-copy-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var passwordFile = Path.Combine(root, "test-credential");
+        await File.WriteAllTextAsync(passwordFile, Password);
+        var configuration = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:Portal"] = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+                ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!",
+            ["Portal:Bootstrap:PasswordFile"] = passwordFile,
+            ["Portal:KeyDirectory"] = Path.Combine(root, "keys"),
+            ["Portal:PublicUrl"] = "https://localhost/portal/",
+            ["Portal:DataCopyEnabled"] = "true"
+        };
+        const string path = "/privacy/data-copy";
+        try
+        {
+            await using var factory = Factory(configuration);
+            await using var scope = factory.Services.CreateAsyncScope();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<PortalUser>>();
+            async Task<PortalUser> Account(string label)
+            {
+                var user = new PortalUser
+                {
+                    UserName = label + Guid.NewGuid().ToString("N")[..8],
+                    EmailConfirmed = true,
+                    InvitationAccepted = true
+                };
+                user.Email = user.UserName + "@example.test";
+                Assert.True((await users.CreateAsync(user, Password)).Succeeded);
+                return user;
+            }
+            var account = await Account("export");
+            var other = await Account("unrelated");
+            var signedIn = await Login(factory, account.UserName!);
+            using var signedInClient = signedIn.Client;
+            var own = await signedIn.Send("/support", HttpMethod.Post,
+                new { subject = "My privacy test", category = "technical", body = "Message from the requesting account" });
+            var otherSession = await Login(factory, other.UserName!);
+            using var otherClient = otherSession.Client;
+            await otherSession.Send("/support", HttpMethod.Post,
+                new { subject = "Other privacy test", category = "technical", body = "Message from the unrelated account" });
+
+            using var anonymous = Client(factory);
+            var anonymousSession = new Session(anonymous, await Csrf(anonymous));
+            using var unauthenticated = await anonymousSession.Raw(path, HttpMethod.Post, new { currentPassword = Password });
+            Assert.Equal(HttpStatusCode.Unauthorized, unauthenticated.StatusCode);
+            using var noCsrf = await signedInClient.PostAsJsonAsync("api" + path, new { currentPassword = Password });
+            Assert.Equal(HttpStatusCode.BadRequest, noCsrf.StatusCode);
+            using var wrong = await signedIn.Raw(path, HttpMethod.Post, new { currentPassword = Password + "-wrong" });
+            Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
+            Assert.Equal("data-copy-password-invalid", (await wrong.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
+
+            using var copy = await signedIn.Raw(path, HttpMethod.Post, new { currentPassword = Password, userId = other.Id });
+            Assert.Equal(HttpStatusCode.OK, copy.StatusCode);
+            Assert.True(copy.Headers.CacheControl!.NoStore);
+            Assert.Equal("attachment", copy.Content.Headers.ContentDisposition!.DispositionType);
+            Assert.Equal("application/json", copy.Content.Headers.ContentType!.MediaType);
+            var data = await copy.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(account.Id, data.GetProperty("account").GetProperty("id").GetString());
+            Assert.Equal(own.GetProperty("id").GetGuid(), data.GetProperty("supportTickets").EnumerateArray().Single().GetProperty("id").GetGuid());
+            Assert.Equal("Message from the requesting account", data.GetProperty("supportMessages").EnumerateArray().Single().GetProperty("body").GetString());
+            var serialized = data.GetRawText();
+            Assert.DoesNotContain(other.Id, serialized, StringComparison.Ordinal);
+            Assert.DoesNotContain("Message from the unrelated account", serialized, StringComparison.Ordinal);
+            Assert.DoesNotContain("passwordHash", serialized, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("securityStamp", serialized, StringComparison.OrdinalIgnoreCase);
+            var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+            Assert.Equal(1, await db.Audit.CountAsync(row => row.ActorId == account.Id && row.Action == "privacy.data-copy.generated"));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task InactivityNoticeQueueDeduplicatesAndProtectsRecentAndLicensedAccounts()
+    {
+        const string template = "account.inactivity-notice";
+        var connection = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+            ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!";
+        await using var db = new PortalDb(new DbContextOptionsBuilder<PortalDb>().UseNpgsql(connection).Options);
+        await db.Database.MigrateAsync();
+        var clock = new OfflineTestClock();
+        PortalUser Account(string label) => new()
+        {
+            Email = $"{label}-{Guid.NewGuid():N}@example.test", EmailConfirmed = true, InvitationAccepted = true,
+            CreatedAtUtc = clock.UtcNow.AddMonths(-13)
+        };
+        var idle = Account("idle");
+        var active = Account("recent");
+        var licensed = Account("licensed");
+        var organization = new Organization { Name = "Notice test" };
+        var application = new ProductApplication { OrganizationId = organization.Id, Name = "Test", NormalizedName = "TEST" };
+        var license = new ProductLicense { OrganizationId = organization.Id, ApplicationId = application.Id, PublicCode = Guid.NewGuid().ToString("N") };
+        db.AddRange(idle, active, licensed, organization, application, license,
+            new Membership { OrganizationId = organization.Id, UserId = licensed.Id, Role = "Member" },
+            new PortalAudit { ActorId = active.Id, Action = "auth.login", CreatedAtUtc = clock.UtcNow.AddDays(-1) });
+        await db.SaveChangesAsync();
+        var retention = new PortalRetention(db, clock);
+        var ids = new[] { idle.Id, active.Id, licensed.Id };
+        var notices = db.EmailOutbox.Where(row => row.TemplateKey == template && row.UserId != null && ids.Contains(row.UserId));
+        try
+        {
+            var parallel = Task.Run(async () =>
+            {
+                await using var secondDb = new PortalDb(new DbContextOptionsBuilder<PortalDb>().UseNpgsql(connection).Options);
+                await new PortalRetention(secondDb, clock).QueueInactivityNoticesAsync(CancellationToken.None);
+            });
+            await Task.WhenAll(parallel, retention.QueueInactivityNoticesAsync(CancellationToken.None));
+            Assert.Equal(idle.Id, (await notices.SingleAsync()).UserId);
+
+            await notices.ExecuteDeleteAsync();
+            await retention.QueueInactivityNoticesAsync(CancellationToken.None);
+            Assert.False(await notices.AnyAsync());
+
+            db.Audit.Add(new PortalAudit { ActorId = idle.Id, Action = "auth.login", CreatedAtUtc = clock.UtcNow.AddDays(1) });
+            await db.SaveChangesAsync();
+            clock.UtcNow = clock.UtcNow.AddMonths(13);
+            await retention.QueueInactivityNoticesAsync(CancellationToken.None);
+            Assert.Equal(1, await notices.CountAsync(row => row.UserId == idle.Id));
+            Assert.False(await notices.AnyAsync(row => row.UserId == licensed.Id));
+        }
+        finally
+        {
+            await notices.ExecuteDeleteAsync();
+            await db.Audit.Where(row => (row.ResourceId != null && ids.Contains(row.ResourceId)) ||
+                (row.ActorId != null && ids.Contains(row.ActorId))).ExecuteDeleteAsync();
+            await db.ProductLicenses.Where(row => row.Id == license.Id).ExecuteDeleteAsync();
+            await db.Memberships.Where(row => row.OrganizationId == organization.Id).ExecuteDeleteAsync();
+            await db.ProductApplications.Where(row => row.Id == application.Id).ExecuteDeleteAsync();
+            await db.Organizations.Where(row => row.Id == organization.Id).ExecuteDeleteAsync();
+            await db.Users.Where(row => ids.Contains(row.Id)).ExecuteDeleteAsync();
+        }
+    }
+
+    [Fact]
+    public async Task RetentionReportsThenAppliesOnlyTheApprovedCutoffs()
+    {
+        var connection = Environment.GetEnvironmentVariable("PORTAL_TEST_DATABASE")
+            ?? "Host=127.0.0.1;Port=15441;Database=scadivo_portal;Username=scadivo_portal;Password=PortalTestOnly-NotASecret!";
+        await using var db = new PortalDb(new DbContextOptionsBuilder<PortalDb>().UseNpgsql(connection).Options);
+        await db.Database.MigrateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var oldPending = new PortalUser { CreatedAtUtc = now.AddDays(-31) };
+        var newPending = new PortalUser { CreatedAtUtc = now.AddDays(-29) };
+        var unacceptedInvitation = new PortalUser { CreatedAtUtc = now.AddDays(-31) };
+        var idle = new PortalUser { EmailConfirmed = true, InvitationAccepted = true, CreatedAtUtc = now.AddMonths(-13) };
+        var recentActivity = new PortalUser { EmailConfirmed = true, InvitationAccepted = true, CreatedAtUtc = now.AddMonths(-13) };
+        db.Users.AddRange(oldPending, newPending, unacceptedInvitation, idle, recentActivity);
+        db.Audit.AddRange(
+            new PortalAudit { ActorId = oldPending.Id, Action = "account.registered", CreatedAtUtc = oldPending.CreatedAtUtc },
+            new PortalAudit { ActorId = newPending.Id, Action = "account.registered", CreatedAtUtc = newPending.CreatedAtUtc },
+            new PortalAudit { ActorId = recentActivity.Id, Action = "auth.login", CreatedAtUtc = now.AddDays(-2) });
+
+        var oldTicket = new SupportTicket { UserId = idle.Id, Status = "closed", UpdatedAtUtc = now.AddMonths(-13) };
+        var openTicket = new SupportTicket { UserId = idle.Id, Status = "open", UpdatedAtUtc = now.AddMonths(-13) };
+        var recentTicket = new SupportTicket { UserId = idle.Id, Status = "closed", UpdatedAtUtc = now.AddMonths(-11) };
+        var message = new TicketMessage { TicketId = oldTicket.Id, UserId = idle.Id, Body = "Historic message" };
+        db.Tickets.AddRange(oldTicket, openTicket, recentTicket);
+        db.TicketMessages.Add(message);
+        var staleMail = new EmailOutbox { Status = "sent", CreatedAtUtc = now.AddDays(-100), SentAtUtc = now.AddDays(-91) };
+        var bouncedRecently = new EmailOutbox { Status = "bounced", CreatedAtUtc = now.AddDays(-100), SentAtUtc = now.AddDays(-91), BouncedAtUtc = now.AddDays(-1) };
+        var pendingMail = new EmailOutbox { Status = "retry", CreatedAtUtc = now.AddDays(-100), NextAttemptAtUtc = now.AddDays(1) };
+        var pendingConfirmation = new EmailOutbox { Status = "queued", UserId = oldPending.Id, TemplateKey = "account.confirmation" };
+        db.EmailOutbox.AddRange(staleMail, bouncedRecently, pendingMail, pendingConfirmation);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var retention = new PortalRetention(db, TimeProvider.System);
+        var report = await retention.RunAsync(false, CancellationToken.None);
+        Assert.True(report.Registrations >= 1 && report.ClosedTickets >= 1 && report.DeliveryRecords >= 1 && report.InactivityReview >= 1);
+        Assert.True(await db.Users.AnyAsync(user => user.Id == oldPending.Id));
+        Assert.True(await db.TicketMessages.AnyAsync(row => row.Id == message.Id));
+        Assert.True(await db.EmailOutbox.AnyAsync(row => row.Id == staleMail.Id));
+
+        var applied = await retention.RunAsync(true, CancellationToken.None);
+        Assert.Equal(report, applied);
+        Assert.False(await db.Users.AnyAsync(user => user.Id == oldPending.Id));
+        Assert.False(await db.Tickets.AnyAsync(row => row.Id == oldTicket.Id));
+        Assert.False(await db.TicketMessages.AnyAsync(row => row.Id == message.Id));
+        Assert.False(await db.EmailOutbox.AnyAsync(row => row.Id == staleMail.Id || row.Id == pendingConfirmation.Id));
+        Assert.Equal(4, await db.Users.CountAsync(user => new[] { newPending.Id, unacceptedInvitation.Id, idle.Id, recentActivity.Id }.Contains(user.Id)));
+        Assert.Equal(2, await db.Tickets.CountAsync(row => row.Id == openTicket.Id || row.Id == recentTicket.Id));
+        Assert.Equal(2, await db.EmailOutbox.CountAsync(row => row.Id == bouncedRecently.Id || row.Id == pendingMail.Id));
+
+        Assert.Equal(new PortalRetentionResult(0, 0, 0, report.InactivityReview),
+            await retention.RunAsync(true, CancellationToken.None));
+        await db.EmailOutbox.Where(row => row.Id == bouncedRecently.Id || row.Id == pendingMail.Id).ExecuteDeleteAsync();
+        await db.Tickets.Where(row => row.Id == openTicket.Id || row.Id == recentTicket.Id).ExecuteDeleteAsync();
+        var fixtureUsers = new[] { oldPending.Id, newPending.Id, unacceptedInvitation.Id, idle.Id, recentActivity.Id };
+        await db.Audit.Where(row => row.ActorId != null && fixtureUsers.Contains(row.ActorId)).ExecuteDeleteAsync();
+        await db.Users.Where(user => fixtureUsers.Contains(user.Id)).ExecuteDeleteAsync();
+    }
 
     [Fact]
     public async Task OfflineMachineLicenseConversionRetiresOnlineRightsAndDelaysPrivateDelivery()
@@ -372,8 +743,6 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                     InvitationAccepted = true,
                     DisplayName = "Private Legal Name",
                     Locale = "es",
-                    ProfileType = "student",
-                    ActivityArea = "education-research",
                     OrganizationOrSchool = "Private School Name"
                 };
                 var created = await users.CreateAsync(user, password);
@@ -958,16 +1327,16 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.True((await registrationClient.GetFromJsonAsync<JsonElement>("api/session")).GetProperty("publicRegistrationEnabled").GetBoolean());
             var registrationEmail = $"signup-{Guid.NewGuid():N}@example.test";
             var registrationUsername = "signup-" + Guid.NewGuid().ToString("N")[..12];
-            using (var missingProfileResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
+            using (var invalidProfileResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
             {
                 username = registrationUsername, displayName = "New Portal User", email = registrationEmail, password = Password,
                 locale = "es",
-                profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
+                profileType = "student", activityArea = "other", activityAreaOther = (string?)null,
                 organizationOrSchool = (string?)null, phoneNumber = (string?)null, address = (string?)null,
                 dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false
             }))
             {
-                Assert.Equal(HttpStatusCode.BadRequest, missingProfileResponse.StatusCode);
+                Assert.Equal(HttpStatusCode.BadRequest, invalidProfileResponse.StatusCode);
                 Assert.False(await db.Users.AnyAsync(x => x.Email == registrationEmail));
             }
             using (var shortPasswordResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
@@ -987,10 +1356,7 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             using var registrationResponse = await registrationSession.Raw("/auth/register", HttpMethod.Post, new
             {
                 username = registrationUsername, displayName = "New Portal User", email = registrationEmail, password = Password,
-                locale = "es",
-                profileType = "student", activityArea = "education-research", activityAreaOther = (string?)null,
-                organizationOrSchool = "Technical University", phoneNumber = (string?)null, address = (string?)null,
-                dateOfBirth = (DateOnly?)null, marketingEmailOptIn = false
+                locale = "es"
             });
             Assert.Equal(HttpStatusCode.Accepted, registrationResponse.StatusCode);
             var pendingAccount = await db.Users.SingleAsync(x => x.Email == registrationEmail);
@@ -1044,10 +1410,25 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             var registered = await Login(factory, registrationEmail);
             var registeredProfile = await registered.Get("/profile");
             Assert.Equal(registrationUsername, registeredProfile.GetProperty("userName").GetString());
-            Assert.True(registeredProfile.GetProperty("profileComplete").GetBoolean());
-            Assert.Equal("student", registeredProfile.GetProperty("profileType").GetString());
-            Assert.Equal("Technical University", registeredProfile.GetProperty("organizationOrSchool").GetString());
+            Assert.False(registeredProfile.GetProperty("profileComplete").GetBoolean());
+            Assert.Equal("", registeredProfile.GetProperty("profileType").GetString());
+            Assert.Equal("", registeredProfile.GetProperty("organizationOrSchool").GetString());
             Assert.False(registeredProfile.GetProperty("marketingEmailOptIn").GetBoolean());
+            await registered.Get("/downloads");
+            await registered.Get("/support");
+            await registered.Send("/licensing/organizations", HttpMethod.Post, new { name = "Organization with optional profile" });
+            var updatedProfile = await registered.Send("/profile", HttpMethod.Put, new
+            {
+                displayName = "New Portal User", profileType = "student", organizationOrSchool = "Technical University"
+            });
+            Assert.Equal("student", updatedProfile.GetProperty("profileType").GetString());
+            Assert.Equal("", updatedProfile.GetProperty("activityArea").GetString());
+            var clearedProfile = await registered.Send("/profile", HttpMethod.Put, new
+            {
+                displayName = "New Portal User", profileType = "", organizationOrSchool = ""
+            });
+            Assert.Equal("", clearedProfile.GetProperty("profileType").GetString());
+            Assert.Equal("", clearedProfile.GetProperty("organizationOrSchool").GetString());
             var registeredByUsername = await Login(factory, registrationUsername);
             Assert.Equal(registrationEmail, (await registeredByUsername.Get("/profile")).GetProperty("email").GetString());
             var legacyRecoveryTemplate = await db.EmailTemplates.SingleAsync(x => x.Key == "account.password-reset");
@@ -1748,6 +2129,34 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
                 Assert.Contains(Convert.ToHexString(SHA256.HashData(WebEncoders.Base64UrlDecode(laterRecovery.Credential))).ToLowerInvariant(), hashes);
                 Assert.DoesNotContain(laterRecovery.Credential, hashes);
             }
+
+            var member = await Login(factory, username);
+            var closurePath = $"/admin/accounts/{userId}/closure";
+            using (var unauthorizedClosure = await member.Raw(closurePath, HttpMethod.Put, new { }))
+                Assert.Equal(HttpStatusCode.Forbidden, unauthorizedClosure.StatusCode);
+            var closed = await owner.Send(closurePath, HttpMethod.Put, new { });
+            var repeated = await owner.Send(closurePath, HttpMethod.Put, new { });
+            Assert.Equal(closed.GetProperty("closedAtUtc").GetString(), repeated.GetProperty("closedAtUtc").GetString());
+            Assert.False((await member.Get("/session")).GetProperty("authenticated").GetBoolean());
+
+            using var newPreparation = await product.PostAsJsonAsync("api/licensing/device/prepare", new
+            {
+                username, password = Password, licenseCode, activationId, machineFingerprint = fingerprint
+            });
+            Assert.Equal(HttpStatusCode.Unauthorized, newPreparation.StatusCode);
+            using var renewalAfterClosure = new HttpRequestMessage(HttpMethod.Post, $"api/licensing/device/activations/{activationId}/renew")
+            {
+                Content = JsonContent.Create(new { requestId = Guid.NewGuid(), nextRefreshCredential = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32)) })
+            };
+            renewalAfterClosure.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", laterRecovery.Credential);
+            using var renewed = await product.SendAsync(renewalAfterClosure);
+            Assert.Equal(HttpStatusCode.OK, renewed.StatusCode);
+            var installed = await renewed.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(activationId, installed.GetProperty("activationId").GetGuid());
+            await using var finalScope = factory.Services.CreateAsyncScope();
+            var finalDb = finalScope.ServiceProvider.GetRequiredService<PortalDb>();
+            Assert.Equal(1, await finalDb.ProductLicenseActivations.CountAsync(row => row.LicenseId == licenseId));
+            Assert.Equal(4L, (await finalDb.ProductLicenseActivations.SingleAsync(row => row.Id == activationId)).CredentialGeneration);
         }
         finally { Directory.Delete(root, recursive: true); }
     }

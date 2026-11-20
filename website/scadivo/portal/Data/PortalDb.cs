@@ -19,6 +19,7 @@ public sealed class PortalUser : IdentityUser
     public DateTimeOffset? MarketingEmailOptInAtUtc { get; set; }
     public bool InvitationAccepted { get; set; }
     public bool IsSuspended { get; set; }
+    public DateTimeOffset? ClosedAtUtc { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     [NotMapped]
@@ -176,6 +177,7 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
     public DbSet<DownloadRelease> Releases => Set<DownloadRelease>();
     public DbSet<PortalAudit> Audit => Set<PortalAudit>();
     public DbSet<OfflineMachineLicenseRequest> OfflineMachineLicenseRequests => Set<OfflineMachineLicenseRequest>();
+    public DbSet<SupplementalCopy> SupplementalCopies => Set<SupplementalCopy>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -258,6 +260,16 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
         builder.Entity<PortalDailyView>().Property(x => x.Surface).HasMaxLength(8);
         builder.Entity<PortalAudit>().HasIndex(x => x.CreatedAtUtc);
         builder.Entity<PortalAudit>().Property(x => x.Action).HasMaxLength(100);
+        builder.Entity<SupplementalCopy>(copy =>
+        {
+            copy.Property(x => x.Reference).HasMaxLength(11);
+            copy.Property(x => x.Evidence).HasMaxLength(24);
+            copy.Property(x => x.Status).HasMaxLength(16);
+            copy.Property(x => x.ChallengeHash).HasMaxLength(64);
+            copy.Property(x => x.BrowserHash).HasMaxLength(64);
+            copy.Property(x => x.DownloadHash).HasMaxLength(64);
+            copy.HasIndex(x => x.ExpiresAtUtc);
+        });
         builder.Entity<OfflineMachineLicenseRequest>().HasOne<PortalUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<OfflineMachineLicenseRequest>().HasOne<PortalUser>().WithMany().HasForeignKey(x => x.ReviewedByUserId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<OfflineMachineLicenseRequest>().Property(x => x.ApplicationName).HasMaxLength(120);

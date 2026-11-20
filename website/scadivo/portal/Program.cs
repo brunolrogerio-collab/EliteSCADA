@@ -25,7 +25,10 @@ if (args.Contains("--healthcheck"))
     return;
 }
 
-var builder = WebApplication.CreateBuilder(args.Where(argument => argument != "--send-test-email").ToArray());
+var retentionReport = args.Contains("--retention-report");
+var applyRetention = args.Contains("--apply-retention");
+var builder = WebApplication.CreateBuilder(args.Where(argument =>
+    argument is not ("--send-test-email" or "--send-legal-preview-emails" or "--retention-report" or "--apply-retention")).ToArray());
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 65536);
 builder.Services.AddDbContext<PortalDb>(options => options.UseNpgsql(
     builder.Configuration.GetConnectionString("Portal") ?? throw new InvalidOperationException("Portal database is not configured.")));
@@ -115,7 +118,11 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 40, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 builder.Services.AddScoped<PortalOperations>();
+builder.Services.AddScoped<PortalDataCopy>();
+builder.Services.AddScoped<PortalSupplementalCopy>();
 builder.Services.AddScoped<PortalIndicators>();
+builder.Services.AddScoped<PortalAccountClosure>();
+builder.Services.AddScoped<PortalRetention>();
 builder.Services.AddScoped<PortalLicensingOperations>();
 builder.Services.AddScoped<PortalLicenseOperations>();
 builder.Services.AddSingleton<OfflineLicenseVerifier>();
@@ -141,9 +148,41 @@ builder.Services.AddOptions<PortalEmailBounceOptions>().BindConfiguration("Porta
     .ValidateOnStart();
 builder.Services.AddScoped<PortalEmailBounceProcessor>();
 builder.Services.AddHostedService<PortalEmailBounceWorker>();
+builder.Services.AddOptions<PortalPrivacyAutomationOptions>().BindConfiguration("Portal:Privacy")
+    .Validate<Microsoft.Extensions.Options.IOptions<PortalEmailOptions>>((privacy, email) => !privacy.InactivityNoticesEnabled || email.Value.Enabled,
+        "Inactivity notices require the Portal email service.")
+    .ValidateOnStart();
+builder.Services.AddOptions<PortalContactMailboxRetentionOptions>().BindConfiguration("Portal:Privacy:ContactMailbox")
+    .Validate<Microsoft.Extensions.Options.IOptions<PortalEmailOptions>>((mailbox, email) => mailbox.Valid(email.Value),
+        "Contact retention requires a separate contact mailbox credential and an IMAP endpoint.")
+    .ValidateOnStart();
+builder.Services.AddScoped<PortalContactMailboxRetention>();
+builder.Services.AddHostedService<PortalPrivacyAutomationWorker>();
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
+if (retentionReport || applyRetention)
+{
+    if (retentionReport && applyRetention)
+    {
+        Console.Error.WriteLine("Choose one retention mode.");
+        Environment.ExitCode = 1;
+        return;
+    }
+    await using var scope = app.Services.CreateAsyncScope();
+    try
+    {
+        var retention = scope.ServiceProvider.GetRequiredService<PortalRetention>();
+        var result = await retention.RunAsync(applyRetention, CancellationToken.None);
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { applied = applyRetention, result }));
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Retention did not complete ({exception.GetType().Name}).");
+        Environment.ExitCode = 1;
+    }
+    return;
+}
 if (args.Contains("--send-test-email"))
 {
     try
@@ -158,6 +197,20 @@ if (args.Contains("--send-test-email"))
     catch (Exception exception)
     {
         Console.Error.WriteLine($"SMTP test failed ({exception.GetType().Name}).");
+        Environment.ExitCode = 1;
+    }
+    return;
+}
+if (args.Contains("--send-legal-preview-emails"))
+{
+    try
+    {
+        await PortalLegalPreview.SendTestEmailsAsync(app);
+        Console.WriteLine("Legal notices delivered to Mailpit in PT-BR, EN and ES.");
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Legal preview emails failed ({exception.GetType().Name}).");
         Environment.ExitCode = 1;
     }
     return;
@@ -195,7 +248,10 @@ app.Use(async (context, next) =>
 });
 app.MapGet("/health", async (PortalDb db) => await db.Database.CanConnectAsync()
     ? Results.Ok(new { service = "scadivo-portal", status = "ok" }) : Results.StatusCode(503));
-app.MapPortalEndpoints();
+var legalPreview = PortalLegalPreview.IsEnabled(app);
+app.MapPortalEndpoints(legalPreview);
+PortalSupplementalCopy.Map(app);
+PortalLegalPreview.MapDocuments(app, legalPreview);
 app.MapPortalLicensingEndpoints();
 app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache" });

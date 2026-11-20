@@ -30,6 +30,16 @@ Valide com o tópico de Regras localizado e uma conta de teste confirmada no Por
 
 A publicação requer uma imagem que inclua o plugin e uma cópia protegida da imagem anterior. Depois da troca, limpe o cache anônimo e o cache de traduções pelo mecanismo nativo. A reversão restaura a imagem anterior. Os textos dos canais e as publicações internas continuam sendo conteúdo editável do fórum.
 
+## Canais e área da equipe
+
+O plugin [scadivo-channel-localization](plugins/scadivo-channel-localization/) acrescenta os rótulos localizados à resposta de chat quando o leitor tem acesso ao canal. O componente [SCADIVO Localized Chat Channels](theme-components/localized-chat-channels/) exibe esses rótulos no menu, no catálogo e no cabeçalho do canal. A edição continua usando o título e a descrição originais. Os endereços dos canais e as permissões seguem os valores cadastrados.
+
+O arquivo de traduções da equipe fica no registro operacional protegido. O Git contém apenas o instalador e o roteiro de teste. O [instalador](apply-staff-localizations.rb) usa as localizações nativas para a categoria restrita e para o título e a primeira publicação de cada tópico. Ele confere a origem e a visibilidade antes de gravar em uma transação. A reaplicação do mesmo pacote é segura. Se o original, uma tradução cadastrada ou a visibilidade tiver mudado, revise o pacote antes de aplicar novamente.
+
+Antes de publicar, preserve o ajuste de inicialização da imagem usada na #917 e faça backup do banco e da associação dos componentes do tema. Inclua o plugin na imagem, associe o novo componente ao tema e aplique o arquivo privado com `bundle exec rails runner apply-staff-localizations.rb <arquivo-privado>`. Para reverter, volte à imagem anterior, desassocie apenas o novo componente e restaure os registros de localização desta etapa a partir do backup.
+
+O [roteiro móvel](../../tests/browser/check-staff-localizations.mjs) recebe a URL do Portal, a URL do fórum e o arquivo privado de homologação. Use `SCADIVO_TEST_USERNAME` e `SCADIVO_TEST_PASSWORD` com a conta sintética. Execute primeiro com acesso de equipe nos três idiomas. Para a rodada de permissões, use uma conta comum que siga o canal público e informe em `SCADIVO_TEST_RESTRICTED_PATHS` as rotas de teste obtidas na primeira rodada.
+
 ## Tradução automática de contribuições
 
 O motor nativo guarda traduções para reutilizar nas leituras. No commit em produção, a opção `ai_translation_backfill_limit_to_public_content` restringe a rotina de tradução de publicações a conteúdo público, incluindo a exclusão de mensagens privadas. A seleção de categorias por lista só está disponível em código posterior. Para um piloto de uma categoria, usar uma instância isolada com dados sintéticos ou validar uma versão com essa opção. Sem tradução de mensagens privadas, categorias restritas, chamados ou histórico nesse piloto.

@@ -286,6 +286,10 @@ Antes de sair desta tela, clique em Salvar configuração de processo para guard
 
 Se tentar mudar de seção com edições ainda não salvas, o sistema pede confirmação. Cancele para voltar e salvar; confirmar a saída descarta apenas essas edições locais. Esse aviso não substitui salvar a revisão do projeto.
 
+### Onde encontro os alarmes de desvio?
+
+A lista de Engenharia → Alarmes mostra as regras criadas nesse editor. Os alarmes de desvio do Intelligence ficam no contexto operacional do equipamento. Para alterar a medição, os limites ou o tempo mínimo fora da faixa, abra Engenharia → Intelligence e selecione o contexto. Quando houver um disparo, abra a Central de Alarmes do Runtime e filtre pela área Intelligence.
+
 ### Se você tem acesso somente a parte da planta
 
 Para criar um painel ou editar um contexto, você precisa editar a Engenharia e gerenciar Intelligence nos equipamentos envolvidos. Não é necessário receber gestão de toda a planta. Em Conteúdo do painel, escolha o perfil de um equipamento autorizado.

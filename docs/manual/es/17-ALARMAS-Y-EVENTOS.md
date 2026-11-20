@@ -10,6 +10,10 @@ Empiece por una condición sencilla: avisar cuando la presión alcance el límit
 
 La alarma observa esa variable; no configura el sensor ni detiene la bomba sola. Acuerde límite y respuesta operacional con el responsable. Para aprender, use simulación con permiso y bloqueo de Ingeniería aplicables, sin actuar en equipos reales.
 
+### ¿Dónde encuentro las alarmas de desviación?
+
+Ingeniería → Alarmas muestra las reglas creadas en ese editor. Las alarmas de desviación de Intelligence pertenecen al contexto operativo del equipo. Para cambiar la medición, los límites o el tiempo mínimo fuera del intervalo, abra Ingeniería → Intelligence y seleccione el contexto. Cuando se active una alarma, abra la Central de Alarmas de Runtime y filtre por el área Intelligence.
+
 ### Qué tipo elegir
 
 Elija el tipo según la pregunta que debe responder la alarma:

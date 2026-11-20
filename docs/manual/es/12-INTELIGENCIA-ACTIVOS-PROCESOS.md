@@ -286,6 +286,10 @@ Antes de salir de esta página, use Guardar configuración para guardar perfiles
 
 Si cambia de sección con ediciones sin guardar, el sistema pide confirmación. Cancele para volver y guardar; confirmar la salida descarta esas ediciones locales. Este aviso no sustituye guardar la revisión del proyecto.
 
+### ¿Dónde encuentro las alarmas de desviación?
+
+Ingeniería → Alarmas muestra las reglas creadas en ese editor. Las alarmas de desviación de Intelligence pertenecen al contexto operativo del equipo. Para cambiar la medición, los límites o el tiempo mínimo fuera del intervalo, abra Ingeniería → Intelligence y seleccione el contexto. Cuando se active una alarma, abra la Central de Alarmas de Runtime y filtre por el área Intelligence.
+
 ### Si su acceso cubre solo parte de la planta
 
 Crear un panel o editar un contexto requiere editar Ingeniería y administrar Intelligence en los equipos involucrados. No necesita administrar toda la planta. En Contenido del panel, elija un perfil de equipo autorizado.

@@ -1,0 +1,10 @@
+.categories-list .category-list.with-topics .category-list-item.category:not(.muted) {
+  tr.category-description {
+    display: table-row;
+
+    > td {
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
+  }
+}

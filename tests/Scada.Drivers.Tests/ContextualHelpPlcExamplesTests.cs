@@ -114,31 +114,34 @@ public sealed class ContextualHelpPlcExamplesTests
     [InlineData("pt-BR")]
     [InlineData("en")]
     [InlineData("es")]
-    public void CurrentCatalogBindingIdentityUsedByTheGenericAssistantIsRejectedForS7(string locale)
+    public void CatalogAdvertisesCanonicalS7IdentityAndPlannerRejectsLegacyOrderingSetting(string locale)
     {
-        // Characterization of #786; this assertion and the Help marker must change with the product correction.
         var catalog = EngineeringDataSourceTypeCatalog.BuildForCurrentSchema(CommunicationDriverRuntimeComposition.BuildForCurrentSchema()).Describe();
         var type = catalog.DataSourceTypes.Single(t => t.TypeKey == "siemens.s7.iso");
         var (source, tag) = Example(locale, "drivers.siemens-setup", new S7IsoEngineeringAdapter().Descriptor);
-        var emittedSettings = new Dictionary<string, string>(tag.CommunicationBinding!.Settings!) { ["valueOrder"] = "Normal" };
-        var generated = tag.CommunicationBinding with { SchemaId = type.TagBindingSchemaId!, SchemaVersion = type.TagBindingSchemaVersion!.Value, Settings = emittedSettings };
-        Assert.NotEqual(S7IsoTagBinding.SchemaId, generated.SchemaId);
-        var assistantTag = tag with { CommunicationBinding = generated };
-        var result = new S7IsoCommunicationRuntimePlanner().Plan(Package(source, assistantTag), source);
-        Assert.False(result.CanActivate);
-        Assert.Contains(result.Issues, i => i.Code == "S7_TAG_BINDING_SCHEMA_MISMATCH");
-        // Correcting the schema alone still leaves the legacy order setting incompatible with the current projection.
-        var schemaOnly = assistantTag with { CommunicationBinding = generated with { SchemaId = S7IsoTagBinding.SchemaId } };
-        Assert.False(new S7IsoCommunicationRuntimePlanner().Plan(Package(source, schemaOnly), source).CanActivate);
+        Assert.Equal(S7IsoTagBinding.SchemaId, type.TagBindingSchemaId);
+        Assert.Equal(S7IsoTagBinding.CurrentSchemaVersion, type.TagBindingSchemaVersion);
+        var generated = tag.CommunicationBinding! with
+        {
+            SchemaId = type.TagBindingSchemaId!,
+            SchemaVersion = type.TagBindingSchemaVersion!.Value,
+            Settings = new Dictionary<string, string>(),
+            ValueTransform = new TagPhysicalValueTransform(1, ByteSwap: true, WordSwap: true)
+        };
+        var planner = new S7IsoCommunicationRuntimePlanner();
+        var candidate = tag with { CommunicationBinding = generated };
+        var result = planner.Plan(Package(source, candidate), source);
+        Assert.True(result.CanActivate, string.Join("; ", result.Issues.Select(i => i.Message)));
+        var invalid = candidate with { CommunicationBinding = generated with { Settings = new Dictionary<string, string> { ["valueOrder"] = "Normal" } } };
+        Assert.False(planner.Plan(Package(source, invalid), source).CanActivate);
     }
 
     [Theory]
     [InlineData("pt-BR")]
     [InlineData("en")]
     [InlineData("es")]
-    public void GenericAssistantLogixSettingsRemainRejectedInsteadOfWeakeningRuntimeGuards(string locale)
+    public void LogixStillRejectsSymbolicIdentityInSettings(string locale)
     {
-        // Characterization of #786; not an assertion that the assistant path is delivered.
         var descriptor = new AllenBradleyLogixEngineeringAdapter().Descriptor;
         var (source, tag) = Example(locale, "drivers.logix-setup", descriptor);
         var settings = ContextualHelpCatalog.Build(locale).Topics.Single(t => t.Id == "drivers.logix-setup").Sections

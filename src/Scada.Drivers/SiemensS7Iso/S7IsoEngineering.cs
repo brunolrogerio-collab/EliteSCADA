@@ -216,7 +216,9 @@ public sealed class S7IsoEngineeringAdapter :
                 1,
                 dataSourceFields,
                 tagFields),
-            Description: "Classic Siemens S7 communication over ISO-on-TCP / RFC1006 with Engineering-side TIA XLSX, XML and SDF PLC-tag import.");
+            Description: "Classic Siemens S7 communication over ISO-on-TCP / RFC1006 with Engineering-side TIA XLSX, XML and SDF PLC-tag import.",
+            TagBindingSchemaId: S7IsoTagBinding.SchemaId,
+            TagBindingSchemaVersion: S7IsoTagBinding.CurrentSchemaVersion);
     }
 
     private static IReadOnlyDictionary<string, string> ConnectionObservedProperties(

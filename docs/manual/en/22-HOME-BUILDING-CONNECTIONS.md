@@ -82,8 +82,6 @@ Test connection, discover/browse objects and review preview before applying; act
 
 Use KNX project addresses and keep commands separate from feedback.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.knx-setup; fields=writeGroupAddress; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Requirements and scope
 
 Use the KNX project details: addresses, gateway, each point’s type and security material. Obtain them from the administrator before filling the source. Keep the command point separate from the point reporting actual state.
@@ -94,9 +92,7 @@ Do not assume unsecured IP tunneling, multicast routing or automatic Engineering
 
 ### Gateway and point fields
 
-The generic TAG assistant still produces a binding incompatible with the KNX/IP contract. UI authoring correction is pending; the fields below explain the contract, but there is no validated walkthrough to complete this binding with the current assistant. Do not attempt to fix it by changing DPTs or disabling security.
-
-Configure the source and binding using the actual DPT. Passwords/keyring are protected references, not secret files inside the application.
+In Engineering → TAGs, select the KNX/IP source. Enter the command address, feedback address and DPT. Apply the binding settings, validate and apply to the Workspace. Use distinct command and feedback addresses for writes. Passwords and keyrings remain protected references.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -107,7 +103,7 @@ Configure the source and binding using the actual DPT. Passwords/keyring are pro
 | Secure password reference | Reference to protected material provisioned on the server for this integration. Ask the administrator for the reference; do not paste a password, token or secret key into ordinary settings or the application manual. |  |  |
 | Device authentication reference | Reference to protected material provisioned on the server for this integration. Ask the administrator for the reference; do not paste a password, token or secret key into ordinary settings or the application manual. |  |  |
 | Data Secure keyring reference | Reference to protected material provisioned on the server for this integration. Ask the administrator for the reference; do not paste a password, token or secret key into ordinary settings or the application manual. |  |  |
-| Command group / binding address | Address in main/middle/subgroup notation for writes. In the portable binding this is the TAG Address; for a read-only TAG check the KNX project mapping. The generic TAG assistant still produces a binding incompatible with the KNX/IP contract. UI authoring correction is pending; the fields below explain the contract, but there is no validated walkthrough to complete this binding with the current assistant. Do not attempt to fix it by changing DPTs or disabling security. | 1/2/3 |  |
+| Command group / binding address | Three-level command group address. The assistant stores it as the portable address. Check the KNX project mapping for read-only TAGs. | 1/2/3 |  |
 | Authoritative state group | Feedback source. For a writable TAG it must differ from the command group; the driver does not treat sending a command as confirmed state. | 1/2/4 |  |
 | KNX datapoint type (DPT) | Defines telegram interpretation. 1.001/1.002 use Boolean TAGs; 5.001 and 9.001/9.004/9.007/9.024 use Float or Double in this driver. The example uses 9.001 for temperature. Do not choose DPT solely by apparent value size. | 9.001 |  |
 

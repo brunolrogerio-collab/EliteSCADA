@@ -45,6 +45,8 @@ export type C04Text = Readonly<{
     loading: string;
     apply: string;
     addressRequired: string;
+    invalidBinding: string;
+    generatedAddressHelp: string;
     schemaUnavailable: string;
     required: string;
     integer: string;
@@ -155,6 +157,8 @@ const ptBR: C04Text = {
     integerRequired: 'valor inteiro obrigatório', integerInvalid: 'valor inteiro inválido', numberInvalid: 'valor numérico inválido'
   },
   generic: {
+    invalidBinding: 'Confira os campos do vínculo.',
+    generatedAddressHelp: 'Preencha os campos abaixo e aplique para gerar o endereço portátil.',
     title: 'Configuração do binding do Driver',
     help: 'Os campos vêm do catálogo backend do Driver. O Endereço portátil manual continua sendo a identidade.',
     loading: 'Carregando schema de binding do Driver…',
@@ -216,6 +220,8 @@ const en: C04Text = {
     integerRequired: 'integer value required', integerInvalid: 'invalid integer value', numberInvalid: 'invalid numeric value'
   },
   generic: {
+    invalidBinding: 'Check the binding fields.',
+    generatedAddressHelp: 'Complete the fields below and apply to build the portable address.',
     title: 'Driver binding settings', help: 'Fields come from the backend Driver catalog. The manual portable Address remains the identity boundary.',
     loading: 'Loading Driver binding schema…', apply: 'Use binding settings', addressRequired: 'Enter a portable Address before applying Driver binding settings.',
     schemaUnavailable: 'The backend TAG binding schema is unavailable.', required: 'required value', integer: 'invalid integer', number: 'invalid number', enumValue: 'unsupported value',
@@ -271,6 +277,8 @@ const es: C04Text = {
     integerRequired: 'se requiere un valor entero', integerInvalid: 'valor entero inválido', numberInvalid: 'valor numérico inválido'
   },
   generic: {
+    invalidBinding: 'Revise los campos del vínculo.',
+    generatedAddressHelp: 'Complete los campos y aplique para generar la dirección portátil.',
     title: 'Configuración del binding del Driver', help: 'Los campos provienen del catálogo backend del Driver. La dirección portátil manual sigue siendo la identidad.',
     loading: 'Cargando schema de binding del Driver…', apply: 'Usar configuración de binding', addressRequired: 'Ingrese una dirección portátil antes de aplicar el binding.',
     schemaUnavailable: 'El schema backend de TAG binding no está disponible.', required: 'valor requerido', integer: 'entero inválido', number: 'número inválido', enumValue: 'valor no soportado',

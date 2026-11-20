@@ -4,8 +4,6 @@
 
 Verifique a disponibilidade, prepare a fonte e diferencie a leitura de um atributo já comissionado de parear um dispositivo.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786-MATTER: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.matter-test-workflow; fields=communicationBinding; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Comece pela disponibilidade
 
 Antes de configurar, confirme se Matter Wi-Fi aparece na sua instalação. O SCADIVO é multiplataforma, mas este conector é uma prévia isolada para host Linux x64, com processo auxiliar local, chamado sidecar. Não é uma liberação de Matter para toda instalação.
@@ -43,7 +41,7 @@ A fonte não recebe host, porta ou ajustes públicos genéricos de protocolo. A 
 | Tipo do TAG | Escolha o tipo do atributo real; Boolean serve para um estado ligado/desligado. | Boolean | Boolean, Int16, Int32, Int64, Float, Double ou String; não suponha suporte a outros tipos. |
 | Somente leitura | Comece com leitura para conferir valor e qualidade antes de testar atuação. | true | Permitir escrita no TAG não concede autorização ao usuário nem torna o atributo gravável. |
 | Endereço do atributo | Reúna os quatro números reais no formato mostrado; não use endereço IP ou código de pareamento. | node/123/endpoint/1/cluster/6/attribute/0 | Números decimais sem sinal/zeros à esquerda; node de 1 até UInt64 máximo, endpoint UInt16, cluster/attribute UInt32. |
-| Vínculo de comunicação | Declara a identidade e a versão da representação que o Runtime entende. Digitar só o endereço não cria esse objeto. | Vínculo Matter v1 | O assistente genérico atual não monta esse vínculo quando o catálogo não declara campos de ponto; não há passo gráfico completo prometido aqui. |
+| Vínculo de comunicação | Declara a identidade e a versão da representação que o Runtime entende. Digitar só o endereço não cria esse objeto. | Vínculo Matter v1 | Com a fonte Matter disponível no catálogo, informe o endereço portátil no TAG e aplique as configurações de binding antes de validar. |
 | Versão do contrato | Identifica o formato do objeto de vínculo, não a versão comercial do Matter. | 1 | O contrato atual do vínculo é 1. |
 | Identificação do esquema | Identifica a interpretação Matter do endereço; fica na referência técnica. | elitescada.driver.matter.wifi | Não substituir pelo esquema de configuração da fonte. |
 | Versão do esquema | Diz como interpretar o conteúdo do vínculo. | 1 | O planner atual aceita o esquema Matter v1. |

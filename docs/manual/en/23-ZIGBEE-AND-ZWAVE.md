@@ -30,8 +30,6 @@ This guide helps you decide; it is not a new configuration screen. Do not open t
 
 Prepare the source for the supported TI coordinator and understand this version’s bounded scope.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786-ZIGBEE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.zigbee-native-setup; fields=communicationBinding; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### Required installation
 
 For this path, the Zigbee network and device must already be prepared. Use a compatible TI zStack/CC2652 serial coordinator attached to the server. This version offers no Engineering discovery or inclusion wizard and does not promise all Zigbee devices or clusters.
@@ -40,7 +38,7 @@ The distribution uses a managed helper process for Windows or Linux x64. In a co
 
 ### Fields and authoring limit
 
-Network parameters must match the existing coordinator/state. Binding authoring in the generic assistant is incomplete: Runtime rejects its extra fields. The fields below describe driver requirements; the current assistant does not provide a corrected creation workflow.
+Use the prepared network settings. In Engineering → TAGs, select the Native Zigbee source and enter the IEEE address, endpoint, cluster and attribute. Apply the binding, validate and apply to the Workspace.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -56,7 +54,7 @@ Network parameters must match the existing coordinator/state. Binding authoring 
 | Supported cluster | This native driver accepts genOnOff in this version; it does not offer every Zigbee cluster or analog measurement through this binding. | genOnOff |  |
 | Supported attribute | onOff attribute with a Boolean TAG. A different attribute or numeric TAG type is rejected. | onOff |  |
 | Complete TAG address | Combines IEEE/endpoint/cluster/attribute. The example is an On/Off function; replace with the existing device identity. | 00124b0000000001/1/genOnOff/onOff |  |
-| Binding authoring in this version | The current generic assistant stores identity fields as extra settings, but this driver requires them only in the address. Runtime rejects the generated object. UI authoring awaits correction; do not bypass validation. |  |  |
+| Binding authoring in this version | The assistant builds the portable address from the IEEE address, endpoint, cluster and attribute. |  |  |
 
 ### Example of a prepared function
 
@@ -76,8 +74,6 @@ Check available resource, model/family, serial access and network identity befor
 
 Use the host-registered controller and preserve each value’s exact identity.
 
-<!-- HELP-REVIEW-AFTER-PRODUCT-786-ZWAVE: https://github.com/brunolrogerio-collab/EliteSCADA/issues/786; topic=drivers.zwave-setup; fields=communicationBinding; status=WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION -->
-
 ### What this type does
 
 Use this path to read persisted values from an already prepared Z-Wave network. The serial controller is local to the server; its managed helper uses internal communication limited to that host.
@@ -86,7 +82,7 @@ Installation supports Windows or Linux x64. In Docker, also provide the device a
 
 ### Source and address interpretation
 
-S0/S2 references are optional in source format, but secure devices need material matching the network. RF region and NVM identity belong to the host resource. New UI binding authoring is pending: the descriptor without extra fields does not produce the binding required by Runtime.
+S0/S2 references must match the secured network. The host resource defines the RF region and NVM identity. In the TAG editor, enter the typed portable address and apply the binding settings.
 
 | Field | Purpose and how to fill it | Example | Bounds |
 | --- | --- | --- | --- |
@@ -101,7 +97,7 @@ S0/S2 references are optional in source format, but secure devices need material
 | Command Class | Code of the class containing the value. Example 37 is Switch Binary; the driver admits bounded persistent values and rejects classes outside its scope. Not an Authority permission. | 37 |  |
 | Property and its type | Use string/currentValue for the sample textual property. number/1 and string/1 properties have different identities; do not remove the type. Do not assume currentValue is writable. | string/currentValue |  |
 | Optional key and its type | key/none/- means no additional key. Where one exists keep its number/string type and escaped address contents; do not omit format components. | none/- |  |
-| Authoring a new binding | This driver requires a versioned communication binding as well as Address. The generic assistant does not create a new binding when the descriptor has no extra fields, as here. Entering only a new TAG address is insufficient; authoring correction is pending. An existing valid binding received through package/API is a separate case. |  |  |
+| Authoring a new binding | In Engineering → TAGs, select the Z-Wave JS source, enter the typed portable address and apply the binding settings. Validate and apply to the Workspace. |  |  |
 
 ### Example: read binary switch state
 

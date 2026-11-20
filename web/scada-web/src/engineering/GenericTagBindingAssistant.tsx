@@ -8,6 +8,7 @@ import {
 import { resolveDriverCatalogResource } from './driverCatalogI18n';
 import type { EngineeringLocale } from './i18n';
 import { c04Text, type C04Text } from './c04I18n';
+import { buildTagBinding, bindingFormValues, supportsAddressOnlyBinding, usesManualBindingAddress } from './GenericTagBindingAssistant.logic';
 import type { TagSourceAwareEngineering } from './TagSourceSelector.logic';
 
 type Props = {
@@ -46,16 +47,16 @@ export function GenericTagBindingAssistant({ tag, driverType, locale, onChange }
         if (alive) setLoading(false);
       });
     return () => { alive = false; };
-  }, [driverType, tag.communicationBinding, text.schemaUnavailable]);
+  }, [driverType, tag.id, tag.path, tag.communicationBinding, text.schemaUnavailable]);
 
   const fields = definition?.configurationSchema?.tagBindingFields ?? [];
   if (loading) return <small data-testid="generic-tag-binding-loading">{text.loading}</small>;
-  if (!definition || fields.length === 0) return error ? <small role="alert">{error}</small> : null;
+  if (!definition || (fields.length === 0 && !supportsAddressOnlyBinding(definition.typeKey))) return error ? <small role="alert">{error}</small> : null;
 
   const apply = () => {
     setError(null);
     const address = tag.address?.trim();
-    if (!address) {
+    if (!address && usesManualBindingAddress(definition.typeKey)) {
       setError(text.addressRequired);
       return;
     }
@@ -78,24 +79,19 @@ export function GenericTagBindingAssistant({ tag, driverType, locale, onChange }
       if (value) normalized[field.key] = value;
     }
 
-    onChange({
-      ...tag,
-      address,
-      communicationBinding: {
-        contractVersion: 1,
-        schemaId: identity.schemaId,
-        schemaVersion: identity.schemaVersion,
-        portableAddress: address,
-        settings: normalized
-      }
-    });
+    const result = buildTagBinding(definition.typeKey, tag, identity, normalized);
+    if (!result) {
+      setError(text.invalidBinding);
+      return;
+    }
+    onChange(result);
   };
 
   return (
     <section className="eng-dictionary-editor eng-editor-field-wide" data-testid="generic-tag-binding-assistant">
       <header>
         <strong>{text.title}</strong>
-        <span>{text.help}</span>
+        <span>{usesManualBindingAddress(definition.typeKey) ? text.help : text.generatedAddressHelp}</span>
       </header>
       <div className="eng-editor-form-grid">
         {fields.map(field => (
@@ -141,7 +137,7 @@ function GenericField({ field, value, locale, protectedMaterialHint, onChange }:
       <span>{displayName}{field.required ? ' *' : ''}</span>
       {field.valueKind === 'enum' ? (
         <select value={value} onChange={event => onChange(event.target.value)} data-testid={testId}>
-          {!field.required && <option value="" />}
+          {(!field.required || !value) && <option value="" />}
           {field.allowedValues.map(option => <option key={option} value={option}>{option}</option>)}
         </select>
       ) : field.valueKind === 'boolean' ? (
@@ -176,9 +172,10 @@ function initialSettings(
   const identity = tagBindingSchemaIdentity(definition);
   const matches = Boolean(identity && tag.communicationBinding?.schemaId === identity.schemaId);
   const result: Record<string, string> = {};
+  const values = definition && matches ? bindingFormValues(definition.typeKey, tag) : {};
 
   for (const field of fields) {
-    const current = matches ? tag.communicationBinding?.settings?.[field.key] : undefined;
+    const current = values[field.key];
     const value = current ?? field.defaultValue;
     if (value != null && value !== '') result[field.key] = value;
   }

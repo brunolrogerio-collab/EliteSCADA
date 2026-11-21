@@ -49,6 +49,9 @@ test('stable shell and structured editor copy uses locale-native glossary terms'
   expect(locales.map(locale => translator(locale)('entity.dataSources'))).toEqual(['Fontes de dados', 'Data Sources', 'Fuentes de datos']);
   expect(translator('en')('nav.dataSources')).toBe('Data Sources');
 
+  expect(locales.map(locale => translator(locale)('table.path'))).toEqual(['Caminho', 'Path', 'Ruta']);
+  expect(translator('en')('overview.lifecycleHint')).toBe('Editing → Review → Published → Active');
+
   const ptEditor = editorTranslator('pt-BR');
   const esEditor = editorTranslator('es');
   expect(ptEditor('editor.field.source')).toBe('Fonte de dados');

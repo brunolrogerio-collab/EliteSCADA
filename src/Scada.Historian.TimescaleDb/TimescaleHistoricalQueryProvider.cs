@@ -147,7 +147,8 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalDatase
             query.PageSize + 1);
         command.CommandText = sql.ToString();
 
-        var materialized = new List<SampleRow>();
+        var rows = new List<HistoricalQueryRow>();
+        SampleRow? last = null;
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
@@ -183,16 +184,14 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalDatase
                     CapturePolicyFingerprint = policyEvidence.Fingerprint
                 };
             }
-            materialized.Add(sample);
+            if (rows.Count == query.PageSize)
+                return new HistoricalProviderPage(rows, last is null ? null : Position(last));
+
+            rows.Add(ToRow(sample, tags, includeProvenance));
+            last = sample;
         }
 
-        var hasMore = materialized.Count > query.PageSize;
-        if (hasMore) materialized.RemoveAt(materialized.Count - 1);
-        var rows = materialized.Select(sample => ToRow(sample, tags, includeProvenance)).ToArray();
-        var next = hasMore && materialized.Count > 0
-            ? Position(materialized[^1])
-            : null;
-        return new HistoricalProviderPage(rows, next);
+        return new HistoricalProviderPage(rows, null);
     }
 
     private static string BuildFilter(

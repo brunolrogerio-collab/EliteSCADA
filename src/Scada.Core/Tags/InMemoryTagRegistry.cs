@@ -8,6 +8,7 @@ public sealed class InMemoryTagRegistry : ITagRegistry
     private readonly ConcurrentDictionary<string, Guid> _byPath = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _gate = new();
     private readonly Action? _changed;
+    private IReadOnlyCollection<TagDefinition>? _sortedSnapshot;
 
     public InMemoryTagRegistry(Action? changed = null)
     {
@@ -27,6 +28,7 @@ public sealed class InMemoryTagRegistry : ITagRegistry
 
             _byId[tag.Id] = tag;
             _byPath[tag.Path] = tag.Id;
+            _sortedSnapshot = null;
         }
         _changed?.Invoke();
         return tag;
@@ -47,6 +49,7 @@ public sealed class InMemoryTagRegistry : ITagRegistry
 
             _byId[tag.Id] = tag;
             _byPath[tag.Path] = tag.Id;
+            _sortedSnapshot = null;
         }
         _changed?.Invoke();
         return tag;
@@ -59,6 +62,7 @@ public sealed class InMemoryTagRegistry : ITagRegistry
         {
             if (!_byId.TryRemove(tagId, out removed)) return false;
             _byPath.TryRemove(removed.Path, out _);
+            _sortedSnapshot = null;
         }
         _changed?.Invoke();
         return true;
@@ -77,8 +81,14 @@ public sealed class InMemoryTagRegistry : ITagRegistry
         return _byPath.TryGetValue(path, out var id) && _byId.TryGetValue(id, out tag);
     }
 
-    public IReadOnlyCollection<TagDefinition> Snapshot() =>
-        _byId.Values.OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase).ToArray();
+    public IReadOnlyCollection<TagDefinition> Snapshot()
+    {
+        lock (_gate)
+        {
+            return _sortedSnapshot ??= Array.AsReadOnly(
+                _byId.Values.OrderBy(tag => tag.Path, StringComparer.OrdinalIgnoreCase).ToArray());
+        }
+    }
 
     public void Clear()
     {
@@ -86,6 +96,7 @@ public sealed class InMemoryTagRegistry : ITagRegistry
         {
             _byId.Clear();
             _byPath.Clear();
+            _sortedSnapshot = null;
         }
         _changed?.Invoke();
     }

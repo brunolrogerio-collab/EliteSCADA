@@ -1,3 +1,4 @@
+import { replaceAppPath } from '../appPath';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getProductIdentity, type ProductIdentityView } from '../productInfoApi';
 import { loadEngineeringSnapshot } from './api';
@@ -193,7 +194,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
     }
     setSection(next);
     const nextPath = engineeringSectionPath(next);
-    if (window.location.pathname !== nextPath) window.history.replaceState(null, '', nextPath);
+    replaceAppPath(nextPath);
   };
 
   const openIntelligenceDashboardDraft = useCallback((draftOrDrafts: ScreenEngineering | readonly ScreenEngineering[]) => {
@@ -203,7 +204,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
     setIntelligenceDashboardDrafts(drafts);
     setSection('screens');
     const nextPath = engineeringSectionPath('screens');
-    if (window.location.pathname !== nextPath) window.history.replaceState(null, '', nextPath);
+    replaceAppPath(nextPath);
   }, []);
   const consumeIntelligenceDashboardDraft = useCallback((key: string) => {
     setIntelligenceDashboardDrafts(current => current.filter(draft => draft.key !== key));

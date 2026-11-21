@@ -1,3 +1,4 @@
+import { useAppPath } from './appPath';
 import React from 'react';
 import { useMobileRuntime } from './runtime/useMobileRuntime';
 import { appShellText, useAppShellLocale } from './appShellI18n';
@@ -31,7 +32,7 @@ export function AppNavigation() {
   const { theme, selectTheme } = useAppTheme();
   const { capabilities, loading } = useEffectiveCapabilities();
   const branding = useActiveApplicationBranding();
-  const path = window.location.pathname;
+  const path = useAppPath();
   const access = resolveAppSurfaceAccess(capabilities);
   const databaseAdmin = hasRuntimeCapability(capabilities, 'SystemAdmin');
   const mobileRuntimeUtility = path.startsWith('/runtime/history') || path.startsWith('/runtime/reports');

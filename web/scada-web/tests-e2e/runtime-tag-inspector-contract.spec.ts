@@ -138,7 +138,9 @@ test('protected realtime endpoint publishes TAG current-value facts used by the 
   const writable = tags.find(tag => !tag.readOnly);
   expect(writable).toBeTruthy();
 
-  await page.goto('/');
+  // The socket needs a same-origin document. Mounting the Runtime here would admit a second client.
+  await page.route('**/inspector-socket-test', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html>' }));
+  await page.goto('/inspector-socket-test');
   await page.evaluate(tagId => {
     const target = window as typeof window & { e2eTagEvent?: Promise<Record<string, unknown>> };
     target.e2eTagEvent = new Promise<Record<string, unknown>>((resolve, reject) => {

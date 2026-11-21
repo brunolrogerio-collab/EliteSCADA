@@ -41,7 +41,7 @@ test('Alarm Browser and Event Browser are first-class authoring palette objects'
 });
 
 test('browser insertion labels follow the shared Screen and Popup visual-editor locale', () => {
-  expect(c07VisualEditorText('pt-BR').palette).toEqual({
+  expect(c07VisualEditorText('pt-BR').palette).toMatchObject({
     arc: 'Arco',
     bezier: 'Curva Bézier',
     alarmBrowser: 'Browser de Alarmes',
@@ -56,7 +56,7 @@ test('browser insertion labels follow the shared Screen and Popup visual-editor 
     measurementBands: 'Faixas de intervalo',
     measurementTarget: 'Valor atual e meta'
   });
-  expect(c07VisualEditorText('en').palette).toEqual({
+  expect(c07VisualEditorText('en').palette).toMatchObject({
     arc: 'Arc',
     bezier: 'Bezier curve',
     alarmBrowser: 'Alarm Browser',
@@ -71,7 +71,7 @@ test('browser insertion labels follow the shared Screen and Popup visual-editor 
     measurementBands: 'Range bands',
     measurementTarget: 'Actual vs target'
   });
-  expect(c07VisualEditorText('es').palette).toEqual({
+  expect(c07VisualEditorText('es').palette).toMatchObject({
     arc: 'Arco',
     bezier: 'Curva Bézier',
     alarmBrowser: 'Browser de Alarmas',

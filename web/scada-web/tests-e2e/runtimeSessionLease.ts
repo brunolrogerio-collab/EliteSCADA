@@ -49,6 +49,17 @@ async function admitRuntimeSessionForTest(
   };
 }
 
+/** Admission for mounted UI tests that already simulate the Runtime API. */
+export async function mockMountedRuntimeAdmission(page: Page): Promise<void> {
+  await page.route('**/api/runtime/sessions', async route => {
+    const { clientInstanceId, connectionClass } = route.request().postDataJSON();
+    await route.fulfill({ status: 201, json: {
+      sessionId: 'mounted-runtime-session', clientInstanceId,
+      requestedClass: connectionClass, grantedClass: connectionClass
+    } });
+  });
+}
+
 /** Ends the public logical lease so independent E2E subjects do not consume a Demo seat. */
 export async function terminateRuntimeSession(
   request: APIRequestContext,

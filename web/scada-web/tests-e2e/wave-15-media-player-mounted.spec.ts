@@ -1,3 +1,4 @@
+import { mockMountedRuntimeAdmission } from './runtimeSessionLease';
 import { expect, test, type Page } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
@@ -23,6 +24,7 @@ async function mount(page: Page) {
     if (path.startsWith(base)) return route.fallback();
     await route.fulfill({ json: responses[path] ?? [] });
   });
+  await mockMountedRuntimeAdmission(page);
 }
 
 test('Runtime media exposes credential failure without an endless reconnect loop', async ({ page }) => {

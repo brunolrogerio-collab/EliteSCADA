@@ -17,7 +17,9 @@ test('canonical visual schemas stay compatible with generic Python read/write/cl
       objectId,
       key: objectKey,
       objectType: schema.objectTypeKey,
-      baseProperties: schema.createDefaultValues()
+      baseProperties: Object.fromEntries(schema.definitions()
+        .filter(property => property.engineeringEditable)
+        .map(property => [property.key, property.defaultValue]))
     }, schema);
     const instance = new RuntimeVisualInstance({
       runtimeInstanceId: `c05-python-runtime-${schemaIndex}`,
@@ -42,7 +44,7 @@ test('canonical visual schemas stay compatible with generic Python read/write/cl
           { targetReference: objectKey, propertyKey: property.key },
           context
         );
-        expect(read, `${schema.objectTypeKey}.${property.key} read`).toMatchObject({ source: 'engineering' });
+        expect(read, `${schema.objectTypeKey}.${property.key} read`).toMatchObject({ source: property.engineeringEditable ? 'engineering' : 'default' });
       } else {
         await expect(dispatchClientVisualPythonCapability(
           provider,
@@ -100,7 +102,7 @@ test('canonical visual schemas stay compatible with generic Python read/write/cl
         );
         expect(cleared, `${schema.objectTypeKey}.${property.key} clear precedence`).toEqual({
           value: property.defaultValue,
-          source: 'engineering'
+          source: property.engineeringEditable ? 'engineering' : 'default'
         });
       } else {
         await expect(dispatchClientVisualPythonCapability(

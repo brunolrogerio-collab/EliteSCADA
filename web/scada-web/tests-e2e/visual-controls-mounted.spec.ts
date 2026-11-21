@@ -264,7 +264,7 @@ test('generic CheckBox Boolean mode keeps the same broad meaning in all editor l
 
 test('Engineering inspector edits typed ComboBox labels and values without exposing technical IDs', async ({ page }) => {
   await page.goto('/tests-e2e/visual-controls-harness.html?surface=inspector&control=combo');
-  await expect(page.getByTestId('visual-combobox-configuration')).toContainText('Cada opção tem o valor gravado no TAG');
+  await expect(page.getByTestId('visual-combobox-configuration')).toContainText('Use a aba Eventos para escolher o que cada opção faz');
   await page.getByLabel('Valor do TAG 1').fill('AUTO');
   await page.getByLabel('Texto exibido 1').fill('Automático');
   await page.getByRole('button', { name: 'Adicionar opção' }).click();

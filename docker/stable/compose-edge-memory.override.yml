@@ -1,0 +1,8 @@
+# Optional settings for small Linux Docker deployments.
+services:
+  web:
+    cpus: "2.0"
+    environment:
+      NGINX_ENTRYPOINT_WORKER_PROCESSES_AUTOTUNE: "1"
+  database:
+    command: ["postgres", "-c", "shared_buffers=128MB"]

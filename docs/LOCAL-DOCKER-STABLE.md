@@ -6,6 +6,18 @@ E3-import cleanup: trial Elipse E3 dynamos are not seeded into new workspaces.
 The TimescaleDB data is stored in a named Docker volume and survives container
 restarts, image rebuilds and `docker compose down`.
 
+## Lower-memory profile for edge and VPS installations
+
+For small Linux-container installations, add the optional overrides when starting the stable stack:
+
+```sh
+docker compose -f docker-compose.stable.yml -f docker/stable/compose-edge-memory.override.yml up -d
+```
+
+Use the installation's existing project name and environment file. Applying this to an existing stack recreates the Web and database containers, briefly interrupting access. The database reuses its named volume. Include both files on subsequent updates to keep the profile. To return to the default settings, run the same command with only the stable Compose file.
+
+The Web proxy uses the CPU quota (up to two CPUs) to size its worker pool. PostgreSQL uses 128 MiB of shared buffers, including with an already initialized database. This setting covers one database cache; the database process, connections and filesystem cache also require memory. The API keeps its normal garbage collector. For sizing, compare working set and response times with the installation's usual operator sessions, historical queries and ingest rate.
+
 ## First start
 
 1. Copy `docker-stable.env.example` to `.env` in the repository root.

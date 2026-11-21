@@ -2,7 +2,7 @@
 
 Estados: `COMPLETE`, `DRAFT_STABLE`, `DRAFT_CURRENT`, `BLOCKED_PRODUCT`, `FINAL_REVIEW_REQUIRED`. `DRAFT_CURRENT` documenta uma interface disponível hoje que pode evoluir; não equivale à aceitação do comportamento do produto.
 
-Todos os screenshots permanecem `PENDING_FINAL` nesta fase. Os glossários de entrada pt-BR/en/es foram revisados com28 termos. A revisão semântica global entre idiomas e a aceitação final continuam pendentes; glossário concluído não encerra essas verificações.
+Exceto pelas capturas já registradas abaixo, os screenshots permanecem `PENDING_FINAL` nesta fase. Os glossários de entrada pt-BR/en/es foram revisados com28 termos. A revisão semântica global entre idiomas e a aceitação final continuam pendentes; glossário concluído não encerra essas verificações.
 
 Continuação de 25/10/2026: capítulos 05 de Telas/Popups/objetos disponíveis em pt-BR/en/es. Linhas 30–43 deixam o bloqueio editorial antigo e passam a DRAFT_CURRENT; nenhum aceite de produto ou captura final é inferido.
 
@@ -39,7 +39,7 @@ Atualização de 24/10/2026 na PR #772: a Ajuda instalada ganha áreas, busca, r
 | 27. Copy/Paste/Duplicate | DRAFT_STABLE | #425 / #306 | `tagDuplicationModel.ts`; TAG editor/commissioning; Historian profile contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 28. Sequential TAG generation | DRAFT_STABLE | #425 / #306 | `tagDuplicationModel.ts`; TAG editor/commissioning; Historian profile contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
 | 29. Historian profile | DRAFT_STABLE | #425 / #306 | `tagDuplicationModel.ts`; TAG editor/commissioning; Historian profile contracts | pt-BR Phase 1; en/es chapter available; final #379 semantic-parity sweep required | PENDING_FINAL |
-| 30. Screen Editor | DRAFT_CURRENT | #425 / #306 | Current visual schemas; Sidebar/SelectionInspector/Toolbar/PropertyInspector/EventsEditor; chapter 05 | pt-BR/en/es chapter 05 available; final semantic review and UI walkthrough pending | PENDING_FINAL |
+| 30. Screen Editor | DRAFT_CURRENT | #425 / #306 | Current visual schemas; Sidebar/SelectionInspector/Toolbar/PropertyInspector/EventsEditor; chapter 05 | pt-BR/en/es chapter 05 available; final semantic review and UI walkthrough pending | CheckBox, ComboBox, ação por opção e Runtime capturados em pt-BR/en/es |
 | 31. Popup Editor | DRAFT_CURRENT | #425 / #306 | Current visual schemas; Sidebar/SelectionInspector/Toolbar/PropertyInspector/EventsEditor; chapter 05 | pt-BR/en/es chapter 05 available; final semantic review and UI walkthrough pending | PENDING_FINAL |
 | 32. Inserção de objetos | DRAFT_CURRENT | #425 / #306 | Current visual schemas; Sidebar/SelectionInspector/Toolbar/PropertyInspector/EventsEditor; chapter 05 | pt-BR/en/es chapter 05 available; final semantic review and UI walkthrough pending | PENDING_FINAL |
 | 33. Properties | DRAFT_CURRENT | #425 / #306 | Current visual schemas; Sidebar/SelectionInspector/Toolbar/PropertyInspector/EventsEditor; chapter 05 | pt-BR/en/es chapter 05 available; final semantic review and UI walkthrough pending | PENDING_FINAL |

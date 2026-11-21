@@ -804,3 +804,23 @@ test('mounted Report Designer uses canonical Project Reference Browser for multi
   await variables.nth(0).getByRole('combobox', { name: 'Unidade' }).selectOption('hidden');
   await expect(variables.nth(0).getByRole('combobox', { name: 'Unidade' })).toHaveValue('hidden');
 });
+
+test('header Help follows Engineering sidebar navigation in both directions', async ({ page }) => {
+  await page.goto('/engineering/highAvailability');
+  const help = page.getByRole('navigation', { name: 'SCADIVO' }).getByRole('link', { name: 'Ajuda' });
+  for (const section of [
+    { button: /^Instalação/, path: '/engineering/installation', topic: 'installation.switch-workflow' },
+    { button: /^Alta disponibilidade/i, path: '/engineering/highAvailability', topic: 'ha.configuration-operation' }
+  ]) {
+    const before = await page.evaluate(() => performance.timeOrigin);
+    await page.getByRole('button', { name: section.button }).click();
+    await expect(page).toHaveURL(url => url.pathname === section.path);
+    expect(await page.evaluate(() => performance.timeOrigin)).toBe(before);
+    await expect(help).toHaveAttribute('href', '/help/?topic=' + section.topic);
+    await help.click();
+    await expect(page.locator('article')).toHaveAttribute('data-help-topic', section.topic);
+    await page.goBack();
+    await expect(page).toHaveURL(url => url.pathname === section.path);
+    await expect(help).toHaveAttribute('href', '/help/?topic=' + section.topic);
+  }
+});

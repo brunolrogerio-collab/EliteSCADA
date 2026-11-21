@@ -1,5 +1,7 @@
 # SCADIVO — Manual en español
 
+[Descargar el manual en PDF](../downloads/SCADIVO-es.pdf) · [Recorrido por la estación de bombeo simulada](33-ESTACION-DE-BOMBEO-SIMULADA.md)
+
 Elija qué necesita hacer; no es necesario leer todos los capítulos en orden. Si está empezando, siga este recorrido:
 
 1. Abra [Primer proyecto](30-PRIMER-PROYECTO.md) y muestre una lectura conocida sin equipo físico.
@@ -56,5 +58,3 @@ Para un término nuevo consulte el [glosario de Fundamentos](01-FUNDAMENTOS-ELIT
 ## Sobre esta edición
 
 Lea requisitos y límites de la guía elegida antes de aplicarla al proceso. Intelligence describe implementación actual y seguirá su evolución. Funciones marcadas pendientes no quedan disponibles por aparecer en el manual.
-
-Las capturas finales seguirán la auditoría de interfaces usando el producto real. La revisión final de terminología y equivalencia entre idiomas se registra en la [matriz de cobertura](../COVERAGE-MATRIX.md). Vuelva al [índice general](../README.md) para elegir otro idioma.

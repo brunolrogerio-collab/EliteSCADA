@@ -214,7 +214,7 @@ test('library association stays non-mutating, selective use advances Working, an
     buffer: Buffer.from('catalog-only-e2e')
   });
 
-  await expect(page.getByRole('status')).toContainText('Biblioteca associada sem alterar o Working.');
+  await expect(page.getByRole('status')).toContainText('Biblioteca associada. Você já pode explorar os recursos.');
   await expect(page.getByTestId('reusable-library-workspace')).toContainText('Em edição: v4');
   expect(contract.changeVersion).toBe(4);
   expect(contract.dirty).toBe(false);

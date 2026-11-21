@@ -4,9 +4,9 @@ Comece por uma tarefa pequena e consulte os detalhes conforme precisar. O manual
 
 ## Escolha o idioma
 
-- [Português](pt-BR/README.md)
-- [English](en/README.md)
-- [Español](es/README.md)
+- [Português](pt-BR/README.md) · [PDF](downloads/SCADIVO-pt-BR.pdf)
+- [English](en/README.md) · [PDF](downloads/SCADIVO-en.pdf)
+- [Español](es/README.md) · [PDF](downloads/SCADIVO-es.pdf)
 
 ## Por onde começar
 

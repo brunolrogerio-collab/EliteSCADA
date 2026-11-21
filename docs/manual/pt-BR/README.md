@@ -1,5 +1,7 @@
 # SCADIVO — Manual em português
 
+[Baixar o manual em PDF](../downloads/SCADIVO-pt-BR.pdf) · [Percurso prático na EEE simulada](33-EEE-SIMULADA.md)
+
 Escolha o que precisa fazer; não é necessário ler todos os capítulos em sequência. Se está começando, siga este percurso:
 
 1. Abra [Primeiro projeto](30-PRIMEIRO-PROJETO.md) e faça uma leitura conhecida aparecer sem depender de equipamento físico.
@@ -56,5 +58,3 @@ Se algum termo não estiver claro, consulte o [glossário de Fundamentos](01-FUN
 ## Sobre esta edição
 
 Leia os pré-requisitos e limites do guia escolhido antes de usá-lo no processo. O conteúdo de Intelligence descreve a implementação atual e será acompanhado conforme ela evoluir. Recursos marcados como pendentes não passam a estar disponíveis por aparecerem no manual.
-
-Capturas finais serão acrescentadas depois da auditoria das interfaces, usando o produto real. A revisão final de terminologia e equivalência entre idiomas segue registrada na [matriz de cobertura](../COVERAGE-MATRIX.md). Volte ao [índice geral](../README.md) para escolher outro idioma.

@@ -1,5 +1,7 @@
 # SCADIVO — English manual
 
+[Download the PDF manual](../downloads/SCADIVO-en.pdf) · [Walkthrough of the simulated pumping station](33-SIMULATED-PUMP-STATION.md)
+
 Choose what you need to do; you do not need to read every chapter in sequence. If you are starting, follow this route:
 
 1. Open [First project](30-FIRST-PROJECT.md) and display a known reading without physical equipment.
@@ -56,5 +58,3 @@ For an unfamiliar term, consult the [Fundamentals glossary](01-ELITESCADA-FUNDAM
 ## About this edition
 
 Read the selected guide's prerequisites and limits before applying it to a process. Intelligence content describes the current implementation and will follow its development. Features marked as pending are not made available by their mention in the manual.
-
-Final screenshots follow interface review and use the actual product. Final terminology and cross-language equivalence review remain tracked in the [coverage matrix](../COVERAGE-MATRIX.md). Return to the [general index](../README.md) to choose another language.

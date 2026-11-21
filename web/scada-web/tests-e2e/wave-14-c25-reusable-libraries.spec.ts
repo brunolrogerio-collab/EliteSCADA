@@ -206,7 +206,7 @@ test('library association stays non-mutating, selective use advances Working, an
   await expect(page.getByTestId('reusable-library-workspace')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Bibliotecas reutilizáveis' })).toBeVisible();
   await expect(page.getByTestId('reusable-library-boundary')).toContainText('Associar não é importar');
-  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Working: v4');
+  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Em edição: v4');
 
   await page.getByTestId('reusable-library-associate-input').setInputFiles({
     name: 'process.escadalib',
@@ -214,8 +214,8 @@ test('library association stays non-mutating, selective use advances Working, an
     buffer: Buffer.from('catalog-only-e2e')
   });
 
-  await expect(page.getByRole('status')).toContainText('Biblioteca associada sem alterar o Working.');
-  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Working: v4');
+  await expect(page.getByRole('status')).toContainText('Biblioteca associada. Você já pode explorar os recursos.');
+  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Em edição: v4');
   expect(contract.changeVersion).toBe(4);
   expect(contract.dirty).toBe(false);
 
@@ -230,7 +230,7 @@ test('library association stays non-mutating, selective use advances Working, an
   await unifiedCatalog.getByTestId('library-catalog-load-preview').click();
   await expect(unifiedCatalog.getByTestId('library-catalog-associated-preview')).toBeVisible();
   await expect(catalogUse).toBeEnabled();
-  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Working: v4');
+  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Em edição: v4');
   expect(contract.changeVersion).toBe(4);
   expect(contract.dirty).toBe(false);
   expect(contract.incorporateRequests).toBe(0);
@@ -241,7 +241,7 @@ test('library association stays non-mutating, selective use advances Working, an
   await expect(visualPreview).toBeVisible();
   await expect(visualPreview).toContainText('Process Library · v2.1.0');
   await expect(page.getByTestId('reusable-library-canonical-preview').locator('[data-object-id="43100000-0000-0000-0000-000000000001"]')).toBeVisible();
-  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Working: v4');
+  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Em edição: v4');
   expect(contract.changeVersion).toBe(4);
   expect(contract.dirty).toBe(false);
   expect(contract.incorporateRequests).toBe(0);
@@ -251,7 +251,7 @@ test('library association stays non-mutating, selective use advances Working, an
   await expect(operator).toContainText(dynamoId);
   await operator.getByTestId('reusable-library-use').click();
 
-  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Working: v5');
+  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Em edição: v5');
   await expect(page.getByText('Alterações não salvas')).toBeVisible();
   expect(contract.incorporateRequests).toBe(1);
   expect(contract.changeVersion).toBe(5);
@@ -279,7 +279,7 @@ test('library association stays non-mutating, selective use advances Working, an
   await expect(page.getByRole('status')).toContainText('Biblioteca desassociada.');
   await expect(page.getByText('Nenhuma biblioteca reutilizável está associada.')).toBeVisible();
   await expect(provenance).toContainText('Operator Overview');
-  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Working: v5');
+  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Em edição: v5');
 });
 
 test('direct Libraries route stays hidden and never calls library APIs while Engineering Lock is active', async ({ page }) => {

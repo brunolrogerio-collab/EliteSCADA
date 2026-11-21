@@ -82,8 +82,8 @@ test('Engineering navigation exposes current domains and structured preview edit
     { button: /Templates/, heading: 'Templates', expected: engineering.templates?.[0]?.key ?? null },
     { button: /Equipamentos/, heading: 'Instâncias de Equipamentos', expected: engineering.equipment?.[0]?.path ?? engineering.equipment?.[0]?.key ?? null },
     { button: /Dínamos/, heading: 'Dínamos', expected: visibleDynamos[0]?.name ?? null },
-    { button: /Telas/, heading: 'Telas', expected: engineering.screens?.[0]?.key ?? null },
-    { button: /Popups/, heading: 'Popups', expected: engineering.popups?.[0]?.key ?? null },
+    { button: /Telas/, heading: 'Editor de Tela', expected: engineering.screens?.[0]?.key ?? null },
+    { button: /Popups/, heading: 'Editor de Popup', expected: engineering.popups?.[0]?.key ?? null },
     { button: /Segurança/, heading: 'Papéis e capacidades', expected: engineering.securityRoles?.[0]?.key ?? null }
   ];
 
@@ -305,7 +305,7 @@ test('Alarm editor previews a new alarm as a create without applying it', async 
   await page.getByLabel('Nome').fill('Preview pressure alarm');
   await page.getByLabel('TAG associado').fill('Demo.Discharge.Pressure');
   await page.getByLabel('Setpoint').fill('9.5');
-  await page.getByLabel('Área').fill('Demo');
+  await page.getByRole('textbox', { name: 'Área', exact: true }).fill('Demo');
   await page.getByLabel('Mensagem').fill('Preview-only pressure alarm');
   await page.getByTestId('engineering-preview').click();
 

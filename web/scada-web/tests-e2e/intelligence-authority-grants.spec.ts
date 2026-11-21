@@ -73,7 +73,7 @@ test('explicit global Intelligence grant can be assigned to a nonadministrator a
     await contexts.getByLabel('Equipment assignment').selectOption(assignmentId, { timeout: 10_000 });
     await expect(contexts.getByRole('button', { name: 'New context', exact: true })).toBeEnabled();
     await contexts.getByRole('button', { name: 'New context', exact: true }).click();
-    await expect(contexts.getByLabel('Operator label', { exact: true })).toBeEditable();
+    await expect(contexts.getByLabel('Context name', { exact: true })).toBeEditable();
 
     current = await apply(current, [...baseline.roles, { ...role, grants: role.grants!.filter(grant => !isIntelligence(grant)) }]);
     const revoked = await (await userContext.request.get('/api/auth/effective-capabilities')).json();

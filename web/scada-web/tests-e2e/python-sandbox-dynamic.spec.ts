@@ -45,7 +45,7 @@ async function installClientMemoryFixture(page: Page) {
 test('real Pyodide sandbox boots same-origin, exposes only intended capabilities and preserves client-local state', async ({ page }) => {
   test.slow();
   await installClientMemoryFixture(page);
-  await page.goto('/');
+  await page.goto('/tests-e2e/harness/browser-environment.html');
 
   const result = await page.evaluate(async () => {
     const importModule = new Function('specifier', 'return import(specifier)') as
@@ -240,7 +240,7 @@ def fault_probe(event):
 
 test('real Pyodide Worker completes repeated awaited visual tween bridge calls', async ({ page }) => {
   test.slow();
-  await page.goto('/');
+  await page.goto('/tests-e2e/harness/browser-environment.html');
 
   const result = await page.evaluate(async () => {
     const importModule = new Function('specifier', 'return import(specifier)') as
@@ -321,7 +321,7 @@ async def tween_probe(event):
 
 test('real Pyodide execution stays bounded across timeout, cancellation, queue flood and disposal', async ({ page }) => {
   test.slow();
-  await page.goto('/');
+  await page.goto('/tests-e2e/harness/browser-environment.html');
 
   const result = await page.evaluate(async () => {
     const importModule = new Function('specifier', 'return import(specifier)') as

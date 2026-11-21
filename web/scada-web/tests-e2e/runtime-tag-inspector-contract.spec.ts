@@ -138,46 +138,55 @@ test('protected realtime endpoint publishes TAG current-value facts used by the 
   const writable = tags.find(tag => !tag.readOnly);
   expect(writable).toBeTruthy();
 
-  await page.goto('/');
-  await page.evaluate(tagId => {
-    const target = window as typeof window & { e2eTagEvent?: Promise<Record<string, unknown>> };
-    target.e2eTagEvent = new Promise<Record<string, unknown>>((resolve, reject) => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const socket = new WebSocket(`${protocol}//${window.location.host}/ws/tags`);
-      const timer = window.setTimeout(() => {
-        socket.close();
-        reject(new Error('Timed out waiting for the requested tagValueChanged.'));
-      }, 10_000);
-
-      socket.addEventListener('message', event => {
-        const parsed = JSON.parse(String(event.data)) as { type?: string; tag?: { id?: string } };
-        if (parsed.type !== 'tagValueChanged' || parsed.tag?.id !== tagId) return;
-        window.clearTimeout(timer);
-        socket.close();
-        resolve(parsed);
-      });
-      socket.addEventListener('error', () => {
-        window.clearTimeout(timer);
-        reject(new Error('Realtime WebSocket failed.'));
-      });
-    });
-  }, writable!.id);
-
+  // The socket needs a same-origin document. Mounting the Runtime here would admit a second client.
+  await page.goto('/tests-e2e/harness/browser-environment.html');
   const leaseHeaders = await admitInteractiveRuntimeSession(request);
-  expect((await request.post(`/api/tags/${writable!.id}/write`, {
-    data: { value: 59.5 },
-    headers: leaseHeaders
-  })).status()).toBe(202);
+  try {
+    await page.evaluate(({ tagId, sessionId, clientInstanceId }) => {
+      const target = window as typeof window & { e2eTagSocket?: WebSocket; e2eTagEvent?: Promise<Record<string, unknown>> };
+      target.e2eTagEvent = new Promise<Record<string, unknown>>((resolve, reject) => {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const query = new URLSearchParams({ runtimeSessionId: sessionId, clientInstanceId });
+        const socket = new WebSocket(`${protocol}//${window.location.host}/ws/tags?${query}`);
+        target.e2eTagSocket = socket;
+        const timer = window.setTimeout(() => {
+          socket.close();
+          reject(new Error('Timed out waiting for the requested tagValueChanged.'));
+        }, 10_000);
 
-  const payload = await page.evaluate(() => {
-    const target = window as typeof window & { e2eTagEvent?: Promise<Record<string, unknown>> };
-    if (!target.e2eTagEvent) throw new Error('Realtime listener was not initialized.');
-    return target.e2eTagEvent;
-  });
+        socket.addEventListener('message', event => {
+          const parsed = JSON.parse(String(event.data)) as { type?: string; tag?: { id?: string } };
+          if (parsed.type !== 'tagValueChanged' || parsed.tag?.id !== tagId) return;
+          window.clearTimeout(timer);
+          socket.close();
+          resolve(parsed);
+        });
+        socket.addEventListener('error', () => {
+          window.clearTimeout(timer);
+          reject(new Error('Realtime WebSocket failed.'));
+        });
+      });
+    }, { tagId: writable!.id, sessionId: leaseHeaders['X-EliteSCADA-Runtime-Session'],
+      clientInstanceId: leaseHeaders['X-EliteSCADA-Runtime-Client-Instance'] });
+    await page.waitForFunction(() =>
+      (window as Window & { e2eTagSocket?: WebSocket }).e2eTagSocket?.readyState === WebSocket.OPEN);
 
-  expect(payload.type).toBe('tagValueChanged');
-  expect(payload.tag).toBeTruthy();
-  expect(payload.timestamp).toBeTruthy();
-  expect(payload.quality).toBeTruthy();
-  await terminateRuntimeSession(request, leaseHeaders);
+    expect((await request.post(`/api/tags/${writable!.id}/write`, {
+      data: { value: 59.5 },
+      headers: leaseHeaders
+    })).status()).toBe(202);
+
+    const payload = await page.evaluate(() => {
+      const target = window as typeof window & { e2eTagEvent?: Promise<Record<string, unknown>> };
+      if (!target.e2eTagEvent) throw new Error('Realtime listener was not initialized.');
+      return target.e2eTagEvent;
+    });
+
+    expect(payload.type).toBe('tagValueChanged');
+    expect(payload.tag).toBeTruthy();
+    expect(payload.timestamp).toBeTruthy();
+    expect(payload.quality).toBeTruthy();
+  } finally {
+    await terminateRuntimeSession(request, leaseHeaders);
+  }
 });

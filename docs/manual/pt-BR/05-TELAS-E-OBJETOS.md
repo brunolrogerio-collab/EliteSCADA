@@ -110,11 +110,29 @@ Para escrever numa variável de teste, selecione a ação de escrita e a referê
 3. Para apenas observar, mantenha **Permitir ajuste pelo operador** desligado. Para deixar o operador mudar o estado, habilite essa opção e use vínculo com TAG Booleano gravável; a permissão da sessão e a autorização do servidor continuam valendo. O Runtime confirma a mudança pelo valor recebido. Qualidade ruim, TAG ausente ou escrita recusada não devem parecer sucesso.
 4. A configuração **Supressão de um alarme** é um modo opcional e separado, não uma exigência do CheckBox genérico. Nesse modo, escolha a definição de alarme pelo nome e informe motivo e duração. O Runtime ainda verifica a autorização de supressão e mostra se a supressão é herdada de outra área. O estado é atualizado pelo Runtime, inclusive quando outro operador altera a supressão; se não for possível confirmar a leitura, o controle fica indisponível.
 
+![Configuração do CheckBox em modo Estado Booleano](../assets/checkbox-pt-BR.png)
+
 ### ComboBox: escolher um valor de uma lista
 
 1. Insira uma **Lista de seleção** e, em **Opções da lista**, acrescente cada valor que o TAG pode receber e o rótulo legível que o operador verá. Por exemplo, valor `AUTO` com rótulo `Automático`; os valores precisam ser distintos.
 2. Em **Dinâmicas**, vincule `text` a um TAG do tipo String ou Enum. O valor atual do TAG precisa coincidir com uma das opções. O controle não escolhe outra opção quando o valor está ausente, a lista é inválida, a qualidade não é boa ou o tipo não corresponde.
 3. Para permitir mudança, habilite **Permitir ajuste pelo operador** e use um TAG gravável. Teste primeiro com uma variável segura e confira o valor confirmado pelo processo; a seleção visual não comprova que o equipamento aceitou a mudança.
+
+### Para abrir uma tela pela lista
+
+1. Em **Opções da lista**, adicione o valor `DIAG` e o texto `Diagnóstico`. Aplique a configuração. Se o objeto for novo, valide e aplique a tela ao Workspace para disponibilizar as ações do objeto.
+
+![Opção com valor DIAG e texto Diagnóstico](../assets/combobox-pt-BR.png)
+
+2. Selecione o ComboBox e abra **Eventos**. Escolha a opção **Diagnóstico**, a ação **Abrir tela** e a tela de destino. Clique em **Adicionar ação**. A linha abaixo do botão mostra qual ação está associada àquela opção.
+
+![Ação Abrir tela associada à opção Diagnóstico](../assets/combobox-action-pt-BR.png)
+
+3. Habilite o ajuste pelo operador, valide e aplique a tela. Salve, publique e ative a revisão. No Runtime, selecione **Diagnóstico** e confira se abre a tela escolhida. Para usar a lista apenas para navegar, o vínculo com TAG é opcional.
+
+![CheckBox Bomba 01 e ComboBox no Runtime](../assets/controls-runtime-pt-BR.png)
+
+Neste exemplo, o CheckBox está indisponível porque não tem uma leitura booleana vinculada. O ComboBox ao lado permite abrir a tela.
 
 ## 7. Crie e abra um Popup
 
@@ -149,4 +167,4 @@ Recursos visuais são arquivos importados, como uma imagem. Dínamos são desenh
 
 ## 10. Continue pela Ajuda
 
-Tópicos instalados: `visual.first-screen`, `visual.object-selection`, `visual.properties`, `visual.dynamics`, `visual.events`, `visual.popup-workflow`, `visual.trend-series`, `visual.browser-filters`, `visual.object.core.checkbox`, `visual.object.core.combobox` e `libraries.reusable-resources`. Para abrir um diretamente, use `/help?topic=<identificador>` no produto. As capturas finais deste capítulo serão feitas na interface real após a auditoria visual; nenhuma imagem ilustrada substitui a interface aceita.
+Tópicos instalados: `visual.first-screen`, `visual.object-selection`, `visual.properties`, `visual.dynamics`, `visual.events`, `visual.popup-workflow`, `visual.trend-series`, `visual.browser-filters`, `visual.object.core.checkbox`, `visual.object.core.combobox` e `libraries.reusable-resources`. Para abrir um diretamente, use `/help?topic=<identificador>` no produto.

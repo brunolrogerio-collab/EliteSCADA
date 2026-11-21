@@ -110,11 +110,29 @@ To write a test variable, select the write action and actual reference, respecti
 3. For display only, leave **Allow operator adjustment** off. To let the operator change the state, enable it and use a writable Boolean TAG binding; session permission and server authorization still apply. Runtime confirms the change through the value it receives. Bad quality, a missing TAG or a rejected write must not look like success.
 4. **Suppress one alarm** is a separate optional mode, not a requirement for the generic CheckBox. In that mode, choose an alarm definition by name and set a reason and duration. Runtime still enforces suppression permission and shows when suppression is inherited from another location. Runtime refreshes the state, including changes made by another operator; if it cannot confirm the latest state, the control stays unavailable.
 
+![CheckBox configured to display a Boolean state](../assets/checkbox-en.png)
+
 ### ComboBox: choose a value from a list
 
 1. Insert a **ComboBox** and, under **List options**, add each value the TAG can receive and the readable label shown to the operator. For example, value `AUTO` with label `Automatic`; values must be unique.
 2. In **Dynamics**, bind `text` to a String or Enum TAG. Its current value must match one of the options. The control does not select a different option when the value is missing, the list is invalid, quality is not Good, or the type does not match.
 3. To allow changes, enable **Allow operator adjustment** and use a writable TAG. Test first with a safe variable and check the process-confirmed value; a visual selection does not prove the equipment accepted the change.
+
+### Open a screen from the list
+
+1. In the list options, add the value `DIAG` and the display text `Diagnóstico`. Apply the configuration. For a new object, preview the screen and apply it to the Workspace to make its actions available.
+
+![List option with value DIAG and display text Diagnóstico](../assets/combobox-en.png)
+
+2. Select the ComboBox and open **Events**. Choose the **Diagnóstico** option, the **Open screen** action and the destination screen. Click **Add action**. The row below the button shows which action belongs to that option.
+
+![Open screen action assigned to the Diagnóstico option](../assets/combobox-action-en.png)
+
+3. Enable operator adjustment, preview the screen and apply it. Save, publish and activate the revision. In Runtime, select **Diagnóstico** and verify that the destination screen opens. A list used only for navigation can run without a TAG binding.
+
+![Bomba 01 CheckBox and ComboBox in Runtime](../assets/controls-runtime-en.png)
+
+In this example the CheckBox is unavailable because it has no bound Boolean reading. The ComboBox beside it can open the screen.
 
 ## 7. Create and open a Popup
 
@@ -149,4 +167,4 @@ Visual assets are imported files, such as images. Dynamos are reusable drawings 
 
 ## 10. Continue with Help
 
-Installed topics: `visual.first-screen`, `visual.object-selection`, `visual.properties`, `visual.dynamics`, `visual.events`, `visual.popup-workflow`, `visual.trend-series`, `visual.browser-filters`, `visual.object.core.checkbox`, `visual.object.core.combobox` and `libraries.reusable-resources`. Open one through `/help?topic=<identifier>` in the product. Final chapter captures will come from the actual UI after the visual audit; an illustrated image cannot substitute for the accepted interface.
+Installed topics: `visual.first-screen`, `visual.object-selection`, `visual.properties`, `visual.dynamics`, `visual.events`, `visual.popup-workflow`, `visual.trend-series`, `visual.browser-filters`, `visual.object.core.checkbox`, `visual.object.core.combobox` and `libraries.reusable-resources`. Open one through `/help?topic=<identifier>` in the product.

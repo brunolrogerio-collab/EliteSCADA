@@ -117,7 +117,7 @@ O exemplo descreve um TAG Double DPT 9.001 com grupo de comando 1/2/3 e retorno 
 
 ### Verifique por etapas
 
-Confira primeiro disponibilidade do processo auxiliar e referências protegidas, depois host/porta/usuário/endereço individual e grupos/DPT/tipo do TAG. A autoria pelo assistente atual precisa da correção indicada acima. Com vínculo corretamente validado, salve/publique/ative pelo projeto e confira o retorno antes de escrever. Um envio aceito sem retorno não deve atualizar artificialmente o estado. Este driver não anuncia descoberta de Engenharia.
+Confira primeiro disponibilidade do processo auxiliar e referências protegidas, depois host/porta/usuário/endereço individual e grupos/DPT/tipo do TAG. Com vínculo corretamente validado, salve/publique/ative pelo projeto e confira o retorno antes de escrever. Um envio aceito sem retorno não deve atualizar artificialmente o estado. Este driver não anuncia descoberta de Engenharia.
 
 [Abrir este guia na Ajuda instalada](/help?topic=drivers.knx-setup)
 

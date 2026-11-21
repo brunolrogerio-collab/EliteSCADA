@@ -117,7 +117,7 @@ The example describes a Double TAG, DPT 9.001, with command group 1/2/3 and stat
 
 ### Verify in stages
 
-Check sidecar availability and protected references first, then host/port/user/individual address and groups/DPT/TAG type. Authoring with the current assistant requires the correction noted above. With a correctly validated binding, save/publish/activate through the project and check feedback before writing. Accepted sending without feedback must not artificially update state. This driver advertises no Engineering discovery.
+Check sidecar availability and protected references first, then host/port/user/individual address and groups/DPT/TAG type. With a correctly validated binding, save/publish/activate through the project and check feedback before writing. Accepted sending without feedback must not artificially update state. This driver advertises no Engineering discovery.
 
 [Open this guide in installed Help](/help?topic=drivers.knx-setup)
 

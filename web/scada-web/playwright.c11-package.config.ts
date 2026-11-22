@@ -7,7 +7,8 @@ import {
 } from './tests-e2e/jwt';
 
 const developerToken = createE2eJwt('c11-eee-package-developer', ['developer'], 'C11 EEE Package Developer');
-const c11ConnectionString = 'Host=127.0.0.1;Port=5432;Database=elitescada_c11;Username=postgres;Password=postgres;Pooling=false';
+const c11ConnectionString = process.env.C11_CONNECTION_STRING ??
+  'Host=127.0.0.1;Port=5432;Database=elitescada_c11;Username=postgres;Password=postgres;Pooling=false';
 
 export default defineConfig({
   testDir: './tests-wave11',

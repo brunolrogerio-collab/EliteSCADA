@@ -29,16 +29,48 @@ Base aprovada na #300 em 392bbf953e04ef0b53967eea8fc5bae8576d8e36, integrada pel
 
 O escopo acima é de planejamento e entrega da Wave 16. A direção original do serviço Windows e a separação entre binários e estado persistente continuam como base. [Direção do instalador Windows](https://github.com/brunolrogerio-collab/EliteSCADA/blob/442faf5df5e3f5fab2ede0397d813ac3540109cb/docs/WAVE16-WINDOWS-NATIVE-INSTALLER-DIRECTION.md) · [Serviços #361](https://github.com/brunolrogerio-collab/EliteSCADA/issues/361) · [Distribuição #363](https://github.com/brunolrogerio-collab/EliteSCADA/issues/363) · [Conteúdo dos instaladores #381](https://github.com/brunolrogerio-collab/EliteSCADA/issues/381)
 
-## Execução em laboratório
+## Como executar uma rodada de distribuição
 
-1. Fixar o SHA, ler a versão em Directory.Build.props e usar o SDK indicado por global.json (10.0.400 na base). Compilar a Web com npm ci e npm run build em web/scada-web. Registrar as versões efetivas do SDK, Node, npm, gerador de pacote e imagens por digest. Inventariar backend, Web, Pyodide, mídia, scripts, drivers e dependências nativas com suas licenças antes de montar cada pacote.
-2. Windows primeiro. Publicar com dotnet publish src/Scada.Api/Scada.Api.csproj -c Release -r win-x64 --self-contained true. Montar os binários em Program Files/SCADIVO/releases/<versão> e configuração, licença, certificados e logs em subdiretórios protegidos de ProgramData/SCADIVO. Registrar o serviço no SCM com partida automática e permissões específicas. Testar sem login de usuário e sem SDK. Abrir Engenharia e Runtime, conferir a bandeja, consumo da licença e parada normal, parada forçada, início e reinício autorizados. Qualificar a tela cheia estendida em dois monitores e a volta à tela principal no modo normal também no desktop Linux.
-3. Debian e Ubuntu. Qualificar inicialmente amd64 em Debian 12/13 e Ubuntu 22.04/24.04 LTS. Publicar para linux-x64, montar a árvore do pacote e declarar as bibliotecas nativas de cada distribuição. Instalar o arquivo local com apt install ./<pacote>.deb em VM limpa, repetir offline com dependências previamente obtidas. Usar /usr/lib/elitescada para programa, /etc/elitescada para configuração, /var/lib/elitescada para estado e journal para diagnóstico. Validar systemd após reboot e administração em servidor sem desktop.
-4. OCI. Construir API e Web a partir de docker/stable/Dockerfile.api e docker/stable/Dockerfile.web com docker buildx build --platform linux/amd64,linux/arm64. Fixar dependências e registrar digest por arquitetura. Entregar também arquivo OCI offline. Montar volumes externos para identidade, configuração e persistência. Em cada arquitetura nativa, recriar com o mesmo banco, reabrir projeto, confirmar licença, tendências, alarmes e continuidade do histórico.
-5. VPS. Reproduzir a EEE com seis clientes e vídeo. O laboratório registrou 551–553 MB de pico com banco e orçamento de 600 MB. Medir também ingestão sustentada, consultas frias e concorrência da segunda aplicação incluindo a folga do sistema operacional. A referência da demo pública usa 768 MiB de shared_buffers.
-6. Edge SQLite. Recuperar o protótipo identificado no ensaio da #408, gerar imagem ARM64 distinta e montar o diretório do banco e WAL em armazenamento persistente. Medir o pico conjunto desde a partida, com meta de 220 MB e teto de 230 MB. Comparar amostras anteriores e posteriores, identificadores dos alarmes e contagem de ocorrências após interrupção e restauração. Ensaiar disco cheio e corte físico em equipamento dedicado. Os 215,04 MB medidos em x86-64 são referência para comparação.
-7. Em cada atualização, salvar backup consistente de banco, identidade e configuração, verificar restauração em cópia e registrar a revisão ativa. Instalar a candidata, reiniciar, comparar revisão, licença, vínculos e histórico. Se a migração impedir retorno direto, restaurar a versão anterior e seu backup compatível. Exercitar reparo, remoção com dados preservados e expurgo explícito em cópia descartável.
-8. A equipe do produto entrega manifesto com SHA, tamanho, checksum, assinatura, inventário e resultado por ambiente físico, VM ou emulação. Repetir o empacotamento com uma segunda versão para provar a reutilização. O primeiro instalador sem assinatura destina-se à avaliação privada. Entregar ao responsável pelo portal os artefatos aprovados, os manuais offline PT/EN/ES e a tabela de FAQ com recursos, limites contratados, capacidade medida e lacunas por ambiente.
+O responsável pelo build prepara os arquivos. O revisor de instalação recebe os mesmos arquivos que o cliente receberia. Preparar as entradas nas etapas 1 a 3. Entregar Windows x64 pela etapa 4 e os demais perfis pela etapa 5. Aplicar as etapas 6 a 8 a cada pacote candidato. Os comandos abaixo são de laboratório. Usar diretórios de saída novos e portas livres. Registrar os nomes reais de unidade, serviço, pacote e caminhos no manifesto assim que existirem.
+
+### 1. Identificar a entrada e preparar a recuperação
+
+1. Em checkout limpo, obter o SHA aprovado na #300 e a referência integrada pela #938. Registrar `git rev-parse HEAD`, `git status --porcelain`, o canal e a versão de `Directory.Build.props`. Se o pacote incluir alterações posteriores da Wave 16, registrar o SHA da candidata que efetivamente as contém e o diff em relação à base.
+2. Separar três ambientes de laboratório por papel: compilação, máquina limpa e instalação preenchida da versão predecessora. Registrar SO, arquitetura, espaço livre, memória, topologia do banco e se é máquina física, VM ou emulador. Para ensaio offline, preparar previamente as dependências e desligar a saída para a internet mantendo o banco de laboratório acessível.
+3. Verificar o SHA-256 da demo EEE + RHO simulada da #306 antes da importação. A referência da revisão 75 é `0c5481db2ffeef1fb01b83be226c7965d5aceea8821643557d2a74d9546b6020`. Guardar em local protegido a cópia da instalação preenchida e ensaiar a restauração em destino vazio.
+4. Abrir a ficha de evidências descrita ao fim deste roteiro. Diante de SHA divergente ou restauração incompleta, corrigir a origem e repetir esta etapa antes de modificar a instalação preenchida.
+
+### 2. Compilar e montar o conteúdo comum
+
+1. Conferir `dotnet --version`, `node --version` e `npm --version`. A base usa SDK 10.0.400 e o Dockerfile da Web usa Node 24.19.0. Registrar versões efetivas, lockfiles e identificadores das imagens utilizadas.
+2. Na raiz da candidata, executar os comandos abaixo em PowerShell, verificando o código de saída de cada comando antes do próximo. Usar uma saída distinta por arquitetura. No Linux nativo, substituir win-x64 por linux-x64 no identificador e no destino.
+
+~~~powershell
+Push-Location web/scada-web
+npm ci
+npm run build
+Pop-Location
+dotnet publish src/Scada.Api/Scada.Api.csproj -c Release -r win-x64 --self-contained true -o artifacts/win-x64/api
+~~~
+
+3. Reunir o publish autocontido, a saída web/scada-web/dist e os recursos da lista permitida em uma árvore de preparação versionada. Conservar o layout que o carregador .NET espera. Configurar no adaptador o serviço que fornece os arquivos Web e encaminha API e WebSocket. Abrir a tela e verificar atualização ao vivo. Conferir os recursos de Python/Pyodide, os sidecars e os drivers que serão anunciados, inclusive quando a máquina está offline.
+4. Produzir inventário com caminho relativo, tamanho, arquitetura e hash. Classificar componentes próprios e de terceiros e associar cada dependência redistribuída à sua licença. Conferir a situação do driver DNP3 antes de incluí-lo na edição comercial conforme docs/LINUX-DEBIAN-DISTRIBUTION.md. Havendo componente ausente ou incompatível, corrigir a composição e gerar novo inventário.
+
+### 3. Preparar instalação, rede e identidade
+
+1. Definir como cada perfil recebe URL do banco de projeto e do Historian, certificados, identidade persistente e material protegido. Entregar um exemplo de configuração sem segredos. Registrar o usuário de serviço, diretórios de leitura e escrita e as portas. Verificar conflito de portas antes da partida.
+2. Instalar o serviço no gerenciador do sistema com partida automática. Deixar o monitor de bandeja na sessão do usuário. Para o primeiro acesso, executar o fluxo de instalação e ativação da candidata, selecionar a licença da bancada e registrar o resumo de vagas sem copiar códigos privados.
+3. Em instalação nova, conferir a primeira configuração e o estado inicial. Em seguida importar a cópia da EEE no Workspace, validar, ativar e anotar a revisão do Runtime. Em atualização, comparar a revisão já ativa diretamente com o registro anterior.
+4. Abrir Engenharia e Runtime no navegador do operador, observar atualização das correntes de B1 e B2 e consultar a tendência em um intervalo fixo. Simular um alarme, registrar identificador, disparo, retorno e quantidade de ocorrências. Essa ficha será usada antes e depois de cada intervenção.
+
+### 4. Gerar a candidata Windows x64 primeiro
+
+1. Em uma máquina Windows x64 de build, fixar no repositório a ferramenta, sua versão e a definição do instalador. O comando de publicação da etapa 2 gera a API. A definição do instalador ainda deve compor serviço, Web, bandeja, manual e dependências em um pacote repetível.
+2. Configurar o diretório de programas em Program Files/SCADIVO/releases/<versão> e o estado da instância em ProgramData/SCADIVO. Registrar o executável do serviço e seu diretório de trabalho por caminhos absolutos resolvidos pelo instalador, incluindo caminhos com espaços. Gravar configuração inicial e conceder à conta do serviço acesso às chaves e ao estado necessários.
+3. Montar a partir do inventário aprovado e guardar o log da ferramenta. No canal assinado, assinar primeiro os binários próprios e depois o instalador, verificar o editor e o carimbo de tempo. Calcular o hash final com Get-FileHash -Algorithm SHA256. Identificar a primeira avaliação privada sem assinatura no manifesto.
+4. Entregar ao revisor o pacote, hash, modo de instalação offline, procedimento de reparo e localização do log. Executar a tabela Windows abaixo em máquina limpa. Se houver falha na inicialização, consultar o SCM, os logs do serviço e a conexão ao banco usando a identidade do serviço antes de repetir a instalação.
+
+
 ## Qualificação do primeiro instalador Windows x64
 
 | Rodada | Procedimento | Evidência para aceitar |
@@ -50,7 +82,7 @@ O escopo acima é de planejamento e entrega da Wave 16. A direção original do 
 
 O primeiro instalador é de avaliação privada. Para distribuição assinada, inventariar os binários próprios, assiná-los antes de montar o instalador, verificar as assinaturas e então assinar o instalador. Verificar o carimbo de tempo e calcular o SHA-256 dos bytes finais entregues ao portal.
 
-## Procedimentos de entrega depois do Windows x64
+## 5. Montar e qualificar cada ambiente
 
 ### Pacote nativo Debian e Ubuntu
 
@@ -58,6 +90,17 @@ O primeiro instalador é de avaliação privada. Para distribuição assinada, i
 2. Gerar os metadados Debian com dependências resolvidas na distribuição alvo. Inspecionar arquitetura, versão, dependências e caminhos com `dpkg-deb --info` e `dpkg-deb --contents`. Instalar com APT na VM limpa e repetir em rede isolada usando um repositório local com as dependências. Registrar quais pacotes o administrador precisa fornecer.
 3. Registrar a API como serviço de sistema. A conta do serviço precisa ler os binários e gravar somente nos destinos de estado autorizados. Configurar acesso protegido ao banco, iniciar o serviço e verificar revisão ativa, Engenharia, Runtime, histórico e licença após reboot sem sessão gráfica. Em desktop, verificar a bandeja com usuário comum e a autorização dos comandos administrativos.
 4. Com um projeto preenchido, atualizar pelo gerenciador de pacotes. Comparar a revisão, os usuários e as amostras antes e depois. Repetir com banco indisponível durante a partida e comprovar que a recuperação usa o banco configurado. Registrar por versão do sistema a instalação offline, a atualização, a remoção com retenção e a restauração do backup.
+
+**Sequência de montagem do .deb.** Preparar uma árvore por distribuição com DEBIAN/control, arquivos do produto e a unidade systemd. Declarar nome, versão com revisão Debian, arquitetura, dependências e descrição. Tratar a configuração editável como conffile. Os scripts de manutenção devem preservar dados numa atualização interrompida. Registrar o nome efetivo da unidade no manual. Em shell Linux, definir STAGE como a árvore preparada e DEB como o caminho absoluto do pacote de saída.
+
+~~~sh
+dpkg-deb --root-owner-group --build "$STAGE" "$DEB"
+dpkg-deb --info "$DEB"
+dpkg-deb --contents "$DEB"
+sha256sum "$DEB"
+~~~
+
+Na VM limpa, usar `sudo apt install "$DEB"`. Conferir a arquitetura com `dpkg --print-architecture`, a partida com `systemctl is-enabled "$UNIT"` e `systemctl is-active "$UNIT"`, e o diagnóstico com `journalctl -u "$UNIT" -b`, onde UNIT é a unidade instalada. Repetir após reiniciar a VM sem login. Na instalação gráfica, conectar dois monitores com escalas diferentes, atribuir telas distintas, entrar em tela cheia estendida e sair. Registrar se cada monitor exibiu o quadro correto, se a janela voltou à tela principal e quantas vagas foram usadas. Aplicar o mesmo ensaio ao Windows.
 
 ### Imagens completas amd64 e arm64
 
@@ -68,11 +111,23 @@ Construir os dois Dockerfiles a partir da raiz do repositório. O arquivo docker
 3. Em Linux ARM64 físico, repetir a mesma carga. Registrar modelo, kernel, arquitetura, memória, armazenamento, dispositivos e drivers exercitados. Testar também o carregamento offline, a estabilidade da licença e a troca de imagem por digest com volumes preservados. Registrar testes emulados em coluna própria.
 4. Entregar o Compose com referências imutáveis, inventário de volumes, portas, requisitos do banco e procedimento de backup. Ensaiar restauração em destino vazio e retorno à versão anterior com esquema compatível antes de oferecer atualização.
 
+**Montagem e carga offline.** No host de build, usar um builder com exportação OCI habilitada. A partir da raiz em shell Linux, criar dois arquivos distintos.
+
+~~~sh
+docker buildx build --platform linux/amd64,linux/arm64 -f docker/stable/Dockerfile.api --output type=oci,dest=scadivo-api.oci.tar .
+docker buildx build --platform linux/amd64,linux/arm64 -f docker/stable/Dockerfile.web --output type=oci,dest=scadivo-web.oci.tar .
+sha256sum scadivo-api.oci.tar scadivo-web.oci.tar
+~~~
+
+Para o kit Docker offline, preparar também um conjunto por arquitetura no daemon de preparação com tags de entrega para API, Web, gateway e, no perfil local, banco. Exportar esse conjunto com `docker image save -o scadivo-offline.tar <tags-do-manifesto>`. Na máquina limpa, conferir o SHA-256, usar `docker image load -i scadivo-offline.tar` e conferir OS, arquitetura e ID com docker image inspect. O Compose de entrega deve referenciar os nomes carregados e incluir os arquivos montados, como a configuração de mídia. Subir com `docker compose up -d --no-build --pull never` no diretório desse Compose. A alternativa com banco externo deve iniciar sem o serviço de banco local ou dependência de seu healthcheck. Registrar as imagens efetivamente usadas. Se faltar imagem ou configuração, reconstruir o kit offline e repetir em daemon limpo.
+
 ### Perfil compacto para VPS
 
 Usar cópia da revisão 75. Recuperar o override e os resultados originais conforme o [ensaio da #408](https://github.com/brunolrogerio-collab/EliteSCADA/issues/408#issuecomment-7072644632). Conferir os valores efetivos do Compose e do PostgreSQL após a partida. Os tetos ensaiados foram API 235 MB, Web 13,5 MB, gateway 31,5 MB e banco 318 MB, com 48 MiB de buffers compartilhados. Reservar orçamento separado para sistema operacional e segunda aplicação.
 
 Executar as mesmas consultas com seis clientes, ingestão das duas bombas e um consumidor de vídeo. Medir desde a partida e repetir com cache aquecido, consultas frias, manutenção do banco e a segunda aplicação em carga simultânea. Registrar pico simultâneo do grupo, memória disponível do host, swap, encerramentos por falta de memória, latência p95 e equivalência das amostras. Publicar o perfil como opção com a carga medida. O valor de referência da demo pública é 768 MiB de buffers compartilhados.
+
+**Como comparar as rodadas.** Restaurar o mesmo snapshot para referência e compacto, guardar o intervalo histórico fixo e conferir no banco o valor efetivo com `SHOW shared_buffers`. Iniciar o grupo de serviços em um cgroup dedicado por rodada. Com a EEE do ensaio, aquecer por 20 s, medir carga mista por 60 s e consultas longas por 120 s. Registrar memory.peak do grupo em bytes e converter para MB dividindo por 1.000.000. Contar erros HTTP e amostras e comparar o hash das respostas da janela fixa. Medir p95 de abertura, valores ao vivo e histórico separadamente. Acrescentar uma rodada com a segunda aplicação ativa e outra com ingestão e manutenção simultâneas. Se faltar memória, conservar o log de OOM e a carga observada. Repetir com o perfil anterior no laboratório para identificar a regressão.
 
 ### Edge com banco remoto e Edge ARM64 com SQLite
 
@@ -82,13 +137,33 @@ Para SQLite, recuperar o protótipo da #408 e preparar uma imagem com identidade
 
 No ARM64 alvo, manter a aplicação de automação em execução e medir a memória do equipamento e do conjunto SCADIVO. Registrar frequência de aquisição, retenção, clientes, vídeo e crescimento em disco. Em bancada descartável, interromper energia durante escrita, reiniciar, comparar amostras confirmadas e procurar ocorrências duplicadas. Repetir com volume cheio e após liberar espaço. A meta do conjunto é 220 MB com teto de 230 MB. A edição do projeto, permissões, supressão de alarmes e recursos analíticos precisam ter seu estado registrado individualmente antes da divulgação de capacidades.
 
-### Manual, FAQ e aceite da entrega
+**Sequência de ensaio Edge SQLite.**
+
+1. Recuperar o checkout e as configurações do ensaio vinculado na #408. Registrar o diff de laboratório, a revisão publicada e as dependências ARM64. Produzir imagem ARM64 a partir do perfil versionado, identificar por digest e inspecionar no dispositivo a arquitetura do processo e a biblioteca SQLite carregada.
+2. Montar volume exclusivo e conferir no processo escritor as opções efetivas de WAL, sincronização, cache e checkpoint. A referência usa WAL, synchronous FULL e wal_autocheckpoint 64. Guardar os valores efetivos junto à versão da biblioteca e tipo de armazenamento.
+3. Com B1 e B2 coletando, registrar amostras confirmadas até um horário conhecido, uma ocorrência ativa e uma encerrada. Fazer backup consistente, restaurar em outro volume e repetir a consulta. Guardar IDs, contagens e resultado de integrity_check na cópia.
+4. Em armazenamento de bancada, provocar interrupção durante escrita e durante checkpoint em rodadas distintas. Reiniciar no mesmo volume. Conferir as amostras previamente confirmadas, a ocorrência ativa única, a leitura nova e um novo ciclo de disparo/retorno. Registrar qualquer lacuna da janela de interrupção.
+5. Usar volume descartável com quota para o ensaio de disco cheio. Registrar como o operador percebe a falha, recuperar espaço e conferir nova gravação. No equipamento ARM64 pretendido, repetir o ensaio de energia física, medir pico com a automação ativa e declarar as funções e carga que passaram. Vincular qualquer reprovação ao modelo, flash, imagem e cenário.
+
+## 6. Atualizar, provocar falha e recuperar
+
+1. **Antes da troca.** Usar a instalação preenchida. Exportar os identificadores da revisão, usuários e papéis de teste, consumo de licença, amostras em intervalo fechado e alarmes do ensaio. Registrar versão e esquema do banco. Verificar o hash da cópia anterior e restaurá-la em laboratório até que seja possível consultar esses mesmos dados.
+2. **Atualizar.** Encerrar gravações de forma controlada, aplicar a candidata pelo canal em teste e capturar o resultado da migração. Reiniciar o host e repetir o percurso da etapa 3. Conferir os registros antigos, uma amostra nova e uma única ocorrência de cada transição. Anexar contagens, IDs de laboratório e intervalos com fuso.
+3. **Provocar falha.** Na cópia descartável, tornar o banco indisponível durante a inicialização. Consultar o estado exibido, o diagnóstico e o destino das gravações. Restabelecer o banco e conferir que a mesma revisão retoma sem escrita local silenciosa. Em outra rodada, interromper a atualização entre preparação e ativação.
+4. **Reverter.** Anotar qual versão e esquema ficaram ativos. Parar a candidata e restaurar a versão anterior. Para migração incompatível, restaurar também o backup consistente anterior, registrar o instante de recuperação e reconciliar gravações posteriores antes de reabrir o acesso. Repetir a comparação da etapa 3.
+5. **Remover e reinstalar.** Usar a remoção padrão do pacote, conferir a retenção de configuração, licença e histórico, reinstalar e comparar. Executar o expurgo em cópia identificada, inventariar o que foi removido e conferir que bancos externos e outras instalações continuam acessíveis.
+6. **Repetir a fabricação.** Gerar o mesmo perfil com uma segunda versão controlada, pela mesma definição. Comparar a lista de conteúdo, a origem da versão, o resultado da atualização e as diferenças esperadas de assinatura. Registrar em que operação houve intervenção manual e transformar correções recorrentes em passos versionados.
+
+
+## 7. Gerar o manual e preparar o FAQ
 
 Para cada ambiente, o responsável pelo pacote entrega o manifesto e as evidências à documentação. Um revisor segue o manual offline em uma instalação limpa em português, inglês e espanhol, até abrir o Runtime, consultar uma tendência e localizar a saúde e o consumo da licença. Registrar idioma, plataforma, versão, resultado e limitações observadas.
 
 O responsável pelo produto reúne os pacotes homologados, imagens offline, manuais, notas de versão e tabela do FAQ. Cada linha do FAQ informa arquitetura, banco, recursos, capacidade medida, limites da licença e margem de memória do host. O responsável pelo portal recebe o conjunto e verifica download, tamanho e checksum do arquivo servido contra o manifesto aprovado.
 
-## Conferência do pacote e decisão de entrega
+**Procedimento editorial.** Atualizar os artigos e capturas no idioma correspondente. Na raiz do checkout de documentação, executar `python scripts/docs/export_system_help_manual.py`, revisar o diff dos capítulos em docs/manual e executar o mesmo comando com `--check`. Montar no kit offline os capítulos, índices e imagens referenciadas, respeitando a lista permitida. Abrir cada índice a partir da instalação sem acesso à internet e seguir os links para o procedimento da plataforma. Conferir instalação, ativação, operação, diagnóstico, backup e recuperação na interface da candidata. Repetir em pt-BR, en e es e registrar capítulo e imagem quebrados antes de refazer a exportação.
+
+## 8. Conferir os arquivos finais e entregar ao portal
 
 **Composição.** Para cada instalador, imagem e arquivo offline, o responsável pelo build gera uma lista dos arquivos efetivamente entregues e compara com a lista de conteúdo permitida. Incluir a Ajuda e o manual do usuário. Rejeitar material de coordenação, fixtures, relatórios de CI, credenciais de laboratório e arquivos de emissão de licenças. Fazer a inspeção também nas camadas da imagem final. Arquivar inventário, SBOM e licenças das dependências junto ao manifesto. [Política de conteúdo da #381](https://github.com/brunolrogerio-collab/EliteSCADA/issues/381)
 
@@ -97,3 +172,16 @@ O responsável pelo produto reúne os pacotes homologados, imagens offline, manu
 **Saúde observável.** O Compose de referência usa loopback por padrão e verifica a API em /health e a Web em /healthz. Conferir primeiro essas rotas e depois abrir o Runtime pelo endereço do operador, observar uma TAG atualizar, consultar tendência e testar login da Engenharia. Para instalações em rede, documentar a interface exposta, a porta e o destino TLS. Incluir vídeo apenas nos perfis que o anunciam.
 
 **Registro por candidato.** Anexar à #408 uma linha por combinação de pacote, sistema e arquitetura com versão/SHA, digest ou checksum, equipamento real/VM/emulação, versão anterior usada na atualização, resultado de instalação offline/reboot/restauração e link das evidências. Marcar cada cenário como aprovado, falhou ou pendente. No FAQ publicar somente combinações aprovadas e informar as limitações encontradas. Para Edge e VPS, anexar ainda carga, pico de memória, janela de medição e latência p95. O proprietário recebe o resultado por plataforma e o chat do portal recebe os arquivos correspondentes ao manifesto aceito.
+
+### Ficha de execução para anexar à #408
+
+| Etapa e responsável | Entrada e ação | Saída para conferência | Se falhar |
+|---|---|---|---|
+| Produto / build | SHA, versão, perfil e dependências fixadas | Log de build, inventário e SBOM por arquitetura | Corrigir a entrada e identificar a nova rodada |
+| Instalação / revisor | Máquina limpa e arquivo do manifesto | Hash, versão instalada, saúde e primeira TAG | Capturar logs, restaurar snapshot e repetir |
+| Operação / revisor | Projeto ativo e amostras anteriores | Revisão, licença, histórico e alarmes antes/depois | Registrar perda, lacuna ou duplicata e a etapa exata |
+| Capacidade / bancada | Carga e equipamento identificados | Pico simultâneo, p95, erros e margem do host | Reduzir a capacidade declarada ou ajustar o perfil e repetir |
+| Documentação / revisor de idioma | Manual instalado offline | Idioma, capítulo, captura e percurso concluído | Corrigir o artigo ou o recurso ausente e reexportar |
+| Distribuição / portal | Pacote aprovado e manifesto | Arquivo obtido pelo download com hash idêntico | Suspender o item divergente e corrigir o arquivo ou o cadastro |
+
+Guardar a ficha com data, operador, versão do SO, hardware, versões de origem/destino, resultado e link de cada evidência. Vincular falhas à rodada que as reproduziu e conservar o resultado anterior ao registrar o reteste.

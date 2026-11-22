@@ -1,0 +1,44 @@
+{
+  "application": "SCADIVO · EEE + RHO simulada",
+  "productCommit": "71d8ca3dd0574673d9839bef7de3ee0051ebed0c",
+  "productBranch": "wave15/corrections-integration",
+  "sourceProjectKey": "Help",
+  "publishedAndActiveRevision": 75,
+  "packageId": "e07b5722-bc80-4e92-858e-dece0cea28de",
+  "createdAtUtc": "2026-11-22T01:55:29.6842327+00:00",
+  "packageFormatVersion": 3,
+  "engineeringSchemaVersion": 30,
+  "packageFile": "SCADIVO-EEE-RHO-r75.escadapkg",
+  "sizeBytes": 9650273,
+  "sha256": "0c5481db2ffeef1fb01b83be226c7965d5aceea8821643557d2a74d9546b6020",
+  "method": "Exportação pela API do commit integrado a partir da cópia isolada da revisão 75 publicada e ativa.",
+  "distribution": "A cópia distribuída tem Engenharia desbloqueada e omite o verificador de senha da instalação de origem. A comparação com a revisão salva encontrou diferenças apenas nesse campo e no horário de exportação.",
+  "sources": [
+    "EEE simulada",
+    "RHO simulada"
+  ],
+  "includedAssetPayloads": 24,
+  "tags": 245,
+  "screens": 30,
+  "popups": 2,
+  "alarms": 52,
+  "scripts": 2,
+  "historianSamplesIncluded": false,
+  "cleanImportPreview": {
+    "mode": 2,
+    "createCount": 430,
+    "updateCount": 3,
+    "skipCount": 0,
+    "errorCount": 0,
+    "canApply": true
+  },
+  "cleanRestore": {
+    "created": 430,
+    "updated": 3,
+    "issuesWithErrors": 0,
+    "tags": 245,
+    "alarms": 52,
+    "screens": 30,
+    "repeatedPreviewCreateCount": 0
+  }
+}

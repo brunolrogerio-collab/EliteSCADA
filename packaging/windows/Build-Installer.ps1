@@ -3,12 +3,14 @@
 param(
     [Parameter(Mandatory)][ValidatePattern('^[a-fA-F0-9]{40}$')][string]$ProductCommit,
     [Parameter(Mandatory)][string]$CompilerPath,
+    [Parameter(Mandatory)][string]$DependencyDirectory,
     [Parameter(Mandatory)][string]$OutputDirectory
 )
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 if (-not $IsWindows) { throw 'Build on Windows x64 with the .NET SDK, Node.js and Microsoft Edge.' }
 $compiler = (Resolve-Path -LiteralPath $CompilerPath).Path
+$dependencyRoot = (Resolve-Path -LiteralPath $DependencyDirectory).Path
 $repo = (Resolve-Path "$PSScriptRoot/../..").Path
 $out = [IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $out) { throw "Choose a new output directory: $out" }
@@ -132,6 +134,7 @@ foreach ($entry in 'Scada.Api.exe','Scada.Api.dll','Scada.Api.runtimeconfig.json
     if (!(Test-Path -LiteralPath "$api/$entry" -PathType Leaf)) { throw "Missing win-x64 runtime file: $entry" }
 }
 if ((Get-Item -LiteralPath "$api/Scada.Api.dll").VersionInfo.FileVersion -ne $version) { throw 'API version mismatch.' }
+& "$PSScriptRoot/Stage-NativeComponents.ps1" -DependencyDirectory $dependencyRoot -WorkingDirectory $work -Payload $payload -BrandDirectory $brand
 $inventory = foreach ($file in (Get-ChildItem -LiteralPath $payload -Recurse -File | Sort-Object FullName)) {
     $relative = [IO.Path]::GetRelativePath($payload, $file.FullName).Replace('\','/')
     if ($file.Name -match $privateName -or $relative -match '(?i)(^|/)(MatterWifi|node_modules|tests-e2e|\.git)(/|$)') {
@@ -141,12 +144,12 @@ $inventory = foreach ($file in (Get-ChildItem -LiteralPath $payload -Recurse -Fi
 }
 $inventory | ConvertTo-Json -Depth 3 | Set-Content -Encoding utf8NoBOM "$out/files.json"
 & $compiler /Q "/DProductName=$name" "/DChannel=$channel" "/DProductVersion=$version" "/DPayloadDir=$payload" "/DBrandDir=$brand" "/O$out" "$PSScriptRoot/scadivo.iss"
-$exe = Get-Item -LiteralPath "$out/$name-$channel-$version-win-x64-lab.exe"
+$exe = Get-Item -LiteralPath "$out/$name-$channel-$version-Windows-x64-Setup.exe"
 if ($exe.VersionInfo.FileVersion.Trim() -ne $version) { throw 'Installer version mismatch.' }
 [ordered]@{
     product = "$name $channel $version"; productCommit = $ProductCommit; recipeCommit = $recipeCommit
-    profile = 'windows-x64-payload-lab'; signed = $false; dotnetSdk = $sdk; node = $nodeVersion; npm = $npmVersion
-    innoSetup = '6.7.3'; webLockSha256 = (Get-FileHash "$web/package-lock.json").Hash
+    profile = 'windows-x64-private-evaluation'; signed = $false; dotnetSdk = $sdk; node = $nodeVersion; npm = $npmVersion
+    innoSetup = '6.7.3'; nativeDependencies = @(Get-Content "$PSScriptRoot/dependencies.json" -Raw | ConvertFrom-Json); webLockSha256 = (Get-FileHash "$web/package-lock.json").Hash
     markSource = 'web/scada-web/public/scadivo-mark.svg'; markSha256 = $mark.Hash
     artwork = @(foreach ($asset in (Get-ChildItem -LiteralPath $brand -File | Sort-Object Name)) {
         [ordered]@{ name = $asset.Name; bytes = $asset.Length; sha256 = (Get-FileHash -LiteralPath $asset.FullName).Hash }

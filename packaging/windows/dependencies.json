@@ -1,0 +1,26 @@
+[
+  {
+    "file": "postgres.zip",
+    "component": "PostgreSQL 18.6-1 x64 (EDB)",
+    "url": "https://get.enterprisedb.com/postgresql/postgresql-18.6-1-windows-x64-binaries.zip",
+    "sha256": "FBE23DA234EE31547BF8A36D29DFD81E82B849DF2D2B78D2EECB43D360252F8C"
+  },
+  {
+    "file": "timescale.zip",
+    "component": "TimescaleDB 2.29.2 for PostgreSQL 18 x64",
+    "url": "https://github.com/timescale/timescaledb/releases/download/2.29.2/timescaledb-postgresql-18-windows-amd64.zip",
+    "sha256": "CC80949C34680A28E5694F7AD9CC3948A8D457C09EFEF43082FDC969959295A8"
+  },
+  {
+    "file": "WinSW.exe",
+    "component": "WinSW 2.12.0 x64",
+    "url": "https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe",
+    "sha256": "05B82D46AD331CC16BDC00DE5C6332C1EF818DF8CEEFCD49C726553209B3A0DA"
+  },
+  {
+    "file": "vc_redist.x64.exe",
+    "component": "Microsoft Visual C++ Redistributable 14.52.37029.0 x64",
+    "url": "https://aka.ms/vc14/vc_redist.x64.exe",
+    "sha256": "9C02C9ED120F671B900E6B9471D890E3B2414117A7E53F4AE2E855466FA2B7C9"
+  }
+]

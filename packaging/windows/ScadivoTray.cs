@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Net;
 using System.ServiceProcess;
 using System.Threading;
@@ -73,8 +74,32 @@ internal static class ScadivoTray
 
     private static void Open(string target)
     {
-        try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true }); }
-        catch (Win32Exception ex) { MessageBox.Show(ex.Message, "SCADIVO"); }
+        try
+        {
+            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+            return;
+        }
+        catch (Win32Exception)
+        {
+            // The Windows URL handler can be missing or point to an invalid registration.
+        }
+
+        var edge = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            @"Microsoft\Edge\Application\msedge.exe");
+        if (File.Exists(edge))
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo(edge, target) { UseShellExecute = false });
+                return;
+            }
+            catch (Win32Exception)
+            {
+            }
+        }
+
+        MessageBox.Show("Abra um navegador e acesse " + target, "SCADIVO",
+            MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private static void AddAction(ContextMenuStrip menu, string title, string action)

@@ -26,6 +26,7 @@ test('C11 canonical eee-demo Active project exports, inspects and re-previews as
   // Mutable role definitions belong to the separately managed Authority. The
   // portable project carries only its immutable identity reference.
   expect(candidate.securityRoles ?? []).toHaveLength(0);
+  expect(candidate.authorityPolicyReference).toEqual(original.authorityPolicyReference);
   expect(candidate.authorityPolicyReference?.contract).toBe('elitescada.authority-policy');
   expect(candidate.authorityPolicyReference?.roleIds?.length).toBeGreaterThan(0);
 

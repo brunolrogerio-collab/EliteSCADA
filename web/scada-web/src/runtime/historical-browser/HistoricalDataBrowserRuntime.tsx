@@ -4,6 +4,10 @@ import { HistoricalFilterBuilder } from './HistoricalFilterBuilder';
 import {
   HistoricalQueryApiError,
   executeHistoricalQuery,
+  executeSavedHistoricalQuery,
+  executeSavedAlarmHistory,
+  type SavedHistoryQuery,
+  type SavedHistoryView,
   type HistoricalColumn,
   type HistoricalFilter,
   type HistoricalQueryResponse,
@@ -12,13 +16,20 @@ import {
 import {
   buildHistoricalQueryRequest,
   canSearchHistoricalColumns,
+  isInternalIdentityColumn,
   projectHistoricalQueryResponse,
   sortableHistoricalColumns
 } from './historicalBrowserQueryAdapter';
-import { summarizeHistoricalFilter } from './historicalBrowserFilters';
-import { createHistoricalBrowserDraft, type HistoricalBrowserDraft } from './historicalBrowserPresentation';
+import {
+  createHistoricalBrowserDraft,
+  formatHistoricalDateTime,
+  type HistoricalBrowserDraft
+} from './historicalBrowserPresentation';
+import { localTimeZoneLabel } from '../historicalTimeRange';
 import {
   historicalBrowserCopy,
+  historicalFieldLabel,
+  historicalOperatorLabel,
   type HistoricalBrowserLocale
 } from './historicalBrowserI18n';
 
@@ -30,6 +41,10 @@ export type HistoricalQueryLoader = (
 export type HistoricalDataBrowserRuntimeProps = Readonly<{
   locale?: HistoricalBrowserLocale;
   queryLoader?: HistoricalQueryLoader;
+  savedQueries?: readonly SavedHistoryQuery[];
+  alarmViews?: readonly SavedHistoryView[];
+  alarmViewKey?: string;
+  onAlarmViewChange?: (key: string) => void;
 }>;
 
 /**
@@ -39,10 +54,18 @@ export type HistoricalDataBrowserRuntimeProps = Readonly<{
  */
 export function HistoricalDataBrowserRuntime({
   locale = 'en',
-  queryLoader = executeHistoricalQuery
+  queryLoader = executeHistoricalQuery,
+  savedQueries,
+  alarmViews,
+  alarmViewKey = '',
+  onAlarmViewChange
 }: HistoricalDataBrowserRuntimeProps) {
   const text = historicalBrowserCopy(locale);
   const [draft, setDraft] = useState<HistoricalBrowserDraft>(() => createHistoricalBrowserDraft());
+  const [savedQueryKey, setSavedQueryKey] = useState('');
+  const [overrideRange, setOverrideRange] = useState(false);
+  const [parameterValues, setParameterValues] = useState<Record<string, string>>({});
+  const savedQuery = savedQueries?.find(item => item.key === savedQueryKey);
   const [state, setState] = useState<HistoricalBrowserViewState>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [responseColumns, setResponseColumns] = useState<readonly HistoricalColumn[]>([]);
@@ -60,8 +83,25 @@ export function HistoricalDataBrowserRuntime({
 
   useEffect(() => () => activeController.current?.abort(), []);
 
-  const searchable = canSearchHistoricalColumns(responseColumns);
-  const sortableColumns = useMemo(() => sortableHistoricalColumns(responseColumns), [responseColumns]);
+  useEffect(() => {
+    activeController.current?.abort();
+    setRows([]);
+    setColumns([]);
+    setResponseColumns([]);
+    setResolvedRange(null);
+    setNextCursor(null);
+    setPageCursors([null]);
+    setPageIndex(0);
+    setErrorMessage(null);
+    setState('idle');
+  }, [savedQueryKey, alarmViewKey, overrideRange, parameterValues]);
+
+  const operatorColumns = useMemo(
+    () => responseColumns.filter(column => !isInternalIdentityColumn(column)),
+    [responseColumns]
+  );
+  const searchable = canSearchHistoricalColumns(operatorColumns);
+  const sortableColumns = useMemo(() => sortableHistoricalColumns(operatorColumns), [operatorColumns]);
 
   const runQuery = useCallback(async (
     queryDraft: HistoricalBrowserDraft,
@@ -79,13 +119,21 @@ export function HistoricalDataBrowserRuntime({
       const selectedSort = sortField
         ? { field: sortField, direction: sortDirection } as const
         : null;
-      const request = buildHistoricalQueryRequest(queryDraft, {
+      const request = savedQuery && !overrideRange ? undefined : buildHistoricalQueryRequest(queryDraft, {
         filters,
         search: searchable ? search : '',
         sort: selectedSort,
         cursor
       });
-      const response = await queryLoader(request, controller.signal);
+      const parameters = Object.fromEntries((savedQuery?.parameters ?? []).flatMap(parameter => {
+        const value = parameterValues[parameter.key];
+        return value === undefined || value === '' ? [] : [[parameter.key, { type: parameter.type, value }]];
+      }));
+      const response = savedQuery
+        ? await executeSavedHistoricalQuery(savedQuery.key, request?.timeRange, cursor, parameters, controller.signal)
+        : alarmViewKey && request!.datasetKey === 'alarm.events'
+          ? await executeSavedAlarmHistory(alarmViewKey, request!, controller.signal)
+          : await queryLoader(request!, controller.signal);
       if (controller.signal.aborted) return;
 
       const projected = projectHistoricalQueryResponse(response, locale);
@@ -98,6 +146,7 @@ export function HistoricalDataBrowserRuntime({
       setRows(projected.rows.map(row => Object.freeze({
         id: row.id,
         cells: row.cells,
+        cellTitles: row.cellTitles,
         detail: row.detail
       })));
       setResolvedRange(Object.freeze({ fromUtc: projected.fromUtc, toUtc: projected.toUtc }));
@@ -113,9 +162,9 @@ export function HistoricalDataBrowserRuntime({
         return;
       }
       setState('error');
-      setErrorMessage(text.queryFailed);
+      setErrorMessage(error instanceof HistoricalQueryApiError && error.issue === 'invalid-query' ? error.message : text.queryFailed);
     }
-  }, [filters, locale, queryLoader, search, searchable, sortDirection, sortField, text.queryFailed, text.unauthorized]);
+  }, [alarmViewKey, filters, locale, overrideRange, parameterValues, queryLoader, savedQuery, search, searchable, sortDirection, sortField, text.queryFailed, text.unauthorized]);
 
   function runFirstPage(queryDraft = draft) {
     setPageCursors(Object.freeze([null]));
@@ -168,83 +217,160 @@ export function HistoricalDataBrowserRuntime({
   }
 
   const filterSummary = useMemo(() => {
-    const summary: string[] = filters.map(summarizeHistoricalFilter);
-    if (searchable && search.trim()) summary.push(`${text.search}: ${search.trim()}`);
-    if (sortField) summary.push(`${text.sortField}: ${sortField} ${sortDirection === 'ascending' ? text.ascending : text.descending}`);
-    if (resolvedRange) summary.push(`${resolvedRange.fromUtc} → ${resolvedRange.toUtc}`);
-    summary.push(`${text.page} ${pageIndex + 1}`);
+    const summary: string[] = (savedQuery ? [] : filters).map(filter =>
+      historicalFieldLabel(filter.field, locale) + ' ' +
+      historicalOperatorLabel(filter.operator, locale) + ' ' +
+      filter.values.map(value => value.value ?? '—').join(', ')
+    );
+    if (!savedQuery && searchable && search.trim()) summary.push(text.search + ': ' + search.trim());
+    if (!savedQuery && sortField) summary.push(
+      text.sortField + ': ' + historicalFieldLabel(sortField, locale) + ' ' +
+      (sortDirection === 'ascending' ? text.ascending : text.descending)
+    );
+    if (resolvedRange) summary.push(
+      formatHistoricalDateTime(resolvedRange.fromUtc, locale) + ' → ' +
+      formatHistoricalDateTime(resolvedRange.toUtc, locale) + ' · ' + localTimeZoneLabel()
+    );
+    summary.push(text.page + ' ' + String(pageIndex + 1));
     return Object.freeze(summary);
-  }, [filters, pageIndex, resolvedRange, search, searchable, sortDirection, sortField, text]);
+  }, [filters, locale, pageIndex, resolvedRange, savedQuery, search, searchable, sortDirection, sortField, text]);
+
+  const advancedControls = (
+    <details className="historical-browser__advanced" data-testid="historical-browser-advanced">
+      <summary>{text.advancedFilters}</summary>
+      <div className="historical-browser__advanced-body">
+        {responseColumns.length === 0 ? (
+          <p className="historical-browser__advanced-note">{text.advancedDiscovery}</p>
+        ) : (
+          <>
+            <div className="historical-browser__query-tools">
+              {searchable ? (
+                <label>
+                  {text.search}
+                  <input
+                    aria-label={text.search}
+                    value={search}
+                    maxLength={200}
+                    disabled={state === 'loading'}
+                    placeholder={text.searchPlaceholder}
+                    onChange={event => setSearch(event.target.value)}
+                  />
+                </label>
+              ) : <p className="historical-browser__advanced-note">{text.searchUnavailable}</p>}
+              {sortableColumns.length > 0 ? (
+                <>
+                  <label>
+                    {text.sortField}
+                    <select
+                      aria-label={text.sortField}
+                      value={sortField}
+                      disabled={state === 'loading'}
+                      onChange={event => setSortField(event.target.value)}
+                    >
+                      <option value="">{text.serverDefault}</option>
+                      {sortableColumns.map(column => (
+                        <option key={column.field} value={column.field}>
+                          {historicalFieldLabel(column.field, locale)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {sortField ? (
+                    <label>
+                      {text.direction}
+                      <select
+                        aria-label={text.direction}
+                        value={sortDirection}
+                        disabled={state === 'loading'}
+                        onChange={event => setSortDirection(event.target.value as HistoricalSortDirection)}
+                      >
+                        <option value="descending">{text.descending}</option>
+                        <option value="ascending">{text.ascending}</option>
+                      </select>
+                    </label>
+                  ) : null}
+                </>
+              ) : <p className="historical-browser__advanced-note">{text.sortUnavailable}</p>}
+            </div>
+
+            <HistoricalFilterBuilder
+              locale={locale}
+              columns={operatorColumns}
+              filters={filters}
+              disabled={state === 'loading'}
+              onFiltersChange={handleFiltersChange}
+            />
+          </>
+        )}
+      </div>
+    </details>
+  );
 
   return (
     <div data-testid="historical-data-browser-runtime">
-      <div className="historical-browser__query-tools">
+      {savedQueries && savedQueries.length > 0 && (
         <label>
-          {text.search}
-          <input
-            aria-label={text.search}
-            value={search}
-            maxLength={200}
-            disabled={!searchable || state === 'loading'}
-            placeholder={searchable ? text.searchPlaceholder : text.searchDiscovery}
-            onChange={event => setSearch(event.target.value)}
-          />
-        </label>
-        <label>
-          {text.sortField}
-          <select
-            aria-label={text.sortField}
-            value={sortField}
-            disabled={sortableColumns.length === 0 || state === 'loading'}
-            onChange={event => setSortField(event.target.value)}
-          >
-            <option value="">{text.serverDefault}</option>
-            {sortableColumns.map(column => <option key={column.field} value={column.field}>{column.field}</option>)}
+          {locale === 'pt-BR' ? 'Consulta salva' : locale === 'es' ? 'Consulta guardada' : 'Saved query'}
+          <select value={savedQueryKey} onChange={event => {
+            setSavedQueryKey(event.target.value);
+            setParameterValues({});
+            setOverrideRange(false);
+          }}>
+            <option value="">{locale === 'pt-BR' ? 'Consulta avulsa' : locale === 'es' ? 'Consulta puntual' : 'Ad hoc query'}</option>
+            {savedQueries.map(item => <option key={item.key} value={item.key}>{item.name}</option>)}
           </select>
         </label>
+      )}
+      {savedQuery && <>
         <label>
-          {text.direction}
-          <select
-            aria-label={text.direction}
-            value={sortDirection}
-            disabled={!sortField || state === 'loading'}
-            onChange={event => setSortDirection(event.target.value as HistoricalSortDirection)}
-          >
-            <option value="descending">{text.descending}</option>
-            <option value="ascending">{text.ascending}</option>
+          <input type="checkbox" checked={overrideRange} onChange={event => setOverrideRange(event.target.checked)} />
+          {locale === 'pt-BR' ? 'Usar o período abaixo' : locale === 'es' ? 'Usar el período indicado abajo' : 'Use the range below'}
+        </label>
+        {savedQuery.parameters?.map(parameter => {
+          const value = parameterValues[parameter.key] ?? parameter.defaultValue?.value ?? '';
+          const change = (next: string) => setParameterValues(current => ({ ...current, [parameter.key]: next }));
+          return <label key={parameter.key}>
+            {parameter.name}
+            {parameter.allowedValues?.length ? <select value={value} onChange={event => change(event.target.value)}>
+              <option value="">—</option>
+              {parameter.allowedValues.map(option => <option key={option.value} value={option.value}>{option.value}</option>)}
+            </select> : <input value={value} onChange={event => change(event.target.value)} />}
+          </label>;
+        })}
+      </>}
+      {!savedQuery && draft.datasetKey === 'alarm.events' && alarmViews && alarmViews.length > 0 && (
+        <label>
+          {locale === 'pt-BR' ? 'Filtro salvo de alarmes' : locale === 'es' ? 'Filtro de alarmas guardado' : 'Saved alarm filter'}
+          <select value={alarmViewKey} onChange={event => onAlarmViewChange?.(event.target.value)}>
+            <option value="">{locale === 'pt-BR' ? 'Todos' : locale === 'es' ? 'Todas' : 'All'}</option>
+            {alarmViews.map(view => <option key={view.key} value={view.key}>{view.name}</option>)}
           </select>
         </label>
-        <button type="button" disabled={state === 'loading'} onClick={() => runFirstPage()}>{text.applyQuery}</button>
-      </div>
-
-      <HistoricalFilterBuilder
-        locale={locale}
-        columns={responseColumns}
-        filters={filters}
-        disabled={state === 'loading'}
-        onFiltersChange={handleFiltersChange}
-      />
-
+      )}
       <HistoricalDataBrowser
         locale={locale}
         columns={columns}
         rows={rows}
         state={state}
         errorMessage={errorMessage}
+        savedQueryName={savedQuery?.name}
+        showPeriod={!savedQuery || overrideRange}
         filterSummary={filterSummary}
+        advancedControls={savedQuery ? undefined : advancedControls}
         onDraftChange={handleDraftChange}
         onQueryRequested={nextDraft => {
           handleDraftChange(nextDraft);
           runFirstPage(nextDraft);
         }}
-        onRefreshRequested={() => runFirstPage()}
       />
 
-      <nav className="historical-browser__paging" aria-label={`${text.title} · ${text.page}`}>
-        <button type="button" onClick={goPrevious} disabled={pageIndex === 0 || state === 'loading'}>{text.previousPage}</button>
-        <span>{text.page} {pageIndex + 1}</span>
-        <button type="button" onClick={goNext} disabled={!nextCursor || state === 'loading'}>{text.nextPage}</button>
-      </nav>
+      {(state === 'ready' || state === 'empty') && (
+        <nav className="historical-browser__paging" aria-label={text.title + ' · ' + text.page}>
+          <button type="button" onClick={goPrevious} disabled={pageIndex === 0}>{text.previousPage}</button>
+          <span>{text.page} {pageIndex + 1}</span>
+          <button type="button" onClick={goNext} disabled={!nextCursor}>{text.nextPage}</button>
+        </nav>
+      )}
     </div>
   );
 }

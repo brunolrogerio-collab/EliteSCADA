@@ -1,4 +1,4 @@
-import { expect, test, type Locator } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
 
@@ -19,11 +19,26 @@ async function expectCssToken(locator: Locator, property: string, token: string)
 }
 
 test('primary shell keeps authorized application navigation coherent without Engineering chrome inside Runtime', async ({ page }) => {
-  await page.goto('/');
+  await page.route('**/api/product/info', route => route.fulfill({
+    json: {
+      productName: 'TestSCADA',
+      channel: 'Alpha',
+      version: '9.9.9',
+      displayVersion: 'TestSCADA Alpha 9.9.9',
+      informationalVersion: 'TestSCADA Alpha 9.9.9+abcdef123456',
+      buildCommit: 'abcdef123456'
+    }
+  }));
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveTitle('SCADIVO');
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/scadivo-mark.svg');
 
-  let navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+  let navigation = page.getByRole('navigation', { name: 'SCADIVO' });
   await expect(navigation.getByRole('link', { name: /Runtime/ })).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByTestId('runtime-engineering-application').or(page.getByTestId('runtime-simulation-fallback'))).toBeVisible();
+  await expect(
+    page.getByTestId('runtime-engineering-application')
+      .or(page.getByTestId('runtime-neutral'))
+  ).toBeVisible();
   await expect(page.locator('.eng-shell')).toHaveCount(0);
   await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
 
@@ -31,7 +46,7 @@ test('primary shell keeps authorized application navigation coherent without Eng
   await expect(theme).toBeVisible();
   await theme.selectOption('light');
   await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'light');
-  await page.reload();
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'light');
 
   const runtimeViews = page.getByRole('navigation', { name: 'Runtime views' });
@@ -42,24 +57,57 @@ test('primary shell keeps authorized application navigation coherent without Eng
     await expectCssToken(page.locator('.runtime-history-page'), 'background-color', '--app-bg');
   }
 
-  await page.goto('/engineering');
-  navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
-  await expect(navigation.getByRole('link', { name: /Engineering/ })).toHaveAttribute('aria-current', 'page');
+  await page.goto('/engineering', { waitUntil: 'domcontentloaded' });
+  navigation = page.getByRole('navigation', { name: 'SCADIVO' });
+  await expect(navigation.getByRole('link', { name: 'Engenharia' })).toHaveAttribute('aria-current', 'page');
+  await page.locator('.eng-overview-advanced > summary').click();
   await expect(page.getByText(/Gerenciamento do projeto|Project Management/, { exact: true })).toBeVisible();
   await expectCssToken(page.locator('.eng-shell'), 'background-color', '--app-bg');
+  await expectCssToken(page.locator('.eng-project-management__card').first(), 'background-color', '--app-surface');
+  const lifecycle = page.locator('.eng-lifecycle-workspace');
+  const lifecycleSteps = lifecycle.locator('.eng-lifecycle-workspace__step');
+  await expect(lifecycleSteps).toHaveCount(4);
+  await expect(lifecycleSteps.first()).toBeVisible();
+  const revisionsStep = lifecycleSteps.nth(1);
+  const publishedStep = lifecycleSteps.nth(2);
+  await expect(revisionsStep).toContainText(/Revisão salva|Saved revision|Revisión guardada/);
+  await expect(publishedStep).toContainText('Published');
+  const publishedFollowsRevisions = await lifecycle.evaluate(root => {
+    const steps = root.querySelectorAll('.eng-lifecycle-workspace__step');
+    return steps.length === 4 && Boolean(steps[1].compareDocumentPosition(steps[2]) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  expect(publishedFollowsRevisions).toBe(true);
+
+  const engineeringTheme = page.getByRole('combobox', { name: 'Tema' });
+  await engineeringTheme.selectOption('dark');
+  await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'dark');
+  await expectCssToken(page.locator('.eng-project-management__card').first(), 'background-color', '--app-surface');
+  await expect(lifecycleSteps.first()).toBeVisible();
+  await expect(page.getByTestId('engineering-context-row')).toBeVisible();
+  await expect(page.getByTestId('engineering-workspace-state')).toBeVisible();
+  await expect(page.getByTestId('engineering-workspace-bar')).toHaveCount(0);
 
   const engineeringNavigation = page.locator('.eng-nav');
+  await engineeringNavigation.getByRole('button', { name: /Informações|Information|Información/ }).click();
+  await expect(page.getByTestId('engineering-information')).toBeVisible();
+  await expect(page.getByTestId('engineering-product-version')).toHaveText('TestSCADA Alpha 9.9.9');
+  const technicalDetails = page.locator('details.eng-information__technical');
+  await expect(technicalDetails).not.toHaveAttribute('open', '');
+  await technicalDetails.locator('summary').click();
+  await expect(technicalDetails).toContainText(/scada\.engineering/i);
+  await expect(technicalDetails).toContainText('abcdef123456');
+
   await engineeringNavigation.getByRole('button', { name: /Diagnósticos|Diagnostics/ }).click();
   await expect(page.getByText(/TAG Monitor/i)).toBeVisible();
 
-  await page.goto('/audit');
-  navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+  await page.goto('/audit', { waitUntil: 'domcontentloaded' });
+  navigation = page.getByRole('navigation', { name: 'SCADIVO' });
   await expect(navigation.getByRole('link', { name: /Auditoria/ })).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('.audit-panel').first()).toBeVisible();
   await expectCssToken(page.locator('.audit-panel').first(), 'background-color', '--app-surface');
 
-  await page.goto('/licensing');
-  navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+  await page.goto('/licensing', { waitUntil: 'domcontentloaded' });
+  navigation = page.getByRole('navigation', { name: 'SCADIVO' });
   await expect(navigation.getByRole('link', { name: /Licenciamento/ })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('heading', { name: 'Licenciamento' })).toBeVisible();
   await expect(page.locator('.licensing-card').first()).toBeVisible();
@@ -73,34 +121,66 @@ test('shell uses shared locale, updates live from Engineering selector, and pres
   });
   await page.goto('/engineering');
 
-  const navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+  const navigation = page.getByRole('navigation', { name: 'SCADIVO' });
+  await expect(navigation.getByRole('link', { name: 'Engineering' })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Audit/ })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Licensing/ })).toBeVisible();
   await expect(page.getByText('Industrial platform', { exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'dark');
   await expect(page.getByRole('combobox', { name: 'Theme' })).toHaveValue('dark');
+  await page.locator('.eng-overview-advanced > summary').click();
   await expect(page.getByText('Project Management', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('engineering-context-row')).toBeVisible();
+  await expect(page.getByTestId('engineering-workspace-state')).toBeVisible();
 
   const locale = page.locator('#engineering-locale');
   await locale.selectOption('es');
   await expect(page.getByText('Plataforma industrial', { exact: true })).toBeVisible();
+  await expect(navigation.getByRole('link', { name: 'Ingeniería' })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Auditoría/ })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Licenciamiento/ })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Tema' })).toHaveValue('dark');
 
   await locale.selectOption('pt-BR');
   await expect(page.getByText('Plataforma industrial', { exact: true })).toBeVisible();
+  await expect(navigation.getByRole('link', { name: 'Engenharia' })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Auditoria/ })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Licenciamento/ })).toBeVisible();
 });
 
 test('Engineering visual workspace can reclaim constrained viewport without losing panels', async ({ page }) => {
+  await page.route('**/api/**', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
+  await page.route('**/api/auth/config', route => route.fulfill({ json: {
+    authenticationEnabled: false, localLoginEnabled: false,
+    initialAdministratorRequired: false, initialAdministratorSetupAvailable: false
+  } }));
+  await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
+    authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+    authenticationEnabled: false,
+    runtime: ['View', 'TrendUse', 'SystemAdmin'],
+    workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin']
+  } }));
+  await page.route('**/api/engineering/lock/status', route => route.fulfill({ json: { configured: false, locked: false } }));
+  await page.route('**/api/engineering/workspace', route => route.fulfill({ json: {
+    projectKey: 'responsive-test', projectName: 'Responsive test', baseRevision: 1,
+    isDirty: false, changeVersion: 1, tagCount: 0, alarmCount: 0, dataSourceCount: 0,
+    templateCount: 0, equipmentCount: 0, dynamoCount: 0, screenCount: 0, popupCount: 0
+  } }));
+  await page.route('**/api/engineering/export/json', route => route.fulfill({ json: {
+    schema: 'scada.engineering', schemaVersion: 20, tags: [], alarms: [], dataSources: [],
+    templates: [], equipment: [], dynamos: [], screens: [], popups: [], securityRoles: [], gateways: [], visualAssets: []
+  } }));
+  await page.route('**/api/runtime/application', route => route.fulfill({
+    json: brandingActiveProjection({ mode: 'text', text: 'EliteSCADA' })
+  }));
   await page.setViewportSize({ width: 1024, height: 720 });
   await page.goto('/engineering');
 
   const engineeringNavigation = page.locator('.eng-nav');
   await engineeringNavigation.getByRole('button', { name: /Telas/ }).click();
   await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
+  await expect(page.locator('.eng-workspace')).toHaveAttribute('data-section-layout', 'wide');
+  await expect(page.locator('.eng-workspace')).toHaveClass(/eng-workspace--wide-section/);
 
   const canvas = page.locator('.visual-editor-canvas-slot');
   const screens = page.locator('.visual-editor-screens');
@@ -114,32 +194,49 @@ test('Engineering visual workspace can reclaim constrained viewport without losi
   const paletteToggle = page.getByTestId('visual-editor-palette-toggle');
   const propertiesToggle = page.getByTestId('visual-editor-properties-toggle');
 
+  const initialNavigation = await page.locator('.eng-sidebar').boundingBox();
+  const initialScreens = await screens.boundingBox();
+  const initialPalette = await palette.boundingBox();
+  const initialProperties = await properties.boundingBox();
+  expect(initialNavigation && initialScreens && initialPalette && initialProperties).toBeTruthy();
+
   await navigationToggle.click();
-  await expect(navigationToggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('.eng-sidebar')).toBeHidden();
+  await expect(navigationToggle).toHaveAttribute('aria-expanded', 'false');
+  const collapsedNavigation = await page.locator('.eng-sidebar').boundingBox();
+  expect(collapsedNavigation).not.toBeNull();
+  expect(collapsedNavigation!.width).toBeLessThan(initialNavigation!.width);
 
   await screensToggle.click();
-  await expect(screensToggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(screens).toBeHidden();
+  await expect(screensToggle).toHaveAttribute('aria-expanded', 'false');
+  const collapsedScreens = await screens.boundingBox();
+  expect(collapsedScreens).not.toBeNull();
+  expect(collapsedScreens!.width).toBeLessThan(initialScreens!.width);
 
   await paletteToggle.click();
-  await expect(paletteToggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(palette).toBeHidden();
+  await expect(paletteToggle).toHaveAttribute('aria-expanded', 'false');
+  const collapsedPalette = await palette.boundingBox();
+  expect(collapsedPalette).not.toBeNull();
+  expect(collapsedPalette!.width).toBeLessThan(initialPalette!.width);
 
   const reclaimedCanvas = await canvas.boundingBox();
   expect(reclaimedCanvas).not.toBeNull();
   expect(reclaimedCanvas!.width).toBeGreaterThan(initialCanvas!.width);
 
   await propertiesToggle.click();
-  await expect(propertiesToggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(properties).toBeHidden();
+  await expect(propertiesToggle).toHaveAttribute('aria-expanded', 'false');
+  const collapsedProperties = await properties.boundingBox();
+  expect(collapsedProperties).not.toBeNull();
+  expect(collapsedProperties!.width).toBeLessThan(initialProperties!.width);
   await propertiesToggle.click();
-  await expect(propertiesToggle).toHaveAttribute('aria-pressed', 'false');
-  await expect(properties).toBeVisible();
+  await expect(propertiesToggle).toHaveAttribute('aria-expanded', 'true');
 
   await paletteToggle.click();
   await screensToggle.click();
   await navigationToggle.click();
+  await expect(navigationToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(screensToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(paletteToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(propertiesToggle).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('.eng-sidebar')).toBeVisible();
   await expect(screens).toBeVisible();
   await expect(palette).toBeVisible();
@@ -148,4 +245,582 @@ test('Engineering visual workspace can reclaim constrained viewport without losi
   await expect.poll(() => page.locator('.visual-editor-screen-list').evaluate(element => getComputedStyle(element).overflowY)).toBe('auto');
   await expect.poll(() => palette.evaluate(element => getComputedStyle(element).overflowY)).toBe('auto');
   await expect.poll(() => properties.evaluate(element => getComputedStyle(element).overflowY)).toBe('auto');
+});
+
+test('Engineering keeps independent desktop scroll regions and intentional compact document flow', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/engineering');
+  await expect(page.locator('.eng-shell')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => {
+    const shell = document.querySelector('.eng-shell');
+    const body = document.querySelector('.eng-body');
+    const sidebar = document.querySelector('.eng-sidebar');
+    const workspace = document.querySelector('.eng-workspace');
+    if (!shell || !body || !sidebar || !workspace) return null;
+    const style = (element: Element) => getComputedStyle(element);
+    return { shellHeight: style(shell).height, viewportHeight: `${window.innerHeight}px`, bodyOverflow: style(body).overflowY, sidebarOverflow: style(sidebar).overflowY, workspaceOverflow: style(workspace).overflowY };
+  })).toEqual({ shellHeight: '720px', viewportHeight: '720px', bodyOverflow: 'hidden', sidebarOverflow: 'auto', workspaceOverflow: 'auto' });
+
+  await page.setViewportSize({ width: 700, height: 720 });
+  await page.reload();
+  await expect.poll(() => page.locator('.eng-shell').evaluate(element => getComputedStyle(element).overflowY)).toBe('visible');
+  await expect.poll(() => page.locator('.eng-body').evaluate(element => getComputedStyle(element).display)).toBe('block');
+  await expect.poll(() => page.locator('.eng-workspace').evaluate(element => getComputedStyle(element).overflowY)).toBe('visible');
+});
+
+
+const brandingActiveProjection = (branding: unknown, visualAssets: unknown[] = []) => ({
+  mode: 'engineering',
+  projectKey: 'branding-proof',
+  projectName: 'Branding Proof',
+  revision: 7,
+  activatedAtUtc: '2026-09-29T22:00:00Z',
+  package: {
+    schema: 'scada.engineering', schemaVersion: 20,
+    screens: [], popups: [], dynamos: [], scripts: [], scriptVisualEventReferences: [],
+    visualAssets, branding
+  }
+});
+
+test('Active branding mounts in shell while Working preview stays isolated, themed and responsive', async ({ page }) => {
+  await page.route('**/api/runtime/application', route => route.fulfill({
+    json: brandingActiveProjection({ mode: 'text', text: 'ACTIVE BRAND', subtitle: 'Operations' })
+  }));
+  await page.setViewportSize({ width: 1280, height: 760 });
+  await page.goto('/engineering/branding');
+
+  const brand = page.locator('.app-brand');
+  await expect(brand).toHaveAttribute('data-branding-mode', 'text');
+  await expect(brand).toContainText('ACTIVE BRAND');
+  await page.getByRole('combobox', { name: /Tema|Theme/ }).selectOption('light');
+  await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'light');
+  await expect(brand).toBeVisible();
+
+  const editor = page.getByTestId('branding-editor');
+  await expect(editor).toBeVisible();
+  await editor.getByRole('combobox', { name: /Brand presentation|Presentación de la marca|Apresentação da marca/i }).selectOption('text');
+  await editor.getByLabel('Application text').fill('WORKING BRAND');
+  await expect(page.getByTestId('branding-working-preview')).toContainText('WORKING BRAND');
+  await expect(brand).toContainText('ACTIVE BRAND');
+  await expect(brand).not.toContainText('WORKING BRAND');
+
+  await page.setViewportSize({ width: 700, height: 760 });
+  await expect(brand).toBeVisible();
+  const box = await brand.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(700);
+});
+
+test('NONE collapses shell brand slot and invalid Active IMAGE falls back explicitly', async ({ page }) => {
+  await page.route('**/api/runtime/application', route => route.fulfill({ json: brandingActiveProjection({ mode: 'none' }) }));
+  await page.goto('/engineering');
+  await expect(page.locator('.app-brand')).toHaveCount(0);
+  await expect(page.locator('.app-bar')).toHaveClass(/app-bar--branding-none/);
+
+  await page.unroute('**/api/runtime/application');
+  await page.route('**/api/runtime/application', route => route.fulfill({
+    json: brandingActiveProjection({ mode: 'image', visualAssetId: '0a86490c-2364-4e21-8a69-5cb332f77559' })
+  }));
+  await page.reload();
+
+  const brand = page.locator('.app-brand');
+  await expect(brand).toHaveAttribute('data-branding-mode', 'default');
+  await expect(brand).toContainText('SCADIVO');
+  await expect(brand.locator('img.app-brand-image')).toHaveAttribute('src', '/scadivo-mark.svg');
+  await expect(brand.getByRole('status')).toContainText(/missing.*Active application/i);
+});
+
+test('compact shell header separates navigation from actions and removes Help/Licensing subtext', async ({ page }) => {
+  await page.route('**/api/**', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
+  await page.route('**/api/auth/config', route => route.fulfill({ json: {
+    authenticationEnabled: false, localLoginEnabled: false,
+    initialAdministratorRequired: false, initialAdministratorSetupAvailable: false
+  } }));
+  await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
+    authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+    authenticationEnabled: false,
+    runtime: ['View', 'TrendUse', 'SystemAdmin'],
+    workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin']
+  } }));
+  await page.route('**/api/engineering/lock/status', route => route.fulfill({ json: { configured: false, locked: false } }));
+  await page.route('**/api/engineering/scripts', route => route.fulfill({ json: [] }));
+  await page.route('**/api/engineering/script-visual-event-references', route => route.fulfill({ json: [] }));
+  await page.route('**/api/engineering/workspace', route => route.fulfill({ json: {
+    projectKey: 'responsive-test', projectName: 'Responsive test', baseRevision: 1,
+    isDirty: false, changeVersion: 1, tagCount: 0, alarmCount: 0, dataSourceCount: 0,
+    templateCount: 0, equipmentCount: 0, dynamoCount: 0, screenCount: 0, popupCount: 0
+  } }));
+  await page.route('**/api/engineering/export/json', route => route.fulfill({ json: {
+    schema: 'scada.engineering', schemaVersion: 20, tags: [], alarms: [], dataSources: [],
+    templates: [], equipment: [], dynamos: [], screens: [], popups: [], securityRoles: [], gateways: [], visualAssets: []
+  } }));
+  await page.route('**/api/runtime/application', route => route.fulfill({
+    json: brandingActiveProjection({ mode: 'text', text: 'EliteSCADA' })
+  }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/engineering');
+  await page.getByRole('combobox', { name: /Tema|Theme/ }).selectOption('light');
+
+  const bar = page.locator('.app-bar');
+  const brand = page.locator('.app-brand');
+  const actions = page.locator('.app-shell-actions');
+  const nav = page.getByRole('navigation', { name: 'SCADIVO' });
+  await expect(bar).toBeVisible();
+  await expect(nav.locator('a[href="/licensing"] small')).toHaveCount(0);
+  await expect(nav.locator('a[href^="/help"] small')).toHaveCount(0);
+  await expectCssToken(bar, 'background-color', '--app-surface');
+  await expectCssToken(page.locator('.eng-topbar'), 'background-color', '--app-surface');
+  await expectCssToken(page.locator('.eng-sidebar'), 'background-color', '--app-surface');
+  const protectionControl = page.getByTestId('engineering-lock-management');
+  await expectCssToken(protectionControl, 'background-color', '--app-surface');
+  await expectCssToken(protectionControl.locator('.eng-lock-management__state'), 'color', '--app-text-primary');
+
+  const boxes = await Promise.all([brand, actions, nav].map(locator => locator.boundingBox()));
+  expect(boxes.every(Boolean)).toBe(true);
+  const [brandBox, actionBox, navBox] = boxes;
+  expect(brandBox!.y + brandBox!.height).toBeLessThanOrEqual(navBox!.y + 1);
+  expect(actionBox!.y + actionBox!.height).toBeLessThanOrEqual(navBox!.y + 1);
+  expect(brandBox!.x + brandBox!.width).toBeLessThanOrEqual(actionBox!.x + 1);
+  expect(navBox!.x).toBeGreaterThanOrEqual(0);
+  expect(navBox!.x + navBox!.width).toBeLessThanOrEqual(390);
+
+  await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
+  await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
+  await expectCssToken(page.locator('.visual-editor-shell'), 'background-color', '--app-surface');
+  await expectCssToken(page.locator('.visual-editor-canvas-slot'), 'background-color', '--app-bg');
+
+  await page.setViewportSize({ width: 1280, height: 844 });
+  await page.locator('.eng-nav').getByRole('button', { name: /Fontes de dados/ }).click();
+  await expect(page.locator('.eng-editor-shell')).toBeVisible();
+  const dataSourceList = page.getByTestId('data-source-list');
+  const dataSourceListBox = await dataSourceList.boundingBox();
+  expect(dataSourceListBox).not.toBeNull();
+  expect(dataSourceListBox!.width).toBeLessThanOrEqual(260);
+
+  await page.locator('.eng-nav').getByRole('button', { name: /^TAGs/ }).click();
+  await expect(page.locator('.eng-editor-picker')).toBeVisible();
+  const tagListBox = await page.locator('.eng-editor-picker').boundingBox();
+  expect(tagListBox).not.toBeNull();
+  expect(tagListBox!.width).toBeLessThanOrEqual(260);
+
+  await page.locator('.eng-nav').getByRole('button', { name: /^Scripts/ }).click();
+  await expect(page.locator('.script-workspace__layout')).toBeVisible();
+  const scriptListBox = await page.locator('.script-list').boundingBox();
+  expect(scriptListBox).not.toBeNull();
+  expect(scriptListBox!.width).toBeLessThanOrEqual(300);
+  await page.getByRole('button', { name: 'Novo Script' }).click();
+  await expect(page.getByRole('button', { name: 'Verificar alterações' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Aplicar ao Workspace' })).toBeVisible();
+  await expect(page.getByText(/O código altera somente o rascunho local/)).toBeVisible();
+
+});
+
+
+// W15 C-ENG-LIFECYCLE-UX-02 mounted acceptance evidence.
+type LifecycleUxState = ReturnType<typeof createLifecycleUxState>;
+
+function createLifecycleUxState() {
+  const lifecycle = {
+    projectKey: 'lifecycle-ux',
+    status: 2,
+    workingRevision: 4,
+    publishedRevision: 3 as number | null,
+    publishedAtUtc: '2026-10-02T18:30:00Z' as string | null,
+    runtimeStatus: 2,
+    activeRevision: 3 as number | null,
+    activatedAtUtc: '2026-10-02T18:35:00Z' as string | null
+  };
+  return {
+    workspace: {
+      projectKey: 'lifecycle-ux',
+      projectName: 'Lifecycle UX',
+      baseRevision: 4 as number | null,
+      checkedOutAtUtc: '2026-10-02T18:40:00Z',
+      lastSavedAtUtc: '2026-10-02T18:40:00Z',
+      isDirty: false,
+      changeVersion: 14
+    },
+    lifecycle,
+    revisions: [4, 3].map((revision, index) => ({
+      revision,
+      projectKey: 'lifecycle-ux',
+      projectName: 'Lifecycle UX',
+      engineeringSchema: 'scada.engineering',
+      engineeringSchemaVersion: 15,
+      savedAtUtc: index === 0 ? '2026-10-02T18:40:00Z' : '2026-10-02T18:30:00Z',
+      basedOnRevision: revision - 1
+    })),
+    runtime: {
+      projectKey: 'lifecycle-ux',
+      configuredProjectKey: 'lifecycle-ux',
+      consistent: true,
+      durable: lifecycle,
+      live: { mode: 'engineering', projectKey: 'lifecycle-ux', revision: 3 as number | null, activatedAtUtc: '2026-10-02T18:35:00Z' as string | null }
+    },
+    counts: { save: 0, publish: 0, activate: 0, checkout: 0 },
+    failNext: null as null | { action: 'save'; status: 409 | 422 | 503 }
+  };
+}
+
+async function mockLifecycleUxApp(page: Page, state: LifecycleUxState) {
+  const pkg = {
+    schema: 'scada.engineering', schemaVersion: 15, exportedAt: '2026-10-02T18:40:00Z',
+    tags: [], alarms: [], dataSources: [], templates: [], equipment: [], dynamos: [],
+    screens: [], popups: [], securityRoles: [], gateways: [], visualAssets: []
+  };
+
+  await page.route('**/api/**', async (route: Route) => {
+    const req = route.request();
+    const url = new URL(req.url());
+    const p = url.pathname;
+
+    if (p === '/api/engineering/workspace') return route.fulfill({ json: state.workspace });
+    if (p === '/api/engineering/export/json') return route.fulfill({ json: pkg });
+    if (p === '/api/engineering/persistence/status') return route.fulfill({ json: { enabled: true, provider: 'postgresql', configuredProjectKey: 'lifecycle-ux' } });
+    if (p === '/api/engineering/persistence/lifecycle-ux/lifecycle') return route.fulfill({ json: state.lifecycle });
+    if (p === '/api/engineering/persistence/lifecycle-ux/revisions') return route.fulfill({ json: state.revisions });
+    if (p === '/api/engineering/persistence/lifecycle-ux/runtime') {
+      state.runtime.durable = state.lifecycle;
+      return route.fulfill({ json: state.runtime });
+    }
+    if (p === '/api/engineering/lock/status') return route.fulfill({ json: { configured: false, locked: false } });
+
+    if (p === '/api/engineering/persistence/lifecycle-ux/save' && req.method() === 'POST') {
+      state.counts.save++;
+      if (state.failNext) {
+        const status = state.failNext.status;
+        state.failNext = null;
+        return route.fulfill({ status, json: { error: `save-${status}` } });
+      }
+      const revision = state.revisions[0].revision + 1;
+      const saved = {
+        revision, projectKey: 'lifecycle-ux', projectName: 'Lifecycle UX',
+        engineeringSchema: 'scada.engineering', engineeringSchemaVersion: 15,
+        savedAtUtc: '2026-10-02T18:50:00Z', basedOnRevision: state.workspace.baseRevision
+      };
+      state.revisions.unshift(saved);
+      state.workspace.baseRevision = revision;
+      state.workspace.lastSavedAtUtc = saved.savedAtUtc;
+      state.workspace.isDirty = false;
+      state.lifecycle.workingRevision = revision;
+      return route.fulfill({ json: saved });
+    }
+
+    const publish = p.match(/^\/api\/engineering\/persistence\/lifecycle-ux\/revisions\/(\d+)\/publish$/);
+    if (publish && req.method() === 'POST') {
+      state.counts.publish++;
+      state.lifecycle.publishedRevision = Number(publish[1]);
+      state.lifecycle.publishedAtUtc = '2026-10-02T18:55:00Z';
+      return route.fulfill({ json: {} });
+    }
+
+    const checkout = p.match(/^\/api\/engineering\/persistence\/lifecycle-ux\/revisions\/(\d+)\/checkout$/);
+    if (checkout && req.method() === 'POST') {
+      state.counts.checkout++;
+      const revision = Number(checkout[1]);
+      state.workspace.baseRevision = revision;
+      state.workspace.isDirty = false;
+      state.lifecycle.workingRevision = revision;
+      return route.fulfill({ json: {} });
+    }
+
+    if (p === '/api/engineering/persistence/lifecycle-ux/published/activate' && req.method() === 'POST') {
+      state.counts.activate++;
+      state.lifecycle.activeRevision = state.lifecycle.publishedRevision;
+      state.lifecycle.activatedAtUtc = '2026-10-02T19:00:00Z';
+      state.runtime.consistent = true;
+      state.runtime.live.revision = state.lifecycle.activeRevision;
+      state.runtime.live.activatedAtUtc = state.lifecycle.activatedAtUtc;
+      return route.fulfill({ json: {} });
+    }
+
+    return route.fallback();
+  });
+}
+
+async function openLifecycleUx(page: Page, state: LifecycleUxState) {
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await mockLifecycleUxApp(page, state);
+  await page.goto('/engineering');
+  await expect(page.locator('.eng-lifecycle-workspace')).toBeVisible();
+  await page.locator('.eng-lifecycle-workspace__history > summary').click();
+}
+
+test('mounted lifecycle is one four-step surface and Save/Publish/Activate are one click', async ({ page }) => {
+  const state = createLifecycleUxState();
+  state.workspace.isDirty = true;
+  await openLifecycleUx(page, state);
+  const lifecycle = page.locator('.eng-lifecycle-workspace');
+
+  await expect(lifecycle.locator('.eng-lifecycle-workspace__step')).toHaveCount(4);
+  await expect(lifecycle).toContainText('Alterações pendentes');
+  await expect(lifecycle).not.toContainText('Ciclo autoritativo do projeto');
+  await expect(lifecycle).not.toContainText('Ciclo do Engineering');
+  await expect(lifecycle).not.toContainText('Autoridade do backend preservada');
+  await expect(lifecycle).not.toContainText('Versão de mudança');
+  await expect(lifecycle.locator('.eng-lifecycle-workspace__fact')).toHaveCount(0);
+  await expect(page.getByText('Próximos fluxos do editor')).toHaveCount(0);
+  await expect(page.getByText('parse')).toHaveCount(0);
+
+  await lifecycle.getByRole('button', { name: 'Salvar revisão' }).click();
+  expect(state.counts.save).toBe(1);
+  await expect(lifecycle.getByRole('dialog')).toHaveCount(0);
+  await expect(lifecycle).toContainText('r5');
+
+  const row5 = lifecycle.locator('.eng-lifecycle-workspace__revision-row').filter({ hasText: 'r5' });
+  await row5.getByRole('button', { name: 'Publicar' }).click();
+  expect(state.counts.publish).toBe(1);
+  await expect(lifecycle.getByRole('dialog')).toHaveCount(0);
+  await expect(lifecycle).toContainText('Pronto para ativar');
+
+  await lifecycle.getByRole('button', { name: 'Ativar no Runtime' }).click();
+  expect(state.counts.activate).toBe(1);
+  await expect(lifecycle.getByRole('dialog')).toHaveCount(0);
+  await expect(lifecycle).toContainText('Já está Active');
+  await expect(lifecycle).toContainText('Runtime ativo');
+});
+
+test('clean checkout is direct; dirty checkout has the single data-loss confirmation', async ({ page }) => {
+  const state = createLifecycleUxState();
+  await openLifecycleUx(page, state);
+  const lifecycle = page.locator('.eng-lifecycle-workspace');
+
+  await lifecycle.locator('.eng-lifecycle-workspace__revision-row').filter({ hasText: 'r3' })
+    .getByRole('button', { name: 'Usar no Working' }).click();
+  expect(state.counts.checkout).toBe(1);
+  await expect(lifecycle.getByRole('dialog')).toHaveCount(0);
+
+  state.workspace.isDirty = true;
+  await lifecycle.getByRole('button', { name: 'Atualizar ciclo' }).click();
+  await expect(lifecycle).toContainText('Alterações pendentes');
+
+  await lifecycle.locator('.eng-lifecycle-workspace__revision-row').filter({ hasText: 'r4' })
+    .getByRole('button', { name: 'Usar no Working' }).click();
+  expect(state.counts.checkout).toBe(1);
+
+  const dialog = lifecycle.getByRole('dialog');
+  await expect(dialog).toContainText('Descartar alterações não salvas do Working?');
+  await dialog.getByRole('button', { name: 'Descartar alterações e usar revisão' }).click();
+  expect(state.counts.checkout).toBe(2);
+  await expect(dialog).toHaveCount(0);
+});
+
+test('mounted 409/422/503 errors stay visible and fail closed', async ({ page }) => {
+  const state = createLifecycleUxState();
+  state.workspace.isDirty = true;
+  await openLifecycleUx(page, state);
+  const lifecycle = page.locator('.eng-lifecycle-workspace');
+
+  for (const [status, text] of [[409, 'conflito'], [422, 'validada'], [503, 'indisponível']] as const) {
+    state.failNext = { action: 'save', status };
+    await lifecycle.getByRole('button', { name: 'Salvar revisão' }).click();
+    await expect(lifecycle.getByRole('alert')).toContainText(text);
+    expect(state.workspace.isDirty).toBe(true);
+  }
+});
+
+test('pt-BR/en/es stay equivalent and 1366/1440/1920 desktop widths do not overflow', async ({ page }) => {
+  const state = createLifecycleUxState();
+  await openLifecycleUx(page, state);
+
+  for (const width of [1366, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.locator('.eng-lifecycle-workspace')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  }
+
+  await expect(page.getByText('Revisão salva', { exact: true })).toBeVisible();
+  await page.getByLabel('Idioma').selectOption('en');
+  await expect(page.getByText('Saved revision', { exact: true })).toBeVisible();
+  await expect(page.getByText('Runtime active', { exact: true })).toBeVisible();
+
+  await page.getByLabel('Language').selectOption('es');
+  await expect(page.getByText('Revisión guardada', { exact: true })).toBeVisible();
+  await expect(page.getByText('Runtime activo', { exact: true })).toBeVisible();
+});
+
+
+test('mobile Runtime can open the Report Center from a stable report link', async ({ page }) => {
+  await page.addInitScript(() => {
+    const nativeMatchMedia = window.matchMedia.bind(window);
+    window.matchMedia = query => query === '(pointer: coarse)'
+      ? {
+          matches: true,
+          media: query,
+          onchange: null,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          dispatchEvent: () => false
+        }
+      : nativeMatchMedia(query);
+  });
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/**', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
+  await page.route('**/api/auth/config', route => route.fulfill({ json: {
+    authenticationEnabled: false, localLoginEnabled: false,
+    initialAdministratorRequired: false, initialAdministratorSetupAvailable: false
+  } }));
+  await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
+    authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+    authenticationEnabled: false,
+    runtime: ['View', 'TrendUse'],
+    workspace: []
+  } }));
+  await page.route('**/api/runtime/application', route => route.fulfill({ json: brandingActiveProjection({ mode: 'text', text: 'EliteSCADA' }) }));
+  await page.route('**/api/runtime/reports', route => route.fulfill({ json: [
+    { id: '11111111-2222-3333-4444-555555555555', key: 'process.summary', name: 'Process Summary', category: 'Process' }
+  ] }));
+  await page.route('**/api/runtime/reports/process.summary', route => route.fulfill({ json: {
+    id: '11111111-2222-3333-4444-555555555555',
+    key: 'process.summary',
+    name: 'Process Summary',
+    queries: [],
+    sections: [],
+    parameters: [],
+    timeRange: { defaultKind: 'relative', defaultRelativeDurationSeconds: 3600, allowRelative: true, allowAbsolute: true }
+  } }));
+
+  await page.goto('/runtime/reports?report=process.summary');
+  await expect(page.getByRole('heading', { name: 'Process Summary' })).toBeVisible();
+});
+
+test('mounted Runtime Report Center generates one snapshot and exposes viewer/export controls', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/**', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
+  await page.route('**/api/auth/config', route => route.fulfill({ json: {
+    authenticationEnabled: false, localLoginEnabled: false,
+    initialAdministratorRequired: false, initialAdministratorSetupAvailable: false
+  } }));
+  await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
+    authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+    authenticationEnabled: false,
+    runtime: ['View', 'TrendUse'],
+    workspace: []
+  } }));
+  await page.route('**/api/runtime/application', route => route.fulfill({ json: brandingActiveProjection({ mode: 'text', text: 'EliteSCADA' }) }));
+  await page.route('**/api/runtime/reports', route => route.fulfill({ json: [
+    { id: '11111111-2222-3333-4444-555555555555', key: 'process.summary', name: 'Process Summary', category: 'Process', description: '5-minute process summary' }
+  ] }));
+  await page.route('**/api/runtime/reports/process.summary', route => route.fulfill({ json: {
+    id: '11111111-2222-3333-4444-555555555555',
+    key: 'process.summary',
+    name: 'Process Summary',
+    category: 'Process',
+    description: '5-minute process summary',
+    parameters: [{ key: 'shift', name: 'Turno', type: 'string', defaultValue: { type: 'string', value: 'A' } }],
+    timeRange: { defaultKind: 'relative', defaultRelativeDurationSeconds: 86400, allowRelative: true, allowAbsolute: true },
+    resolution: { mode: 'sampledFixedStep', intervalMilliseconds: 300000, bucketAlignment: 'utcDuration' },
+    variables: [{ tagId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', path: 'Area.Temp', name: 'Temperature', dataType: 'Double', engineeringUnit: '°C', visible: true, order: 0, unitMode: 'automatic' }],
+    tableLayout: 'wide'
+  } }));
+  await page.route('**/api/runtime/reports/process.summary/generate', route => route.fulfill({ json: {
+    executionId: '99999999-8888-7777-6666-555555555555',
+    reportKey: 'process.summary',
+    reportName: 'Process Summary',
+    generatedAtUtc: '2026-10-03T12:00:00Z',
+    timeRange: { kind: 'relative', durationSeconds: 86400 },
+    result: {
+      reportId: '11111111-2222-3333-4444-555555555555',
+      reportKey: 'process.summary',
+      generatedAtUtc: '2026-10-03T12:00:00Z',
+      parameters: { shift: { type: 'string', value: 'A' } },
+      queries: [{
+        queryKey: 'main', dataset: 'historian.samples', retrievalMode: 'sampledFixedStep',
+        columns: [{ field: 'timestamp', type: 'dateTime', filterable: false, sortable: false, searchable: false }, { field: 'v:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', type: 'number', filterable: false, sortable: false, searchable: false }],
+        rows: Array.from({ length: 50 }, (_, index) => ({ cells: {
+          timestamp: { kind: 'dateTime', value: new Date(Date.UTC(2026, 9, 3, 10, index * 5)).toISOString() },
+          'v:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee': { kind: 'double', value: String(20 + index / 10) }
+        } })),
+        fromUtc: '2026-10-02T12:00:00Z', toUtc: '2026-10-03T12:00:00Z'
+      }]
+    }
+  } }));
+  await page.route('**/api/runtime/reports/executions/*/export/pdf', route => route.fulfill({
+    status: 200, contentType: 'application/pdf',
+    headers: { 'Content-Disposition': 'attachment; filename="Process_Summary.pdf"' },
+    body: '%PDF-1.4 test'
+  }));
+
+  await page.goto('/runtime/reports?report=process.summary');
+  await expect(page.getByRole('heading', { name: 'Relatórios' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Process Summary' })).toBeVisible();
+  await expect(page.getByText(/Intervalo fixo · 5 min/)).toBeVisible();
+  await page.getByRole('button', { name: 'Gerar relatório' }).click();
+
+  await expect(page.getByRole('button', { name: 'Exportar PDF' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Exportar Excel' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Exportar CSV' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Imprimir' })).toBeVisible();
+  await expect(page.getByText(/Página 1 \/ 2/)).toBeVisible();
+  await expect(page.getByText(/shift=A/)).toBeVisible();
+  await page.getByRole('button', { name: 'Próxima página' }).click();
+  await expect(page.getByText(/Página 2 \/ 2/)).toBeVisible();
+
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Exportar PDF' }).click();
+  expect((await download).suggestedFilename()).toBe('Process_Summary.pdf');
+});
+
+test('mounted Report Designer uses canonical Project Reference Browser for multiple stable TAG variables', async ({ page }) => {
+  const pkg = {
+    schema: 'scada.engineering', schemaVersion: 20, exportedAt: '2026-10-03T12:00:00Z',
+    tags: [
+      { id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', name: 'Pressure', path: 'Area.Pressure', dataType: 'Double', engineeringUnit: 'kPa', source: 'modbus.tcp' },
+      { id: 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff', name: 'Temperature', path: 'Area.Temperature', dataType: 'Double', engineeringUnit: '°C', source: 'opcua' }
+    ],
+    alarms: [], dataSources: [], templates: [], equipment: [], dynamos: [], screens: [], popups: [],
+    securityRoles: [], gateways: [], visualAssets: [], reports: []
+  };
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/**', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
+  await page.route('**/api/auth/config', route => route.fulfill({ json: { authenticationEnabled: false, localLoginEnabled: false } }));
+  await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
+    authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+    authenticationEnabled: false,
+    runtime: ['View', 'TrendUse'], workspace: ['EngineeringView', 'EngineeringModify']
+  } }));
+  await page.route('**/api/engineering/lock/status', route => route.fulfill({ json: { configured: false, locked: false } }));
+  await page.route('**/api/engineering/workspace', route => route.fulfill({ json: {
+    projectKey: 'report-v3', projectName: 'Report V3', baseRevision: 1, isDirty: false, changeVersion: 1,
+    tagCount: 2, alarmCount: 0, dataSourceCount: 0, templateCount: 0, equipmentCount: 0, dynamoCount: 0, screenCount: 0, popupCount: 0
+  } }));
+  await page.route('**/api/engineering/export/json', route => route.fulfill({ json: pkg }));
+  await page.route('**/api/runtime/application', route => route.fulfill({ json: brandingActiveProjection({ mode: 'text', text: 'EliteSCADA' }) }));
+
+  await page.goto('/engineering');
+  await page.locator('.eng-nav').getByRole('button', { name: /Relatórios/ }).click();
+  const designer = page.getByTestId('report-designer-workspace');
+  await expect(designer.getByTestId('project-reference-browser')).toBeVisible();
+  const references = designer.getByTestId('project-reference-browser');
+  await references.getByRole('treeitem', { name: /Pressure Area\.Pressure/ }).click();
+  await references.getByRole('treeitem', { name: /Temperature Area\.Temperature/ }).click();
+
+  const variables = designer.locator('.report-variable-card');
+  await expect(variables).toHaveCount(2);
+  await expect(variables.nth(0)).toContainText('kPa');
+  await variables.nth(0).getByRole('combobox', { name: 'Unidade' }).selectOption('hidden');
+  await expect(variables.nth(0).getByRole('combobox', { name: 'Unidade' })).toHaveValue('hidden');
+});
+
+test('header Help follows Engineering sidebar navigation in both directions', async ({ page }) => {
+  await page.goto('/engineering/highAvailability');
+  const help = page.getByRole('navigation', { name: 'SCADIVO' }).getByRole('link', { name: 'Ajuda' });
+  for (const section of [
+    { button: /^Instalação/, path: '/engineering/installation', topic: 'installation.switch-workflow' },
+    { button: /^Alta disponibilidade/i, path: '/engineering/highAvailability', topic: 'ha.configuration-operation' }
+  ]) {
+    const before = await page.evaluate(() => performance.timeOrigin);
+    await page.getByRole('button', { name: section.button }).click();
+    await expect(page).toHaveURL(url => url.pathname === section.path);
+    expect(await page.evaluate(() => performance.timeOrigin)).toBe(before);
+    await expect(help).toHaveAttribute('href', '/help/?topic=' + section.topic);
+    await help.click();
+    await expect(page.locator('article')).toHaveAttribute('data-help-topic', section.topic);
+    await page.goBack();
+    await expect(page).toHaveURL(url => url.pathname === section.path);
+    await expect(help).toHaveAttribute('href', '/help/?topic=' + section.topic);
+  }
 });

@@ -1,5 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { RestoreFirstPanel, type RecoverySelection } from './RestoreFirstPanel';
+import { admitPublicRuntimeSession, releaseStoredPublicRuntimeSession, setActiveRuntimeSession } from '../runtime/runtimeSessionAdmissionApi';
+import {
+  RestoreFirstPanel,
+  recoveryContinuationFromSelection,
+  type RecoveryContinuation,
+  type RecoverySelection
+} from './RestoreFirstPanel';
 import './auth.css';
 
 type AuthConfiguration = {
@@ -35,29 +41,70 @@ export type AuthProfile = {
 
 type AuthContextValue = {
   profile: AuthProfile | null;
+  authenticationEnabled: boolean;
+  publicRuntimeActive: boolean;
   canSwitchUser: boolean;
   switchUser: () => Promise<void>;
   logout: () => Promise<void>;
+  requireSignIn: () => void;
 };
 
 type RecoveryMode = 'bootstrap' | 'application' | null;
 
 const AuthContext = createContext<AuthContextValue>({
   profile: null,
+  authenticationEnabled: true,
+  publicRuntimeActive: false,
   canSwitchUser: false,
   switchUser: async () => undefined,
-  logout: async () => undefined
+  logout: async () => undefined,
+  requireSignIn: () => undefined
 });
 
 const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
 const localeKey = 'elitescada.engineering.locale';
+const recoveryContinuationKey = 'elitescada.auth.restore-first-continuation';
 type AuthLocale = 'pt-BR' | 'en' | 'es';
+
+function readRecoveryContinuation(): RecoveryContinuation | null {
+  try {
+    const raw = window.sessionStorage.getItem(recoveryContinuationKey);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as Partial<RecoveryContinuation>;
+    const validArtifact = (artifact: unknown): artifact is { name: string; size: number } => {
+      if (!artifact || typeof artifact !== 'object') return false;
+      const candidate = artifact as { name?: unknown; size?: unknown };
+      return typeof candidate.name === 'string' && typeof candidate.size === 'number' && candidate.size >= 0;
+    };
+    if (
+      value.version !== 1 ||
+      value.authorityRestored !== true ||
+      !validArtifact(value.application) ||
+      (value.license !== undefined && !validArtifact(value.license))
+    ) {
+      window.sessionStorage.removeItem(recoveryContinuationKey);
+      return null;
+    }
+    return value as RecoveryContinuation;
+  } catch {
+    window.sessionStorage.removeItem(recoveryContinuationKey);
+    return null;
+  }
+}
+
+function persistRecoveryContinuation(continuation: RecoveryContinuation | null) {
+  if (continuation) {
+    window.sessionStorage.setItem(recoveryContinuationKey, JSON.stringify(continuation));
+  } else {
+    window.sessionStorage.removeItem(recoveryContinuationKey);
+  }
+}
 
 const messages = {
   'pt-BR': {
-    title: 'EliteSCADA',
+    title: 'SCADIVO',
     subtitle: 'Acesso ao Runtime e Engineering',
-    welcome: 'Bem-vindo ao EliteSCADA',
+    welcome: 'Bem-vindo ao SCADIVO',
     firstRun: 'Restaure um backup existente ou crie o Administrador inicial para concluir a configuração segura deste servidor.',
     firstRunBlocked: 'A identidade local está vazia, mas o servidor não pode confirmar uma instalação realmente vazia. Por segurança, o bootstrap anônimo permanece fechado. Restaure um Administrador ou use a configuração explícita de bootstrap do servidor.',
     username: 'Usuário',
@@ -67,13 +114,15 @@ const messages = {
     passwordHint: (minimum: number) => `Use pelo menos ${minimum} caracteres.`,
     passwordMismatch: 'As senhas não conferem.',
     restoreBackup: 'Restaurar backup',
+    importApplication: 'Importar aplicação',
     recoverySignInRequired: 'Authority restaurada. Entre com um Administrador restaurado para continuar a recuperação da aplicação.',
     switchUserSignInRequired: 'Sessão anterior encerrada. Entre com o próximo usuário para continuar.',
+    runtimeSessionReauthenticationRequired: 'A sessão não é mais válida neste servidor. Entre novamente para continuar; o Runtime tentará retomar a vaga desta janela.',
     createAdministrator: 'Criar Administrador',
     creatingAdministrator: 'Criando Administrador…',
     bootstrapClosed: 'O Administrador inicial já foi criado ou o bootstrap seguro não está mais disponível.',
     firstProjectTitle: 'Criar novo projeto',
-    firstProject: 'Nenhum projeto persistido existe neste servidor. Restaure uma aplicação existente ou crie o primeiro projeto para iniciar o Working no Engineering.',
+    firstProject: 'Nenhum projeto persistido existe neste servidor. Crie um novo projeto ou importe uma Application (.escadapkg) usando a Authority atual. Para restaurar também usuários, credenciais, roles e scopes, volte ao estado neutro e use Restaurar backup.',
     projectKey: 'Chave do projeto',
     projectName: 'Nome do projeto',
     projectKeyHint: 'Identificador estável, por exemplo planta-piloto.',
@@ -85,12 +134,15 @@ const messages = {
     invalid: 'Usuário ou senha inválidos.',
     unavailable: 'Não foi possível acessar o serviço de autenticação.',
     external: 'Este servidor exige autenticação externa. O login local não está habilitado.',
-    retry: 'Tentar novamente'
+    retry: 'Tentar novamente',
+    publicUnavailable: 'Não foi possível abrir a visualização pública agora. Você ainda pode entrar com sua conta.',
+    publicStatusUnavailable: 'Não foi possível verificar se há uma visualização pública disponível. Entre com sua conta ou tente novamente.',
+    signInForFullAccess: 'Entrar'
   },
   en: {
-    title: 'EliteSCADA',
+    title: 'SCADIVO',
     subtitle: 'Runtime and Engineering access',
-    welcome: 'Welcome to EliteSCADA',
+    welcome: 'Welcome to SCADIVO',
     firstRun: 'Restore an existing backup or create the initial Administrator to complete the secure setup of this server.',
     firstRunBlocked: 'The local identity store is empty, but the server cannot confirm a truly empty installation. Anonymous bootstrap remains closed for safety. Restore an Administrator or use the server-side explicit bootstrap configuration.',
     username: 'Username',
@@ -100,13 +152,15 @@ const messages = {
     passwordHint: (minimum: number) => `Use at least ${minimum} characters.`,
     passwordMismatch: 'Passwords do not match.',
     restoreBackup: 'Restore backup',
+    importApplication: 'Import application',
     recoverySignInRequired: 'Authority restored. Sign in with a restored Administrator to continue application recovery.',
     switchUserSignInRequired: 'The previous session has ended. Sign in as the next user to continue.',
+    runtimeSessionReauthenticationRequired: 'This server no longer accepts the current session. Sign in again to continue; Runtime will try to resume this window’s seat.',
     createAdministrator: 'Create Administrator',
     creatingAdministrator: 'Creating Administrator…',
     bootstrapClosed: 'The initial Administrator already exists or secure bootstrap is no longer available.',
     firstProjectTitle: 'Create New Project',
-    firstProject: 'No persisted project exists on this server. Restore an existing application or create the first project to start a Working project in Engineering.',
+    firstProject: 'No persisted project exists on this server. Create a new project or import an Application (.escadapkg) using the current Authority. To restore users, credentials, roles and scopes too, return to neutral and use Restore backup.',
     projectKey: 'Project key',
     projectName: 'Project name',
     projectKeyHint: 'Stable identifier, for example pilot-plant.',
@@ -118,12 +172,15 @@ const messages = {
     invalid: 'Invalid username or password.',
     unavailable: 'The authentication service could not be reached.',
     external: 'This server requires external authentication. Local login is not enabled.',
-    retry: 'Retry'
+    retry: 'Retry',
+    publicUnavailable: 'The public view could not be opened right now. You can still sign in to your account.',
+    publicStatusUnavailable: 'The public view could not be checked. Sign in to your account or try again.',
+    signInForFullAccess: 'Sign in'
   },
   es: {
-    title: 'EliteSCADA',
+    title: 'SCADIVO',
     subtitle: 'Acceso a Runtime y Engineering',
-    welcome: 'Bienvenido a EliteSCADA',
+    welcome: 'Bienvenido a SCADIVO',
     firstRun: 'Restaure un backup existente o cree el Administrador inicial para completar la configuración segura de este servidor.',
     firstRunBlocked: 'El almacén de identidad local está vacío, pero el servidor no puede confirmar una instalación realmente vacía. Por seguridad, el bootstrap anónimo permanece cerrado. Restaure un Administrador o use la configuración explícita de bootstrap del servidor.',
     username: 'Usuario',
@@ -133,13 +190,15 @@ const messages = {
     passwordHint: (minimum: number) => `Use al menos ${minimum} caracteres.`,
     passwordMismatch: 'Las contraseñas no coinciden.',
     restoreBackup: 'Restaurar backup',
+    importApplication: 'Importar aplicación',
     recoverySignInRequired: 'Authority restaurada. Ingrese con un Administrador restaurado para continuar la recuperación de la aplicación.',
     switchUserSignInRequired: 'La sesión anterior terminó. Ingrese con el próximo usuario para continuar.',
+    runtimeSessionReauthenticationRequired: 'Este servidor ya no acepta la sesión actual. Ingrese nuevamente para continuar; Runtime intentará retomar la plaza de esta ventana.',
     createAdministrator: 'Crear Administrador',
     creatingAdministrator: 'Creando Administrador…',
     bootstrapClosed: 'El Administrador inicial ya existe o el bootstrap seguro ya no está disponible.',
     firstProjectTitle: 'Crear nuevo proyecto',
-    firstProject: 'No existe ningún proyecto persistido en este servidor. Restaure una aplicación existente o cree el primer proyecto para iniciar el Working en Engineering.',
+    firstProject: 'No existe ningún proyecto persistido en este servidor. Cree un proyecto nuevo o importe una Application (.escadapkg) usando la Authority actual. Para restaurar también usuarios, credenciales, roles y scopes, vuelva al estado neutral y use Restaurar backup.',
     projectKey: 'Clave del proyecto',
     projectName: 'Nombre del proyecto',
     projectKeyHint: 'Identificador estable, por ejemplo planta-piloto.',
@@ -151,7 +210,10 @@ const messages = {
     invalid: 'Usuario o contraseña inválidos.',
     unavailable: 'No fue posible acceder al servicio de autenticación.',
     external: 'Este servidor requiere autenticación externa. El acceso local no está habilitado.',
-    retry: 'Reintentar'
+    retry: 'Reintentar',
+    publicUnavailable: 'No fue posible abrir la vista pública ahora. Aún puede ingresar con su cuenta.',
+    publicStatusUnavailable: 'No fue posible comprobar si hay una vista pública disponible. Ingrese con su cuenta o vuelva a intentarlo.',
+    signInForFullAccess: 'Ingresar'
   }
 } as const;
 
@@ -216,6 +278,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const t = messages[locale];
   const [configuration, setConfiguration] = useState<AuthConfiguration | null>(null);
   const [profile, setProfile] = useState<AuthProfile | null>(null);
+  const [publicRuntimeActive, setPublicRuntimeActive] = useState(false);
+  const [publicRuntimeMessage, setPublicRuntimeMessage] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [checkingProject, setCheckingProject] = useState(false);
   const [projectSetupRequired, setProjectSetupRequired] = useState(false);
@@ -234,8 +298,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [projectError, setProjectError] = useState<string | null>(null);
   const [recoveryMode, setRecoveryMode] = useState<RecoveryMode>(null);
   const [recoverySelection, setRecoverySelection] = useState<RecoverySelection | null>(null);
-  const [recoverySignInRequired, setRecoverySignInRequired] = useState(false);
+  const [recoveryContinuation, setRecoveryContinuation] = useState<RecoveryContinuation | null>(() => readRecoveryContinuation());
+  const [recoverySignInRequired, setRecoverySignInRequired] = useState(() => recoveryContinuation !== null);
   const [switchUserSignInRequired, setSwitchUserSignInRequired] = useState(false);
+  const [runtimeSessionReauthenticationRequired, setRuntimeSessionReauthenticationRequired] = useState(false);
 
   const acceptAuthenticatedProfile = useCallback(async (nextProfile: AuthProfile | null) => {
     setProfile(nextProfile);
@@ -247,6 +313,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setCheckingProject(true);
     try {
       setProjectSetupRequired(await needsFirstProject());
+    } catch {
+      // A cryptographically valid signed session remains authenticated during a
+      // database outage. The project-status lookup is advisory for first-run UI;
+      // it must not hide an already authenticated Runtime behind the login gate.
+      setProjectSetupRequired(false);
     } finally {
       setCheckingProject(false);
     }
@@ -255,20 +326,56 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const check = useCallback(async () => {
     setChecking(true);
     setUnavailable(false);
+    setPublicRuntimeMessage(null);
     try {
+      const explicitLogin = new URLSearchParams(window.location.search).get('login') === '1';
+      if (explicitLogin) {
+        try { await releaseStoredPublicRuntimeSession(); } catch { /* Login remains available if lease cleanup is temporarily unavailable. */ }
+        setActiveRuntimeSession(null);
+        setPublicRuntimeActive(false);
+      }
+
       const config = await getConfiguration();
       setConfiguration(config);
       if (!config.authenticationEnabled) {
         await acceptAuthenticatedProfile(null);
         return;
       }
-      await acceptAuthenticatedProfile(await getProfile(config.localLoginEnabled));
+      const currentProfile = await getProfile(config.localLoginEnabled);
+      await acceptAuthenticatedProfile(currentProfile);
+      if (currentProfile || explicitLogin || window.location.pathname !== '/') {
+        setPublicRuntimeActive(false);
+        return;
+      }
+
+      try {
+        const statusResponse = await fetch(`${API}/api/runtime/public/status`, {
+          cache: 'no-store',
+          headers: { accept: 'application/json' }
+        });
+        if (!statusResponse.ok) throw new Error(`${statusResponse.status} ${statusResponse.statusText}`);
+        const status = await statusResponse.json() as { enabled?: unknown };
+        if (status.enabled !== true) {
+          try { await releaseStoredPublicRuntimeSession(); } catch { /* Expired leases are reclaimed by the server. */ }
+          setActiveRuntimeSession(null);
+          setPublicRuntimeActive(false);
+          return;
+        }
+
+        const outcome = await admitPublicRuntimeSession();
+        setActiveRuntimeSession(outcome);
+        setPublicRuntimeActive(true);
+      } catch {
+        setActiveRuntimeSession(null);
+        setPublicRuntimeActive(false);
+        setPublicRuntimeMessage(t.publicStatusUnavailable);
+      }
     } catch {
       setUnavailable(true);
     } finally {
       setChecking(false);
     }
-  }, [acceptAuthenticatedProfile]);
+  }, [acceptAuthenticatedProfile, t.publicStatusUnavailable]);
 
   useEffect(() => { void check(); }, [check]);
 
@@ -326,6 +433,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     if (!username.trim() || !password) return;
     setSigningIn(true);
     setInvalid(false);
+    setPublicRuntimeMessage(null);
     try {
       const response = await fetch(`${API}/api/auth/login`, {
         method: 'POST',
@@ -341,9 +449,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       }
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       setPassword('');
+      setPublicRuntimeActive(false);
+      setActiveRuntimeSession(null);
+      setRuntimeSessionReauthenticationRequired(false);
       await acceptAuthenticatedProfile(await response.json() as AuthProfile);
       setSwitchUserSignInRequired(false);
-      if (recoverySelection) {
+      if (recoverySelection || recoveryContinuation) {
         setRecoverySignInRequired(false);
         setRecoveryMode('application');
       }
@@ -378,6 +489,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       }
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       setProjectSetupRequired(false);
+      if (!window.location.pathname.startsWith('/engineering')) {
+        window.location.assign('/engineering');
+      }
     } catch {
       setUnavailable(true);
     } finally {
@@ -392,18 +506,21 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   };
 
   const startApplicationRecovery = () => {
-    setRecoverySelection(null);
+    if (!recoveryContinuation) setRecoverySelection(null);
     setRecoverySignInRequired(false);
     setRecoveryMode('application');
   };
 
   const cancelRecovery = () => {
     setRecoveryMode(null);
-    setRecoverySelection(null);
+    if (!recoveryContinuation) setRecoverySelection(null);
     setRecoverySignInRequired(false);
   };
 
   const authorityRestored = async (selection: RecoverySelection) => {
+    const continuation = recoveryContinuationFromSelection(selection);
+    persistRecoveryContinuation(continuation);
+    setRecoveryContinuation(continuation);
     setRecoverySelection(selection);
     setRecoveryMode(null);
     setRecoverySignInRequired(true);
@@ -417,6 +534,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   };
 
   const applicationRecovered = async () => {
+    persistRecoveryContinuation(null);
+    setRecoveryContinuation(null);
     setRecoveryMode(null);
     setRecoverySelection(null);
     setRecoverySignInRequired(false);
@@ -428,12 +547,27 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   }, []);
 
+  const requireSignIn = useCallback(() => {
+    setActiveRuntimeSession(null);
+    setPublicRuntimeActive(false);
+    setProfile(null);
+    setProjectSetupRequired(false);
+    setRecoverySignInRequired(false);
+    setSwitchUserSignInRequired(false);
+    setRuntimeSessionReauthenticationRequired(true);
+    setUsername('');
+    setPassword('');
+    setInvalid(false);
+    setUnavailable(false);
+  }, []);
+
   const logout = useCallback(async () => {
     await invalidateServerSession();
     setProfile(null);
     setProjectSetupRequired(false);
     setRecoverySignInRequired(false);
     setSwitchUserSignInRequired(false);
+    setRuntimeSessionReauthenticationRequired(false);
     setUsername('');
     setPassword('');
     setInvalid(false);
@@ -449,6 +583,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setProjectSetupRequired(false);
     setRecoverySignInRequired(false);
     setSwitchUserSignInRequired(true);
+    setRuntimeSessionReauthenticationRequired(false);
     setUsername('');
     setPassword('');
     setInvalid(false);
@@ -458,20 +593,23 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const canSwitchUser = Boolean(configuration?.localLoginEnabled && profile?.identityProvider === 'local');
   const authContextValue = useMemo<AuthContextValue>(() => ({
     profile,
+    authenticationEnabled: configuration?.authenticationEnabled ?? true,
+    publicRuntimeActive,
     canSwitchUser,
     switchUser,
-    logout
-  }), [canSwitchUser, logout, profile, switchUser]);
+    logout,
+    requireSignIn
+  }), [canSwitchUser, configuration?.authenticationEnabled, logout, profile, publicRuntimeActive, requireSignIn, switchUser]);
 
   if (checking || checkingProject) {
-    return <div className="auth-page"><div className="auth-card auth-loading"><strong>{t.title}</strong></div></div>;
+    return <div className="auth-page"><div className="auth-card auth-loading"><img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO"/><strong>{t.title}</strong></div></div>;
   }
 
   if (unavailable) {
     return (
       <div className="auth-page">
         <div className="auth-card">
-          <div className="auth-mark">E</div>
+          <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
           <h1>{t.title}</h1>
           <p>{t.unavailable}</p>
           <button type="button" className="auth-primary" onClick={() => void check()}>{t.retry}</button>
@@ -495,12 +633,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (recoveryMode === 'application' && profile) {
+  if (
+    profile &&
+    (recoveryMode === 'application' || (projectSetupRequired && recoveryContinuation !== null))
+  ) {
     return (
       <RestoreFirstPanel
         mode="application"
         locale={locale}
         selection={recoverySelection}
+        continuation={recoverySelection ? null : recoveryContinuation}
         onApplicationRecovered={applicationRecovered}
         onCancel={cancelRecovery}
       />
@@ -511,7 +653,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <div className="auth-page">
         <form className="auth-card auth-card--first-run" onSubmit={createFirstProject}>
-          <div className="auth-mark">E</div>
+          <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
           <h1>{t.firstProjectTitle}</h1>
           <p>{t.firstProject}</p>
           <label>
@@ -537,7 +679,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           {projectError && <div className="auth-error" role="alert">{projectError}</div>}
           <div className="auth-actions">
             <button type="button" className="auth-secondary" onClick={startApplicationRecovery} disabled={creatingProject}>
-              {t.restoreBackup}
+              {t.importApplication}
             </button>
             <button
               className="auth-primary"
@@ -556,11 +698,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
   }
 
+  if (publicRuntimeActive) {
+    return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
+  }
+
   if (!configuration.localLoginEnabled) {
     return (
       <div className="auth-page">
         <div className="auth-card">
-          <div className="auth-mark">E</div>
+          <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
           <h1>{t.title}</h1>
           <p>{t.external}</p>
         </div>
@@ -572,7 +718,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <div className="auth-page">
         <div className="auth-card auth-card--first-run">
-          <div className="auth-mark">E</div>
+          <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
           <h1>{t.title}</h1>
           <p role="alert">{t.firstRunBlocked}</p>
         </div>
@@ -585,7 +731,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <div className="auth-page">
         <form className="auth-card auth-card--first-run" onSubmit={bootstrap}>
-          <div className="auth-mark">E</div>
+          <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
           <h1>{t.welcome}</h1>
           <p>{t.firstRun}</p>
           <label>
@@ -653,11 +799,13 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   return (
     <div className="auth-page">
       <form className="auth-card" onSubmit={login}>
-        <div className="auth-mark">E</div>
+        <img className="auth-mark" src="/scadivo-mark.svg" alt="SCADIVO" />
         <h1>{t.title}</h1>
         <p>{t.subtitle}</p>
+        {publicRuntimeMessage && <div className="auth-status" role="status">{publicRuntimeMessage}</div>}
         {recoverySignInRequired && <div className="auth-status" role="status">{t.recoverySignInRequired}</div>}
         {switchUserSignInRequired && <div className="auth-status" role="status">{t.switchUserSignInRequired}</div>}
+        {runtimeSessionReauthenticationRequired && <div className="auth-status" role="status" data-testid="runtime-session-reauthentication-required">{t.runtimeSessionReauthenticationRequired}</div>}
         <label>
           <span>{t.username}</span>
           <input

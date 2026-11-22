@@ -3,10 +3,10 @@ import {
   request as playwrightRequest,
   test,
   type APIRequestContext,
-  type Locator,
   type Page
 } from '@playwright/test';
 import { createE2eJwt } from '../tests-e2e/jwt';
+import { admitInteractiveRuntimeSession, terminateRuntimeSession } from '../tests-e2e/runtimeSessionLease';
 
 const projectKey = 'e2e-wave11';
 const overviewKey = 'demo.overview';
@@ -110,10 +110,10 @@ test('C18 authors Alarm and Event Browser in Screen and Popup, then Save Publish
   expect(popupAlarm.id).toBeTruthy();
   expect(popupEvent.id).toBeTruthy();
   expect(new Set([screenAlarm.id, screenEvent.id, popupAlarm.id, popupEvent.id]).size).toBe(4);
-  expect(screenAlarm.properties).toMatchObject({ x: 20, y: 300, width: 720, height: 320, browserConfig: { mode: 'current', lifecycle: 'active', area: screenAlarmArea, pageSize: 10 } });
-  expect(screenEvent.properties).toMatchObject({ x: 780, y: 300, width: 720, height: 320, browserConfig: { source: 'runtime.hmi', area: screenEventArea, pageSize: 20 } });
-  expect(popupAlarm.properties).toMatchObject({ x: 10, y: 80, width: 720, height: 320, browserConfig: { mode: 'history', lifecycle: 'active', area: popupAlarmArea, pageSize: 30 } });
-  expect(popupEvent.properties).toMatchObject({ x: 10, y: 420, width: 720, height: 320, browserConfig: { source: 'runtime.popup', area: popupEventArea, pageSize: 40 } });
+  expect(screenAlarm.properties).toMatchObject({ x: 20, y: 300, browserConfig: { mode: 'current', lifecycle: 'active', area: screenAlarmArea, pageSize: 10 } });
+  expect(screenEvent.properties).toMatchObject({ x: 780, y: 300, browserConfig: { source: 'runtime.hmi', area: screenEventArea, pageSize: 20 } });
+  expect(popupAlarm.properties).toMatchObject({ x: 10, y: 80, browserConfig: { mode: 'history', lifecycle: 'active', area: popupAlarmArea, pageSize: 30 } });
+  expect(popupEvent.properties).toMatchObject({ x: 10, y: 420, browserConfig: { source: 'runtime.popup', area: popupEventArea, pageSize: 40 } });
   expect(screenAlarm.properties.browserConfig).not.toEqual(popupAlarm.properties.browserConfig);
   expect(screenEvent.properties.browserConfig).not.toEqual(popupEvent.properties.browserConfig);
 
@@ -125,8 +125,7 @@ test('C18 authors Alarm and Event Browser in Screen and Popup, then Save Publish
   await page.locator('.eng-nav button').first().click();
   const lifecycle = page.locator('.eng-lifecycle-workspace');
   await expect(lifecycle).toBeVisible();
-  const lifecycleActions = lifecycle.locator('.eng-lifecycle-workspace__action-buttons');
-  const saveButton = lifecycleActions.getByRole('button').first();
+  const saveButton = lifecycle.getByRole('button', { name: 'Salvar revisão' });
   await expect(saveButton).toBeEnabled();
   await saveButton.click();
 
@@ -144,10 +143,9 @@ test('C18 authors Alarm and Event Browser in Screen and Popup, then Save Publish
 
   const revisionRow = lifecycle.locator('.eng-lifecycle-workspace__revision-row').filter({ hasText: `r${savedRevision}` }).first();
   await expect(revisionRow).toBeVisible();
-  const publishButton = revisionRow.locator('.eng-lifecycle-workspace__row-actions').getByRole('button').nth(1);
+  const publishButton = revisionRow.getByRole('button', { name: 'Publicar', exact: true });
   await expect(publishButton).toBeEnabled();
   await publishButton.click();
-  await confirmLifecycleAction(lifecycle);
 
   await expect.poll(async () => {
     const response = await request.get(`/api/engineering/persistence/${projectKey}/lifecycle`);
@@ -155,10 +153,9 @@ test('C18 authors Alarm and Event Browser in Screen and Popup, then Save Publish
     return (await response.json() as { publishedRevision: number | null }).publishedRevision;
   }).toBe(savedRevision);
 
-  const activateButton = lifecycleActions.getByRole('button').nth(1);
+  const activateButton = lifecycle.getByTestId('engineering-lifecycle-activate');
   await expect(activateButton).toBeEnabled();
   await activateButton.click();
-  await confirmLifecycleAction(lifecycle);
 
   await expect.poll(async () => {
     const response = await request.get('/api/runtime/application');
@@ -235,8 +232,16 @@ test('C18 authors Alarm and Event Browser in Screen and Popup, then Save Publish
   expect(definitions.length).toBeGreaterThan(0);
   const definitionId = definitions[0].id;
 
-  const developerAck = await request.post(`/api/alarms/${encodeURIComponent(definitionId)}/ack`, { data: {} });
-  expect([401, 403]).not.toContain(developerAck.status());
+  const leaseHeaders = await admitInteractiveRuntimeSession(request);
+  try {
+    const developerAck = await request.post(`/api/alarms/${encodeURIComponent(definitionId)}/ack`, {
+      data: {},
+      headers: leaseHeaders
+    });
+    expect([401, 403]).not.toContain(developerAck.status());
+  } finally {
+    await terminateRuntimeSession(request, leaseHeaders);
+  }
 
   const noRoleToken = createE2eJwt('wave11-c18-no-role', [], 'Wave 11 C18 No Role');
   const deniedContext = await playwrightRequest.newContext({
@@ -264,7 +269,9 @@ async function authorBrowser(
     y: number;
   }>
 ) {
-  await page.locator(`[data-object-type="${type}"]`).click();
+  // The active editor inserts objects from the authoring toolbar; the old
+  // sidebar palette attribute is no longer rendered in this workspace.
+  await page.locator(`[data-insert-object-type="${type}"]`).click();
   const object = page.locator(`[data-canvas-object-type="${type}"]`).last();
   await expect(object).toBeVisible();
   await object.click();
@@ -311,11 +318,6 @@ async function previewAndApplyPopup(page: Page) {
   await apply.click();
 }
 
-async function confirmLifecycleAction(lifecycle: Locator) {
-  const confirmation = lifecycle.locator('.eng-lifecycle-workspace__confirmation');
-  await expect(confirmation).toBeVisible();
-  await confirmation.locator('.eng-lifecycle-workspace__critical').click();
-}
 
 async function loadWorking(request: APIRequestContext): Promise<any> {
   const response = await request.get('/api/engineering/export/json');

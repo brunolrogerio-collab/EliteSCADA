@@ -87,11 +87,52 @@ export class HistoricalQueryApiError extends Error {
   }
 }
 
+export type SavedHistoryView = Readonly<{ key: string; name: string }>;
+export type SavedHistoryParameter = Readonly<{
+  key: string; name: string; type: string;
+  defaultValue?: { value: string } | null;
+  allowedValues?: readonly { value: string }[] | null;
+}>;
+export type SavedHistoryQuery = SavedHistoryView & { parameters?: readonly SavedHistoryParameter[] | null };
+export type SavedHistoryCatalog = Readonly<{ queries: readonly SavedHistoryQuery[]; views: readonly SavedHistoryView[] }>;
+const savedHistoryRoute = '/api/runtime/saved-history';
+
+export async function loadSavedHistoryCatalog(signal?: AbortSignal): Promise<SavedHistoryCatalog> {
+  const response = await fetch(savedHistoryRoute, { credentials: 'same-origin', signal });
+  return response.ok ? await response.json() : { queries: [], views: [] };
+}
+
+export async function executeSavedHistoricalQuery(
+  key: string, timeRange: HistoricalTimeRange | undefined, cursor: string | null,
+  parameters: Record<string, { type: string; value: string }>, signal?: AbortSignal
+): Promise<HistoricalQueryResponse> {
+  const result = await postHistoricalQuery(
+    savedHistoryRoute + '/query/' + encodeURIComponent(key), { timeRange, cursor, parameters }, signal
+  );
+  if (!isRecord(result) || !Array.isArray(result.rows))
+    throw new HistoricalQueryApiError('unavailable', 'Saved query response is malformed.');
+  return normalizeHistoricalQueryResponse({
+    ...result, pageSize: result.resultLimit, rows: result.rows.map(row => row.data)
+  });
+}
+
+export async function executeSavedAlarmHistory(
+  key: string, request: HistoricalQueryRequest, signal?: AbortSignal
+): Promise<HistoricalQueryResponse> {
+  return normalizeHistoricalQueryResponse(await postHistoricalQuery(
+    savedHistoryRoute + '/alarms/' + encodeURIComponent(key), request, signal
+  ));
+}
+
 export async function executeHistoricalQuery(
   request: HistoricalQueryRequest,
   signal?: AbortSignal
 ): Promise<HistoricalQueryResponse> {
-  const response = await fetch(HISTORICAL_QUERY_ROUTE, {
+  return normalizeHistoricalQueryResponse(await postHistoricalQuery(HISTORICAL_QUERY_ROUTE, request, signal));
+}
+
+async function postHistoricalQuery(route: string, request: unknown, signal?: AbortSignal): Promise<unknown> {
+  const response = await fetch(route, {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'content-type': 'application/json' },
@@ -107,8 +148,7 @@ export async function executeHistoricalQuery(
     throw new HistoricalQueryApiError('unavailable', message, response.status);
   }
 
-  const payload: unknown = await response.json();
-  return normalizeHistoricalQueryResponse(payload);
+  return await response.json();
 }
 
 export function normalizeHistoricalQueryResponse(payload: unknown): HistoricalQueryResponse {

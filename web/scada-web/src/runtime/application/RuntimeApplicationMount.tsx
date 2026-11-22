@@ -1,9 +1,30 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMobileRuntime } from '../useMobileRuntime';
 import { appShellText, useAppShellLocale } from '../../appShellI18n';
 import { UserSessionMenu } from '../../auth/UserSessionMenu';
+import type { RuntimeHeaderDateTimeEngineering } from '../../engineering/types';
+import { hasRuntimeCapability, useEffectiveCapabilities } from '../../auth/effectiveCapabilities';
+import { ApplicationBrand, resolveApplicationBranding } from '../../branding/ApplicationBranding';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import { RuntimeAlarmCenter } from '../RuntimeAlarmCenter';
+import { loadRuntimeAlarms } from '../alarmCenterApi';
+import { loadSavedHistoryCatalog, type SavedHistoryCatalog } from '../historical-browser/historicalQueryApi';
+import { HistoricalDataBrowserRuntime } from '../historical-browser/HistoricalDataBrowserRuntime';
+import { historicalBrowserCopy } from '../historical-browser/historicalBrowserI18n';
+import { HistoricalPlaybackProvider, useHistoricalPlayback } from '../historical-playback/HistoricalPlaybackContext';
+import { HistoricalPlaybackOverlay } from '../historical-playback/HistoricalPlaybackOverlay';
+import { historicalPlaybackCopy } from '../historical-playback/historicalPlaybackI18n';
 import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNavigator';
+import { RuntimeTagSessionRequiredContext } from '../liveTagTransport';
+import { useRuntimeSessionAdmission } from './RuntimeSessionClassPanel';
+import type { RuntimeSessionConnectionClass } from '../runtimeSessionAdmissionApi';
+import {
+  createRuntimeStationRunId,
+  openRuntimeStationAdmissionChannel,
+  parseRuntimeStationAdmissionMessage,
+  type RuntimeStationAdmissionMessage,
+  type RuntimeStationWindowAdmissionState
+} from './runtimeStationAdmissionChannel';
 import {
   loadRuntimeApplicationProjection,
   RuntimeApplicationProjectionError,
@@ -12,20 +33,92 @@ import {
   type RuntimeApplicationProjection
 } from './runtimeApplicationApi';
 import { resolveRuntimeStartupScreen } from './runtimeStartupScreen';
-import { SimulationRuntimeApp } from './SimulationRuntimeApp';
 
 const REFRESH_INTERVAL_MS = 1500;
 const RETRYABLE_RUNTIME_PROJECTION_STATUSES = new Set([502, 503, 504]);
 const TRUNCATED_RESPONSE_SIGNATURE = 'content-length header of network response exceeds response body';
+const STATION_ADMISSION_REPORT_TIMEOUT_MS = 20_000;
 
-export function RuntimeApplicationMount() {
+type RuntimeStationWindowReport = Omit<RuntimeStationAdmissionMessage, 'status'> & {
+  status: RuntimeStationWindowAdmissionState | 'closed';
+};
+
+type RuntimeStationRecoveryLink = Readonly<{
+  runId: string;
+  index: number;
+  href: string;
+  reason: 'blocked' | 'closed';
+}>;
+
+type RuntimeStationWindowReference = Readonly<{
+  runId: string;
+  slot: number;
+  href: string;
+  handle: Window;
+}>;
+
+export type RuntimeApplicationMountProps = {
+  showHistoryNavigation?: boolean;
+  showFullscreenControl?: boolean;
+};
+
+export function RuntimeApplicationMount({
+  showHistoryNavigation = false,
+  showFullscreenControl = false
+}: RuntimeApplicationMountProps = {}) {
   const locale = useAppShellLocale();
   const text = appShellText(locale);
+  const session = useRuntimeSessionAdmission();
+  const stationQuery = new URLSearchParams(window.location.search);
+  const requestedSessionClass: RuntimeSessionConnectionClass =
+    stationQuery.get('stationMode') === 'fixed' ? 'viewOnly' : 'interactive';
+  const stationRunId = stationQuery.get('stationRun');
+  const stationId = stationQuery.get('station');
+  const stationSlotValue = stationQuery.get('slot');
+  const stationSlot = stationSlotValue !== null && /^\d+$/.test(stationSlotValue)
+    ? Number(stationSlotValue) : null;
+  const stationAdmissionChannel = useRef<BroadcastChannel | null>(null);
   const [projection, setProjection] = useState<RuntimeApplicationProjection | null>(null);
+  const [projectionSessionId, setProjectionSessionId] = useState<string | null>(null);
   const lastSuccessfulProjection = useRef<RuntimeApplicationProjection | null>(null);
+  const currentLocale = useRef(locale);
+  currentLocale.current = locale;
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    if (!stationRunId || !stationId || stationSlot === null || stationSlot > 3) return;
+    const channel = openRuntimeStationAdmissionChannel(stationRunId);
+    if (!channel) return;
+    stationAdmissionChannel.current = channel;
+    return () => {
+      channel.close();
+      if (stationAdmissionChannel.current === channel) stationAdmissionChannel.current = null;
+    };
+  }, [stationId, stationRunId, stationSlot]);
+
+  useEffect(() => {
+    const channel = stationAdmissionChannel.current;
+    if (!channel || !stationRunId || !stationId || stationSlot === null || stationSlot > 3) return;
+    const status = !session.admissionSupported ? 'not-required'
+      : session.outcome ? 'admitted'
+        : session.capacityReasonCode ? 'capacity-rejected'
+          : session.error ? 'unavailable' : 'pending';
+    channel.postMessage({
+      runId: stationRunId,
+      stationId,
+      slot: stationSlot,
+      status,
+      requestedClass: requestedSessionClass,
+      grantedClass: session.outcome?.grantedClass ?? null,
+      capacityReasonCode: session.capacityReasonCode
+    } satisfies RuntimeStationAdmissionMessage);
+  }, [requestedSessionClass, session.admissionSupported, session.capacityReasonCode, session.error,
+    session.outcome?.sessionId, session.outcome?.grantedClass, stationId, stationRunId, stationSlot]);
+
+  useEffect(() => {
+    // Authentication-disabled installations retain their existing public Runtime
+    // projection. Authenticated windows must hold the canonical server seat first.
+    if (session.admissionSupported && !session.outcome) return;
     let disposed = false;
     let inFlight = false;
     let activeController: AbortController | null = null;
@@ -39,6 +132,7 @@ export function RuntimeApplicationMount() {
         const next = await loadRuntimeApplicationProjection(controller.signal);
         if (disposed) return;
         lastSuccessfulProjection.current = next;
+        setProjectionSessionId(session.outcome?.sessionId ?? null);
         setProjection(current => sameRuntimeProjection(current, next) ? current : next);
         setError(null);
       } catch (reason) {
@@ -64,7 +158,38 @@ export function RuntimeApplicationMount() {
       window.clearInterval(timer);
       activeController?.abort();
     };
-  }, []);
+  }, [session.admissionSupported, session.outcome?.sessionId]);
+
+  useEffect(() => {
+    if (!session.admissionSupported) return;
+    let disposed = false;
+    void session.ensure(requestedSessionClass, currentLocale.current).then(() => {
+      if (disposed) void session.end(currentLocale.current);
+    });
+    return () => {
+      disposed = true;
+      void session.end(currentLocale.current);
+    };
+  }, [requestedSessionClass, session.admissionSupported, session.ensure, session.end]);
+
+  useEffect(() => {
+    if (session.admissionSupported && projection && projection.mode !== 'engineering' && session.outcome) {
+      void session.end(locale);
+    }
+  }, [projection?.mode, locale, session.admissionSupported, session.end, session.outcome?.sessionId]);
+
+  if (session.admissionSupported && !session.outcome && session.error) {
+    const retryLabel = locale === 'pt-BR' ? 'Abrir sessão Runtime'
+      : locale === 'es' ? 'Abrir sesión Runtime' : 'Open Runtime session';
+    return <main className="shell" data-testid="runtime-session-required">
+      <section className="runtime-visual-diagnostic" role="alert">
+        <strong>{text.runtimeUnavailable}</strong>
+        <span>{session.error}</span>
+        <button type="button" disabled={session.busy !== null}
+          onClick={() => void session.ensure(session.lastRequestedClass ?? requestedSessionClass, locale)}>{retryLabel}</button>
+      </section>
+    </main>;
+  }
 
   if (error) {
     const status = error instanceof RuntimeApplicationProjectionError ? error.status : 500;
@@ -84,32 +209,185 @@ export function RuntimeApplicationMount() {
     </main>;
   }
 
-  if (projection.mode === 'simulation') return <SimulationRuntimeApp />;
-  return <EngineeringRuntimeApplication projection={projection} locale={locale} />;
+  if (session.admissionSupported && projection.mode === 'engineering' &&
+      (!session.outcome || projectionSessionId !== session.outcome.sessionId)) {
+    const copy = locale === 'pt-BR'
+      ? { waiting: 'Abrindo sessão Runtime…', ended: 'A sessão Runtime desta janela não está ativa.', retry: 'Abrir sessão Runtime' }
+      : locale === 'es'
+        ? { waiting: 'Abriendo sesión Runtime…', ended: 'La sesión Runtime de esta ventana no está activa.', retry: 'Abrir sesión Runtime' }
+        : { waiting: 'Opening Runtime session…', ended: 'This window’s Runtime session is not active.', retry: 'Open Runtime session' };
+    return <main className="shell" data-testid="runtime-session-required">
+      <section className="runtime-visual-diagnostic" role={session.error ? 'alert' : 'status'}>
+        <strong>{session.error ? text.runtimeUnavailable : session.busy ? copy.waiting : copy.ended}</strong>
+        {session.error ? <span>{session.error}</span> : null}
+        <button type="button" disabled={session.busy !== null}
+          onClick={() => void session.ensure(session.lastRequestedClass ?? requestedSessionClass, locale)}>{copy.retry}</button>
+      </section>
+    </main>;
+  }
+
+  if (projection.mode !== 'engineering') {
+    return <main className="shell" data-testid="runtime-neutral">
+      <section className="runtime-visual-diagnostic" role="status" data-diagnostic-code="RUNTIME_ACTIVE_REVISION_NOT_SELECTED">
+        <strong>{text.runtimeNotActive}</strong>
+        <span>{text.runtimeNotActiveDescription}</span>
+      </section>
+    </main>;
+  }
+  return <RuntimeTagSessionRequiredContext.Provider value={session.admissionSupported}>
+    <EngineeringRuntimeApplication projection={projection} locale={locale} showHistoryNavigation={showHistoryNavigation} showFullscreenControl={showFullscreenControl} />
+  </RuntimeTagSessionRequiredContext.Provider>;
 }
 
-function EngineeringRuntimeApplication({
+function EngineeringRuntimeApplication(props: {
+  projection: RuntimeApplicationProjection;
+  locale: ReturnType<typeof useAppShellLocale>;
+  showHistoryNavigation: boolean;
+  showFullscreenControl: boolean;
+}) {
+  return <HistoricalPlaybackProvider><EngineeringRuntimeApplicationContent {...props} /></HistoricalPlaybackProvider>;
+}
+
+function EngineeringRuntimeApplicationContent({
   projection,
-  locale
+  locale,
+  showHistoryNavigation,
+  showFullscreenControl
 }: {
   projection: RuntimeApplicationProjection;
   locale: ReturnType<typeof useAppShellLocale>;
+  showHistoryNavigation: boolean;
+  showFullscreenControl: boolean;
 }) {
   const text = appShellText(locale);
+  const playback = useHistoricalPlayback();
+  const playbackText = historicalPlaybackCopy(locale);
+  const { capabilities } = useEffectiveCapabilities();
+  const historyText = historicalBrowserCopy(locale);
   const fullscreenRoot = useRef<HTMLElement>(null);
+  const mobile = useMobileRuntime();
+  const [screenRequest, setScreenRequest] = useState<{ screenKey: string; version: number } | null>(null);
+  const [visibleScreenKey, setVisibleScreenKey] = useState<string | null>(null);
+  const [stationProfileId, setStationProfileId] = useState('');
+  const [windowToolsOpen, setWindowToolsOpen] = useState(false);
+  const [stationLaunchMessage, setStationLaunchMessage] = useState('');
+  const [stationRecoveryLinks, setStationRecoveryLinks] = useState<RuntimeStationRecoveryLink[]>([]);
+  const [stationAdmissionReports, setStationAdmissionReports] = useState<RuntimeStationWindowReport[]>([]);
+  const stationAdmissionChannelRef = useRef<BroadcastChannel | null>(null);
+  const stationAdmissionTimeoutRef = useRef<number | null>(null);
+  const stationWindowReferencesRef = useRef(new Map<number, RuntimeStationWindowReference>());
+  const stationWindowCloseWatchRef = useRef<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [alarmsOpen, setAlarmsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [savedHistory, setSavedHistory] = useState<SavedHistoryCatalog>({ queries: [], views: [] });
+  const [savedAlarmKey, setSavedAlarmKey] = useState('');
+  const overlayOpen = historyOpen || alarmsOpen;
+  useEffect(() => {
+    if (!overlayOpen) return;
+    const controller = new AbortController();
+    void loadSavedHistoryCatalog(controller.signal).then(catalog => {
+      if (controller.signal.aborted) return;
+      setSavedHistory(catalog);
+      setSavedAlarmKey(current => catalog.views.some(view => view.key === current) ? current : '');
+    }).catch(() => {});
+    return () => controller.abort();
+  }, [overlayOpen, projection.projectKey, projection.revision]);
+  const loadSavedAlarms = useCallback((signal?: AbortSignal) =>
+    loadRuntimeAlarms(true, signal, savedAlarmKey), [savedAlarmKey]);
+  const [playbackOpen, setPlaybackOpen] = useState(false);
   const engineeringPackage = projection.package!;
+  const header = engineeringPackage.runtimePresentation?.header;
+  const compact = isFullscreen || mobile;
+  const controlsPosition = compact ? 'left' : header?.controlsPosition ?? 'right';
+  const headerVisible = header?.enabled !== false;
+  const playbackConfigured = engineeringPackage.runtimePresentation?.historicalPlaybackEnabled === true;
+  const playbackAvailable = playbackConfigured &&
+    hasRuntimeCapability(capabilities, 'View') &&
+    hasRuntimeCapability(capabilities, 'TrendUse');
   const startup = useMemo(
     () => resolveRuntimeStartupScreen(engineeringPackage),
     [engineeringPackage]
   );
+  const screenFromUrl = new URLSearchParams(window.location.search).get('screen');
+  const linkedScreen = (engineeringPackage.screens ?? []).find(screen =>
+    screen.key.toLocaleLowerCase() === screenFromUrl?.toLocaleLowerCase()
+  )?.key;
+  const activeScreenKey = screenRequest?.screenKey ?? linkedScreen ?? startup.screenKey;
+  const stationProfiles = engineeringPackage.runtimePresentation?.stationProfiles ?? [];
+  const selectedStation = stationProfiles.find(profile => profile.id === stationProfileId) ?? stationProfiles[0];
+  const stationQuery = new URLSearchParams(window.location.search);
+  const stationFixed = stationQuery.get('stationMode') === 'fixed';
+  const isStationChild = stationQuery.has('stationRun');
+  const showStationLauncher = !mobile && !isStationChild && selectedStation !== undefined;
+  const showWindowTools = !compact || showStationLauncher;
+  const windowToolsLabel = locale === 'pt-BR' ? 'Janelas' : locale === 'es' ? 'Ventanas' : 'Windows';
+  const duplicateWindowLabel = locale === 'pt-BR' ? 'Abrir esta tela em outra janela'
+    : locale === 'es' ? 'Abrir esta pantalla en otra ventana' : 'Open this screen in another window';
+  const closeWindowsLabel = locale === 'pt-BR' ? 'Fechar' : locale === 'es' ? 'Cerrar' : 'Close';
+  const setVisualScope = playback.setVisualScope;
+  const onVisualContextChange = useCallback((context: Parameters<typeof setVisualScope>[0]) => {
+    setVisibleScreenKey(context.screenKey);
+    setVisualScope(context);
+  }, [setVisualScope]);
+  const stationLabels = locale === 'en'
+    ? { window: 'Window', navigation: 'Navigation', fixed: 'Fixed screen', active: 'Active revision', instruction: 'Open the windows, then move each to a physical monitor. Automatic positioning and fullscreen are not guaranteed by the browser.' }
+    : locale === 'es'
+      ? { window: 'Ventana', navigation: 'Navegación', fixed: 'Pantalla fija', active: 'Revisión Active', instruction: 'Abra las ventanas y mueva cada una al monitor físico deseado. El navegador no garantiza posición ni pantalla completa automáticas.' }
+      : { window: 'Janela', navigation: 'Navegação', fixed: 'Tela fixa', active: 'Revisão Active', instruction: 'Abra as janelas e arraste cada uma para o monitor físico desejado. O navegador não garante posicionamento nem tela cheia automáticos.' };
+  const activeScreen = (engineeringPackage.screens ?? []).find(screen =>
+    screen.key.toLocaleLowerCase() === (visibleScreenKey ?? activeScreenKey)?.toLocaleLowerCase()
+  );
+  const projectTitle = projection.projectName || projection.projectKey || text.runtime;
+  const headerHeight = Math.max(56, Math.min(168, header?.height ?? 56));
+  const headerStyle = {
+    minHeight: headerHeight,
+    background: header?.backgroundColor ?? undefined,
+    '--runtime-header-brand-scale': String(headerHeight / 56),
+    '--runtime-header-background': header?.backgroundColor ?? 'var(--app-surface)',
+    '--runtime-header-foreground': header?.backgroundColor ? runtimeHeaderContrastColor(header.backgroundColor) : 'var(--app-text-primary)'
+  } as React.CSSProperties;
+  const projectTitleStyle: React.CSSProperties = {
+    fontFamily: header?.titleStyle?.fontFamily ?? undefined,
+    fontSize: header?.titleStyle?.fontSize ?? undefined,
+    fontWeight: header?.titleStyle?.fontWeight ?? 700,
+    color: header?.titleStyle?.color ?? undefined
+  };
+  const screenTitleStyle: React.CSSProperties = {
+    fontFamily: header?.screenNameStyle?.fontFamily ?? header?.titleStyle?.fontFamily ?? undefined,
+    fontSize: header?.screenNameStyle?.fontSize ?? 12,
+    fontWeight: header?.screenNameStyle?.fontWeight ?? 500,
+    color: header?.screenNameStyle?.color ?? undefined
+  };
+  const branding = useMemo(
+    () => resolveApplicationBranding(
+      engineeringPackage.branding,
+      engineeringPackage.visualAssets ?? [],
+      runtimeVisualAssetContentUrl
+    ),
+    [engineeringPackage.branding, engineeringPackage.visualAssets]
+  );
+
+  useEffect(() => () => {
+    stationAdmissionChannelRef.current?.close();
+    if (stationAdmissionTimeoutRef.current !== null) window.clearTimeout(stationAdmissionTimeoutRef.current);
+    if (stationWindowCloseWatchRef.current !== null) window.clearInterval(stationWindowCloseWatchRef.current);
+    stationWindowCloseWatchRef.current = null;
+    stationWindowReferencesRef.current.clear();
+  }, []);
 
   useEffect(() => {
     const changed = () => setIsFullscreen(document.fullscreenElement === fullscreenRoot.current);
     document.addEventListener('fullscreenchange', changed);
     return () => document.removeEventListener('fullscreenchange', changed);
   }, []);
+
+  useEffect(() => {
+    if (!playbackAvailable) {
+      setPlaybackOpen(false);
+      if (playback.mode === 'historicalPlayback') playback.exitPlayback();
+    }
+  }, [playbackAvailable, playback.mode, playback.exitPlayback]);
 
   const scriptContext = useMemo<ScriptEngineeringContext>(() => ({
     workspace: {
@@ -128,6 +406,175 @@ function EngineeringRuntimeApplication({
     else await fullscreenRoot.current?.requestFullscreen();
   };
 
+  const stopStationWindowCloseWatch = () => {
+    if (stationWindowCloseWatchRef.current !== null) window.clearInterval(stationWindowCloseWatchRef.current);
+    stationWindowCloseWatchRef.current = null;
+  };
+
+  const trackStationWindow = (runId: string, slot: number, href: string, handle: Window) => {
+    try { handle.opener = null; } catch { /* The link remains usable even if the browser restricts opener access. */ }
+    stationWindowReferencesRef.current.set(slot, { runId, slot, href, handle });
+    if (stationWindowCloseWatchRef.current !== null) return;
+
+    stationWindowCloseWatchRef.current = window.setInterval(() => {
+      const closedWindows: RuntimeStationWindowReference[] = [];
+      for (const [slotIndex, reference] of stationWindowReferencesRef.current) {
+        try {
+          if (!reference.handle.closed) continue;
+        } catch {
+          continue;
+        }
+        stationWindowReferencesRef.current.delete(slotIndex);
+        closedWindows.push(reference);
+      }
+
+      if (closedWindows.length) {
+        const closedKeys = new Set(closedWindows.map(reference => `${reference.runId}:${reference.slot}`));
+        setStationAdmissionReports(current => current.map(report =>
+          closedKeys.has(`${report.runId}:${report.slot}`) ? { ...report, status: 'closed' } : report
+        ));
+        setStationRecoveryLinks(current => {
+          const next = current.filter(link => !closedKeys.has(`${link.runId}:${link.index}`));
+          for (const reference of closedWindows) {
+            next.push({ runId: reference.runId, index: reference.slot, href: reference.href, reason: 'closed' });
+          }
+          return next;
+        });
+      }
+
+      if (!stationWindowReferencesRef.current.size) stopStationWindowCloseWatch();
+    }, 1000);
+  };
+
+  const startStation = () => {
+    if (!selectedStation) return;
+    const runId = createRuntimeStationRunId();
+    stationAdmissionChannelRef.current?.close();
+    if (stationAdmissionTimeoutRef.current !== null) window.clearTimeout(stationAdmissionTimeoutRef.current);
+    stopStationWindowCloseWatch();
+    stationWindowReferencesRef.current.clear();
+    setStationRecoveryLinks([]);
+    const channel = openRuntimeStationAdmissionChannel(runId);
+    stationAdmissionChannelRef.current = channel;
+    const initialReports: RuntimeStationWindowReport[] = selectedStation.windows.map((slot, index) => ({
+      runId,
+      stationId: selectedStation.id,
+      slot: index,
+      status: 'pending',
+      requestedClass: slot.mode === 'fixed' ? 'viewOnly' : 'interactive',
+      grantedClass: null,
+      capacityReasonCode: null
+    }));
+    setStationAdmissionReports(initialReports);
+    if (channel) {
+      channel.addEventListener('message', event => {
+        const report = parseRuntimeStationAdmissionMessage(event.data);
+        if (!report || report.runId !== runId || report.stationId !== selectedStation.id ||
+            report.slot >= selectedStation.windows.length) return;
+        if (report.status !== 'pending') {
+          setStationRecoveryLinks(current => current.filter(link =>
+            link.runId !== runId || link.index !== report.slot
+          ));
+        }
+        setStationAdmissionReports(current => current.map(item =>
+          item.runId === runId && item.slot === report.slot ? report : item
+        ));
+      });
+    }
+    const blocked: RuntimeStationRecoveryLink[] = [];
+    for (const [index, slot] of selectedStation.windows.entries()) {
+      const query = new URLSearchParams({ screen: slot.screenKey, station: selectedStation.id, slot: String(index), stationMode: slot.mode, stationRun: runId });
+      const href = `/?${query.toString()}`;
+      try {
+        const child = window.open(href, '_blank');
+        if (child) trackStationWindow(runId, index, href, child);
+        else blocked.push({ runId, index, href, reason: 'blocked' });
+      } catch {
+        blocked.push({ runId, index, href, reason: 'blocked' });
+      }
+    }
+    setStationRecoveryLinks(blocked);
+    if (blocked.length) {
+      const blockedSlots = new Set(blocked.map(item => item.index));
+      setStationAdmissionReports(current => current.map(item => blockedSlots.has(item.slot) ? { ...item, status: 'blocked' } : item));
+    }
+    stationAdmissionTimeoutRef.current = window.setTimeout(() => {
+      setStationAdmissionReports(current => current.map(item =>
+        item.runId === runId && item.status === 'pending'
+          ? { ...item, status: 'unavailable' }
+          : item
+      ));
+    }, STATION_ADMISSION_REPORT_TIMEOUT_MS);
+    setStationLaunchMessage(blocked.length === 0
+      ? (locale === 'pt-BR' ? 'Janelas abertas. Aguardando a confirmação da sessão de cada tela; depois mova-as para os monitores e use tela cheia.' : locale === 'es' ? 'Ventanas abiertas. Esperando la confirmación de sesión de cada pantalla; luego muévalas a los monitores y active pantalla completa.' : 'Windows opened. Waiting for each screen to confirm its Runtime session; then move them to the monitors and enter fullscreen.')
+      : (locale === 'pt-BR'
+        ? `O navegador bloqueou ${blocked.length} de ${selectedStation.windows.length} janelas. Abra as telas abaixo; a situação de cada sessão aparecerá aqui.`
+        : locale === 'es'
+          ? `El navegador bloqueó ${blocked.length} de ${selectedStation.windows.length} ventanas. Abra las pantallas de abajo; aquí aparecerá el estado de cada sesión.`
+          : `The browser blocked ${blocked.length} of ${selectedStation.windows.length} windows. Open the screens below; each session status will appear here.`));
+  };
+
+  const toggleAlarms = () => {
+    setAlarmsOpen(current => {
+      const next = !current;
+      if (next) { setHistoryOpen(false); setPlaybackOpen(false); setWindowToolsOpen(false); }
+      return next;
+    });
+  };
+
+  const showOverview = () => {
+    setHistoryOpen(false);
+    setAlarmsOpen(false);
+    setPlaybackOpen(false);
+    setWindowToolsOpen(false);
+  };
+
+  const toggleHistory = () => {
+    setHistoryOpen(current => {
+      const next = !current;
+      if (next) { setAlarmsOpen(false); setPlaybackOpen(false); setWindowToolsOpen(false); }
+      return next;
+    });
+  };
+
+  const togglePlayback = () => {
+    setPlaybackOpen(current => {
+      const next = !current;
+      if (next) { setHistoryOpen(false); setAlarmsOpen(false); setWindowToolsOpen(false); }
+      return next;
+    });
+  };
+
+  const runtimeToolbar = <div className="runtime-operator-toolbar" role="toolbar" aria-label={text.runtime}>
+    {header?.overviewVisible !== false && <RuntimeOperatorTool
+      label={text.runtimeOverview} icon="overview" active={!historyOpen && !alarmsOpen && !windowToolsOpen} onClick={showOverview}
+    />}
+    {showHistoryNavigation && header?.historyVisible !== false ? <RuntimeOperatorTool
+      label={text.runtimeHistory} icon="history" active={historyOpen} expanded={historyOpen}
+      controls="runtime-history-overlay" onClick={toggleHistory}
+    /> : null}
+    {header?.alarmsVisible !== false && <RuntimeOperatorTool
+      label={text.alarms} icon="alarms" active={alarmsOpen} expanded={alarmsOpen}
+      controls="runtime-alarm-overlay" disabled={playback.mode === 'historicalPlayback'} onClick={toggleAlarms}
+    />}
+    {playbackAvailable && header?.playbackVisible !== false ? <RuntimeOperatorTool
+      label={playbackText.title} icon="playback" active={playback.mode === 'historicalPlayback'}
+      expanded={playbackOpen} controls="runtime-playback-overlay" onClick={togglePlayback}
+    /> : null}
+    {showFullscreenControl && !compact ? <RuntimeOperatorTool
+      label={text.fullscreen} icon="fullscreen" active={false} onClick={() => void toggleFullscreen()}
+    /> : null}
+    {!stationFixed ? (header?.links ?? []).map((link, index) => <button key={index} type="button"
+      className={`runtime-operator-tool runtime-operator-tool--custom${link.visualAssetId ? ' runtime-operator-tool--custom-image' : ''}`}
+      data-testid="runtime-custom-screen-link"
+      title={link.label} aria-label={link.label} onClick={() => {
+        setScreenRequest(previous => ({ screenKey: link.screenKey, version: (previous?.version ?? 0) + 1 }));
+        showOverview();
+      }}>
+      {link.visualAssetId ? <img src={runtimeVisualAssetContentUrl(link.visualAssetId)} alt=""/> : <span>{link.label}</span>}
+    </button>) : null}
+  </div>;
+
   if (!startup.screenKey) {
     return <main className="shell" data-testid="runtime-engineering-application">
       <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code={startup.diagnosticCode ?? undefined}>
@@ -140,48 +587,270 @@ function EngineeringRuntimeApplication({
   return <main
     ref={fullscreenRoot}
     className="runtime-operator-application"
+    style={{ gridTemplateRows: headerVisible ? undefined : 'minmax(0, 1fr)' }}
     data-testid="runtime-engineering-application"
     data-runtime-project-key={projection.projectKey ?? undefined}
     data-runtime-revision={projection.revision ?? undefined}
     data-runtime-fullscreen={isFullscreen || undefined}
+    data-runtime-temporal-mode={playback.mode === 'historicalPlayback' ? 'historical-playback' : 'live'}
+    data-runtime-historical-at={playback.atUtc ?? undefined}
   >
-    <header className="runtime-operator-bar">
-      <div className="runtime-operator-context">
-        <strong>{projection.projectName || projection.projectKey}</strong>
-        <span>rev {projection.revision}</span>
+    {headerVisible ? <header className={`runtime-operator-bar${compact ? ' runtime-operator-bar--fullscreen' : ''}${headerHeight > 56 ? ' runtime-operator-bar--brand-expanded' : ''}`} style={headerStyle}>
+      <div className="runtime-operator-side runtime-operator-side--left">
+        {compact ? <div className="runtime-operator-brand">
+          <ApplicationBrand branding={branding} defaultSubtitle={text.subtitle} href="/"/>
+        </div> : null}
+        {header?.dateTime?.mode && header.dateTime.mode !== 'off' && (header.dateTime.position ?? 'right') === 'left'
+          ? <RuntimeHeaderDateTime locale={locale} settings={header.dateTime} style={{ order: header.dateTime.order ?? 1 }}/> : null}
+        {controlsPosition === 'left' ? <div className="runtime-operator-toolbar-slot" style={{ order: header?.controlsOrder ?? 2 }}>{runtimeToolbar}</div> : null}
       </div>
-      <div className="runtime-operator-actions">
-        <button type="button" className="runtime-operator-button" aria-expanded={alarmsOpen} onClick={() => setAlarmsOpen(value => !value)}>
-          {text.alarms}
-        </button>
-        <button type="button" className="runtime-operator-button" onClick={() => void toggleFullscreen()}>
-          {isFullscreen ? text.exitFullscreen : text.fullscreen}
-        </button>
-        {isFullscreen ? <UserSessionMenu locale={locale} /> : null}
+      <div className="runtime-operator-context" style={{ textAlign: header?.titlePosition ?? 'left' }} title={projectTitle}>
+        <div className="runtime-operator-context__titles">
+          <strong style={projectTitleStyle}>{projectTitle}</strong>
+          {header?.showScreenName && activeScreen ? <span className="runtime-operator-context__screen" style={screenTitleStyle}>{activeScreen.name || activeScreen.key}</span> : null}
+          {!compact ? <span className="runtime-operator-context__revision">rev {projection.revision}</span> : null}
+        </div>
+        {playback.mode === 'historicalPlayback' && playback.atUtc ? <>
+          <span className="runtime-playback-badge">
+            {playbackText.playback} · {new Intl.DateTimeFormat(locale,{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(playback.atUtc))} · {playbackText.readOnly}
+          </span>
+          <button type="button" className="runtime-playback-live-shortcut" onClick={playback.exitPlayback}>{playbackText.backLive}</button>
+        </> : null}
       </div>
-    </header>
+      <div className="runtime-operator-side runtime-operator-side--right">
+        {controlsPosition !== 'left' ? <div className="runtime-operator-toolbar-slot" style={{ order: header?.controlsOrder ?? 2 }}>{runtimeToolbar}</div> : null}
+        {header?.dateTime?.mode && header.dateTime.mode !== 'off' && (header.dateTime.position ?? 'right') === 'right'
+          ? <RuntimeHeaderDateTime locale={locale} settings={header.dateTime} style={{ order: header.dateTime.order ?? 1 }}/> : null}
+        {showWindowTools ? <div className="runtime-operator-window-trigger">
+          <RuntimeOperatorTool
+            label={windowToolsLabel} icon="windows" active={windowToolsOpen} expanded={windowToolsOpen}
+            controls="runtime-window-tools"
+            onClick={() => { showOverview(); if (!windowToolsOpen) setWindowToolsOpen(true); }}
+          />
+        </div> : null}
+        {compact ? <div className="runtime-operator-user-slot" data-testid="runtime-user-summary">
+          <UserSessionMenu locale={locale} includeRuntimeSessionControls
+            runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
+        </div> : null}
+      </div>
+      {showWindowTools && windowToolsOpen ? <aside id="runtime-window-tools" className="runtime-window-tools"
+        aria-label={windowToolsLabel} data-testid="runtime-window-tools"
+        onKeyDown={event => { if (event.key === 'Escape') setWindowToolsOpen(false); }}>
+        <div className="runtime-operator-overlay-header">
+          <strong>{windowToolsLabel}</strong>
+          <button type="button" className="runtime-operator-button" onClick={() => setWindowToolsOpen(false)}>{closeWindowsLabel}</button>
+        </div>
+        <div className="runtime-window-tools__content">
+          {!compact ? <a className="runtime-operator-button" href={`/?screen=${encodeURIComponent(visibleScreenKey ?? activeScreenKey ?? '')}`}
+            target="_blank" rel="noopener noreferrer">{duplicateWindowLabel}</a> : null}
+          {showStationLauncher && selectedStation ? <div className="runtime-window-tools__station" data-testid="runtime-station-launcher">
+            {stationProfiles.length > 1 ? <label>
+              {locale === 'pt-BR' ? 'Estação do Runtime' : locale === 'es' ? 'Estación Runtime' : 'Runtime station'}
+              <select value={selectedStation.id} onChange={event => setStationProfileId(event.currentTarget.value)}>
+                {stationProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name} ({profile.windows.length})</option>)}
+              </select>
+            </label> : <strong>{selectedStation.name}</strong>}
+            <ol data-testid="runtime-station-plan">{selectedStation.windows.map((slot, index) => <li key={index}>
+              {stationLabels.window} {index + 1}: {(engineeringPackage.screens ?? []).find(screen => screen.key === slot.screenKey)?.name || slot.screenKey} · {slot.mode === 'fixed' ? stationLabels.fixed : stationLabels.navigation}
+            </li>)}</ol>
+            <p>{stationLabels.instruction}</p>
+            <button type="button" className="runtime-operator-button" onClick={startStation}>
+              {locale === 'pt-BR' ? 'Iniciar estação' : locale === 'es' ? 'Iniciar estación' : 'Start station'}
+            </button>
+            <span className="runtime-station-active-revision">{stationLabels.active} {projection.revision}</span>
+          </div> : null}
+          {stationLaunchMessage ? <div role="status" className="runtime-window-tools__status">
+            <span>{stationLaunchMessage}</span>
+            {stationAdmissionReports.length ? <ul aria-label={runtimeStationAdmissionListLabel(locale)} data-testid="runtime-station-admission-results">
+              {stationAdmissionReports.map(report => <li key={report.slot} data-testid={`runtime-station-window-${report.slot + 1}-status`}>
+                {runtimeStationAdmissionLabel(report, locale)}
+              </li>)}
+            </ul> : null}
+            {stationRecoveryLinks.map(recovery => <a key={`${recovery.runId}-${recovery.index}`} href={recovery.href} target="_blank" rel="noopener noreferrer"
+              onClick={event => {
+                let child: Window | null = null;
+                try { child = window.open(recovery.href, '_blank'); } catch { /* The browser's normal link behavior remains available. */ }
+                if (!child) return;
+                event.preventDefault();
+                trackStationWindow(recovery.runId, recovery.index, recovery.href, child);
+              }}>
+              {recovery.reason === 'closed'
+                ? locale === 'pt-BR' ? `Reabrir tela ${recovery.index + 1}` : locale === 'es' ? `Reabrir pantalla ${recovery.index + 1}` : `Reopen screen ${recovery.index + 1}`
+                : locale === 'pt-BR' ? `Abrir tela ${recovery.index + 1}` : locale === 'es' ? `Abrir pantalla ${recovery.index + 1}` : `Open screen ${recovery.index + 1}`}
+            </a>)}
+          </div> : null}
+        </div>
+      </aside> : null}
+    </header> : <div className="runtime-hidden-header-session" aria-label={text.runtime}>
+      <UserSessionMenu locale={locale} includeRuntimeSessionControls runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
+    </div>}
 
     <section className="runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
       <RuntimeVisualNavigator
         engineeringPackage={engineeringPackage}
-        initialScreenKey={startup.screenKey}
+        initialScreenKey={activeScreenKey}
+        screenRequestVersion={screenRequest?.version}
+        fixedScreen={stationFixed}
+        runtimeProjectKey={projection.projectKey ?? null}
+        runtimeRevision={projection.revision ?? null}
+        performanceAnalyticsEnabled={hasRuntimeCapability(capabilities, 'View') && hasRuntimeCapability(capabilities, 'TrendUse')}
+        processValueWriteEnabled={hasRuntimeCapability(capabilities, 'View') && hasRuntimeCapability(capabilities, 'ProcessValueWrite')}
+        alarmShelveEnabled={hasRuntimeCapability(capabilities, 'View') && hasRuntimeCapability(capabilities, 'AlarmShelve')}
+        mobileScreens={engineeringPackage.runtimePresentation?.mobileScreens ?? undefined}
+        mobileOrientation={engineeringPackage.runtimePresentation?.mobileOrientation ?? 'landscape'}
         locale={locale}
         scriptContext={scriptContext}
         emptyLabel={text.emptyVisual}
         visualAssetUrl={runtimeVisualAssetContentUrl}
+        onVisualContextChange={onVisualContextChange}
       />
     </section>
 
-    {alarmsOpen ? <aside className="runtime-operator-overlay" aria-label={text.alarms}>
+    {historyOpen ? <aside id="runtime-history-overlay" className="runtime-operator-overlay runtime-operator-overlay--history" aria-label={historyText.title} data-testid="runtime-history-overlay">
+      <div className="runtime-operator-overlay-header">
+        <strong>{historyText.title}</strong>
+        <button type="button" className="runtime-operator-button" onClick={() => setHistoryOpen(false)}>{historyText.closeHistory}</button>
+      </div>
+      <div className="runtime-operator-overlay-content runtime-history-overlay-content">
+        <HistoricalDataBrowserRuntime locale={locale} savedQueries={savedHistory.queries}
+          alarmViews={savedHistory.views} alarmViewKey={savedAlarmKey} onAlarmViewChange={setSavedAlarmKey} />
+      </div>
+    </aside> : null}
+
+    {playbackOpen && playbackAvailable ? <HistoricalPlaybackOverlay locale={locale} onClose={() => setPlaybackOpen(false)} /> : null}
+
+    <aside id="runtime-alarm-overlay" className="runtime-operator-overlay" aria-label={text.alarms} hidden={!alarmsOpen}>
       <div className="runtime-operator-overlay-header">
         <strong>{text.alarms}</strong>
         <button type="button" className="runtime-operator-button" onClick={() => setAlarmsOpen(false)}>{text.closeAlarms}</button>
       </div>
       <div className="runtime-operator-overlay-content">
-        <RuntimeAlarmCenter locale={locale} />
+        {savedHistory.views.length > 0 && <label>
+          {locale === 'pt-BR' ? 'Filtro salvo de alarmes' : locale === 'es' ? 'Filtro de alarmas guardado' : 'Saved alarm filter'}
+          <select value={savedAlarmKey} onChange={event => setSavedAlarmKey(event.target.value)}>
+            <option value="">{locale === 'pt-BR' ? 'Todos' : locale === 'es' ? 'Todas' : 'All'}</option>
+            {savedHistory.views.map(view => <option key={view.key} value={view.key}>{view.name}</option>)}
+          </select>
+        </label>}
+        <RuntimeAlarmCenter locale={locale} visible={alarmsOpen} loader={loadSavedAlarms} />
       </div>
-    </aside> : null}
+    </aside>
   </main>;
+}
+
+type RuntimeOperatorIconName = 'overview' | 'history' | 'alarms' | 'playback' | 'windows' | 'fullscreen' | 'exitFullscreen';
+
+function RuntimeOperatorTool({
+  label,
+  icon,
+  active,
+  expanded,
+  controls,
+  disabled = false,
+  onClick
+}: {
+  label: string;
+  icon: RuntimeOperatorIconName;
+  active: boolean;
+  expanded?: boolean;
+  controls?: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return <button
+    type="button"
+    className={`runtime-operator-tool${active ? ' active' : ''}`}
+    aria-label={label}
+    aria-pressed={active}
+    aria-expanded={expanded}
+    aria-controls={controls}
+    aria-disabled={disabled || undefined}
+    disabled={disabled}
+    title={label}
+    data-tooltip={label}
+    onClick={onClick}
+  >
+    <RuntimeOperatorIcon name={icon} />
+    <span className="sr-only">{label}</span>
+  </button>;
+}
+
+function RuntimeHeaderDateTime({ locale, settings, style }: {
+  locale: 'pt-BR' | 'en' | 'es'; settings: RuntimeHeaderDateTimeEngineering; style?: React.CSSProperties;
+}) {
+  const mode = settings.mode ?? 'off';
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    if (mode === 'date') return;
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, [mode]);
+  if (mode === 'off') return null;
+  const time = new Intl.DateTimeFormat(locale, {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: settings.timeFormat === '12h'
+  }).format(now);
+  const date = formatRuntimeHeaderDate(now, settings.dateFormat ?? 'dd/MM/yyyy');
+  return <time className="runtime-header-datetime" dateTime={now.toISOString()} style={style} data-testid="runtime-header-datetime">
+    {mode !== 'date' ? <span>{time}</span> : null}
+    {mode !== 'time' ? <span>{date}</span> : null}
+  </time>;
+}
+
+function formatRuntimeHeaderDate(date: Date, format: NonNullable<RuntimeHeaderDateTimeEngineering['dateFormat']>): string {
+  const parts = new Intl.DateTimeFormat('en-CA', { day: '2-digit', month: '2-digit', year: 'numeric' }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  if (format === 'MM/dd/yyyy') return `${values.month}/${values.day}/${values.year}`;
+  if (format === 'yyyy-MM-dd') return `${values.year}-${values.month}-${values.day}`;
+  return `${values.day}/${values.month}/${values.year}`;
+}
+
+function runtimeHeaderContrastColor(color: string): string {
+  const match = /^#([0-9a-f]{6})/i.exec(color);
+  if (!match) return 'var(--app-text-primary)';
+  const channels = [0, 2, 4].map(offset => Number.parseInt(match[1].slice(offset, offset + 2), 16) / 255)
+    .map(channel => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+  const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+  return luminance > 0.42 ? '#17212b' : '#ffffff';
+}
+
+function RuntimeOperatorIcon({ name }: { name: RuntimeOperatorIconName }) {
+  if (name === 'overview') {
+    return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M3.5 9.2 10 3.8l6.5 5.4v6.3a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1Z" />
+      <path d="M8 16.5v-5h4v5" />
+    </svg>;
+  }
+  if (name === 'history') {
+    return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M4.2 6.1A7 7 0 1 1 3 10" />
+      <path d="M3.2 3.8v3.1h3.1M10 6.2V10l2.6 1.6" />
+    </svg>;
+  }
+  if (name === 'alarms') {
+    return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M5.2 13.7h9.6l-1.2-1.8V8.7a3.6 3.6 0 0 0-7.2 0v3.2Z" />
+      <path d="M8.2 15.1a1.9 1.9 0 0 0 3.6 0" />
+    </svg>;
+  }
+  if (name === 'playback') {
+    return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="10" cy="10" r="6.5" /><path d="M8.2 6.8 13 10l-4.8 3.2Z" />
+    </svg>;
+  }
+  if (name === 'windows') {
+    return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+      <rect x="3" y="7" width="10" height="9" rx="1" />
+      <path d="M7 7V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3" />
+    </svg>;
+  }
+  if (name === 'fullscreen') {
+    return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M7.2 3.5H3.5v3.7M12.8 3.5h3.7v3.7M7.2 16.5H3.5v-3.7M12.8 16.5h3.7v-3.7" />
+    </svg>;
+  }
+  return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+    <path d="M3.5 7.2h3.7V3.5M16.5 7.2h-3.7V3.5M3.5 12.8h3.7v3.7M16.5 12.8h-3.7v3.7" />
+  </svg>;
 }
 
 function isRetryableRuntimeProjectionFailure(failure: Error): boolean {
@@ -192,12 +861,69 @@ function isRetryableRuntimeProjectionFailure(failure: Error): boolean {
     failure.message.toLowerCase().includes(TRUNCATED_RESPONSE_SIGNATURE);
 }
 
+function runtimeStationAdmissionListLabel(locale: 'pt-BR' | 'en' | 'es'): string {
+  return locale === 'pt-BR' ? 'Situação das sessões por tela'
+    : locale === 'es' ? 'Estado de las sesiones por pantalla'
+      : 'Runtime session status by screen';
+}
+
+function runtimeStationAdmissionLabel(report: RuntimeStationWindowReport, locale: 'pt-BR' | 'en' | 'es'): string {
+  const screen = report.slot + 1;
+  const granted = report.grantedClass === 'viewOnly'
+    ? (locale === 'pt-BR' ? 'Somente visualização' : locale === 'es' ? 'Solo visualización' : 'View Only')
+    : (locale === 'pt-BR' ? 'Interativa' : locale === 'es' ? 'Interactiva' : 'Interactive');
+  if (report.status === 'pending') {
+    return locale === 'pt-BR' ? `Tela ${screen}: aguardando confirmação da sessão.`
+      : locale === 'es' ? `Pantalla ${screen}: esperando la confirmación de sesión.`
+        : `Screen ${screen}: waiting for Runtime session confirmation.`;
+  }
+  if (report.status === 'admitted') {
+    return locale === 'pt-BR' ? `Tela ${screen}: sessão ${granted} confirmada.`
+      : locale === 'es' ? `Pantalla ${screen}: sesión ${granted} confirmada.`
+        : `Screen ${screen}: ${granted} session confirmed.`;
+  }
+  if (report.status === 'capacity-rejected') {
+    const reason = (report.capacityReasonCode ?? '').replace(/[^a-z]/gi, '').toLowerCase();
+    if (reason === 'viewonlyquotaexhausted') {
+      return locale === 'pt-BR' ? `Tela ${screen}: sem vaga de visualização disponível na licença.`
+        : locale === 'es' ? `Pantalla ${screen}: no hay una plaza de visualización disponible en la licencia.`
+          : `Screen ${screen}: no View Only seat is available in the license.`;
+    }
+    if (reason === 'interactivequotaexhaustednoeligibleviewonly') {
+      return locale === 'pt-BR' ? `Tela ${screen}: sem vaga interativa ou de visualização compatível.`
+        : locale === 'es' ? `Pantalla ${screen}: no hay una plaza interactiva ni de visualización compatible.`
+          : `Screen ${screen}: no compatible Interactive or View Only seat is available.`;
+    }
+    return locale === 'pt-BR' ? `Tela ${screen}: o servidor não encontrou vaga de Runtime compatível na licença.`
+      : locale === 'es' ? `Pantalla ${screen}: el servidor no encontró una plaza Runtime compatible en la licencia.`
+        : `Screen ${screen}: the server found no compatible Runtime seat in the license.`;
+  }
+  if (report.status === 'blocked') {
+    return locale === 'pt-BR' ? `Tela ${screen}: janela bloqueada pelo navegador; abra pelo link abaixo.`
+      : locale === 'es' ? `Pantalla ${screen}: ventana bloqueada por el navegador; ábrala con el enlace de abajo.`
+        : `Screen ${screen}: the browser blocked this window; open it using the link below.`;
+  }
+  if (report.status === 'closed') {
+    return locale === 'pt-BR' ? `Tela ${screen}: janela fechada. Você pode reabri-la pelo link abaixo.`
+      : locale === 'es' ? `Pantalla ${screen}: ventana cerrada. Puede volver a abrirla con el enlace de abajo.`
+        : `Screen ${screen}: window closed. You can reopen it using the link below.`;
+  }
+  if (report.status === 'not-required') {
+    return locale === 'pt-BR' ? `Tela ${screen}: esta instalação não usa admissão autenticada de sessões.`
+      : locale === 'es' ? `Pantalla ${screen}: esta instalación no usa admisión autenticada de sesiones.`
+        : `Screen ${screen}: this installation does not use authenticated session admission.`;
+  }
+  return locale === 'pt-BR' ? `Tela ${screen}: não foi possível confirmar a sessão. Confira o aviso nessa janela.`
+    : locale === 'es' ? `Pantalla ${screen}: no fue posible confirmar la sesión. Revise el aviso en esa ventana.`
+      : `Screen ${screen}: the session could not be confirmed. Check the message in that window.`;
+}
+
 function sameRuntimeProjection(
   current: RuntimeApplicationProjection | null,
   next: RuntimeApplicationProjection
 ): boolean {
   if (!current || current.mode !== next.mode) return false;
-  if (next.mode === 'simulation') return true;
+  if (next.mode !== 'engineering') return true;
   return current.projectKey === next.projectKey &&
     current.revision === next.revision &&
     current.activatedAtUtc === next.activatedAtUtc;

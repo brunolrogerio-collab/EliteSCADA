@@ -1,0 +1,29 @@
+services:
+  linux-e2e:
+    build:
+      context: ../..
+      dockerfile: ci/local/Dockerfile.linux-e2e
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    working_dir: /workspace
+    environment:
+      ConnectionStrings__EliteScada: Host=timescaledb;Port=5432;Database=elitescada_e2e;Username=postgres;Password=postgres;Pooling=false
+      ELITESCADA_TEST_POSTGRES: Host=timescaledb;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false
+      Historian__Provider: timescaledb
+      HistoricalQuery__Enabled: "true"
+      HistoricalQuery__CursorKeyBase64: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      ELITESCADA_CI_ARTIFACTS: /workspace/ci/local/artifacts/linux-e2e
+    volumes:
+      - ../..:/workspace
+      # Do not run Linux npm binaries from the Windows node_modules tree.
+      - linux_e2e_node_modules:/workspace/web/scada-web/node_modules
+      - linux_e2e_nuget:/root/.nuget/packages
+    entrypoint: ["bash", "/workspace/scripts/ci/linux-parity.sh"]
+    command: ["e2e"]
+
+volumes:
+  linux_e2e_node_modules:
+    name: elitescada_linux_e2e_node_modules
+  linux_e2e_nuget:
+    name: elitescada_linux_e2e_nuget

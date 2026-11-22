@@ -1,7 +1,9 @@
+using System.Text.Json;
 using Scada.Api.Persistence;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.ImportExport;
 using Scada.Engineering.VisualAssets;
 using Scada.Security.Audit;
 using Scada.Security.Authorization;
@@ -13,7 +15,7 @@ public static class VisualAssetEndpoints
     public static IEndpointRouteBuilder MapVisualAssetEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/api/engineering/visual-assets", (IVisualAssetEngineeringRegistry assets) =>
-            Results.Ok(assets.SnapshotAssets()))
+            Results.Ok(assets.SnapshotAssets().Where(VisualAssetClassification.IsUserAsset).ToArray()))
             .RequireWorkspaceEngineeringRead();
 
         endpoints.MapGet("/api/engineering/visual-assets/{id:guid}/content", (
@@ -36,8 +38,98 @@ public static class VisualAssetEndpoints
 
             context.Response.Headers.ETag = $"\"{metadata.Sha256.ToLowerInvariant()}\"";
             context.Response.Headers.CacheControl = "private, no-cache";
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            if (metadata.MediaType.Equals(VisualAssetContentInspector.PdfMediaType, StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.Headers["Content-Security-Policy"] = "sandbox; default-src 'none'; base-uri 'none'; form-action 'none'";
+                context.Response.Headers["Content-Disposition"] = "inline";
+            }
             return Results.File(payload.Content, metadata.MediaType);
         }).RequireWorkspaceEngineeringRead();
+
+        endpoints.MapPut("/api/engineering/visual-assets/{id:guid}", async (
+            Guid id,
+            VisualAssetRenameRequest? body,
+            HttpRequest request,
+            HttpContext context,
+            EngineeringWorkspace workspace,
+            IVisualAssetEngineeringRegistry assets,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await audit.RecordAuthorizationDeniedAsync(context, authorization, AuditActions.EngineeringAssetRename, "visual-asset", id.ToString());
+                return failure;
+            }
+
+            if (!TryReadExpectedChangeVersion(request, out var expectedChangeVersion))
+                return Results.BadRequest(new { error = "Engineering Workspace version header is required and must be a non-negative integer." });
+            var name = body?.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(name) || name.Length > 128)
+                return Results.BadRequest(new { error = "Asset display name must contain between 1 and 128 characters." });
+
+            try
+            {
+                await using var mutation = await workspace.AcquireMutationAsync(expectedChangeVersion, cancellationToken);
+                var current = assets.FindAsset(id);
+                if (current is null) return Results.NotFound();
+                var renamed = current with { Name = name };
+                assets.UpsertAsset(renamed);
+                await audit.RecordAsync(context, authorization.Principal, AuditActions.EngineeringAssetRename, AuditOutcome.Succeeded,
+                    "visual-asset", id.ToString(), new Dictionary<string, string> { ["key"] = current.Key });
+                return Results.Ok(new { asset = renamed, workspaceVersion = workspace.CaptureChangeVersion() });
+            }
+            catch (EngineeringWorkspaceVersionConflictException conflict)
+            {
+                return Results.Conflict(new { error = "The project changed before the asset could be renamed. Reload and try again.", conflict.ExpectedChangeVersion, conflict.CurrentChangeVersion });
+            }
+        });
+
+        endpoints.MapDelete("/api/engineering/visual-assets/{id:guid}", async (
+            Guid id,
+            HttpRequest request,
+            HttpContext context,
+            EngineeringWorkspace workspace,
+            IEngineeringExchangeService exchange,
+            IVisualAssetEngineeringRegistry assets,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await audit.RecordAuthorizationDeniedAsync(context, authorization, AuditActions.EngineeringAssetDelete, "visual-asset", id.ToString());
+                return failure;
+            }
+
+            if (!TryReadExpectedChangeVersion(request, out var expectedChangeVersion))
+                return Results.BadRequest(new { error = "Engineering Workspace version header is required and must be a non-negative integer." });
+
+            try
+            {
+                await using var mutation = await workspace.AcquireMutationAsync(expectedChangeVersion, cancellationToken);
+                var asset = assets.FindAsset(id);
+                if (asset is null) return Results.NotFound();
+                var packageJson = JsonSerializer.SerializeToElement(exchange.ExportPackage());
+                if (ContainsAssetReference(packageJson, id))
+                    return Results.Conflict(new { error = "This image is still used by the project. Remove its references before deleting it." });
+
+                assets.RemoveAsset(id);
+                await audit.RecordAsync(context, authorization.Principal, AuditActions.EngineeringAssetDelete, AuditOutcome.Succeeded,
+                    "visual-asset", id.ToString(), new Dictionary<string, string> { ["key"] = asset.Key });
+                return Results.NoContent();
+            }
+            catch (EngineeringWorkspaceVersionConflictException conflict)
+            {
+                return Results.Conflict(new { error = "The project changed before the asset could be deleted. Reload and try again.", conflict.ExpectedChangeVersion, conflict.CurrentChangeVersion });
+            }
+        });
 
         endpoints.MapPost("/api/engineering/visual-assets/import", async (
             string? key,
@@ -80,8 +172,8 @@ public static class VisualAssetEndpoints
             try
             {
                 var content = await ReadAssetAsync(request, cancellationToken);
-                var inspection = RasterImageInspector.Inspect(content);
-                var payload = VisualAssetPayload.Create(inspection.MediaType, content);
+                var inspection = VisualAssetContentInspector.InspectAndCanonicalize(content);
+                var payload = VisualAssetPayload.Create(inspection.MediaType, inspection.CanonicalContent);
                 var id = Guid.NewGuid();
                 var normalizedKey = string.IsNullOrWhiteSpace(key) ? $"asset.{id:N}" : key.Trim();
                 var originalFileName = NormalizeFileName(fileName);
@@ -96,7 +188,11 @@ public static class VisualAssetEndpoints
                     ByteLength: payload.ByteLength,
                     Sha256: payload.Sha256,
                     PixelWidth: inspection.PixelWidth,
-                    PixelHeight: inspection.PixelHeight);
+                    PixelHeight: inspection.PixelHeight,
+                    Metadata: inspection.CanonicalMetadata?.ToDictionary(
+                        pair => pair.Key,
+                        pair => pair.Value,
+                        StringComparer.Ordinal));
 
                 var validationContext = new EngineeringImportContext(
                     new Dictionary<string, VisualAssetPayload>(StringComparer.OrdinalIgnoreCase)
@@ -198,7 +294,7 @@ public static class VisualAssetEndpoints
                     "new",
                     new Dictionary<string, string>
                     {
-                        ["reason"] = "invalid-image",
+                        ["reason"] = "invalid-visual-asset",
                         ["errorType"] = ex.GetType().Name
                     });
                 return Results.BadRequest(new { error = ex.Message });
@@ -224,7 +320,7 @@ public static class VisualAssetEndpoints
         HttpRequest request,
         CancellationToken cancellationToken)
     {
-        if (request.ContentLength is > VisualAssetEngineeringValidator.MaximumPayloadBytes)
+        if (request.ContentLength is > VisualAssetEngineeringValidator.MaximumVideoPayloadBytes)
             throw new InvalidDataException("Visual asset payload exceeds the supported size limit.");
 
         using var output = new MemoryStream();
@@ -234,7 +330,7 @@ public static class VisualAssetEndpoints
         while ((read = await request.Body.ReadAsync(buffer, cancellationToken)) > 0)
         {
             total += read;
-            if (total > VisualAssetEngineeringValidator.MaximumPayloadBytes)
+            if (total > VisualAssetEngineeringValidator.MaximumVideoPayloadBytes)
                 throw new InvalidDataException("Visual asset payload exceeds the supported size limit.");
             await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
         }
@@ -245,7 +341,7 @@ public static class VisualAssetEndpoints
         return output.ToArray();
     }
 
-    private static bool TryReadExpectedChangeVersion(HttpRequest request, out long expectedChangeVersion)
+    internal static bool TryReadExpectedChangeVersion(HttpRequest request, out long expectedChangeVersion)
     {
         expectedChangeVersion = 0;
         if (!request.Headers.TryGetValue("x-elitescada-workspace-version", out var expectedHeader) ||
@@ -278,4 +374,28 @@ public static class VisualAssetEndpoints
 
         return leaf;
     }
+
+    private static bool ContainsAssetReference(JsonElement element, Guid id)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.String:
+                var value = element.GetString();
+                return value is not null && (
+                    value.Equals(id.ToString("D"), StringComparison.OrdinalIgnoreCase) ||
+                    value.Equals(id.ToString("N"), StringComparison.OrdinalIgnoreCase) ||
+                    value.Equals($"asset:{id:D}", StringComparison.OrdinalIgnoreCase) ||
+                    value.Equals($"asset:{id:N}", StringComparison.OrdinalIgnoreCase));
+            case JsonValueKind.Array:
+                return element.EnumerateArray().Any(child => ContainsAssetReference(child, id));
+            case JsonValueKind.Object:
+                return element.EnumerateObject().Any(property =>
+                    !property.Name.Equals("visualAssets", StringComparison.OrdinalIgnoreCase) &&
+                    ContainsAssetReference(property.Value, id));
+            default:
+                return false;
+        }
+    }
+
+    private sealed record VisualAssetRenameRequest(string? Name);
 }

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { AuthProfile } from '../src/auth/AuthGate';
 import {
   buildUserSessionPresentation,
+  canCloseUserInterface,
   getSessionDisplayName,
   getSessionInitials,
   getSessionSecondaryIdentity,
@@ -22,6 +23,9 @@ test('session menu model uses stable identity fallbacks and normalized role cont
   expect(getSessionSecondaryIdentity(profile)).toBe('@bruno');
   expect(getSessionInitials(profile)).toBe('BR');
   expect(normalizeSessionRoles(profile.roles)).toEqual(['developer', 'operator']);
+  expect(canCloseUserInterface(profile.roles)).toBe(true);
+  expect(canCloseUserInterface(['runtime-only'])).toBe(false);
+  expect(canCloseUserInterface(['Administrador'])).toBe(true);
 
   expect(getSessionDisplayName({ ...profile, displayName: ' ', username: 'operator-1' })).toBe('operator-1');
   expect(getSessionDisplayName({ ...profile, displayName: undefined, username: undefined })).toBe('subject-123');
@@ -36,6 +40,7 @@ test('session menu locale follows stored product locale before browser language'
   expect(getUserSessionMenuLabels('pt-BR').logout).toBe('Sair');
   expect(getUserSessionMenuLabels('en').logout).toBe('Sign out');
   expect(getUserSessionMenuLabels('es').logout).toBe('Salir');
+  expect(getUserSessionMenuLabels('pt-BR').closeInterface).toBe('Fechar interface');
 });
 
 test('session presentation exposes friendly identity and roles without leaking subject identity', () => {

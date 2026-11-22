@@ -2,6 +2,8 @@
 .eng-lock-restricted {
   width: min(1440px, calc(100% - 32px));
   margin: 24px auto;
+  color: var(--eng-text);
+  background: var(--eng-bg);
 }
 
 .eng-lock-state {
@@ -27,9 +29,9 @@
 .eng-lock-card,
 .eng-lock-boundary,
 .eng-lock-management {
-  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.28));
+  border: 1px solid var(--eng-border);
   border-radius: 12px;
-  background: var(--panel-background, rgba(20, 24, 31, 0.72));
+  background: var(--eng-panel);
 }
 
 .eng-lock-restricted__header {
@@ -52,7 +54,7 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  opacity: 0.72;
+  color: var(--eng-muted);
 }
 
 .eng-lock-restricted__header-actions,
@@ -65,7 +67,7 @@
 
 .eng-lock-restricted__header-actions > a {
   padding: 9px 12px;
-  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.28));
+  border: 1px solid var(--eng-border);
   border-radius: 8px;
   text-decoration: none;
 }
@@ -117,7 +119,7 @@
 }
 
 .eng-lock-notice {
-  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.28));
+  border: 1px solid var(--eng-border);
 }
 
 .eng-lock-boundary {
@@ -138,12 +140,47 @@
 .eng-lock-boundary__items span {
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.28));
+  border: 1px solid var(--eng-border);
 }
 
 .eng-lock-management {
   width: min(1440px, calc(100% - 32px));
   margin: 18px auto 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.eng-lock-management__summary {
+  min-height: 48px;
+  padding: 10px 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+
+.eng-lock-management__summary::-webkit-details-marker {
+  display: none;
+}
+
+.eng-lock-management__summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  color: var(--eng-muted);
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.eng-lock-management[open] .eng-lock-management__summary::after {
+  transform: rotate(225deg) translateY(-2px);
+}
+
+.eng-lock-management__body {
+  border-top: 1px solid var(--eng-border);
   padding: 14px 16px;
   display: grid;
   grid-template-columns: minmax(180px, 0.8fr) minmax(420px, 2fr) auto;
@@ -164,12 +201,12 @@
   grid-column: 1 / -1;
   margin: 0;
   font-size: 0.86rem;
-  opacity: 0.78;
+  color: var(--eng-muted);
 }
 
 .eng-lock-locale span {
   font-size: 0.78rem;
-  opacity: 0.72;
+  color: var(--eng-muted);
 }
 
 .eng-lock-locale select {
@@ -184,6 +221,10 @@
   }
 
   .eng-lock-management {
+    width: min(100% - 20px, 1440px);
+  }
+
+  .eng-lock-management__body {
     grid-template-columns: 1fr;
   }
 
@@ -193,3 +234,142 @@
     grid-column: 1;
   }
 }
+
+/* W15 Editor-first: Engineering Lock lives in the Engineering top bar and expands only on demand. */
+.eng-top-actions { position: relative; }
+.eng-lock-management--topbar {
+  width: auto;
+  margin: 0;
+  overflow: visible;
+  border-radius: 7px;
+  background: var(--eng-panel);
+}
+.eng-lock-management--topbar .eng-lock-management__summary {
+  min-height: 34px;
+  min-width: 38px;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  gap: 7px;
+  padding: 5px 8px;
+}
+.eng-lock-management__padlock {
+  width: 20px;
+  height: 20px;
+  display: grid !important;
+  place-items: center;
+  border: 1px solid var(--eng-border);
+  border-radius: 5px;
+  color: var(--eng-accent);
+  font-size: 10px !important;
+  letter-spacing: 0 !important;
+}
+.eng-lock-management__state {
+  color: var(--eng-text);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.eng-lock-management__summary:focus-visible {
+  outline: 2px solid var(--eng-accent);
+  outline-offset: 2px;
+}
+
+.eng-lock-management__heading {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 2px;
+  padding-bottom: 2px;
+}
+
+.eng-lock-management__heading strong {
+  color: var(--eng-text);
+  font-size: 13px;
+}
+
+.eng-lock-management__heading span {
+  color: var(--eng-muted);
+  font-size: 11px;
+}
+.eng-lock-management--topbar > .eng-lock-management__body,
+.eng-lock-management--topbar > .eng-lock-notice,
+.eng-lock-management--topbar > .eng-lock-error {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: min(720px, calc(100vw - 32px));
+  background: var(--eng-panel);
+  border: 1px solid var(--eng-border);
+  box-shadow: 0 14px 40px rgba(0,0,0,.38);
+}
+.eng-lock-management--topbar > .eng-lock-management__body {
+  grid-template-columns: minmax(220px,1.3fr) auto;
+  border-radius: 9px;
+}
+.eng-lock-management--topbar .eng-lock-management__hint { grid-column: 1 / -1; }
+.eng-lock-management--topbar > .eng-lock-notice,
+.eng-lock-management--topbar > .eng-lock-error {
+  top: calc(100% + 8px);
+  margin: 0;
+  border-radius: 8px;
+}
+@media (max-width: 720px) {
+  .eng-lock-management--topbar > .eng-lock-management__body { grid-template-columns: 1fr; }
+  .eng-lock-management--topbar .eng-lock-management__hint { grid-column: 1; }
+}
+
+/* Restricted route is a peer, not a descendant, of .eng-shell. */
+.eng-lock-restricted__header h1,
+.eng-lock-card strong,
+.eng-lock-boundary h2,
+.eng-lock-management__summary { color: var(--eng-text); }
+.eng-lock-restricted__header p,
+.eng-lock-card p,
+.eng-lock-boundary p { color: var(--eng-muted); }
+.eng-lock-restricted__header-actions > a,
+.eng-lock-management__body > a { color: var(--eng-accent); }
+.eng-lock-restricted__header-actions > a:hover,
+.eng-lock-management__body > a:hover { color: var(--eng-text); background: var(--eng-hover); }
+.eng-lock-state button,
+.eng-lock-card button,
+.eng-lock-management button {
+  border: 1px solid var(--eng-border);
+  border-radius: 7px;
+  padding: 7px 12px;
+  color: var(--eng-text);
+  background: var(--eng-panel-soft);
+  cursor: pointer;
+}
+.eng-lock-state button:hover:not(:disabled),
+.eng-lock-card button:hover:not(:disabled),
+.eng-lock-management button:hover:not(:disabled) { background: var(--eng-hover); }
+.eng-lock-card input,
+.eng-lock-management input,
+.eng-lock-locale select {
+  border: 1px solid var(--eng-border);
+  border-radius: 7px;
+  padding: 7px 10px;
+  color: var(--eng-text);
+  background: var(--eng-input-bg);
+}
+.eng-lock-locale select option { color: var(--eng-text); background: var(--eng-input-bg); }
+.eng-lock-card input:disabled,
+.eng-lock-management input:disabled,
+.eng-lock-locale select:disabled,
+.eng-lock-state button:disabled,
+.eng-lock-card button:disabled,
+.eng-lock-management button:disabled {
+  color: var(--eng-disabled);
+  background: var(--eng-subtle-bg);
+  border-color: var(--eng-border-soft);
+  opacity: 1;
+  cursor: not-allowed;
+}
+.eng-lock-restricted :is(a, button, input, select, summary):focus-visible,
+.eng-lock-state button:focus-visible,
+.eng-lock-management :is(button, input, a):focus-visible {
+  outline: 2px solid var(--eng-focus);
+  outline-offset: 2px;
+}
+.eng-lock-error { color: var(--eng-danger); background: var(--eng-danger-bg); }
+.eng-lock-notice { color: var(--eng-success); background: var(--eng-success-bg); }

@@ -1,0 +1,1747 @@
+using Scada.Api.Runtime;
+using Scada.Core.Abstractions;
+using Scada.Core.Alarms;
+using Scada.Core.Commands;
+using Scada.Core.Events;
+using Scada.Core.Product.Licensing;
+using Scada.Core.Tags;
+using Scada.DriverHost.Runtime;
+using Scada.Engineering.Contracts;
+using Scada.Security.Authorization;
+
+namespace Scada.Drivers.Tests;
+
+public sealed class RuntimeHighAvailabilityTests
+{
+    [Fact]
+    public async Task AuthorityPolicyReferenceFence_UsesMonotonicPendingAckAndCommitTransitions()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-fence-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var store = CreateReferenceStore(path, clock);
+            var initialized = await store.InitializeAsync("node-a");
+            Assert.True(initialized.Accepted);
+            var reference = Assert.IsType<RuntimeHaReferenceAuthority>(initialized.Authority);
+            const string digest = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+            var pending = await store.BeginAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch,
+                expectedCommittedVersion: 0, expectedCommittedDigest: null,
+                pendingVersion: 1, pendingDigest: digest);
+
+            Assert.True(pending.Accepted);
+            Assert.Equal(1, pending.Authority!.AuthorityPolicy!.PendingVersion);
+            Assert.Equal(digest, pending.Authority.AuthorityPolicy.PendingDigest);
+            Assert.Equal(0, pending.Authority.AuthorityPolicy.CommittedVersion);
+
+            var prematureCommit = await store.CommitAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 1, digest);
+            Assert.False(prematureCommit.Accepted);
+            Assert.Equal("authority-policy-peer-ack-required", prematureCommit.ReasonCode);
+
+            var selfAcknowledgement = await store.AcknowledgeAuthorityPolicyUpdateAsync(
+                "node-a", reference.Epoch, 1, digest);
+            Assert.False(selfAcknowledgement.Accepted);
+            Assert.Equal("authority-policy-peer-identity-invalid", selfAcknowledgement.ReasonCode);
+
+            var acknowledgement = await store.AcknowledgeAuthorityPolicyUpdateAsync(
+                "node-b", reference.Epoch, 1, digest);
+            Assert.True(acknowledgement.Accepted);
+
+            var abortAfterPeerApply = await store.AbortAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 1, digest);
+            Assert.False(abortAfterPeerApply.Accepted);
+            Assert.Equal("authority-policy-peer-already-applied", abortAfterPeerApply.ReasonCode);
+
+            var committed = await store.CommitAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 1, digest);
+            Assert.True(committed.Accepted);
+            Assert.Equal(1, committed.Authority!.AuthorityPolicy!.CommittedVersion);
+            Assert.Equal(digest, committed.Authority.AuthorityPolicy.CommittedDigest);
+            Assert.Null(committed.Authority.AuthorityPolicy.PendingVersion);
+            Assert.Null(committed.Authority.AuthorityPolicy.AcknowledgedVersion);
+
+            var stale = await store.BeginAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch,
+                expectedCommittedVersion: 0, expectedCommittedDigest: null,
+                pendingVersion: 2, pendingDigest: digest);
+            Assert.False(stale.Accepted);
+            Assert.Equal("authority-policy-version-stale", stale.ReasonCode);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AuthorityPolicyReferenceFence_CanBootstrapVersionZeroWithItsDigest()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-zero-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var store = CreateReferenceStore(path, clock);
+            var initialized = await store.InitializeAsync("node-a");
+            var reference = Assert.IsType<RuntimeHaReferenceAuthority>(initialized.Authority);
+            const string emptyPolicyDigest = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+
+            var pending = await store.BeginAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch,
+                expectedCommittedVersion: 0, expectedCommittedDigest: null,
+                pendingVersion: 0, pendingDigest: emptyPolicyDigest);
+            Assert.True(pending.Accepted);
+
+            var ack = await store.AcknowledgeAuthorityPolicyUpdateAsync("node-b", reference.Epoch, 0, emptyPolicyDigest);
+            Assert.True(ack.Accepted);
+            var committed = await store.CommitAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 0, emptyPolicyDigest);
+
+            Assert.True(committed.Accepted);
+            Assert.Equal(0, committed.Authority!.AuthorityPolicy!.CommittedVersion);
+            Assert.Equal(emptyPolicyDigest, committed.Authority.AuthorityPolicy.CommittedDigest);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AuthorityPolicyReferenceFence_CanBootstrapAnExistingPolicyVersion()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-existing-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var store = CreateReferenceStore(path, clock);
+            var initialized = await store.InitializeAsync("node-a");
+            var reference = Assert.IsType<RuntimeHaReferenceAuthority>(initialized.Authority);
+            const string existingPolicyDigest = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+            var pending = await store.BeginAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch,
+                expectedCommittedVersion: 0, expectedCommittedDigest: null,
+                pendingVersion: 4, pendingDigest: existingPolicyDigest);
+            Assert.True(pending.Accepted);
+
+            var acknowledgement = await store.AcknowledgeAuthorityPolicyUpdateAsync(
+                "node-b", reference.Epoch, 4, existingPolicyDigest);
+            Assert.True(acknowledgement.Accepted);
+            var committed = await store.CommitAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 4, existingPolicyDigest);
+
+            Assert.True(committed.Accepted);
+            Assert.Equal(4, committed.Authority!.AuthorityPolicy!.CommittedVersion);
+            Assert.Equal(existingPolicyDigest, committed.Authority.AuthorityPolicy.CommittedDigest);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AuthorityPolicyReferenceFence_ConcurrentWritersHaveOnePendingCasWinner()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-cas-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var firstStore = CreateReferenceStore(path, clock);
+            var secondStore = CreateReferenceStore(path, clock);
+            var initialized = await firstStore.InitializeAsync("node-a");
+            var reference = Assert.IsType<RuntimeHaReferenceAuthority>(initialized.Authority);
+            const string firstDigest = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+            const string secondDigest = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+            var results = await Task.WhenAll(
+                firstStore.BeginAuthorityPolicyUpdateAsync(
+                    "node-a", reference.LeaseId, reference.Epoch, 0, null, 1, firstDigest),
+                secondStore.BeginAuthorityPolicyUpdateAsync(
+                    "node-a", reference.LeaseId, reference.Epoch, 0, null, 1, secondDigest));
+
+            Assert.Single(results, result => result.Accepted);
+            Assert.Single(results, result => !result.Accepted && result.ReasonCode == "authority-policy-update-pending");
+            var persisted = await firstStore.ReadAsync();
+            Assert.Equal(1, persisted!.AuthorityPolicy!.PendingVersion);
+            Assert.Contains(persisted.AuthorityPolicy.PendingDigest, new[] { firstDigest, secondDigest });
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ReferenceReadWaitsForTheCrossProcessLockUsedByAtomicReplacement()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-reference-read-lock-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var store = CreateReferenceStore(path, new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z")));
+        try
+        {
+            var initialized = await store.InitializeAsync("node-a");
+            Assert.True(initialized.Accepted);
+
+            Task<RuntimeHaReferenceAuthority?> pendingRead;
+            await using (var mutationLock = new FileStream(
+                path + ".lock",
+                FileMode.OpenOrCreate,
+                FileAccess.ReadWrite,
+                FileShare.None,
+                bufferSize: 1,
+                FileOptions.DeleteOnClose))
+            {
+                pendingRead = store.ReadAsync();
+                await Task.Delay(TimeSpan.FromMilliseconds(100));
+                Assert.False(pendingRead.IsCompleted,
+                    "A reference read must honor the same cross-process lock as atomic file replacement.");
+            }
+
+            var reference = await pendingRead.WaitAsync(TimeSpan.FromSeconds(3));
+            Assert.Equal(initialized.Authority, reference);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AuthorityPolicyReferenceFence_OldEpochCannotCommitAfterFailover()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-epoch-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var store = CreateReferenceStore(path, clock);
+            var initialized = await store.InitializeAsync("node-a");
+            var reference = Assert.IsType<RuntimeHaReferenceAuthority>(initialized.Authority);
+            const string digest = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+            var pending = await store.BeginAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 0, null, 1, digest);
+            Assert.True(pending.Accepted);
+
+            clock.Advance(TimeSpan.FromSeconds(20));
+            var takeover = await store.ClaimExpiredAsync("node-b", reference.Epoch);
+            Assert.True(takeover.Accepted);
+
+            var staleCommit = await store.CommitAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 1, digest);
+            Assert.False(staleCommit.Accepted);
+            Assert.Equal("reference-epoch-stale", staleCommit.ReasonCode);
+            var persisted = await store.ReadAsync();
+            Assert.Equal("node-b", persisted!.ActiveNodeId);
+            Assert.Equal(0, persisted.AuthorityPolicy!.CommittedVersion);
+            Assert.Equal(1, persisted.AuthorityPolicy.PendingVersion);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AuthorityPolicyReferenceFence_LockFailureDoesNotPublishPendingState()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-lock-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var store = CreateReferenceStore(path, clock, useWallClock: true);
+            var initialized = await store.InitializeAsync("node-a");
+            var reference = Assert.IsType<RuntimeHaReferenceAuthority>(initialized.Authority);
+            const string digest = "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+            await using var heldLock = new FileStream(path + ".lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+
+            await Assert.ThrowsAsync<IOException>(() => store.BeginAuthorityPolicyUpdateAsync(
+                "node-a", reference.LeaseId, reference.Epoch, 0, null, 1, digest));
+
+            await heldLock.DisposeAsync();
+            var persisted = await store.ReadAsync();
+            Assert.Null(persisted!.AuthorityPolicy);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AuthorityPolicyReferenceFence_UpgradesLegacyReferenceOnNextLockedWrite()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-ha-authority-v1-upgrade-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "reference.json");
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-14T12:00:00Z"));
+        try
+        {
+            var legacy = new RuntimeHaReferenceAuthority(
+                RuntimeHaReferenceAuthority.SchemaName,
+                SchemaVersion: 1,
+                "cluster-a",
+                TopologyVersion: 3,
+                Epoch: 1,
+                ActiveNodeId: "node-a",
+                LeaseId: Guid.NewGuid(),
+                LeaseUntilUtc: clock.UtcNow.AddMinutes(1),
+                UpdatedAtUtc: clock.UtcNow,
+                PreviousAuthorityFenced: true,
+                ReasonCode: "reference-initialized");
+            await File.WriteAllBytesAsync(path, System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
+                legacy,
+                new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)));
+
+            var store = CreateReferenceStore(path, clock);
+            var inMemoryUpgrade = await store.ReadAsync();
+            Assert.Equal(RuntimeHaReferenceAuthority.CurrentSchemaVersion, inMemoryUpgrade!.SchemaVersion);
+            Assert.Null(inMemoryUpgrade.AuthorityPolicy);
+
+            var renewed = await store.RenewAsync("node-a", legacy.LeaseId, legacy.Epoch);
+
+            Assert.True(renewed.Accepted);
+            var persisted = System.Text.Json.JsonSerializer.Deserialize<RuntimeHaReferenceAuthority>(
+                await File.ReadAllBytesAsync(path),
+                new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+            Assert.Equal(RuntimeHaReferenceAuthority.CurrentSchemaVersion, persisted!.SchemaVersion);
+            Assert.Null(persisted.AuthorityPolicy);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void HaOperationHistory_PersistsAcrossRestartAndTerminalizesOrphanedRunningOperation()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "elitescada-ha-operation-history-" + Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(directory, "operations.json");
+        var started = DateTimeOffset.Parse("2026-10-06T12:00:00Z");
+        var restartedAt = started.AddSeconds(30);
+        var id = Guid.NewGuid();
+
+        try
+        {
+            var operation = new RuntimeHaProtectionOperation(
+                id,
+                "authority-runtime-promotion",
+                "running",
+                "node-a",
+                "node-a",
+                9,
+                started,
+                null,
+                "started");
+            new FileRuntimeHaProtectionOperationHistoryStore(path, () => started)
+                .Save(new[] { operation });
+
+            var recovered = Assert.Single(
+                new FileRuntimeHaProtectionOperationHistoryStore(path, () => restartedAt).Load());
+
+            Assert.Equal(id, recovered.OperationId);
+            Assert.Equal("interrupted", recovered.State);
+            Assert.Equal(restartedAt, recovered.CompletedAtUtc);
+            Assert.Equal("operation-status-no-longer-available", recovered.ReasonCode);
+
+            var nextRead = Assert.Single(
+                new FileRuntimeHaProtectionOperationHistoryStore(path, () => restartedAt.AddMinutes(1)).Load());
+            Assert.Equal("interrupted", nextRead.State);
+            Assert.Equal(restartedAt, nextRead.CompletedAtUtc);
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Topology_ExposesStableDistinctNodesAndLocalRemoteEndpoints()
+    {
+        var coordinator = CreateCoordinator(out _);
+
+        var snapshot = coordinator.Snapshot();
+
+        Assert.True(snapshot.Enabled);
+        Assert.Equal("cluster-a", snapshot.ClusterId);
+        Assert.Equal("node-a", snapshot.LocalNodeId);
+        Assert.Equal("node-a", snapshot.EffectiveActiveNodeId);
+        Assert.Equal(2, snapshot.Nodes.Count);
+        Assert.Equal(2, snapshot.Nodes.Select(node => node.NodeId).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.All(snapshot.Nodes, node =>
+        {
+            Assert.Contains(node.Endpoints, endpoint => endpoint.Kind == RuntimeHaEndpointKind.Local);
+            Assert.Contains(node.Endpoints, endpoint => endpoint.Kind == RuntimeHaEndpointKind.Remote);
+        });
+    }
+
+    [Fact]
+    public void ManualTransfer_IsBreakBeforeMake_AndStaleFencingTokenIsRejected()
+    {
+        var coordinator = CreateReadyPair(out _);
+        var before = coordinator.Snapshot();
+        var activeToken = coordinator.TryAcquireIndustrialAuthority("node-a");
+
+        Assert.True(activeToken.Allowed);
+        Assert.NotNull(activeToken.Token);
+        Assert.Equal(RuntimeHaState.ReadyStandby, Node(before, "node-b").State);
+
+        var begin = coordinator.BeginManualTransfer(
+            "node-a",
+            "node-b",
+            before.AuthorityEpoch);
+
+        Assert.True(begin.Succeeded);
+        Assert.Equal("break-established", begin.ReasonCode);
+        Assert.Null(begin.Snapshot.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.Demoting, Node(begin.Snapshot, "node-a").State);
+        Assert.Equal(RuntimeHaState.Promoting, Node(begin.Snapshot, "node-b").State);
+        Assert.False(coordinator.ValidateIndustrialAuthority(activeToken.Token!));
+        Assert.False(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+        Assert.False(coordinator.TryAcquireIndustrialAuthority("node-b").Allowed);
+
+        var complete = coordinator.CompleteManualTransfer(
+            begin.Transfer!.TransferId,
+            "node-b",
+            begin.Transfer.BreakEpoch);
+
+        Assert.True(complete.Succeeded);
+        Assert.Equal("node-b", complete.Snapshot.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.Active, Node(complete.Snapshot, "node-b").State);
+        Assert.False(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+        Assert.True(coordinator.TryAcquireIndustrialAuthority("node-b").Allowed);
+    }
+
+    [Fact]
+    public void DesignatedActive_RemainsDesignatedWhileReadinessBootstrapsButCannotOwnEffects()
+    {
+        var coordinator = CreateCoordinator(out var clock);
+
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            new RuntimeHaNodeReadinessEvidence(
+                Healthy: true,
+                SynchronizationComplete: true,
+                HaLicenseEntitled: false,
+                Runtime: new RuntimeHaRuntimeIdentity("simulation", null, null),
+                ObservedAtUtc: clock.UtcNow));
+
+        var bootstrapping = coordinator.Snapshot();
+        Assert.Equal("node-a", bootstrapping.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.Synchronizing, Node(bootstrapping, "node-a").State);
+        Assert.False(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+
+        var ready = coordinator.Snapshot();
+        Assert.Equal("node-a", ready.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.Active, Node(ready, "node-a").State);
+        Assert.True(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+    }
+
+    [Fact]
+    public void DatabaseOutage_DoesNotFenceLastActiveAndOnlyDatabaseHealthyStandbyIsReady()
+    {
+        var coordinator = CreateReadyPair(out var clock);
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true) with
+            {
+                DatabaseAvailable = false
+            });
+        coordinator.UpdateNodeReadiness(
+            "node-b",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true) with
+            {
+                DatabaseAvailable = true
+            });
+
+        var oneDatabaseAvailable = coordinator.Snapshot();
+        Assert.Equal(RuntimeHaState.Active, Node(oneDatabaseAvailable, "node-a").State);
+        Assert.False(Node(oneDatabaseAvailable, "node-a").DatabaseAvailable);
+        Assert.True(Node(oneDatabaseAvailable, "node-b").DatabaseAvailable);
+        Assert.Equal(RuntimeHaState.ReadyStandby, Node(oneDatabaseAvailable, "node-b").State);
+        Assert.True(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+
+        coordinator.UpdateNodeReadiness(
+            "node-b",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true) with
+            {
+                DatabaseAvailable = false
+            });
+
+        var bothDatabasesUnavailable = coordinator.Snapshot();
+        Assert.Equal(RuntimeHaState.Active, Node(bothDatabasesUnavailable, "node-a").State);
+        Assert.Equal(RuntimeHaState.Synchronizing, Node(bothDatabasesUnavailable, "node-b").State);
+        Assert.True(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+    }
+
+    [Fact]
+    public void DatabaseFailover_RequiresPeerHealthObservedAfterLocalOutage()
+    {
+        var outageObservedAt = DateTimeOffset.Parse("2026-10-07T12:00:00Z");
+        var safetyMargin = TimeSpan.FromSeconds(1);
+
+        Assert.False(RuntimeHaProtectionCoordinator.HasDatabaseHealthProofAfterOutage(
+            sourceDatabaseAvailable: false,
+            sourceDatabaseObservedAtUtc: outageObservedAt,
+            targetDatabaseAvailable: true,
+            targetDatabaseObservedAtUtc: outageObservedAt.AddMilliseconds(900),
+            targetDatabaseConsecutiveSuccesses: 2,
+            targetDatabaseConsecutiveFailures: 0,
+            clockSkewSafetyMargin: safetyMargin));
+
+        Assert.False(RuntimeHaProtectionCoordinator.HasDatabaseHealthProofAfterOutage(
+            sourceDatabaseAvailable: false,
+            sourceDatabaseObservedAtUtc: outageObservedAt,
+            targetDatabaseAvailable: true,
+            targetDatabaseObservedAtUtc: outageObservedAt.AddSeconds(2),
+            targetDatabaseConsecutiveSuccesses: 1,
+            targetDatabaseConsecutiveFailures: 0,
+            clockSkewSafetyMargin: safetyMargin));
+
+        Assert.True(RuntimeHaProtectionCoordinator.HasDatabaseHealthProofAfterOutage(
+            sourceDatabaseAvailable: false,
+            sourceDatabaseObservedAtUtc: outageObservedAt,
+            targetDatabaseAvailable: true,
+            targetDatabaseObservedAtUtc: outageObservedAt.AddSeconds(2),
+            targetDatabaseConsecutiveSuccesses: 2,
+            targetDatabaseConsecutiveFailures: 0,
+            clockSkewSafetyMargin: safetyMargin));
+
+        Assert.False(RuntimeHaProtectionCoordinator.HasDatabaseHealthProofAfterOutage(
+            sourceDatabaseAvailable: false,
+            sourceDatabaseObservedAtUtc: outageObservedAt,
+            targetDatabaseAvailable: true,
+            targetDatabaseObservedAtUtc: outageObservedAt.AddSeconds(2),
+            targetDatabaseConsecutiveSuccesses: 2,
+            targetDatabaseConsecutiveFailures: 1,
+            clockSkewSafetyMargin: safetyMargin));
+
+        Assert.False(RuntimeHaProtectionCoordinator.HasDatabaseHealthProofAfterOutage(
+            sourceDatabaseAvailable: false,
+            sourceDatabaseObservedAtUtc: outageObservedAt,
+            targetDatabaseAvailable: null,
+            targetDatabaseObservedAtUtc: outageObservedAt.AddSeconds(2),
+            targetDatabaseConsecutiveSuccesses: 2,
+            targetDatabaseConsecutiveFailures: 0,
+            clockSkewSafetyMargin: safetyMargin));
+
+        Assert.False(RuntimeHaProtectionCoordinator.HasDatabaseHealthProofAfterOutage(
+            sourceDatabaseAvailable: false,
+            sourceDatabaseObservedAtUtc: outageObservedAt,
+            targetDatabaseAvailable: true,
+            targetDatabaseObservedAtUtc: null,
+            targetDatabaseConsecutiveSuccesses: 2,
+            targetDatabaseConsecutiveFailures: 0,
+            clockSkewSafetyMargin: safetyMargin));
+    }
+
+    [Fact]
+    public void D2IndustrialFence_FailsClosedUntilExternalReferenceConfirmsLocalAuthority()
+    {
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-02T12:00:00Z"));
+        var topology = CreateTopology("node-a");
+        var service = new RuntimeHighAvailabilityService(
+            topology,
+            () => clock.UtcNow,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            externalIndustrialFenceRequired: true);
+
+        service.Authority.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+        service.Authority.UpdateNodeReadiness(
+            "node-b",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+
+        Assert.True(service.Authority.TryAcquireIndustrialAuthority("node-a").Allowed);
+        Assert.False(service.CanOwnIndustrialEffects());
+
+        service.AttachExternalIndustrialFence(_ => false);
+        Assert.False(service.CanOwnIndustrialEffects());
+
+        service.AttachExternalIndustrialFence(snapshot =>
+            snapshot.EffectiveActiveNodeId == "node-a" &&
+            snapshot.AuthorityEpoch == 1 &&
+            !snapshot.AmbiguousAuthority);
+        Assert.True(service.CanOwnIndustrialEffects());
+    }
+
+    [Fact]
+    public void ReadyStandbyRuntimeProjection_IsReadableOnlyForFreshSynchronizedPeerIdentity()
+    {
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-02T12:00:00Z"));
+        var service = new RuntimeHighAvailabilityService(
+            CreateTopology("node-b"),
+            () => clock.UtcNow,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+        var runtime = new ScadaRuntimeDescriptor(
+            "engineering",
+            "project-a",
+            7,
+            clock.UtcNow,
+            Array.Empty<Scada.Drivers.Abstractions.DriverStatus>(),
+            Array.Empty<Scada.Drivers.Abstractions.CommunicationDriverDiagnosticSnapshot>(),
+            0,
+            0);
+
+        service.Authority.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+        service.Authority.UpdateNodeReadiness(
+            "node-b",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+
+        Assert.True(service.HasReadyPassiveRuntimeProjection(runtime));
+        Assert.False(service.HasReadyPassiveRuntimeProjection(runtime with { Revision = 8 }));
+        Assert.False(service.HasReadyPassiveRuntimeProjection(runtime with { ProjectKey = "other-project" }));
+
+        clock.Advance(TimeSpan.FromSeconds(16));
+        Assert.False(service.HasReadyPassiveRuntimeProjection(runtime));
+    }
+
+    [Fact]
+    public void RuntimeActivationRefresh_PublishesTheMaterializedIdentityBeforeHaStateRestore()
+    {
+        var now = DateTimeOffset.Parse("2026-10-02T12:00:00Z");
+        var service = new RuntimeHighAvailabilityService(
+            CreateTopology("node-a"),
+            () => now,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            externalIndustrialFenceRequired: true);
+        service.Authority.UpdateNodeReadiness(
+            "node-a",
+            new RuntimeHaNodeReadinessEvidence(
+                Healthy: true,
+                SynchronizationComplete: true,
+                HaLicenseEntitled: true,
+                Runtime: new RuntimeHaRuntimeIdentity("engineering", null, null),
+                ObservedAtUtc: now));
+
+        service.RefreshLocalReadiness(
+            new RuntimeDescriptor(
+                "ha-capacity-5000",
+                1,
+                now,
+                Array.Empty<Scada.Drivers.Abstractions.DriverStatus>(),
+                Array.Empty<Scada.Drivers.Abstractions.CommunicationDriverDiagnosticSnapshot>(),
+                5000,
+                0),
+            new LicenseVerificationResult(
+                LicenseState.Valid,
+                SessionEntitlements: new MachineLicenseV2Entitlements(0, 10, HaRuntime: true)));
+
+        var local = Node(service.Snapshot(), "node-a");
+        Assert.Equal(RuntimeHaState.Active, local.State);
+        Assert.True(local.Ready);
+        Assert.Equal(1, local.Runtime.Revision);
+        Assert.True(service.Authority.TryAcquireIndustrialAuthority("node-a").Allowed);
+    }
+
+    [Fact]
+    public void PeerLoss_DoesNotPromoteStandby()
+    {
+        var coordinator = CreateReadyPair(out _);
+
+        var afterLoss = coordinator.ReportNodeUnavailable("node-a");
+
+        Assert.Null(afterLoss.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.Faulted, Node(afterLoss, "node-a").State);
+        Assert.Equal(RuntimeHaState.Isolated, Node(afterLoss, "node-b").State);
+        Assert.False(coordinator.TryAcquireIndustrialAuthority("node-b").Allowed);
+    }
+
+    [Fact]
+    public void ConflictingActiveClaim_FailsClosedAsAmbiguousAuthority()
+    {
+        var coordinator = CreateReadyPair(out _);
+        var epoch = coordinator.Snapshot().AuthorityEpoch;
+
+        var ambiguous = coordinator.ObserveAuthorityClaim(
+            "node-b",
+            epoch,
+            claimsActive: true);
+
+        Assert.True(ambiguous.AmbiguousAuthority);
+        Assert.Null(ambiguous.EffectiveActiveNodeId);
+        Assert.All(ambiguous.Nodes, node =>
+            Assert.True(node.State is RuntimeHaState.Isolated or RuntimeHaState.Faulted));
+        Assert.False(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+        Assert.False(coordinator.TryAcquireIndustrialAuthority("node-b").Allowed);
+    }
+
+    [Theory]
+    [InlineData(false, 7)]
+    [InlineData(true, 8)]
+    public void ReadyStandby_RequiresHaEntitlementAndCompatibleRuntime(
+        bool haEntitled,
+        long standbyRevision)
+    {
+        var coordinator = CreateCoordinator(out var clock);
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+        coordinator.UpdateNodeReadiness(
+            "node-b",
+            Evidence(clock.UtcNow, haEntitled, standbyRevision, synchronized: true));
+
+        var snapshot = coordinator.Snapshot();
+        var standby = Node(snapshot, "node-b");
+
+        Assert.NotEqual(RuntimeHaState.ReadyStandby, standby.State);
+        Assert.False(standby.Ready);
+
+        var transfer = coordinator.BeginManualTransfer(
+            "node-a",
+            "node-b",
+            snapshot.AuthorityEpoch);
+        Assert.False(transfer.Succeeded);
+        Assert.Equal("target-not-ready-standby", transfer.ReasonCode);
+    }
+
+    [Fact]
+    public void TopologyFreshness_IsTruthfulWhenEvidenceAges()
+    {
+        var coordinator = CreateReadyPair(out var clock);
+        Assert.All(coordinator.Snapshot().Nodes, node => Assert.True(node.Fresh));
+
+        clock.Advance(TimeSpan.FromSeconds(20));
+
+        var stale = coordinator.Snapshot();
+        Assert.All(stale.Nodes, node => Assert.False(node.Fresh));
+
+        var transfer = coordinator.BeginManualTransfer(
+            "node-a",
+            "node-b",
+            stale.AuthorityEpoch);
+        Assert.False(transfer.Succeeded);
+        Assert.Equal("target-not-ready-standby", transfer.ReasonCode);
+    }
+
+    [Fact]
+    public void RuntimeSessionContinuity_RetainsOneLogicalLeaseAndNeverResurrectsExpiredState()
+    {
+        var now = DateTimeOffset.Parse("2026-09-24T18:00:00Z");
+        var registry = new RuntimeSessionLeaseContinuityRegistry(() => now);
+        var first = Lease(
+            Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            RuntimeConnectionClass.ViewOnly,
+            now,
+            now.AddMinutes(1));
+        var duplicateTransportLease = Lease(
+            Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            RuntimeConnectionClass.Interactive,
+            now,
+            now.AddMinutes(1));
+
+        var captured = registry.CaptureOrRetain(first, "cluster-a", "node-a");
+        var retained = registry.CaptureOrRetain(
+            duplicateTransportLease,
+            "cluster-a",
+            "node-b");
+
+        Assert.Equal(captured.SessionId, retained.SessionId);
+        Assert.Equal(RuntimeConnectionClass.ViewOnly, retained.ConnectionClass);
+        Assert.Equal(1, registry.ActiveLogicalLeaseCount("cluster-a"));
+
+        var resume = registry.TryResume(
+            "cluster-a",
+            "operator",
+            "elitego-1",
+            new RuntimeHaRuntimeIdentity("engineering", "project-a", 7));
+        Assert.True(resume.Resumable);
+        Assert.Equal(RuntimeConnectionClass.ViewOnly, resume.Lease!.ConnectionClass);
+
+        now = now.AddMinutes(2);
+        var expired = registry.TryResume(
+            "cluster-a",
+            "operator",
+            "elitego-1",
+            new RuntimeHaRuntimeIdentity("engineering", "project-a", 7));
+
+        Assert.False(expired.Resumable);
+        Assert.Equal(0, registry.ActiveLogicalLeaseCount("cluster-a"));
+    }
+
+
+    [Fact]
+    public void RuntimeSessionContinuity_AdvancingAuthorityDiscardsOldProjectionWithoutWaitingForExpiry()
+    {
+        var now = DateTimeOffset.Parse("2026-09-24T18:00:00Z");
+        var registry = new RuntimeSessionLeaseContinuityRegistry(() => now);
+        var previous = Lease(Guid.NewGuid(), RuntimeConnectionClass.Interactive, now, now.AddMinutes(1));
+        var previousEnvelope = registry.CaptureOrRetain(previous, "cluster-a", "node-b");
+
+        registry.AdvanceAuthorityRevision(2);
+
+        Assert.Empty(registry.Snapshot());
+        Assert.Empty(registry.TombstoneSnapshot("cluster-a"));
+        Assert.Equal("session-authority-revision-stale",
+            registry.ImportPeerEnvelope(previousEnvelope, "cluster-a", "node-b").ReasonCode);
+        registry.CaptureOrRetain(previous, "cluster-a", "node-b");
+        Assert.Empty(registry.Snapshot());
+
+        var replacement = previous with
+        {
+            SessionId = Guid.NewGuid(),
+            IssuedAtUtc = now.AddSeconds(1),
+            LastHeartbeatUtc = now.AddSeconds(1),
+            AuthorityRevision = 2
+        };
+        registry.CaptureOrRetain(replacement, "cluster-a", "node-a");
+        registry.AdvanceAuthorityRevision(1);
+        registry.CaptureOrRetain(previous, "cluster-a", "node-b");
+        Assert.Equal(replacement.SessionId, Assert.Single(registry.Snapshot()).SessionId);
+    }
+
+    [Fact]
+    public void ReferencedAuthority_LocalPromotionRequiresPreFailureReadyStandbyWitness()
+    {
+        var coordinator = CreateCoordinator("node-b", out var clock);
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+        coordinator.UpdateNodeReadiness(
+            "node-b",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+
+        var witness = coordinator.CaptureStandbyPromotionWitness("node-b");
+        Assert.NotNull(witness);
+
+        var afterLoss = coordinator.ReportNodeUnavailable("node-a");
+        Assert.Null(afterLoss.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.Isolated, Node(afterLoss, "node-b").State);
+
+        var withoutWitness = coordinator.ApplyReferencedAuthority(
+            "node-b",
+            afterLoss.AuthorityEpoch,
+            previousAuthorityFenced: true);
+        Assert.False(withoutWitness.Accepted);
+        Assert.Equal("reference-promotion-ready-standby-witness-required", withoutWitness.ReasonCode);
+        Assert.Null(withoutWitness.Snapshot.EffectiveActiveNodeId);
+
+        var promoted = coordinator.ApplyReferencedAuthority(
+            "node-b",
+            afterLoss.AuthorityEpoch,
+            previousAuthorityFenced: true,
+            witness);
+        Assert.True(promoted.Accepted);
+        Assert.Equal("node-b", promoted.Snapshot.EffectiveActiveNodeId);
+        Assert.True(coordinator.TryAcquireIndustrialAuthority("node-b").Allowed);
+    }
+
+    [Fact]
+    public void ExplicitRecovery_CanRebuildWitnessOnlyFromFreshSynchronizedMatchingRuntime()
+    {
+        var now = DateTimeOffset.Parse("2026-10-07T18:00:00Z");
+        var runtime = new RuntimeHaRuntimeIdentity("engineering", "project-a", 7);
+        var readiness = new RuntimeHaNodeReadinessEvidence(
+            Healthy: true,
+            SynchronizationComplete: true,
+            HaLicenseEntitled: true,
+            Runtime: runtime,
+            ObservedAtUtc: now);
+        var mirror = Mirror(runtime, now);
+
+        var witness = RuntimeHaProtectionCoordinator.CreateRecoveryWitnessFromCurrentReadiness(
+            "node-b",
+            readiness,
+            mirror,
+            now,
+            TimeSpan.FromSeconds(30));
+
+        Assert.NotNull(witness);
+        Assert.Equal("node-b", witness.NodeId);
+        Assert.Equal(runtime, witness.Readiness.Runtime);
+    }
+
+    [Fact]
+    public void ExplicitRecovery_DoesNotRebuildWitnessWhenMirroredRevisionDiffers()
+    {
+        var now = DateTimeOffset.Parse("2026-10-07T18:00:00Z");
+        var readiness = Evidence(now, haEntitled: true, revision: 6, synchronized: true);
+        var mirror = Mirror(
+            new RuntimeHaRuntimeIdentity("engineering", "project-a", 7),
+            now);
+
+        var witness = RuntimeHaProtectionCoordinator.CreateRecoveryWitnessFromCurrentReadiness(
+            "node-b",
+            readiness,
+            mirror,
+            now,
+            TimeSpan.FromSeconds(30));
+
+        Assert.Null(witness);
+    }
+
+    [Fact]
+    public void ExplicitRecovery_DoesNotRebuildWitnessFromStaleOrUnsynchronizedEvidence()
+    {
+        var now = DateTimeOffset.Parse("2026-10-07T18:00:00Z");
+        var runtime = new RuntimeHaRuntimeIdentity("engineering", "project-a", 7);
+        var staleReadiness = Evidence(now.AddMinutes(-1), haEntitled: true, revision: 7, synchronized: true);
+        var unsynchronizedReadiness = Evidence(now, haEntitled: true, revision: 7, synchronized: false);
+        var mirror = Mirror(runtime, now);
+
+        Assert.Null(RuntimeHaProtectionCoordinator.CreateRecoveryWitnessFromCurrentReadiness(
+            "node-b", staleReadiness, mirror, now, TimeSpan.FromSeconds(30)));
+        Assert.Null(RuntimeHaProtectionCoordinator.CreateRecoveryWitnessFromCurrentReadiness(
+            "node-b", unsynchronizedReadiness, mirror, now, TimeSpan.FromSeconds(30)));
+        Assert.Null(RuntimeHaProtectionCoordinator.CreateRecoveryWitnessFromCurrentReadiness(
+            "node-b", Evidence(now, haEntitled: false, revision: 7, synchronized: true),
+            mirror, now, TimeSpan.FromSeconds(30)));
+    }
+
+    [Fact]
+    public void ExplicitOwnerlessResync_UsesOnlyCompleteDurablePeerStateAndFreshLocalHealth()
+    {
+        var now = DateTimeOffset.Parse("2026-10-07T18:00:00Z");
+        var reference = new RuntimeHaReferenceAuthority(
+            RuntimeHaReferenceAuthority.SchemaName,
+            RuntimeHaReferenceAuthority.CurrentSchemaVersion,
+            "cluster-a",
+            TopologyVersion: 3,
+            Epoch: 4,
+            ActiveNodeId: null,
+            LeaseId: Guid.Empty,
+            LeaseUntilUtc: now,
+            UpdatedAtUtc: now,
+            PreviousAuthorityFenced: true,
+            ReasonCode: "RUNTIME_ACTIVATION_COMMIT_FAILED");
+        var runtime = new RuntimeHaRuntimeIdentity("engineering", "project-a", 7);
+        var application = new EngineeringPackage(
+            "scada.engineering",
+            15,
+            now,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>());
+        var state = new RuntimeHaAuthoritativeStateSnapshot(
+            runtime,
+            ProjectTagCount: 0,
+            new RuntimeHaPeerLicenseEvidence(true, true, 5000, 10, 10),
+            Array.Empty<RuntimeHaMirroredTagValue>(),
+            Array.Empty<RuntimeSessionLeaseContinuityEnvelope>(),
+            Array.Empty<RuntimeSessionLeaseContinuityTombstoneEnvelope>(),
+            now,
+            application);
+        var mirror = new RuntimeHaPeerMirrorSnapshot(
+            HasState: true,
+            LiveSynchronized: false,
+            SourceNodeId: "node-a",
+            SourceTransportInstanceId: Guid.NewGuid(),
+            ReplicationSequence: 3,
+            AuthoritativeState: state,
+            ReceivedAtUtc: now.AddHours(-1),
+            ReasonCode: "durable-state-loaded-awaiting-live-resync");
+        var localReadiness = new RuntimeHaNodeReadinessEvidence(
+            Healthy: true,
+            SynchronizationComplete: false,
+            HaLicenseEntitled: true,
+            Runtime: new RuntimeHaRuntimeIdentity("engineering", "project-a", null),
+            ObservedAtUtc: now,
+            DatabaseAvailable: true,
+            DatabaseAvailabilityObservedAtUtc: now,
+            DatabaseAvailabilityConsecutiveSuccesses: 2);
+
+        var result = RuntimeHaProtectionCoordinator.ValidateOwnerlessResyncState(
+            reference,
+            CreateTopology("node-b"),
+            mirror,
+            localReadiness,
+            now,
+            TimeSpan.FromSeconds(30));
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ExplicitOwnerlessResync_RejectsUnhealthyOrMisidentifiedState()
+    {
+        var now = DateTimeOffset.Parse("2026-10-07T18:00:00Z");
+        var reference = new RuntimeHaReferenceAuthority(
+            RuntimeHaReferenceAuthority.SchemaName,
+            RuntimeHaReferenceAuthority.CurrentSchemaVersion,
+            "cluster-a",
+            TopologyVersion: 3,
+            Epoch: 4,
+            ActiveNodeId: null,
+            LeaseId: Guid.Empty,
+            LeaseUntilUtc: now,
+            UpdatedAtUtc: now,
+            PreviousAuthorityFenced: true,
+            ReasonCode: "recovery-test");
+        var healthyReadiness = Evidence(now, haEntitled: true, revision: 7, synchronized: false) with
+        {
+            DatabaseAvailable = true,
+            DatabaseAvailabilityObservedAtUtc = now,
+            DatabaseAvailabilityConsecutiveSuccesses = 2
+        };
+        var mirror = Mirror(
+            new RuntimeHaRuntimeIdentity("engineering", "project-a", 7),
+            now) with
+        {
+            LiveSynchronized = false,
+            ReasonCode = "durable-state-loaded-awaiting-live-resync"
+        };
+
+        Assert.Equal(
+            "local-health-license-and-database-confirmation-required",
+            RuntimeHaProtectionCoordinator.ValidateOwnerlessResyncState(
+                reference,
+                CreateTopology("node-b"),
+                mirror,
+                healthyReadiness with { DatabaseAvailable = false },
+                now,
+                TimeSpan.FromSeconds(30)));
+        Assert.Equal(
+            "durable-peer-mirror-unavailable",
+            RuntimeHaProtectionCoordinator.ValidateOwnerlessResyncState(
+                reference,
+                CreateTopology("node-b"),
+                mirror with { SourceNodeId = "node-b" },
+                healthyReadiness,
+                now,
+                TimeSpan.FromSeconds(30)));
+        Assert.Equal(
+            "reference-break-required",
+            RuntimeHaProtectionCoordinator.ValidateOwnerlessResyncState(
+                reference with { ActiveNodeId = "node-a" },
+                CreateTopology("node-b"),
+                mirror,
+                healthyReadiness,
+                now,
+                TimeSpan.FromSeconds(30)));
+    }
+
+    [Fact]
+    public void ReferencedAuthority_OwnerlessResyncGrantsOnlySynchronizingLocalAuthority()
+    {
+        var coordinator = CreateCoordinator("node-b", out var clock);
+        var now = clock.UtcNow;
+        coordinator.UpdateNodeReadiness(
+            "node-b",
+            Evidence(now, haEntitled: true, revision: 7, synchronized: true) with
+            {
+                DatabaseAvailable = true,
+                DatabaseAvailabilityObservedAtUtc = now,
+                DatabaseAvailabilityConsecutiveSuccesses = 2
+            });
+        var ownerless = new RuntimeHaReferenceAuthority(
+            RuntimeHaReferenceAuthority.SchemaName,
+            RuntimeHaReferenceAuthority.CurrentSchemaVersion,
+            "cluster-a",
+            TopologyVersion: 3,
+            Epoch: 4,
+            ActiveNodeId: null,
+            LeaseId: Guid.Empty,
+            LeaseUntilUtc: now,
+            UpdatedAtUtc: now,
+            PreviousAuthorityFenced: true,
+            ReasonCode: "explicit-resync-test");
+
+        var applied = coordinator.ApplyReferencedAuthority(
+            "node-b",
+            ownerless.Epoch,
+            previousAuthorityFenced: true,
+            ownerlessRecoveryEvidence: ownerless);
+
+        Assert.True(applied.Accepted);
+        Assert.Equal("node-b", applied.Snapshot.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.Synchronizing, Node(applied.Snapshot, "node-b").State);
+        Assert.False(coordinator.TryAcquireIndustrialAuthority("node-b").Allowed);
+    }
+
+    [Fact]
+    public void InitialAuthorityBootstrap_OnlyCommitsFreshEpochOneConfiguredActiveNode()
+    {
+        var now = DateTimeOffset.Parse("2026-10-07T18:00:00Z");
+        var coordinator = CreateCoordinator("node-a", out _);
+        var current = coordinator.Snapshot();
+        var topology = coordinator.Definition;
+        var reference = RestartReference("node-a", 1, now) with
+        {
+            ReasonCode = "reference-initialized"
+        };
+
+        Assert.True(RuntimeHaProtectionCoordinator.IsInitialAuthorityBootstrapReference(
+            reference, topology, current, "node-a"));
+        Assert.False(RuntimeHaProtectionCoordinator.IsInitialAuthorityBootstrapReference(
+            reference with { ActiveNodeId = "node-b" }, topology, current, "node-b"));
+        Assert.False(RuntimeHaProtectionCoordinator.IsInitialAuthorityBootstrapReference(
+            reference with { Epoch = 2 }, topology, current, "node-a"));
+        Assert.False(RuntimeHaProtectionCoordinator.IsInitialAuthorityBootstrapReference(
+            reference with { ReasonCode = "reference-renewed" }, topology, current, "node-a"));
+        Assert.False(RuntimeHaProtectionCoordinator.IsInitialAuthorityBootstrapReference(
+            reference with { PreviousAuthorityFenced = false }, topology, current, "node-a"));
+    }
+
+    [Fact]
+    public void ReferencedAuthority_RestartedSameActiveNodeReconcilesHigherPersistedEpochWithoutPromotionWitness()
+    {
+        // A new coordinator models process restart: its in-memory epoch starts at 1,
+        // while the shared reference store retains the active node and a later epoch.
+        var coordinator = CreateCoordinator("node-a", out var clock);
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+
+        var resumed = coordinator.ApplyReferencedAuthority(
+            activeNodeId: "node-a",
+            referencedEpoch: 5,
+            previousAuthorityFenced: true,
+            restartReferenceEvidence: RestartReference("node-a", 5, clock.UtcNow));
+
+        Assert.True(resumed.Accepted, resumed.ReasonCode);
+        Assert.Equal(5, resumed.Snapshot.AuthorityEpoch);
+        Assert.Equal("node-a", resumed.Snapshot.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.Synchronizing, Node(resumed.Snapshot, "node-b").State);
+        Assert.True(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+    }
+
+    [Fact]
+    public void ReferencedAuthority_AtomicallyClaimedSameNodeCanReconcileAfterLocalEpochWasFenced()
+    {
+        var coordinator = CreateCoordinator("node-a", out var clock);
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+
+        var fenced = coordinator.ApplyReferencedAuthority(
+            activeNodeId: null,
+            referencedEpoch: 3,
+            previousAuthorityFenced: true);
+        Assert.True(fenced.Accepted);
+        Assert.Null(fenced.Snapshot.EffectiveActiveNodeId);
+        Assert.Equal(3, fenced.Snapshot.AuthorityEpoch);
+
+        var resumed = coordinator.ApplyReferencedAuthority(
+            activeNodeId: "node-a",
+            referencedEpoch: 4,
+            previousAuthorityFenced: true,
+            restartReferenceEvidence: RestartReference("node-a", 4, clock.UtcNow),
+            allowSameNodeRestartEpochReconciliation: true);
+
+        Assert.True(resumed.Accepted, resumed.ReasonCode);
+        Assert.Equal(4, resumed.Snapshot.AuthorityEpoch);
+        Assert.Equal("node-a", resumed.Snapshot.EffectiveActiveNodeId);
+        Assert.True(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+    }
+
+    [Fact]
+    public void ReferencedAuthority_RestartResumeDoesNotGrantIndustrialEffectsBeforeLocalRuntimeIsReady()
+    {
+        var coordinator = CreateCoordinator("node-a", out var clock);
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            new RuntimeHaNodeReadinessEvidence(
+                Healthy: true,
+                SynchronizationComplete: false,
+                HaLicenseEntitled: true,
+                Runtime: new RuntimeHaRuntimeIdentity("engineering", "project-a", null),
+                ObservedAtUtc: clock.UtcNow));
+
+        var resumed = coordinator.ApplyReferencedAuthority(
+            activeNodeId: "node-a",
+            referencedEpoch: 5,
+            previousAuthorityFenced: true,
+            restartReferenceEvidence: RestartReference("node-a", 5, clock.UtcNow));
+
+        Assert.True(resumed.Accepted, resumed.ReasonCode);
+        Assert.Equal(5, resumed.Snapshot.AuthorityEpoch);
+        Assert.Equal(RuntimeHaState.Synchronizing, Node(resumed.Snapshot, "node-a").State);
+        Assert.False(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+    }
+
+    [Theory]
+    [InlineData("cluster")]
+    [InlineData("topology")]
+    [InlineData("active-node")]
+    [InlineData("unfenced")]
+    [InlineData("expired")]
+    [InlineData("schema")]
+    [InlineData("schema-version")]
+    [InlineData("reference-epoch")]
+    [InlineData("empty-lease")]
+    public void ReferencedAuthority_RestartResumeEvidenceMustMatchLiveFencedLocalReference(string mismatch)
+    {
+        var coordinator = CreateCoordinator("node-a", out var clock);
+        var validReference = RestartReference("node-a", 5, clock.UtcNow);
+        var invalidReference = mismatch switch
+        {
+            "cluster" => validReference with { ClusterId = "other-cluster" },
+            "topology" => validReference with { TopologyVersion = 4 },
+            "active-node" => validReference with { ActiveNodeId = "node-b" },
+            "unfenced" => validReference with { PreviousAuthorityFenced = false },
+            "expired" => validReference with { LeaseUntilUtc = clock.UtcNow.AddSeconds(-1) },
+            "schema" => validReference with { Schema = "other-reference" },
+            "schema-version" => validReference with { SchemaVersion = validReference.SchemaVersion + 1 },
+            "reference-epoch" => validReference with { Epoch = validReference.Epoch - 1 },
+            "empty-lease" => validReference with { LeaseId = Guid.Empty },
+            _ => throw new ArgumentOutOfRangeException(nameof(mismatch), mismatch, null)
+        };
+
+        var result = coordinator.ApplyReferencedAuthority(
+            activeNodeId: "node-a",
+            referencedEpoch: 5,
+            previousAuthorityFenced: true,
+            restartReferenceEvidence: invalidReference);
+
+        Assert.False(result.Accepted);
+        Assert.Equal("reference-promotion-ready-standby-witness-required", result.ReasonCode);
+        Assert.Equal(1, result.Snapshot.AuthorityEpoch);
+        Assert.Equal("node-a", result.Snapshot.EffectiveActiveNodeId);
+    }
+
+    [Fact]
+    public void ReferencedAuthority_RejectsStaleEpochAndCannotRecoverAmbiguityWithoutNewerExplicitReference()
+    {
+        var coordinator = CreateReadyPair(out _);
+        var before = coordinator.Snapshot();
+        var standbyWitness = coordinator.CaptureStandbyPromotionWitness("node-b");
+        Assert.NotNull(standbyWitness);
+        var token = coordinator.TryAcquireIndustrialAuthority("node-a").Token!;
+
+        var stale = coordinator.ApplyReferencedAuthority(
+            "node-b",
+            before.AuthorityEpoch - 1,
+            previousAuthorityFenced: true);
+        Assert.False(stale.Accepted);
+        Assert.Equal("reference-epoch-stale", stale.ReasonCode);
+        Assert.True(coordinator.ValidateIndustrialAuthority(token));
+
+        var ambiguous = coordinator.ObserveAuthorityClaim(
+            "node-b",
+            before.AuthorityEpoch,
+            claimsActive: true);
+        Assert.True(ambiguous.AmbiguousAuthority);
+        Assert.False(coordinator.ValidateIndustrialAuthority(token));
+
+        var sameEpochRecovery = coordinator.ApplyReferencedAuthority(
+            "node-a",
+            before.AuthorityEpoch,
+            previousAuthorityFenced: true,
+            allowAmbiguityRecovery: true);
+        Assert.False(sameEpochRecovery.Accepted);
+        Assert.Equal("reference-epoch-stale", sameEpochRecovery.ReasonCode);
+
+        var recovered = coordinator.ApplyReferencedAuthority(
+            "node-b",
+            checked(ambiguous.AuthorityEpoch + 1),
+            previousAuthorityFenced: true,
+            standbyWitness,
+            allowAmbiguityRecovery: true);
+        Assert.True(recovered.Accepted);
+        Assert.False(recovered.Snapshot.AmbiguousAuthority);
+        Assert.Equal("node-b", recovered.Snapshot.EffectiveActiveNodeId);
+    }
+
+    [Fact]
+    public async Task RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission()
+    {
+        var now = DateTimeOffset.Parse("2026-10-02T12:00:00Z");
+        await using var store = new InMemoryRuntimeSessionLeaseStore(() => now);
+        var runtime = new RuntimeSessionRuntimeIdentity(
+            "engineering",
+            "project-a",
+            7,
+            now.AddMinutes(-1));
+
+        var admitted = await store.AdmitAsync(new RuntimeSessionLeaseAdmission(
+            "operator",
+            "elitego-1",
+            "interactive",
+            runtime,
+            TimeSpan.FromMinutes(2),
+            ServerNode: "node-a",
+            ClusterId: "cluster-a"));
+
+        var transition = await store.BeginAuthorityTransitionAsync("ha-takeover", now);
+        var authority = await store.CommitAuthorityChangeAsync(
+            transition.TransitionId,
+            transition.BaseAuthorityRevision,
+            now,
+            demoStartedAtUtc: null);
+
+        var rebound = await store.RebindActiveClusterLeasesAsync(
+            transition.TransitionId,
+            authority.AuthorityRevision,
+            "cluster-a",
+            "node-b");
+        Assert.Equal(1, rebound);
+
+        await store.FenceLeasesBeforeAuthorityRevisionAsync(
+            transition.TransitionId,
+            authority.AuthorityRevision);
+        await store.CompleteAuthorityTransitionAsync(
+            transition.TransitionId,
+            authority.AuthorityRevision);
+
+        var validation = await store.ValidateAsync(
+            admitted.SessionId,
+            "operator",
+            runtime,
+            "elitego-1");
+        Assert.True(validation.IsValid);
+        Assert.NotNull(validation.Lease);
+        Assert.Equal(admitted.SessionId, validation.Lease!.SessionId);
+        Assert.Equal("node-b", validation.Lease.ServerNode);
+        Assert.Equal(authority.AuthorityRevision, validation.Lease.AuthorityRevision);
+        Assert.Equal(admitted.Generation + 1, validation.Lease.Generation);
+    }
+
+    [Fact]
+    public async Task RuntimeEventGate_StopsAlarmHistorianScriptEventFanoutWhenAuthorityIsLost()
+    {
+        var external = new InMemoryScadaEventBus();
+        var allowed = true;
+        var gate = new RuntimeEventGate(
+            external,
+            forwardingEnabled: true,
+            effectAuthority: () => allowed);
+        var localCount = 0;
+        var externalCount = 0;
+        using var local = gate.Subscribe<TestEvent>(_ =>
+        {
+            localCount++;
+            return ValueTask.CompletedTask;
+        });
+        using var remote = external.Subscribe<TestEvent>(_ =>
+        {
+            externalCount++;
+            return ValueTask.CompletedTask;
+        });
+
+        await gate.PublishAsync(new TestEvent(DateTimeOffset.UtcNow));
+        Assert.Equal(1, localCount);
+        Assert.Equal(1, externalCount);
+
+        allowed = false;
+        await gate.PublishAsync(new TestEvent(DateTimeOffset.UtcNow));
+
+        Assert.Equal(1, localCount);
+        Assert.Equal(1, externalCount);
+    }
+
+    [Fact]
+    public async Task RealHaReferenceFence_OnlyEffectiveActiveForwardsRuntimeEventsAcrossTakeover()
+    {
+        var now = DateTimeOffset.Parse("2026-11-09T12:00:00Z");
+        string? referenceActiveNodeId = "node-a";
+        var referenceEpoch = 1L;
+        bool ReferenceAllows(RuntimeHaTopologySnapshot snapshot) =>
+            referenceActiveNodeId is not null &&
+            referenceActiveNodeId.Equals(snapshot.LocalNodeId, StringComparison.OrdinalIgnoreCase) &&
+            referenceActiveNodeId.Equals(snapshot.EffectiveActiveNodeId, StringComparison.OrdinalIgnoreCase) &&
+            referenceEpoch == snapshot.AuthorityEpoch &&
+            !snapshot.AmbiguousAuthority &&
+            snapshot.PendingTransfer is null;
+
+        var serviceA = CreateNodeService("node-a");
+        var serviceB = CreateNodeService("node-b");
+        serviceA.AttachExternalIndustrialFence(ReferenceAllows);
+        serviceB.AttachExternalIndustrialFence(ReferenceAllows);
+
+        var external = new InMemoryScadaEventBus();
+        var gateA = new RuntimeEventGate(
+            external,
+            forwardingEnabled: true,
+            effectAuthority: serviceA.CanOwnIndustrialEffects);
+        var gateB = new RuntimeEventGate(
+            external,
+            forwardingEnabled: true,
+            effectAuthority: serviceB.CanOwnIndustrialEffects);
+        var forwardedBy = new List<string>();
+        var localA = 0;
+        var localB = 0;
+        using var remoteSubscription = external.Subscribe<TestEvent>(value =>
+        {
+            forwardedBy.Add(value.SourceNode);
+            return ValueTask.CompletedTask;
+        });
+        using var localSubscriptionA = gateA.Subscribe<TestEvent>(_ =>
+        {
+            localA++;
+            return ValueTask.CompletedTask;
+        });
+        using var localSubscriptionB = gateB.Subscribe<TestEvent>(_ =>
+        {
+            localB++;
+            return ValueTask.CompletedTask;
+        });
+
+        Assert.True(serviceA.CanOwnIndustrialEffects());
+        Assert.False(serviceB.CanOwnIndustrialEffects());
+        var standbyWitness = serviceB.Authority.CaptureStandbyPromotionWitness("node-b");
+        Assert.NotNull(standbyWitness);
+
+        await gateA.PublishAsync(new TestEvent(now, "node-a"));
+        await gateB.PublishAsync(new TestEvent(now, "node-b"));
+        Assert.Equal(new[] { "node-a" }, forwardedBy);
+        Assert.Equal(1, localA);
+        Assert.Equal(0, localB);
+
+        // The reference relinquishes A before B is promoted. Both processes fail closed here.
+        referenceActiveNodeId = null;
+        referenceEpoch = 2;
+        serviceA.Authority.ReportNodeUnavailable("node-a");
+        var afterLossB = serviceB.Authority.ReportNodeUnavailable("node-a");
+        await gateA.PublishAsync(new TestEvent(now, "node-a"));
+        await gateB.PublishAsync(new TestEvent(now, "node-b"));
+        Assert.Equal(new[] { "node-a" }, forwardedBy);
+        Assert.Equal(1, localA);
+        Assert.Equal(0, localB);
+
+        var promoted = serviceB.Authority.ApplyReferencedAuthority(
+            "node-b",
+            afterLossB.AuthorityEpoch,
+            previousAuthorityFenced: true,
+            standbyWitness: standbyWitness);
+        Assert.True(promoted.Accepted, promoted.ReasonCode);
+        referenceActiveNodeId = "node-b";
+        referenceEpoch = promoted.Snapshot.AuthorityEpoch;
+
+        Assert.False(serviceA.CanOwnIndustrialEffects());
+        Assert.True(serviceB.CanOwnIndustrialEffects());
+        await gateA.PublishAsync(new TestEvent(now, "node-a"));
+        await gateB.PublishAsync(new TestEvent(now, "node-b"));
+
+        Assert.Equal(new[] { "node-a", "node-b" }, forwardedBy);
+        Assert.Equal(1, localA);
+        Assert.Equal(1, localB);
+
+        RuntimeHighAvailabilityService CreateNodeService(string nodeId)
+        {
+            var service = new RuntimeHighAvailabilityService(
+                CreateTopology(nodeId),
+                () => now,
+                Guid.NewGuid(),
+                externalIndustrialFenceRequired: true);
+            service.Authority.UpdateNodeReadiness(
+                "node-a",
+                Evidence(now, haEntitled: true, revision: 7, synchronized: true));
+            service.Authority.UpdateNodeReadiness(
+                "node-b",
+                Evidence(now, haEntitled: true, revision: 7, synchronized: true));
+            return service;
+        }
+    }
+
+    [Fact]
+    public async Task ScadaRuntimeFacade_FencesWritesAndCommandsToReferencedActiveAcrossTakeover()
+    {
+        var now = DateTimeOffset.Parse("2026-11-09T12:00:00Z");
+        string? referenceActiveNodeId = "node-a";
+        var referenceEpoch = 1L;
+        bool ReferenceAllows(RuntimeHaTopologySnapshot snapshot) =>
+            referenceActiveNodeId is not null &&
+            referenceActiveNodeId.Equals(snapshot.LocalNodeId, StringComparison.OrdinalIgnoreCase) &&
+            referenceActiveNodeId.Equals(snapshot.EffectiveActiveNodeId, StringComparison.OrdinalIgnoreCase) &&
+            referenceEpoch == snapshot.AuthorityEpoch &&
+            !snapshot.AmbiguousAuthority &&
+            snapshot.PendingTransfer is null;
+
+        RuntimeHighAvailabilityService CreateNodeService(string nodeId)
+        {
+            var service = new RuntimeHighAvailabilityService(
+                CreateTopology(nodeId),
+                () => now,
+                Guid.NewGuid(),
+                externalIndustrialFenceRequired: true);
+            service.Authority.UpdateNodeReadiness(
+                "node-a",
+                Evidence(now, haEntitled: true, revision: 7, synchronized: true));
+            service.Authority.UpdateNodeReadiness(
+                "node-b",
+                Evidence(now, haEntitled: true, revision: 7, synchronized: true));
+            service.AttachExternalIndustrialFence(ReferenceAllows);
+            return service;
+        }
+
+        var serviceA = CreateNodeService("node-a");
+        var serviceB = CreateNodeService("node-b");
+        var innerA = new RecordingEngineeringRuntime(now);
+        var innerB = new RecordingEngineeringRuntime(now);
+        var runtimeA = new ScadaRuntimeFacade(innerA, highAvailability: serviceA);
+        var runtimeB = new ScadaRuntimeFacade(innerB, highAvailability: serviceB);
+        var tagId = Guid.NewGuid();
+        var commandId = Guid.NewGuid();
+
+        await runtimeA.WriteAsync(tagId, 42);
+        await runtimeA.ExecuteCommandAsync(commandId);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeB.WriteAsync(tagId, 42));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeB.ExecuteCommandAsync(commandId));
+        Assert.Equal(1, innerA.WriteCalls);
+        Assert.Equal(1, innerA.CommandCalls);
+        Assert.Equal(0, innerB.WriteCalls);
+        Assert.Equal(0, innerB.CommandCalls);
+        var standbyWitness = Assert.IsType<RuntimeHaStandbyPromotionWitness>(
+            serviceB.Authority.CaptureStandbyPromotionWitness("node-b"));
+
+        // Remove the referenced owner first; neither API may delegate industrial effects.
+        referenceActiveNodeId = null;
+        referenceEpoch = 2;
+        serviceA.Authority.ReportNodeUnavailable("node-a");
+        var afterLossB = serviceB.Authority.ReportNodeUnavailable("node-a");
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeA.WriteAsync(tagId, 43));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeA.ExecuteCommandAsync(commandId));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeB.WriteAsync(tagId, 43));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeB.ExecuteCommandAsync(commandId));
+        Assert.Equal(1, innerA.WriteCalls);
+        Assert.Equal(1, innerA.CommandCalls);
+        Assert.Equal(0, innerB.WriteCalls);
+        Assert.Equal(0, innerB.CommandCalls);
+
+        var promoted = serviceB.Authority.ApplyReferencedAuthority(
+            "node-b",
+            afterLossB.AuthorityEpoch,
+            previousAuthorityFenced: true,
+            standbyWitness: standbyWitness);
+        Assert.True(promoted.Accepted, promoted.ReasonCode);
+        referenceActiveNodeId = "node-b";
+        referenceEpoch = promoted.Snapshot.AuthorityEpoch;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeA.WriteAsync(tagId, 44));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await runtimeA.ExecuteCommandAsync(commandId));
+        await runtimeB.WriteAsync(tagId, 44);
+        await runtimeB.ExecuteCommandAsync(commandId);
+
+        Assert.Equal(1, innerA.WriteCalls);
+        Assert.Equal(1, innerA.CommandCalls);
+        Assert.Equal(1, innerB.WriteCalls);
+        Assert.Equal(1, innerB.CommandCalls);
+    }
+
+    private static RuntimeHaAuthorityCoordinator CreateReadyPair(out MutableClock clock)
+    {
+        var coordinator = CreateCoordinator(out clock);
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+        coordinator.UpdateNodeReadiness(
+            "node-b",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+        return coordinator;
+    }
+
+    private static RuntimeHaAuthorityCoordinator CreateCoordinator(out MutableClock clock) =>
+        CreateCoordinator("node-a", out clock);
+
+    private static RuntimeHaAuthorityCoordinator CreateCoordinator(
+        string localNodeId,
+        out MutableClock clock)
+    {
+        clock = new MutableClock(DateTimeOffset.Parse("2026-09-24T18:00:00Z"));
+        var deterministicClock = clock;
+        return new RuntimeHaAuthorityCoordinator(
+            CreateTopology(localNodeId),
+            () => deterministicClock.UtcNow,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+    }
+
+    private static RuntimeHaTopologyDefinition CreateTopology(string localNodeId) =>
+        new(
+            Enabled: true,
+            ClusterId: "cluster-a",
+            LocalNodeId: localNodeId,
+            InitialActiveNodeId: "node-a",
+            TopologyVersion: 3,
+            FreshnessWindow: TimeSpan.FromSeconds(15),
+            Nodes: new[]
+            {
+                new RuntimeHaNodeDefinition(
+                    "node-a",
+                    new[]
+                    {
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.1:5001", 0),
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://a.example.test", 1)
+                    }),
+                new RuntimeHaNodeDefinition(
+                    "node-b",
+                    new[]
+                    {
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.2:5001", 0),
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://b.example.test", 1)
+                    })
+            });
+
+    private static FileRuntimeHaReferenceAuthorityStore CreateReferenceStore(
+        string referencePath,
+        MutableClock clock,
+        bool useWallClock = false)
+    {
+        var options = new RuntimeHaProtectionOptions(
+            Enabled: true,
+            AutomaticFailoverEnabled: true,
+            ReferencePath: Path.GetFullPath(referencePath),
+            LeaseDuration: TimeSpan.FromSeconds(10),
+            PollInterval: TimeSpan.FromMilliseconds(500),
+            ReadyWitnessMaximumAge: TimeSpan.FromMinutes(1),
+            ClockSkewSafetyMargin: TimeSpan.FromSeconds(1));
+        var service = new RuntimeHighAvailabilityService(
+            CreateTopology("node-a"),
+            () => clock.UtcNow,
+            externalIndustrialFenceRequired: true);
+        return new FileRuntimeHaReferenceAuthorityStore(
+            options,
+            service,
+            useWallClock ? () => DateTimeOffset.UtcNow : () => clock.UtcNow);
+    }
+
+    private static RuntimeHaNodeReadinessEvidence Evidence(
+        DateTimeOffset observedAtUtc,
+        bool haEntitled,
+        long revision,
+        bool synchronized) =>
+        new(
+            Healthy: true,
+            SynchronizationComplete: synchronized,
+            HaLicenseEntitled: haEntitled,
+            Runtime: new RuntimeHaRuntimeIdentity("engineering", "project-a", revision),
+            ObservedAtUtc: observedAtUtc);
+
+    private static RuntimeHaPeerMirrorSnapshot Mirror(
+        RuntimeHaRuntimeIdentity runtime,
+        DateTimeOffset receivedAtUtc) =>
+        new(
+            HasState: true,
+            LiveSynchronized: true,
+            SourceNodeId: "node-a",
+            SourceTransportInstanceId: Guid.NewGuid(),
+            ReplicationSequence: 1,
+            AuthoritativeState: new RuntimeHaAuthoritativeStateSnapshot(
+                runtime,
+                ProjectTagCount: 0,
+                new RuntimeHaPeerLicenseEvidence(true, true, 5000, 10, 10),
+                Array.Empty<RuntimeHaMirroredTagValue>(),
+                Array.Empty<RuntimeSessionLeaseContinuityEnvelope>(),
+                Array.Empty<RuntimeSessionLeaseContinuityTombstoneEnvelope>(),
+                receivedAtUtc),
+            ReceivedAtUtc: receivedAtUtc,
+            ReasonCode: null);
+
+    private static RuntimeHaReferenceAuthority RestartReference(
+        string nodeId,
+        long epoch,
+        DateTimeOffset now) =>
+        new(
+            RuntimeHaReferenceAuthority.SchemaName,
+            RuntimeHaReferenceAuthority.CurrentSchemaVersion,
+            "cluster-a",
+            TopologyVersion: 3,
+            Epoch: epoch,
+            ActiveNodeId: nodeId,
+            LeaseId: Guid.NewGuid(),
+            LeaseUntilUtc: now.AddMinutes(1),
+            UpdatedAtUtc: now,
+            PreviousAuthorityFenced: true,
+            ReasonCode: "reference-renewed");
+
+    private static RuntimeHaNodeSnapshot Node(
+        RuntimeHaTopologySnapshot snapshot,
+        string nodeId) =>
+        Assert.Single(snapshot.Nodes, node =>
+            node.NodeId.Equals(nodeId, StringComparison.OrdinalIgnoreCase));
+
+    private static RuntimeSessionLease Lease(
+        Guid sessionId,
+        RuntimeConnectionClass connectionClass,
+        DateTimeOffset issuedAtUtc,
+        DateTimeOffset expiresAtUtc) =>
+        new(
+            sessionId,
+            "operator",
+            "elitego-1",
+            connectionClass,
+            issuedAtUtc,
+            issuedAtUtc,
+            expiresAtUtc,
+            "node-a",
+            "cluster-a",
+            "engineering",
+            "project-a",
+            7,
+            issuedAtUtc,
+            Generation: 1,
+            AuthorityRevision: 1);
+
+    private sealed record TestEvent(DateTimeOffset OccurredAt, string SourceNode = "test") : IScadaEvent;
+
+    private sealed class RecordingEngineeringRuntime(DateTimeOffset now) : IEngineeringRuntimeCoordinator
+    {
+        public int WriteCalls { get; private set; }
+        public int CommandCalls { get; private set; }
+
+        public RuntimeDescriptor Describe() => new(
+            "project-a",
+            7,
+            now,
+            Array.Empty<Scada.Drivers.Abstractions.DriverStatus>(),
+            Array.Empty<Scada.Drivers.Abstractions.CommunicationDriverDiagnosticSnapshot>(),
+            0,
+            0);
+
+        public IReadOnlyCollection<TagDefinition> Tags() => Array.Empty<TagDefinition>();
+        public IReadOnlyCollection<TagValue> CurrentValues() => Array.Empty<TagValue>();
+        public IReadOnlyCollection<AlarmDefinition> AlarmDefinitions() => Array.Empty<AlarmDefinition>();
+        public IReadOnlyCollection<AlarmInstance> Alarms(bool activeOnly = false) => Array.Empty<AlarmInstance>();
+        public IReadOnlyCollection<CommandDefinition> Commands() => Array.Empty<CommandDefinition>();
+        public IReadOnlyCollection<ClientMemoryRuntimeSource> ClientMemorySources() => Array.Empty<ClientMemoryRuntimeSource>();
+        public bool TryGetTag(Guid tagId, out TagDefinition? tag) { tag = null; return false; }
+        public bool TryGetTagByPath(string path, out TagDefinition? tag) { tag = null; return false; }
+        public bool TryGetCurrent(Guid tagId, out TagValue? value) { value = null; return false; }
+        public bool TryGetCommand(Guid commandId, out CommandDefinition? command) { command = null; return false; }
+        public bool IsServerMemoryTag(Guid tagId) => false;
+        public ValueTask<bool> AcknowledgeAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
+        public ValueTask<bool> ShelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
+        public ValueTask<bool> UnshelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
+        public ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default)
+        {
+            WriteCalls++;
+            return ValueTask.CompletedTask;
+        }
+        public ValueTask ResetServerMemoryRetainedValueAsync(Guid tagId, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask ExecuteCommandAsync(Guid commandId, CancellationToken cancellationToken = default)
+        {
+            CommandCalls++;
+            return ValueTask.CompletedTask;
+        }
+        public Task<RuntimeActivationResult> ActivateAsync(string projectKey, long revision, EngineeringPackage package, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<RuntimeActivationResult> ActivateAsync(string projectKey, long revision, EngineeringPackage package, Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class MutableClock(DateTimeOffset utcNow)
+    {
+        public DateTimeOffset UtcNow { get; private set; } = utcNow;
+        public void Advance(TimeSpan duration) => UtcNow = UtcNow.Add(duration);
+    }
+}

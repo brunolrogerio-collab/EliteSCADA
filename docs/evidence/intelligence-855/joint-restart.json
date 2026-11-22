@@ -1,0 +1,50 @@
+{
+  "syntheticOnly": true,
+  "screens": [
+    {
+      "id": "e79b52f5-3bb1-4b8b-abef-d84ee4ad6d19",
+      "key": "intelligence-joint-deviation-bomba-de-validacao-local-painel-analitico-sintetico",
+      "role": "experimental-joint"
+    },
+    {
+      "id": "6e06d6e8-0f43-4cba-8c9d-cd03381a845e",
+      "key": "intelligence-planta.bomba-validacao-painel-855-4",
+      "role": "values-trend"
+    }
+  ],
+  "contexts": [
+    {
+      "id": "85700000-0000-0000-0000-000000000501",
+      "version": 1
+    },
+    {
+      "id": "85700000-0000-0000-0000-000000000502",
+      "version": 1
+    }
+  ],
+  "persistedIdentity": true,
+  "beforeRearm": {
+    "status": 409,
+    "code": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"
+  },
+  "afterExplicitRearm": [
+    {
+      "contextId": "85700000-0000-0000-0000-000000000501",
+      "version": 1,
+      "activeRevision": 49,
+      "referenceFitStatus": "available",
+      "referenceCount": 120,
+      "scoredCount": 80,
+      "warmupCount": 40
+    },
+    {
+      "contextId": "85700000-0000-0000-0000-000000000502",
+      "version": 1,
+      "activeRevision": 49,
+      "referenceFitStatus": "insufficient_data",
+      "referenceCount": 0,
+      "scoredCount": 0,
+      "warmupCount": 0
+    }
+  ]
+}

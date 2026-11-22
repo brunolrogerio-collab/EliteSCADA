@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Scada.Api.Runtime;
@@ -10,7 +11,8 @@ public sealed class ContextualHelpTests
     [Fact]
     public void RequiredManualTopics_ArePresentInEveryLocale()
     {
-        Assert.Equal(30, ContextualHelpCatalog.RequiredManualTopicIds.Count);
+        Assert.Equal(ContextualHelpCatalog.RequiredManualTopicIds.Count,
+            ContextualHelpCatalog.RequiredManualTopicIds.Distinct(StringComparer.Ordinal).Count());
 
         foreach (var locale in ContextualHelpCatalog.SupportedLocales)
         {
@@ -66,6 +68,18 @@ public sealed class ContextualHelpTests
         }
     }
 
+    [Theory]
+    [InlineData("pt-BR", "Pacote portátil e autocontido de uma aplicação SCADIVO.")]
+    [InlineData("en", "Portable self-contained package for a SCADIVO application.")]
+    [InlineData("es", "Paquete portátil y autocontenido de una aplicación SCADIVO.")]
+    public void ProjectPackageHelp_UsesTheCommercialBrandWithoutChangingItsTopicId(string locale, string expectedSummary)
+    {
+        var catalog = ContextualHelpCatalog.Build(locale);
+        var topic = Assert.Single(catalog.Topics, item => item.Id == "packages.escadapkg");
+
+        Assert.Equal(expectedSummary, topic.Summary);
+    }
+
     [Fact]
     public void DriverHelpInventory_MatchesCanonicalProductionCatalogAndExcludesSimulation()
     {
@@ -74,13 +88,16 @@ public sealed class ContextualHelpTests
             .Select(source => $"driver.{source.TypeKey}")
             .ToArray();
         var actual = ContextualHelpCatalog.Build("pt-BR").Topics
-            .Where(topic => topic.Category == "drivers")
+            .Where(topic => topic.Category == "drivers" && topic.Id.StartsWith("driver.", StringComparison.Ordinal))
             .Select(topic => topic.Id)
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToArray();
 
         Assert.Equal("builtin.simulation", ContextualHelpCatalog.ExcludedSimulationDriverTypeKey);
-        Assert.Equal(8, canonicalProductionDrivers.Length);
+        Assert.Contains(canonicalProductionDrivers, driver => driver.TypeKey == "shelly.rpc");
+        Assert.Contains(canonicalProductionDrivers, driver => driver.TypeKey == "modbus.rtu");
+        Assert.Contains(canonicalProductionDrivers, driver => driver.TypeKey == "modbus.tcp.server");
+        Assert.Contains(canonicalProductionDrivers, driver => driver.TypeKey == "modbus.rtu.server");
         Assert.Equal(expected, actual);
         Assert.DoesNotContain($"driver.{ContextualHelpCatalog.ExcludedSimulationDriverTypeKey}", actual);
     }
@@ -226,7 +243,7 @@ public sealed class ContextualHelpTests
         Assert.Contains("Popup", text, StringComparison.Ordinal);
         Assert.Contains("Script", text, StringComparison.Ordinal);
         Assert.Contains("Visual Asset", text, StringComparison.Ordinal);
-        Assert.Contains("SHA-256", text, StringComparison.Ordinal);
+        Assert.Contains("integrity hashes", text, StringComparison.Ordinal);
         Assert.Contains("Inspect validates", text, StringComparison.Ordinal);
     }
 
@@ -243,6 +260,50 @@ public sealed class ContextualHelpTests
             Assert.NotEqual(alarms.Category, operationalEvents.Category);
             Assert.NotEqual(alarms.Category, audit.Category);
             Assert.NotEqual(operationalEvents.Category, audit.Category);
+
+            Assert.All(new[] { alarms, operationalEvents, audit }, topic =>
+            {
+                Assert.Equal(8, topic.Sections.Count);
+                Assert.Contains(topic.Sections, section => section.Heading is "Steps" or "Pasos" or "Passos");
+                Assert.Contains(topic.Sections, section => section.Heading is "Prerequisites" or "Requisitos previos" or "Pré-requisitos");
+                Assert.NotEmpty(topic.RelatedTopicIds ?? Array.Empty<string>());
+            });
+
+            var alarmText = string.Join("\n", alarms.Sections.Select(section => section.Body));
+            var eventText = string.Join("\n", operationalEvents.Sections.Select(section => section.Body));
+            var auditText = string.Join("\n", audit.Sections.Select(section => section.Body));
+            Assert.Contains("TAG", alarmText, StringComparison.Ordinal);
+            Assert.Contains("AlarmAcknowledge", alarmText, StringComparison.Ordinal);
+            Assert.Contains("Communication", alarmText, StringComparison.Ordinal);
+            Assert.Contains("System", alarmText, StringComparison.Ordinal);
+            Assert.Contains(locale switch
+            {
+                "en" => "Runtime applies the configured activation delay",
+                "es" => "Runtime aplica el retardo de activación configurado",
+                _ => "Runtime aplica o atraso de ativação configurado"
+            }, alarmText, StringComparison.Ordinal);
+            Assert.Contains(locale switch
+            {
+                "en" => "returning to normal cancels the timer",
+                "es" => "volver a la normalidad cancela la cuenta",
+                _ => "voltar ao normal cancela a contagem"
+            }, alarmText, StringComparison.Ordinal);
+            Assert.DoesNotContain(locale switch
+            {
+                "en" => "current Runtime does not use it to delay the alarm",
+                "es" => "Runtime actual no lo usa para retrasar la alarma",
+                _ => "o Runtime atual não o usa para atrasar o alarme"
+            }, alarmText, StringComparison.Ordinal);
+            Assert.Contains(locale switch
+            {
+                "en" => "When unchecked, it leaves that list",
+                "es" => "Si está desmarcado, sale de esa lista",
+                _ => "Se estiver desmarcado, o retorno sai da lista"
+            }, alarmText, StringComparison.Ordinal);
+            Assert.Contains("emit_operational_event", eventText, StringComparison.Ordinal);
+            Assert.Contains("operational.events", eventText, StringComparison.Ordinal);
+            Assert.Contains("SystemAdmin", auditText, StringComparison.Ordinal);
+            Assert.Contains("Correlation ID", auditText, StringComparison.Ordinal);
 
             var combined = string.Join("\n", alarms.Sections.Concat(operationalEvents.Sections).Concat(audit.Sections).Select(section => section.Body));
             Assert.Contains("Alarm", combined, StringComparison.Ordinal);
@@ -280,8 +341,128 @@ public sealed class ContextualHelpTests
             var catalog = ContextualHelpCatalog.Build(locale);
             var scriptTopic = Assert.Single(catalog.Topics, topic => topic.Id == "scripts.server");
             var documentedCode = string.Join("\n", scriptTopic.Sections.Select(section => section.Code ?? string.Empty));
+            Assert.Contains("Plant.Pump.Running", documentedCode, StringComparison.Ordinal);
+            Assert.DoesNotContain("<stable-server-memory-tag-id>", documentedCode, StringComparison.Ordinal);
             foreach (var apiFunction in runtimeApi)
                 Assert.Contains($"{apiFunction}(", documentedCode, StringComparison.Ordinal);
+
+            Assert.Equal(runtimeApi, catalog.ServerScriptApiDetails.Select(item => item.Name).OrderBy(name => name, StringComparer.Ordinal).ToArray());
+            Assert.All(catalog.ServerScriptApiDetails, item =>
+            {
+                Assert.False(string.IsNullOrWhiteSpace(item.Signature));
+                Assert.False(string.IsNullOrWhiteSpace(item.Parameters));
+                Assert.False(string.IsNullOrWhiteSpace(item.Result));
+                Assert.False(string.IsNullOrWhiteSpace(item.Safety));
+                Assert.Contains($"{item.Name}(", item.Example, StringComparison.Ordinal);
+            });
+        }
+    }
+
+    [Fact]
+    public void ServerScriptHelp_LocalizesApiExplanationsAndDoesNotInventSourceQuality()
+    {
+        var portuguese = ContextualHelpCatalog.Build("pt-BR");
+        var english = ContextualHelpCatalog.Build("en");
+        var spanish = ContextualHelpCatalog.Build("es");
+
+        var ptApi = portuguese.ServerScriptApiDetails.ToDictionary(item => item.Name, StringComparer.Ordinal);
+        var enApi = english.ServerScriptApiDetails.ToDictionary(item => item.Name, StringComparer.Ordinal);
+        var esApi = spanish.ServerScriptApiDetails.ToDictionary(item => item.Name, StringComparer.Ordinal);
+        foreach (var name in ContextualHelpCatalog.ServerScriptApiFunctions)
+        {
+            Assert.NotEqual(ptApi[name].Parameters, enApi[name].Parameters);
+            Assert.NotEqual(ptApi[name].Parameters, esApi[name].Parameters);
+            Assert.NotEqual(ptApi[name].Result, enApi[name].Result);
+            Assert.NotEqual(ptApi[name].Result, esApi[name].Result);
+            Assert.NotEqual(ptApi[name].Safety, enApi[name].Safety);
+            Assert.NotEqual(ptApi[name].Safety, esApi[name].Safety);
+        }
+
+        var scriptTopic = Assert.Single(portuguese.Topics, topic => topic.Id == "scripts.server");
+        var qualitySection = Assert.Single(scriptTopic.Sections, section => section.Heading == "Quality: não invente Good");
+        Assert.Contains("não expõe", qualitySection.Body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Good somente", qualitySection.Body, StringComparison.Ordinal);
+        Assert.Contains("\"Uncertain\"", qualitySection.Code, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"Good\"", qualitySection.Code, StringComparison.Ordinal);
+
+        var englishScriptTopic = Assert.Single(english.Topics, topic => topic.Id == "scripts.server");
+        var englishQualitySection = Assert.Single(englishScriptTopic.Sections, section => section.Heading == "Quality: do not invent Good");
+        Assert.Contains("source quality and timestamp are not exposed", englishQualitySection.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ServerScriptHelp_CodeExamplesExecuteInTheActualSandboxInterpreter()
+    {
+        const string exampleCommandId = "11111111-1111-4111-8111-111111111111";
+        var catalog = ContextualHelpCatalog.Build("pt-BR");
+        var topic = Assert.Single(catalog.Topics, item => item.Id == "scripts.server");
+        var examples = topic.Sections
+            .Select(section => section.Code)
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Cast<string>()
+            .Concat(catalog.Topics.Where(item => item.Id is "scripts.server-syntax" or "scripts.server-recipes" or "getting-started.first-project")
+                .SelectMany(item => item.Sections).Select(section => section.Code).OfType<string>())
+            .Concat(catalog.ServerScriptApiDetails.Select(item => item.Example))
+            .Concat(ReadManualServerScriptExamples())
+            .ToArray();
+        Assert.NotEmpty(examples);
+
+        var runnerPath = Path.Combine(AppContext.BaseDirectory, "ServerScriptRunner.py");
+        foreach (var originalSource in examples)
+        {
+            var source = originalSource.Replace("<stable-rich-command-guid>", exampleCommandId, StringComparison.Ordinal);
+            var handlers = Regex.Matches(source, @"(?m)^def\s+(?<name>[A-Za-z_]\w*)\s*\(")
+                .Cast<Match>()
+                .Select(match => match.Groups["name"].Value)
+                .ToArray();
+            Assert.NotEmpty(handlers);
+
+            var tagPaths = GetScriptReferences(
+                source,
+                "read_tag",
+                "read_server_memory",
+                "write_tag",
+                "write_server_memory",
+                "publish_server_memory_sample");
+            var memoryPaths = GetScriptReferences(
+                source,
+                "read_server_memory",
+                "write_server_memory",
+                "publish_server_memory_sample");
+            var values = new Dictionary<string, object?>(StringComparer.Ordinal);
+            foreach (var path in tagPaths)
+            {
+                values[path] = path.EndsWith(".Running", StringComparison.Ordinal) ||
+                               path.EndsWith(".HighPressure", StringComparison.Ordinal)
+                    ? (object)false
+                    : 10;
+            }
+            var richCommandIds = source.Contains("invoke_rich_command", StringComparison.Ordinal)
+                ? new[] { exampleCommandId }
+                : Array.Empty<string>();
+
+            foreach (var handler in handlers)
+            {
+                var output = await RunServerScriptExampleAsync(
+                    runnerPath,
+                    source,
+                    handler,
+                    values,
+                    memoryPaths,
+                    richCommandIds);
+                using var document = JsonDocument.Parse(output);
+                var response = document.RootElement.GetProperty("response");
+                Assert.True(
+                    response.GetProperty("succeeded").GetBoolean(),
+                    $"Server Script example handler '{handler}' failed in the actual interpreter: {response.GetProperty("error").GetString()}");
+                if (handler == "initialize_demo")
+                {
+                    var write = Assert.Single(response.GetProperty("writes").EnumerateArray());
+                    Assert.Equal(42.0, write.GetProperty("value").GetDouble());
+                    Assert.True(write.GetProperty("serverMemoryOnly").GetBoolean());
+                    Assert.Equal("Good", write.GetProperty("quality").GetString());
+                }
+            }
         }
     }
 
@@ -303,6 +484,8 @@ public sealed class ContextualHelpTests
         Assert.Contains("128 events", text, StringComparison.Ordinal);
         Assert.Contains("50 ms", text, StringComparison.Ordinal);
         Assert.Contains("5 consecutive failures", text, StringComparison.Ordinal);
+        Assert.Contains("recovery probe", text, StringComparison.Ordinal);
+        Assert.Contains("configurable cooldown", text, StringComparison.Ordinal);
         Assert.Contains("filesystem", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("shell/process execution", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("arbitrary network", text, StringComparison.OrdinalIgnoreCase);
@@ -310,6 +493,671 @@ public sealed class ContextualHelpTests
         Assert.Contains("industrial-driver", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("secrets", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("sandbox enforcement must not depend on text scanning", text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string[] GetScriptReferences(string source, params string[] functionNames)
+    {
+        return functionNames
+            .SelectMany(functionName =>
+            {
+                var pattern = Regex.Escape(functionName) + "\\s*\\(\\s*\"(?<path>[^\"]+)\"";
+                return Regex.Matches(source, pattern)
+                    .Cast<Match>()
+                    .Select(match => match.Groups["path"].Value);
+            })
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static IEnumerable<string> ReadManualServerScriptExamples()
+    {
+        var manualPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "manual",
+            "pt-BR",
+            "06-SCRIPTING-ALARMES-HISTORICO.md");
+        var manual = File.ReadAllText(manualPath);
+        return Regex.Matches(manual, "```python\\r?\\n(?<source>[\\s\\S]*?)\\r?\\n```")
+            .Cast<Match>()
+            .Select(match => match.Groups["source"].Value)
+            .ToArray();
+    }
+
+    private static async Task<string> RunServerScriptExampleAsync(
+        string runnerPath,
+        string source,
+        string handler,
+        IReadOnlyDictionary<string, object?> values,
+        IReadOnlyCollection<string> serverMemoryTagIds,
+        IReadOnlyCollection<string> richCommandIds)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = OperatingSystem.IsWindows() ? "python" : "python3",
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add(runnerPath);
+
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Could not start the Python Server Script runner.");
+        var standardError = process.StandardError.ReadToEndAsync();
+        var payload = JsonSerializer.Serialize(new
+        {
+            source,
+            handler,
+            values,
+            @event = new
+            {
+                canonicalEvent = new
+                {
+                    payload = new { action = "single" }
+                }
+            },
+            serverMemoryTagIds,
+            richCommandIds
+        });
+        await process.StandardInput.WriteLineAsync(payload);
+
+        string? completedLine = null;
+        while (await process.StandardOutput.ReadLineAsync() is { } line)
+        {
+            using var message = JsonDocument.Parse(line);
+            var root = message.RootElement;
+            if (root.GetProperty("type").GetString() == "richCommandRequest")
+            {
+                var commandResponse = JsonSerializer.Serialize(new
+                {
+                    type = "richCommandResponse",
+                    requestId = root.GetProperty("requestId").GetString(),
+                    result = new { outcome = "Completed" }
+                });
+                await process.StandardInput.WriteLineAsync(commandResponse);
+            }
+            else
+            {
+                completedLine = line;
+            }
+        }
+
+        await process.WaitForExitAsync();
+        var error = await standardError;
+        Assert.True(process.ExitCode == 0, $"Server Script runner exited with {process.ExitCode}: {error}");
+        return completedLine ?? throw new InvalidOperationException($"Server Script runner returned no completion response: {error}");
+    }
+
+
+    [Fact]
+    public void TopicIds_AreUniqueAndRelatedTopicLinksResolveInEveryLocale()
+    {
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            var ids = catalog.Topics.Select(topic => topic.Id).ToArray();
+            Assert.Equal(ids.Length, ids.Distinct(StringComparer.Ordinal).Count());
+
+            var idSet = ids.ToHashSet(StringComparer.Ordinal);
+            foreach (var topic in catalog.Topics)
+            {
+                foreach (var relatedId in topic.RelatedTopicIds ?? Array.Empty<string>())
+                    Assert.Contains(relatedId, idSet);
+            }
+        }
+    }
+
+    [Fact]
+    public void Phase1TaskTopics_HaveTaskGuidanceAndLocaleParity()
+    {
+        var taskTopicIds = new[]
+        {
+            "screens.overview",
+            "popups.overview",
+            "dynamos.overview",
+            "gateway.overview",
+            "tags.overview",
+            "sources.data-sources",
+            "engineering.lifecycle",
+            "packages.escadapkg",
+            // Expanded operations guides use task-specific headings and field/example checks in ContextualHelpOperationsExamplesTests.
+            "getting-started.neutral-bootstrap",
+            "engineering.shell-navigation",
+            "drivers.overview",
+            "tags.copy-duplicate-sequential",
+            "visual.properties",
+            "visual.dynamics",
+            "visual.events",
+            "scripts.engineering",
+            "scripts.python-validation",
+            "engineering.object-browser",
+            "memory.client",
+            "security.users-roles-capabilities",
+            "security.scopes-authority",
+            "security.engineering-lock",
+            "historian.overview",
+            "trends.overview",
+            "reports.overview",
+            "licensing.overview",
+            "licensing.generator",
+            "application.export-import",
+            "intelligence.process-stage-member-insights",
+            "runtime.history",
+            "ha.overview",
+            "installation.switching",
+            "intelligence.overview"
+        };
+        var headings = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[] { "O que é?", "Para que serve?", "Quando usar?", "Pré-requisitos", "Passos", "Resultado esperado", "Problemas comuns", "Como diagnosticar/corrigir" },
+            ["en"] = new[] { "What is it?", "What is it for?", "When to use it?", "Prerequisites", "Steps", "Expected result", "Common problems", "How to diagnose/fix" },
+            ["es"] = new[] { "¿Qué es?", "¿Para qué sirve?", "¿Cuándo usarlo?", "Requisitos previos", "Pasos", "Resultado esperado", "Problemas comunes", "Cómo diagnosticar/corregir" }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            foreach (var id in taskTopicIds)
+            {
+                var topic = Assert.Single(catalog.Topics, item => item.Id == id);
+                Assert.Equal(headings[locale], topic.Sections.Select(section => section.Heading).ToArray());
+                Assert.NotEmpty(topic.RelatedTopicIds ?? Array.Empty<string>());
+            }
+        }
+    }
+
+    [Fact]
+    public void ScreenEditorHelp_ExplainsIdentityAuthoringPreviewApplyAndLifecycleInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "identidade estável", "endereço de navegação", "Paisagem (1920 × 1080)", "Tela inteira",
+                "binding de propriedade visual", "Preview não altera o Working", "Apply ao Workspace", "salvar, publicar e ativar"
+            },
+            ["en"] = new[]
+            {
+                "stable identity", "navigation route", "Landscape (1920 × 1080)", "complete Screen",
+                "bind a visual property", "Preview does not mutate Working", "Apply to Workspace", "save, publish, and activate"
+            },
+            ["es"] = new[]
+            {
+                "identidad estable", "ruta de navegación", "Paisaje (1920 × 1080)", "toda la Pantalla",
+                "asocie una propiedad visual", "Preview no modifica Working", "Aplicar al Workspace", "guardar, publicar y activar"
+            }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "screens.overview");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("visual.dynamics", topic.RelatedTopicIds ?? Array.Empty<string>());
+        }
+    }
+
+    [Fact]
+    public void PopupEditorHelp_ExplainsAuthoringPreviewApplyAndRuntimeLifecycleInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "identificador único e estável", "Template vazio", "área de edição visual", "Estrutura", "Inspector",
+                "limites lógicos", "posição é limitada", "Preview não altera o Working", "Apply ao Workspace",
+                "não concede permissões", "revisão ativada"
+            },
+            ["en"] = new[]
+            {
+                "unique and stable", "Leave Template empty", "design area", "Structure", "Inspector",
+                "logical bounds", "Position is constrained", "Preview does not mutate Working", "Apply to Workspace",
+                "grants no permissions", "activated revision"
+            },
+            ["es"] = new[]
+            {
+                "único y estable", "Deje Plantilla vacía", "área visual", "Estructura", "Inspector",
+                "límites lógicos", "posición se limita", "Preview no modifica Working", "Aplicar al Workspace",
+                "no concede permisos", "revisión activada"
+            }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "popups.overview");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("screens.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("visual.events", topic.RelatedTopicIds ?? Array.Empty<string>());
+        }
+    }
+
+    [Fact]
+    public void TagAuthoringHelp_ExplainsSourceBindingCommissioningAndLifecycleInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "caminho de referência é derivado do nome", "espaços viram _", "caminho não muda",
+                "endereço e binding anteriores são limpos", "assistente", "Somente leitura",
+                "não escreve no processo", "não grava amostras no Historian", "Preview não altera o Working",
+                "Apply ao Workspace", "salve, publique e ative"
+            },
+            ["en"] = new[]
+            {
+                "reference path is derived from the name", "spaces become _", "does not rename its path",
+                "previous address and binding are cleared", "assistant", "read-only",
+                "write the process", "store Historian samples", "Preview does not mutate Working",
+                "Apply to Workspace", "save, publish, and activate"
+            },
+            ["es"] = new[]
+            {
+                "ruta de referencia se deriva del nombre", "los espacios se convierten en _", "no cambia su ruta",
+                "se borran la dirección y el binding anteriores", "asistente", "solo lectura",
+                "escribe en el proceso", "guarda muestras en Historian", "Preview no modifica Working",
+                "Aplicar al Workspace", "guarde, publique y active"
+            }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "tags.overview");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("sources.data-sources", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("tags.addressing", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("historian.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+        }
+    }
+
+    [Fact]
+    public void DynamoAuthoringHelp_ExplainsSharedDrawingInstanceValuesAndSafePreviewInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "lista definições existentes", "Editar desenho", "alça de rotação", "Interface pública",
+                "Referência TAG", "cada instância", "definição compartilhada", "não salva os ajustes nem envia comandos ao processo",
+                "Preview principal", "Apply ao Workspace", "salve, publique e ative"
+            },
+            ["en"] = new[]
+            {
+                "lists existing definitions", "Edit drawing", "rotation handle", "Public interface",
+                "TAG reference", "each instance", "shared definition", "does not save settings or send commands to the process",
+                "main Preview", "Apply to Workspace", "save, publish, and activate"
+            },
+            ["es"] = new[]
+            {
+                "muestra definiciones existentes", "Editar dibujo", "asa de rotación", "Interfaz pública",
+                "Referencia TAG", "cada instancia", "definición compartida", "no guarda los ajustes ni envía comandos al proceso",
+                "Preview principal", "Aplicar al Workspace", "guarde, publique y active"
+            }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "dynamos.overview");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("screens.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("tags.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("bindings-commands.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("libraries.reusable-resources", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
+        }
+    }
+
+    [Fact]
+    public void GatewayHelp_ExplainsRouteEndpointsPoliciesPreviewAndRuntimeDiagnosticsInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "serviço de roteamento", "Client Memory", "simulação integrada", "TAG origem", "TAG destino",
+                "OnChange", "Periodic", "Deadband", "Good", "CheckedNumeric", "Apply ao Workspace",
+                "publique e ative", "falhas consecutivas", "qualidade da TAG origem"
+            },
+            ["en"] = new[]
+            {
+                "routing service", "Client Memory", "Built-in simulation", "source TAG", "destination TAG",
+                "OnChange", "Periodic", "Deadband", "Good", "CheckedNumeric", "Apply to Workspace",
+                "publish, and activate", "consecutive failure count", "source TAG quality"
+            },
+            ["es"] = new[]
+            {
+                "servicio de enrutamiento", "Client Memory", "simulación integrada", "TAGs de origen", "TAG destino",
+                "OnChange", "Periodic", "Deadband", "Good", "CheckedNumeric", "Aplicar al Workspace",
+                "publique y active", "fallas consecutivas", "calidad del TAG origen"
+            }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "gateway.overview");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("tags.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("tags.writeability", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("sources.data-sources", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("drivers.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("diagnostics.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+        }
+    }
+
+    [Fact]
+    public void SecurityUsersRolesHelp_ExplainsLocalAccountsGrantsScopesAndSessionImpactInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "usuários locais", "nome para exibição", "invalidam tokens locais anteriores", "sessões locais anteriores",
+                "chave estável", "até o primeiro Apply", "CommandExecute", "ProcessValueWrite", "globalmente",
+                "não é a decisão de autorização", "Capabilities efetivas da sessão atual", "Aplicar política",
+                "fora do Save/Publish/Activate"
+            },
+            ["en"] = new[]
+            {
+                "local users", "display name", "invalidate previously issued local tokens", "previous local sessions",
+                "stable key", "until the first Apply", "CommandExecute", "ProcessValueWrite", "applies globally",
+                "not the authorization decision", "Current session effective capabilities", "Apply policy",
+                "outside the Engineering Workspace Save/Publish/Activate"
+            },
+            ["es"] = new[]
+            {
+                "usuarios locales", "nombre visible", "invalidan tokens locales anteriores", "sesiones locales anteriores",
+                "clave estable", "hasta el primer Apply", "CommandExecute", "ProcessValueWrite", "se aplica globalmente",
+                "no es la decisión de autorización", "Capabilities efectivas de la sesión actual", "Aplicar política",
+                "fuera del ciclo Save/Publish/Activate"
+            }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "security.users-roles-capabilities");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("security.scopes-authority", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("security.engineering-lock", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("runtime.session-classes", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("licensing.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("audit.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+        }
+    }
+
+    [Fact]
+    public void StableHistorianTrendReportAndLicensingHelp_ExplainUserWorkflowsInEveryLocale()
+    {
+        var expectations = new Dictionary<string, Dictionary<string, string[]>>(StringComparer.Ordinal)
+        {
+            ["historian.overview"] = new(StringComparer.Ordinal)
+            {
+                ["pt-BR"] = new[] { "onChangeDeadbandMaxInterval requer Deadband e período máximo", "não cria dados retroativos", "revisão Active" },
+                ["en"] = new[] { "onChangeDeadbandMaxInterval requires Deadband and a maximum period", "does not create backfilled data", "Active revision" },
+                ["es"] = new[] { "onChangeDeadbandMaxInterval requiere Deadband y período máximo", "no crea datos retroactivos", "revisión Active" }
+            },
+            ["trends.overview"] = new(StringComparer.Ordinal)
+            {
+                ["pt-BR"] = new[] { "até 16 penas", "TrendUse", "A legenda permite ocultar ou exibir penas temporariamente" },
+                ["en"] = new[] { "up to 16 pens", "TrendUse", "The legend can temporarily hide or show pens" },
+                ["es"] = new[] { "hasta 16 plumas", "TrendUse", "La leyenda permite ocultar o mostrar plumas temporalmente" }
+            },
+            ["reports.overview"] = new(StringComparer.Ordinal)
+            {
+                ["pt-BR"] = new[] { "Não é necessário escrever SQL", "Apply só incorpora a definição validada", "Generate report" },
+                ["en"] = new[] { "You do not need to write SQL", "Apply only adds the validated definition", "Generate report" },
+                ["es"] = new[] { "No es necesario escribir SQL", "Apply solo incorpora la definición validada", "Generate report" }
+            },
+            ["licensing.overview"] = new(StringComparer.Ordinal)
+            {
+                ["pt-BR"] = new[] { "não concede roles ou capabilities de segurança", "Solicitação da máquina", "a próxima ativação usará Demo" },
+                ["en"] = new[] { "does not grant security roles or capabilities", "Machine request", "the next activation will use Demo" },
+                ["es"] = new[] { "no concede roles ni capabilities de seguridad", "Solicitud de la máquina", "la próxima activación utilizará Demo" }
+            }
+        };
+
+        var relatedTopics = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["historian.overview"] = new[] { "tags.overview", "trends.overview", "diagnostics.overview" },
+            ["trends.overview"] = new[] { "screens.overview", "historian.overview", "visual.properties" },
+            ["reports.overview"] = new[] { "historian.overview", "tags.overview", "engineering.lifecycle" },
+            ["licensing.overview"] = new[] { "security.users-roles-capabilities", "runtime.session-classes", "licensing.generator" }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            foreach (var (topicId, localeExpectations) in expectations)
+            {
+                var topic = Assert.Single(catalog.Topics, item => item.Id == topicId);
+                var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+                foreach (var phrase in localeExpectations[locale])
+                    Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+                foreach (var relatedId in relatedTopics[topicId])
+                    Assert.Contains(relatedId, topic.RelatedTopicIds ?? Array.Empty<string>());
+            }
+        }
+    }
+
+    [Fact]
+    public void DataSourceHelp_ExplainsSchemaToolsPreviewApplyAndRuntimeLifecycleInEveryLocale()
+    {
+        var requiredText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[] { "schema", "referência de credencial protegida", "Connection Test", "não aplica alterações", "Preview", "Apply", "revisão Active" },
+            ["en"] = new[] { "schema", "protected credential-reference field", "Connection Test", "does not apply changes", "Preview", "Apply", "Active revision" },
+            ["es"] = new[] { "schema", "referencia de credencial protegida", "Connection Test", "no aplica cambios", "Preview", "Apply", "revisión Active" }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "sources.data-sources");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in requiredText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("drivers.overview", topic.RelatedTopicIds ?? Array.Empty<string>());
+            Assert.Contains("engineering.lifecycle", topic.RelatedTopicIds ?? Array.Empty<string>());
+        }
+    }
+
+    [Fact]
+    public void ProcessStageMemberInsightsHelp_PreservesItsScopeAndLimitationsInEveryLocale()
+    {
+        var expectations = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[]
+            {
+                "cada solicitação é independente",
+                "temporário, somente leitura",
+                "Trocar de equipamento apaga o resultado anterior",
+                "Não se calcula score do processo",
+                "Não trate valor ausente ou indisponível como zero ou normal",
+                "resposta estiver desatualizada",
+                "não é diagnóstico nem comprovação de eficiência"
+            },
+            ["en"] = new[]
+            {
+                "each request is independent",
+                "temporary, read-only",
+                "Changing Equipment clears the previous result",
+                "No process-wide score",
+                "Do not treat missing or unavailable values as zero or normal",
+                "response is stale",
+                "not a diagnosis or proof of efficiency"
+            },
+            ["es"] = new[]
+            {
+                "cada solicitud es independiente",
+                "temporal, de solo lectura",
+                "Al cambiar de equipo se borra el resultado anterior",
+                "No se calcula una puntuación global del proceso",
+                "No interprete valores ausentes o no disponibles como cero o normales",
+                "respuesta está desactualizada",
+                "no es un diagnóstico ni una prueba de eficiencia"
+            }
+        };
+
+        foreach (var (locale, expectedPhrases) in expectations)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics,
+                item => item.Id == "intelligence.process-stage-member-insights");
+            var text = string.Join("\n", new[] { topic.Title, topic.Summary }
+                .Concat(topic.Sections.Select(section => section.Body)));
+
+            foreach (var phrase in expectedPhrases)
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void NewlyExpandedSurfaceHelp_ExplainsCurrentWorkflowsAndLimitsInEveryLocale()
+    {
+        var expectations = new Dictionary<string, Dictionary<string, string[]>>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new()
+            {
+                ["runtime.history"] = new[] { "31 dias", "Playback", "somente leitura", "não cria amostras retroativas" },
+                ["ha.overview"] = new[] { "Configuração desejada", "Prontidão para HA", "restart necessário", "backend", "Failover automático só pode ser habilitado com a proteção correspondente" },
+                ["installation.switching"] = new[] { "estado neutral", ".escadapkg", "Historian é preservado", "sessões anteriores" },
+                ["intelligence.overview"] = new[] { "Perfil de medição", "etapas do processo", "não inventa valores ou KPIs", "não significa zero" }
+            },
+            ["en"] = new()
+            {
+                ["runtime.history"] = new[] { "31 days", "Playback", "read-only", "does not create backfilled samples" },
+                ["ha.overview"] = new[] { "Save desired configuration", "HA readiness", "restart is required", "backend", "Automatic failover can be enabled only with the corresponding protection" },
+                ["installation.switching"] = new[] { "neutral state", ".escadapkg", "Historian is preserved", "previous sessions" },
+                ["intelligence.overview"] = new[] { "Measurement profile", "process stages", "does not invent values or KPIs", "does not mean zero" }
+            },
+            ["es"] = new()
+            {
+                ["runtime.history"] = new[] { "31 días", "Playback", "solo lectura", "no crea muestras retroactivas" },
+                ["ha.overview"] = new[] { "Guardar configuración deseada", "Preparación para HA", "se necesita reiniciar", "backend", "El failover automático solo puede habilitarse con la protección correspondiente" },
+                ["installation.switching"] = new[] { "estado neutral", ".escadapkg", "Historian se conserva", "sesiones anteriores" },
+                ["intelligence.overview"] = new[] { "Perfil de medición", "etapas del proceso", "no inventa valores ni KPIs", "no significa cero" }
+            }
+        };
+
+        foreach (var (locale, topics) in expectations)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            foreach (var (id, phrases) in topics)
+            {
+                var topic = Assert.Single(catalog.Topics, item => item.Id == id);
+                var text = string.Join("\n", new[] { topic.Title, topic.Summary }
+                    .Concat(topic.Sections.Select(section => section.Body)));
+                foreach (var phrase in phrases)
+                    Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    [Fact]
+    public void FoundationAndTagHelp_ExplainsFirstUseRuntimeAndSignalInterpretationInEveryLocale()
+    {
+        var expectations = new Dictionary<string, Dictionary<string, string[]>>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new()
+            {
+                ["getting-started.startup-authentication"] = new[] { "Restore-first", "conta local", "não use senhas padrão" },
+                ["runtime.overview"] = new[] { "revisão Active", "View Only", "volte ao Live", "não repita automaticamente" },
+                ["tags.quality"] = new[] { "Good", "Uncertain", "BadCommunication", "não converta em zero" },
+                ["tags.timestamps"] = new[] { "horário em que EliteSCADA observou", "Source timestamp", "Server timestamp", "Synchronized" },
+                ["tags.writeability"] = new[] { "ProcessValueWrite", "CommandExecute", "View Only", "processo vivo" },
+                ["tags.addressing"] = new[] { "Data Source", "schema", "Test read/Monitor", "não grava processo" },
+                ["tags.scaling-formatting"] = new[] { "Raw evidence", "Engineering value", "formatação", "não aplica" }
+            },
+            ["en"] = new()
+            {
+                ["getting-started.startup-authentication"] = new[] { "Restore-first", "local account", "Do not use default passwords" },
+                ["runtime.overview"] = new[] { "Active revision", "View Only", "return to Live", "do not automatically repeat" },
+                ["tags.quality"] = new[] { "Good", "Uncertain", "BadCommunication", "do not convert it to zero" },
+                ["tags.timestamps"] = new[] { "locally observed/published", "Source timestamp", "Server timestamp", "Synchronized" },
+                ["tags.writeability"] = new[] { "ProcessValueWrite", "CommandExecute", "View Only", "live process" },
+                ["tags.addressing"] = new[] { "Data Source", "schema", "Test read/Monitor", "does not write to the process" },
+                ["tags.scaling-formatting"] = new[] { "Raw evidence", "Engineering value", "formatting", "does not apply" }
+            },
+            ["es"] = new()
+            {
+                ["getting-started.startup-authentication"] = new[] { "Restore-first", "cuenta local", "No use contraseñas predeterminadas" },
+                ["runtime.overview"] = new[] { "revisión Active", "View Only", "vuelva a Live", "no repita automáticamente" },
+                ["tags.quality"] = new[] { "Good", "Uncertain", "BadCommunication", "no lo convierta en cero" },
+                ["tags.timestamps"] = new[] { "observó/publicó localmente", "Source timestamp", "Server timestamp", "Synchronized" },
+                ["tags.writeability"] = new[] { "ProcessValueWrite", "CommandExecute", "View Only", "proceso real" },
+                ["tags.addressing"] = new[] { "Data Source", "schema", "Test read/Monitor", "no escribe en el proceso" },
+                ["tags.scaling-formatting"] = new[] { "Raw evidence", "Engineering value", "formato", "no aplica" }
+            }
+        };
+
+        foreach (var (locale, topics) in expectations)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            foreach (var (id, phrases) in topics)
+            {
+                var topic = Assert.Single(catalog.Topics, item => item.Id == id);
+                var text = string.Join("\n", new[] { topic.Title, topic.Summary }
+                    .Concat(topic.Sections.Select(section => section.Body)));
+                foreach (var phrase in phrases)
+                    Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    [Fact]
+    public void UserFacingHelp_DoesNotExposeImplementationBrandsOrCoordinationJargon()
+    {
+        var forbiddenPhrases = new[]
+        {
+            "Wave 15",
+            "control plane",
+            "contract ID",
+            "fail-closed",
+            "fail closed",
+            "falhar fechado",
+            "test harness",
+            "Monaco",
+            "Vite",
+            "React",
+            "Pyodide",
+            "Web Worker",
+            "Canvas",
+            "canonical",
+            "canônico",
+            "canônica",
+            "canónico",
+            "canónica"
+        };
+        var forbiddenCoordinationTokens = new Regex(
+            @"(?<![\p{L}\p{N}_])(?:SHA(?!-256)|tree|branch|PR)(?![\p{L}\p{N}_])|(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            var text = string.Join("\n", catalog.Topics.SelectMany(topic =>
+                new[] { topic.Title, topic.Summary }.Concat(topic.Sections.SelectMany(section => new[] { section.Heading, section.Body }))));
+
+            foreach (var term in forbiddenPhrases)
+                Assert.DoesNotMatch(new Regex($@"(?<![\p{{L}}\p{{N}}_]){Regex.Escape(term)}(?![\p{{L}}\p{{N}}_])",
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), text);
+
+            Assert.False(
+                forbiddenCoordinationTokens.IsMatch(text),
+                $"User-facing Help for {locale} contains a coordination identifier: {forbiddenCoordinationTokens.Match(text).Value}");
+        }
     }
 
     [Fact]
@@ -323,6 +1171,25 @@ public sealed class ContextualHelpTests
             Assert.DoesNotContain("documentationUrl", json, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("externalUrl", json, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("externalDocumentation", json, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void EngineeringLifecycleHelp_ExplainsAutomaticLicenseRenewalDoesNotStopRuntimeInEveryLocale()
+    {
+        var renewalText = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[] { "renovação automática online aceita", "não interrompe o Runtime", "revogada ou expirada" },
+            ["en"] = new[] { "automatic online renewal", "does not stop Runtime", "revoked, or expired" },
+            ["es"] = new[] { "renovación automática online aceptada", "no detiene Runtime", "revocada o expirada" }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "engineering.lifecycle");
+            var text = string.Join("\n", topic.Sections.Select(section => section.Body));
+            foreach (var phrase in renewalText[locale])
+                Assert.Contains(phrase, text, StringComparison.OrdinalIgnoreCase);
         }
     }
 

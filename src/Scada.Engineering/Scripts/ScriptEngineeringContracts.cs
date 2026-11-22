@@ -22,6 +22,17 @@ public enum ScriptEngineeringEventKind
     ServerRuntimeEvent
 }
 
+public static class ScriptEngineeringInteractionEventKeys
+{
+    public const string Click = "click";
+    public const string PointerEnter = "pointerenter";
+    public const string PointerMove = "pointermove";
+    public const string PointerLeave = "pointerleave";
+
+    public static bool IsSupported(string? eventKey) => eventKey?.Trim().ToLowerInvariant() is
+        Click or PointerEnter or PointerMove or PointerLeave;
+}
+
 public enum ScriptEngineeringDependencyKind
 {
     Script,
@@ -30,7 +41,8 @@ public enum ScriptEngineeringDependencyKind
     Tag,
     ClientMemoryTag,
     ServerMemoryTag,
-    Resource
+    Resource,
+    RichCommand
 }
 
 public sealed record ScriptEngineeringEntryPoint(
@@ -42,7 +54,17 @@ public sealed record ScriptEngineeringEntryPoint(
 
 public sealed record ScriptEngineeringDependency(
     ScriptEngineeringDependencyKind Kind,
-    string StableReference);
+    string StableReference,
+    ScriptTagReferenceBinding? TagBinding = null);
+
+/// <summary>
+/// Keeps a human-readable TAG path as authoring text while preserving the
+/// canonical TAG identity that gives the reference its runtime authority.
+/// </summary>
+public sealed record ScriptTagReferenceBinding(
+    int Version,
+    string Reference,
+    TagValueReference Expected);
 
 public sealed class ScriptEngineeringDefinition
 {
@@ -115,7 +137,8 @@ public sealed record ScriptVisualEventReference(
     string EntryPoint,
     string? TargetReference = null,
     TagValueReference? TagReference = null,
-    int? TimerIntervalMs = null);
+    int? TimerIntervalMs = null,
+    string EventKey = ScriptEngineeringInteractionEventKeys.Click);
 
 public sealed class ScriptEngineeringModel
 {
@@ -150,4 +173,6 @@ public static class ScriptEngineeringReferenceKeys
     public static string Tag(Guid tagId) => tagId.ToString("D");
 
     public static string Resource(Guid resourceId) => resourceId.ToString("D");
+
+    public static string RichCommand(Guid commandId) => commandId.ToString("D");
 }

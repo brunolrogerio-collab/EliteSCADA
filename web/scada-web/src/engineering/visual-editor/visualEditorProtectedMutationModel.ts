@@ -27,6 +27,7 @@ export function applyProtectedVisualEditorMutationIntent(
       if (intent.parentObjectId) assertVisualElementsAuthoringEditable(screen, [intent.parentObjectId]);
       return applyLegacyVisualEditorMutationIntent(screen, intent, options);
     case 'dynamo.add':
+    case 'equipment.add':
       return applyLegacyVisualEditorMutationIntent(screen, intent, options);
     case 'object.move':
     case 'object.rotate':
@@ -34,6 +35,7 @@ export function applyProtectedVisualEditorMutationIntent(
     case 'property.remove':
       assertVisualElementsAuthoringEditable(screen, intent.objectIds);
       return applyLegacyVisualEditorMutationIntent(screen, intent, options);
+    case 'object.rename':
     case 'object.resize':
     case 'polygon.points.set':
     case 'binding.set':
@@ -44,6 +46,10 @@ export function applyProtectedVisualEditorMutationIntent(
     case 'booleanCondition.remove':
     case 'analogFill.set':
     case 'analogFill.remove':
+    case 'propertyMap.set':
+    case 'propertyMap.remove':
+    case 'visualAction.set':
+    case 'visualAction.remove':
       assertVisualElementsAuthoringEditable(screen, [intent.objectId]);
       return applyLegacyVisualEditorMutationIntent(screen, intent, options);
     case 'object.duplicate': {
@@ -69,6 +75,7 @@ export function applyProtectedVisualEditorMutationIntent(
       return applyVisualEditorZOrderOperation(screen, intent.objectIds, mapZOrderOperation(intent.operation));
     }
     case 'polygon.create':
+    case 'bezier.create':
       return applyLegacyVisualEditorMutationIntent(screen, intent, options);
   }
 }

@@ -1,0 +1,15 @@
+{
+  "syntheticOnly": true,
+  "activeRevision": 57,
+  "persistedProfileAndAssignment": true,
+  "persistedControlledUnitsAndSource": true,
+  "permitClosedStatus": 409,
+  "permitClosedCode": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED",
+  "explicitRearm": true,
+  "differenceA": 1.0000000000000018,
+  "percentChange": 20.00000000000005,
+  "selectedPairs": [
+    58,
+    58
+  ]
+}

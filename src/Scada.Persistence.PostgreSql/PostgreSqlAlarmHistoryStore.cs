@@ -1,4 +1,5 @@
 using System.Globalization;
+using Scada.Core.Persistence;
 using System.Text;
 using Npgsql;
 using NpgsqlTypes;
@@ -55,24 +56,32 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
         """;
 
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
     private readonly Task _initializeTask;
 
-    public PostgreSqlAlarmHistoryStore(string connectionString)
+    public PostgreSqlAlarmHistoryStore(
+        string connectionString,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("PostgreSQL connection string is required.", nameof(connectionString));
 
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
         _initializeTask = InitializeAsync();
     }
 
     public string Dataset => HistoricalDatasets.AlarmEvents;
+
+    public Task EnsureInitializedAsync(CancellationToken cancellationToken = default) =>
+        _initializeTask.WaitAsync(cancellationToken);
 
     public async Task AppendAsync(
         AlarmStateChanged stateChanged,
         string tagPath,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("alarm-history", cancellationToken);
         ArgumentNullException.ThrowIfNull(stateChanged);
         if (string.IsNullOrWhiteSpace(tagPath))
             throw new ArgumentException("Canonical TAG path is required for alarm history.", nameof(tagPath));
@@ -130,6 +139,20 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
             command.Parameters.AddWithValue(name, NpgsqlDbType.Text, query.Search);
             sql.Append(
                 $" AND (position(lower(@{name}) in lower(tag_path)) > 0 OR position(lower(@{name}) in lower(COALESCE(message, ''))) > 0)");
+        }
+
+        if (query.AlarmView is { } view)
+        {
+            AppendViewConstraint("alarm_id", view.AlarmIds, sql, command);
+            AppendViewConstraint("tag_id", view.TagIds, sql, command);
+            AppendViewConstraint("priority", view.Priorities, sql, command);
+            AppendViewConstraint("state", view.States, sql, command);
+            if (view.Search is not null)
+            {
+                command.Parameters.AddWithValue("view_search", view.Search);
+                command.Parameters.AddWithValue("view_search_ids", view.SearchMatchingAlarmIds ?? []);
+                sql.Append(" AND (alarm_id = ANY(@view_search_ids) OR position(lower(@view_search) in lower(COALESCE(message, ''))) > 0)");
+            }
         }
 
         var sortColumn = query.Sort.Field switch
@@ -293,6 +316,15 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
             values,
             command,
             ref parameterIndex);
+    }
+
+    private static void AppendViewConstraint<T>(
+        string column, T[]? values, StringBuilder sql, NpgsqlCommand command)
+    {
+        if (values is null) return;
+        var parameter = "view_" + column;
+        command.Parameters.AddWithValue(parameter, values);
+        sql.Append($" AND {column} = ANY(@{parameter})");
     }
 
     private static string BuildPriorityFilter(

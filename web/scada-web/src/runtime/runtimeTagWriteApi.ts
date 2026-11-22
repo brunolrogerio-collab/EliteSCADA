@@ -1,3 +1,9 @@
+import { assertRuntimeProcessMutationAllowed } from './historical-playback/runtimeHistoricalPlaybackGuard';
+import {
+  admitInteractiveRuntimeSession,
+  type RuntimeSessionFetch
+} from './runtimeSessionAdmissionApi';
+
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export type RuntimeTagWriteValue = string | number | boolean;
@@ -12,7 +18,12 @@ export class RuntimeTagWriteError extends Error {
   }
 }
 
-export async function writeRuntimeTagValue(tagId: string, value: RuntimeTagWriteValue): Promise<void> {
+export async function writeRuntimeTagValue(
+  tagId: string,
+  value: RuntimeTagWriteValue,
+  fetcher: RuntimeSessionFetch = fetch
+): Promise<void> {
+  assertRuntimeProcessMutationAllowed('TAG write');
   const normalizedTagId = tagId.trim();
   if (!normalizedTagId) throw new RuntimeTagWriteError('A stable TAG identity is required.');
   if (!isRuntimeTagWriteValue(value)) {
@@ -21,12 +32,14 @@ export async function writeRuntimeTagValue(tagId: string, value: RuntimeTagWrite
 
   let response: Response;
   try {
-    response = await fetch(`${API}/api/tags/${encodeURIComponent(normalizedTagId)}/write`, {
+    const leaseHeaders = await admitInteractiveRuntimeSession(fetcher);
+    response = await fetcher(`${API}/api/tags/${encodeURIComponent(normalizedTagId)}/write`, {
       method: 'POST',
       credentials: 'same-origin',
       headers: {
         accept: 'application/json',
-        'content-type': 'application/json; charset=utf-8'
+        'content-type': 'application/json; charset=utf-8',
+        ...leaseHeaders
       },
       body: JSON.stringify({ value })
     });

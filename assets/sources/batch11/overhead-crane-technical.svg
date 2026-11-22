@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <line x1="16" y1="28" x2="112" y2="28" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round" data-elitescada-slot="beam" />
+  <line x1="30" y1="28" x2="30" y2="100" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="column" />
+  <line x1="98" y1="28" x2="98" y2="100" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="column" />
+  <rect x="54" y="24" width="20" height="14" rx="3" fill="#E5E7EB" stroke="#374151" stroke-width="3" data-elitescada-slot="trolley" />
+  <line x1="64" y1="38" x2="64" y2="76" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="cable" />
+  <polygon points="56,76 72,76 64,90" fill="#9CA3AF" stroke="#374151" stroke-width="3" stroke-linejoin="round" data-elitescada-slot="hook" />
+  <circle cx="106" cy="28" r="4" fill="#9CA3AF" data-elitescada-slot="status" />
+  <line x1="20" y1="108" x2="108" y2="108" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round" data-elitescada-slot="floor" />
+</svg>

@@ -5,6 +5,7 @@ import {
   normalizeScriptDefinition
 } from '../src/engineering/scripts/ScriptEngineeringWorkspace.logic';
 import type {
+  AuthorityPolicyReferenceEngineering,
   CanonicalScriptPackage,
   ScriptEngineeringDefinition,
   ScriptImportPreview
@@ -26,7 +27,7 @@ test('Script source, metadata, entry points and dependencies round-trip through 
 
   try {
     const before = await workspace(request);
-    const createPackage = multiScriptPackage([helper, subject]);
+    const createPackage = multiScriptPackage([helper, subject], before.authorityPolicyReference);
     const createPreview = await preview(request, createPackage, 'CreateOnly');
     expect(createPreview.canApply).toBeTruthy();
     expect(createPreview.createCount).toBe(2);
@@ -60,7 +61,7 @@ test('Script source, metadata, entry points and dependencies round-trip through 
       entryPoints: [{ eventKind: 'initialize', handlerName: 'initialize', targetReference: 'screen-start' }],
       dependencies: [{ kind: 'script', stableReference: helper.id }]
     };
-    const updatePackage = buildCanonicalScriptPackage(updated, []);
+    const updatePackage = buildCanonicalScriptPackage(updated, [], undefined, updateBase.authorityPolicyReference);
     const updatePreview = await preview(request, updatePackage, 'UpdateExisting');
     expect(updatePreview.canApply).toBeTruthy();
     expect(updatePreview.updateCount).toBe(1);
@@ -104,18 +105,27 @@ function makeScript(id: string, path: string): ScriptEngineeringDefinition {
   };
 }
 
-function multiScriptPackage(scripts: ScriptEngineeringDefinition[]): CanonicalScriptPackage {
-  const first = buildCanonicalScriptPackage(scripts[0]!, []);
+function multiScriptPackage(
+  scripts: ScriptEngineeringDefinition[],
+  authorityPolicyReference: AuthorityPolicyReferenceEngineering
+): CanonicalScriptPackage {
+  const first = buildCanonicalScriptPackage(scripts[0]!, [], undefined, authorityPolicyReference);
   return {
     ...first,
-    scripts: scripts.map(script => buildCanonicalScriptPackage(script, [], first.exportedAt).scripts[0]!)
+    scripts: scripts.map(script => buildCanonicalScriptPackage(script, [], first.exportedAt, authorityPolicyReference).scripts[0]!)
   };
 }
 
-async function workspace(request: APIRequestContext): Promise<{ changeVersion: number }> {
+async function workspace(request: APIRequestContext): Promise<{
+  changeVersion: number;
+  authorityPolicyReference: AuthorityPolicyReferenceEngineering;
+}> {
   const response = await request.get('/api/engineering/workspace');
   expect(response.ok()).toBeTruthy();
-  return await response.json() as { changeVersion: number };
+  return await response.json() as {
+    changeVersion: number;
+    authorityPolicyReference: AuthorityPolicyReferenceEngineering;
+  };
 }
 
 async function loadScript(request: APIRequestContext, scriptId: string): Promise<ScriptEngineeringDefinition> {

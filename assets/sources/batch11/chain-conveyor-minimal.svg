@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <line x1="18" y1="50" x2="110" y2="50" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="chain" />
+  <line x1="18" y1="80" x2="110" y2="80" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="chain" />
+  <rect x="23" y="56" width="10" height="18" rx="2" fill="none" stroke="#374151" stroke-width="2" data-elitescada-slot="flight" />
+  <rect x="37" y="56" width="10" height="18" rx="2" fill="none" stroke="#374151" stroke-width="2" data-elitescada-slot="flight" />
+  <rect x="51" y="56" width="10" height="18" rx="2" fill="none" stroke="#374151" stroke-width="2" data-elitescada-slot="flight" />
+  <rect x="65" y="56" width="10" height="18" rx="2" fill="none" stroke="#374151" stroke-width="2" data-elitescada-slot="flight" />
+  <rect x="79" y="56" width="10" height="18" rx="2" fill="none" stroke="#374151" stroke-width="2" data-elitescada-slot="flight" />
+  <rect x="93" y="56" width="10" height="18" rx="2" fill="none" stroke="#374151" stroke-width="2" data-elitescada-slot="flight" />
+</svg>

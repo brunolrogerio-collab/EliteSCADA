@@ -1,0 +1,5661 @@
+{
+  "schema": "elitescada.asset-batch",
+  "schemaVersion": 1,
+  "defaults": {
+    "author": "EliteSCADA",
+    "styleFamily": "flat-industrial-v3",
+    "license": {
+      "identifier": "Proprietary-EliteSCADA-Original",
+      "reference": "assets/licenses/ELITESCADA-ORIGINAL-ASSET-NOTICE.md",
+      "attributionRequired": false,
+      "commercialRedistributionAllowed": true,
+      "modificationAllowed": true
+    }
+  },
+  "assets": [
+    {
+      "id": "builtin.asset.flagship.motor.induction-foot.minimal",
+      "key": "industrial.flagship.motor.induction-foot.minimal",
+      "displayName": "induction foot - minimal",
+      "sourceFile": "assets/sources/batch3/motor-induction-foot-minimal.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "induction-foot",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "induction foot",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.induction-foot.flat",
+      "key": "industrial.flagship.motor.induction-foot.flat",
+      "displayName": "induction foot - flat",
+      "sourceFile": "assets/sources/batch3/motor-induction-foot-flat.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "induction-foot",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "induction foot",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.induction-foot.detailed",
+      "key": "industrial.flagship.motor.induction-foot.detailed",
+      "displayName": "induction foot - detailed",
+      "sourceFile": "assets/sources/batch3/motor-induction-foot-detailed.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "induction-foot",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "induction foot",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.induction-foot.complex",
+      "key": "industrial.flagship.motor.induction-foot.complex",
+      "displayName": "induction foot - complex",
+      "sourceFile": "assets/sources/batch3/motor-induction-foot-complex.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "induction-foot",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "induction foot",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.flange-motor.minimal",
+      "key": "industrial.flagship.motor.flange-motor.minimal",
+      "displayName": "flange motor - minimal",
+      "sourceFile": "assets/sources/batch3/motor-flange-motor-minimal.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "flange-motor",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "flange motor",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "flange",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.flange-motor.flat",
+      "key": "industrial.flagship.motor.flange-motor.flat",
+      "displayName": "flange motor - flat",
+      "sourceFile": "assets/sources/batch3/motor-flange-motor-flat.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "flange-motor",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "flange motor",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "flange",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.flange-motor.detailed",
+      "key": "industrial.flagship.motor.flange-motor.detailed",
+      "displayName": "flange motor - detailed",
+      "sourceFile": "assets/sources/batch3/motor-flange-motor-detailed.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "flange-motor",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "flange motor",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "flange",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.flange-motor.complex",
+      "key": "industrial.flagship.motor.flange-motor.complex",
+      "displayName": "flange motor - complex",
+      "sourceFile": "assets/sources/batch3/motor-flange-motor-complex.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "flange-motor",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "flange motor",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "flange",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.vertical-motor.minimal",
+      "key": "industrial.flagship.motor.vertical-motor.minimal",
+      "displayName": "vertical motor - minimal",
+      "sourceFile": "assets/sources/batch3/motor-vertical-motor-minimal.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "vertical-motor",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "vertical motor",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.vertical-motor.flat",
+      "key": "industrial.flagship.motor.vertical-motor.flat",
+      "displayName": "vertical motor - flat",
+      "sourceFile": "assets/sources/batch3/motor-vertical-motor-flat.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "vertical-motor",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "vertical motor",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.vertical-motor.detailed",
+      "key": "industrial.flagship.motor.vertical-motor.detailed",
+      "displayName": "vertical motor - detailed",
+      "sourceFile": "assets/sources/batch3/motor-vertical-motor-detailed.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "vertical-motor",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "vertical motor",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.vertical-motor.complex",
+      "key": "industrial.flagship.motor.vertical-motor.complex",
+      "displayName": "vertical motor - complex",
+      "sourceFile": "assets/sources/batch3/motor-vertical-motor-complex.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "vertical-motor",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "vertical motor",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.gearmotor.minimal",
+      "key": "industrial.flagship.motor.gearmotor.minimal",
+      "displayName": "gearmotor - minimal",
+      "sourceFile": "assets/sources/batch3/motor-gearmotor-minimal.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "gearmotor",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "gearmotor",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "gearbox",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.gearmotor.flat",
+      "key": "industrial.flagship.motor.gearmotor.flat",
+      "displayName": "gearmotor - flat",
+      "sourceFile": "assets/sources/batch3/motor-gearmotor-flat.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "gearmotor",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "gearmotor",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "gearbox",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.gearmotor.detailed",
+      "key": "industrial.flagship.motor.gearmotor.detailed",
+      "displayName": "gearmotor - detailed",
+      "sourceFile": "assets/sources/batch3/motor-gearmotor-detailed.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "gearmotor",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "gearmotor",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "gearbox",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.gearmotor.complex",
+      "key": "industrial.flagship.motor.gearmotor.complex",
+      "displayName": "gearmotor - complex",
+      "sourceFile": "assets/sources/batch3/motor-gearmotor-complex.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "gearmotor",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "gearmotor",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "gearbox",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.brake-motor.minimal",
+      "key": "industrial.flagship.motor.brake-motor.minimal",
+      "displayName": "brake motor - minimal",
+      "sourceFile": "assets/sources/batch3/motor-brake-motor-minimal.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "brake-motor",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "brake motor",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "brake",
+          "kind": "fill"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.brake-motor.flat",
+      "key": "industrial.flagship.motor.brake-motor.flat",
+      "displayName": "brake motor - flat",
+      "sourceFile": "assets/sources/batch3/motor-brake-motor-flat.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "brake-motor",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "brake motor",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "brake",
+          "kind": "fill"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.brake-motor.detailed",
+      "key": "industrial.flagship.motor.brake-motor.detailed",
+      "displayName": "brake motor - detailed",
+      "sourceFile": "assets/sources/batch3/motor-brake-motor-detailed.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "brake-motor",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "brake motor",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "brake",
+          "kind": "fill"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.brake-motor.complex",
+      "key": "industrial.flagship.motor.brake-motor.complex",
+      "displayName": "brake motor - complex",
+      "sourceFile": "assets/sources/batch3/motor-brake-motor-complex.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "brake-motor",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "brake motor",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "brake",
+          "kind": "fill"
+        },
+        {
+          "id": "terminal",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.user-reference-motor.minimal",
+      "key": "industrial.flagship.motor.user-reference-motor.minimal",
+      "displayName": "user reference motor - minimal",
+      "sourceFile": "assets/sources/batch3/motor-user-reference-motor-minimal.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "user-reference-motor",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "user reference motor",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA adaptation based on Product Owner supplied SVG/path reference geometry; semantic slots and family variants authored for EliteSCADA. No third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.user-reference-motor.flat",
+      "key": "industrial.flagship.motor.user-reference-motor.flat",
+      "displayName": "user reference motor - flat",
+      "sourceFile": "assets/sources/batch3/motor-user-reference-motor-flat.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "user-reference-motor",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "user reference motor",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA adaptation based on Product Owner supplied SVG/path reference geometry; semantic slots and family variants authored for EliteSCADA. No third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.user-reference-motor.detailed",
+      "key": "industrial.flagship.motor.user-reference-motor.detailed",
+      "displayName": "user reference motor - detailed",
+      "sourceFile": "assets/sources/batch3/motor-user-reference-motor-detailed.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "user-reference-motor",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "user reference motor",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA adaptation based on Product Owner supplied SVG/path reference geometry; semantic slots and family variants authored for EliteSCADA. No third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.motor.user-reference-motor.complex",
+      "key": "industrial.flagship.motor.user-reference-motor.complex",
+      "displayName": "user reference motor - complex",
+      "sourceFile": "assets/sources/batch3/motor-user-reference-motor-complex.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "flagship",
+        "motor",
+        "user-reference-motor",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "user reference motor",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA adaptation based on Product Owner supplied SVG/path reference geometry; semantic slots and family variants authored for EliteSCADA. No third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.centrifugal-end-suction.minimal",
+      "key": "industrial.flagship.pump.centrifugal-end-suction.minimal",
+      "displayName": "centrifugal end suction - minimal",
+      "sourceFile": "assets/sources/batch3/pump-centrifugal-end-suction-minimal.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "centrifugal-end-suction",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "centrifugal end suction",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "impeller",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.centrifugal-end-suction.flat",
+      "key": "industrial.flagship.pump.centrifugal-end-suction.flat",
+      "displayName": "centrifugal end suction - flat",
+      "sourceFile": "assets/sources/batch3/pump-centrifugal-end-suction-flat.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "centrifugal-end-suction",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "centrifugal end suction",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "impeller",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.centrifugal-end-suction.detailed",
+      "key": "industrial.flagship.pump.centrifugal-end-suction.detailed",
+      "displayName": "centrifugal end suction - detailed",
+      "sourceFile": "assets/sources/batch3/pump-centrifugal-end-suction-detailed.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "centrifugal-end-suction",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "centrifugal end suction",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "impeller",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.centrifugal-end-suction.complex",
+      "key": "industrial.flagship.pump.centrifugal-end-suction.complex",
+      "displayName": "centrifugal end suction - complex",
+      "sourceFile": "assets/sources/batch3/pump-centrifugal-end-suction-complex.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "centrifugal-end-suction",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "centrifugal end suction",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "impeller",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.inline-pump.minimal",
+      "key": "industrial.flagship.pump.inline-pump.minimal",
+      "displayName": "inline pump - minimal",
+      "sourceFile": "assets/sources/batch3/pump-inline-pump-minimal.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "inline-pump",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "inline pump",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "impeller",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.inline-pump.flat",
+      "key": "industrial.flagship.pump.inline-pump.flat",
+      "displayName": "inline pump - flat",
+      "sourceFile": "assets/sources/batch3/pump-inline-pump-flat.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "inline-pump",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "inline pump",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "impeller",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.inline-pump.detailed",
+      "key": "industrial.flagship.pump.inline-pump.detailed",
+      "displayName": "inline pump - detailed",
+      "sourceFile": "assets/sources/batch3/pump-inline-pump-detailed.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "inline-pump",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "inline pump",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "impeller",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.inline-pump.complex",
+      "key": "industrial.flagship.pump.inline-pump.complex",
+      "displayName": "inline pump - complex",
+      "sourceFile": "assets/sources/batch3/pump-inline-pump-complex.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "inline-pump",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "inline pump",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "impeller",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.vertical-turbine.minimal",
+      "key": "industrial.flagship.pump.vertical-turbine.minimal",
+      "displayName": "vertical turbine - minimal",
+      "sourceFile": "assets/sources/batch3/pump-vertical-turbine-minimal.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "vertical-turbine",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "vertical turbine",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "motor",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.vertical-turbine.flat",
+      "key": "industrial.flagship.pump.vertical-turbine.flat",
+      "displayName": "vertical turbine - flat",
+      "sourceFile": "assets/sources/batch3/pump-vertical-turbine-flat.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "vertical-turbine",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "vertical turbine",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "motor",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.vertical-turbine.detailed",
+      "key": "industrial.flagship.pump.vertical-turbine.detailed",
+      "displayName": "vertical turbine - detailed",
+      "sourceFile": "assets/sources/batch3/pump-vertical-turbine-detailed.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "vertical-turbine",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "vertical turbine",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "motor",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.vertical-turbine.complex",
+      "key": "industrial.flagship.pump.vertical-turbine.complex",
+      "displayName": "vertical turbine - complex",
+      "sourceFile": "assets/sources/batch3/pump-vertical-turbine-complex.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "vertical-turbine",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "vertical turbine",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "motor",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.submersible.minimal",
+      "key": "industrial.flagship.pump.submersible.minimal",
+      "displayName": "submersible - minimal",
+      "sourceFile": "assets/sources/batch3/pump-submersible-minimal.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "submersible",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "submersible",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "cable",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.submersible.flat",
+      "key": "industrial.flagship.pump.submersible.flat",
+      "displayName": "submersible - flat",
+      "sourceFile": "assets/sources/batch3/pump-submersible-flat.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "submersible",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "submersible",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "cable",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.submersible.detailed",
+      "key": "industrial.flagship.pump.submersible.detailed",
+      "displayName": "submersible - detailed",
+      "sourceFile": "assets/sources/batch3/pump-submersible-detailed.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "submersible",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "submersible",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "cable",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.submersible.complex",
+      "key": "industrial.flagship.pump.submersible.complex",
+      "displayName": "submersible - complex",
+      "sourceFile": "assets/sources/batch3/pump-submersible-complex.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "submersible",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "submersible",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "cable",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.dosing-diaphragm.minimal",
+      "key": "industrial.flagship.pump.dosing-diaphragm.minimal",
+      "displayName": "dosing diaphragm - minimal",
+      "sourceFile": "assets/sources/batch3/pump-dosing-diaphragm-minimal.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "dosing-diaphragm",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "dosing diaphragm",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "motor",
+          "kind": "fill"
+        },
+        {
+          "id": "pump",
+          "kind": "fill"
+        },
+        {
+          "id": "coupling",
+          "kind": "stroke"
+        },
+        {
+          "id": "suction",
+          "kind": "stroke"
+        },
+        {
+          "id": "discharge",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.dosing-diaphragm.flat",
+      "key": "industrial.flagship.pump.dosing-diaphragm.flat",
+      "displayName": "dosing diaphragm - flat",
+      "sourceFile": "assets/sources/batch3/pump-dosing-diaphragm-flat.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "dosing-diaphragm",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "dosing diaphragm",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "motor",
+          "kind": "fill"
+        },
+        {
+          "id": "pump",
+          "kind": "fill"
+        },
+        {
+          "id": "coupling",
+          "kind": "stroke"
+        },
+        {
+          "id": "suction",
+          "kind": "stroke"
+        },
+        {
+          "id": "discharge",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.dosing-diaphragm.detailed",
+      "key": "industrial.flagship.pump.dosing-diaphragm.detailed",
+      "displayName": "dosing diaphragm - detailed",
+      "sourceFile": "assets/sources/batch3/pump-dosing-diaphragm-detailed.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "dosing-diaphragm",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "dosing diaphragm",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "motor",
+          "kind": "fill"
+        },
+        {
+          "id": "pump",
+          "kind": "fill"
+        },
+        {
+          "id": "coupling",
+          "kind": "stroke"
+        },
+        {
+          "id": "suction",
+          "kind": "stroke"
+        },
+        {
+          "id": "discharge",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.dosing-diaphragm.complex",
+      "key": "industrial.flagship.pump.dosing-diaphragm.complex",
+      "displayName": "dosing diaphragm - complex",
+      "sourceFile": "assets/sources/batch3/pump-dosing-diaphragm-complex.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "dosing-diaphragm",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "dosing diaphragm",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "motor",
+          "kind": "fill"
+        },
+        {
+          "id": "pump",
+          "kind": "fill"
+        },
+        {
+          "id": "coupling",
+          "kind": "stroke"
+        },
+        {
+          "id": "suction",
+          "kind": "stroke"
+        },
+        {
+          "id": "discharge",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.positive-displacement.minimal",
+      "key": "industrial.flagship.pump.positive-displacement.minimal",
+      "displayName": "positive displacement - minimal",
+      "sourceFile": "assets/sources/batch3/pump-positive-displacement-minimal.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "positive-displacement",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "positive displacement",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.positive-displacement.flat",
+      "key": "industrial.flagship.pump.positive-displacement.flat",
+      "displayName": "positive displacement - flat",
+      "sourceFile": "assets/sources/batch3/pump-positive-displacement-flat.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "positive-displacement",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "positive displacement",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.positive-displacement.detailed",
+      "key": "industrial.flagship.pump.positive-displacement.detailed",
+      "displayName": "positive displacement - detailed",
+      "sourceFile": "assets/sources/batch3/pump-positive-displacement-detailed.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "positive-displacement",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "positive displacement",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.pump.positive-displacement.complex",
+      "key": "industrial.flagship.pump.positive-displacement.complex",
+      "displayName": "positive displacement - complex",
+      "sourceFile": "assets/sources/batch3/pump-positive-displacement-complex.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "flagship",
+        "pump",
+        "positive-displacement",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "positive displacement",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.vertical-cylinder.minimal",
+      "key": "industrial.flagship.tank.vertical-cylinder.minimal",
+      "displayName": "vertical cylinder - minimal",
+      "sourceFile": "assets/sources/batch3/tank-vertical-cylinder-minimal.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "vertical-cylinder",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "vertical cylinder",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "top",
+          "kind": "stroke"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.vertical-cylinder.flat",
+      "key": "industrial.flagship.tank.vertical-cylinder.flat",
+      "displayName": "vertical cylinder - flat",
+      "sourceFile": "assets/sources/batch3/tank-vertical-cylinder-flat.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "vertical-cylinder",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "vertical cylinder",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "top",
+          "kind": "stroke"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.vertical-cylinder.detailed",
+      "key": "industrial.flagship.tank.vertical-cylinder.detailed",
+      "displayName": "vertical cylinder - detailed",
+      "sourceFile": "assets/sources/batch3/tank-vertical-cylinder-detailed.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "vertical-cylinder",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "vertical cylinder",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "top",
+          "kind": "stroke"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "level",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.vertical-cylinder.complex",
+      "key": "industrial.flagship.tank.vertical-cylinder.complex",
+      "displayName": "vertical cylinder - complex",
+      "sourceFile": "assets/sources/batch3/tank-vertical-cylinder-complex.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "vertical-cylinder",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "vertical cylinder",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "top",
+          "kind": "stroke"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "level",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "stroke"
+        },
+        {
+          "id": "manway",
+          "kind": "fill"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.horizontal-vessel.minimal",
+      "key": "industrial.flagship.tank.horizontal-vessel.minimal",
+      "displayName": "horizontal vessel - minimal",
+      "sourceFile": "assets/sources/batch3/tank-horizontal-vessel-minimal.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "horizontal-vessel",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "horizontal vessel",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.horizontal-vessel.flat",
+      "key": "industrial.flagship.tank.horizontal-vessel.flat",
+      "displayName": "horizontal vessel - flat",
+      "sourceFile": "assets/sources/batch3/tank-horizontal-vessel-flat.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "horizontal-vessel",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "horizontal vessel",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.horizontal-vessel.detailed",
+      "key": "industrial.flagship.tank.horizontal-vessel.detailed",
+      "displayName": "horizontal vessel - detailed",
+      "sourceFile": "assets/sources/batch3/tank-horizontal-vessel-detailed.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "horizontal-vessel",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "horizontal vessel",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "level",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.horizontal-vessel.complex",
+      "key": "industrial.flagship.tank.horizontal-vessel.complex",
+      "displayName": "horizontal vessel - complex",
+      "sourceFile": "assets/sources/batch3/tank-horizontal-vessel-complex.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "horizontal-vessel",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "horizontal vessel",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "level",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "stroke"
+        },
+        {
+          "id": "manway",
+          "kind": "fill"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.conical-bottom.minimal",
+      "key": "industrial.flagship.tank.conical-bottom.minimal",
+      "displayName": "conical bottom - minimal",
+      "sourceFile": "assets/sources/batch3/tank-conical-bottom-minimal.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "conical-bottom",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "conical bottom",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.conical-bottom.flat",
+      "key": "industrial.flagship.tank.conical-bottom.flat",
+      "displayName": "conical bottom - flat",
+      "sourceFile": "assets/sources/batch3/tank-conical-bottom-flat.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "conical-bottom",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "conical bottom",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.conical-bottom.detailed",
+      "key": "industrial.flagship.tank.conical-bottom.detailed",
+      "displayName": "conical bottom - detailed",
+      "sourceFile": "assets/sources/batch3/tank-conical-bottom-detailed.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "conical-bottom",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "conical bottom",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "level",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.conical-bottom.complex",
+      "key": "industrial.flagship.tank.conical-bottom.complex",
+      "displayName": "conical bottom - complex",
+      "sourceFile": "assets/sources/batch3/tank-conical-bottom-complex.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "conical-bottom",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "conical bottom",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "level",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "stroke"
+        },
+        {
+          "id": "manway",
+          "kind": "fill"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.open-process.minimal",
+      "key": "industrial.flagship.tank.open-process.minimal",
+      "displayName": "open process - minimal",
+      "sourceFile": "assets/sources/batch3/tank-open-process-minimal.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "open-process",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "open process",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.open-process.flat",
+      "key": "industrial.flagship.tank.open-process.flat",
+      "displayName": "open process - flat",
+      "sourceFile": "assets/sources/batch3/tank-open-process-flat.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "open-process",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "open process",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.open-process.detailed",
+      "key": "industrial.flagship.tank.open-process.detailed",
+      "displayName": "open process - detailed",
+      "sourceFile": "assets/sources/batch3/tank-open-process-detailed.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "open-process",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "open process",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "level",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.open-process.complex",
+      "key": "industrial.flagship.tank.open-process.complex",
+      "displayName": "open process - complex",
+      "sourceFile": "assets/sources/batch3/tank-open-process-complex.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "open-process",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "open process",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "level",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "stroke"
+        },
+        {
+          "id": "manway",
+          "kind": "fill"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.silo.minimal",
+      "key": "industrial.flagship.tank.silo.minimal",
+      "displayName": "silo - minimal",
+      "sourceFile": "assets/sources/batch3/tank-silo-minimal.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "silo",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "silo",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.silo.flat",
+      "key": "industrial.flagship.tank.silo.flat",
+      "displayName": "silo - flat",
+      "sourceFile": "assets/sources/batch3/tank-silo-flat.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "silo",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "silo",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.silo.detailed",
+      "key": "industrial.flagship.tank.silo.detailed",
+      "displayName": "silo - detailed",
+      "sourceFile": "assets/sources/batch3/tank-silo-detailed.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "silo",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "silo",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "level",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.silo.complex",
+      "key": "industrial.flagship.tank.silo.complex",
+      "displayName": "silo - complex",
+      "sourceFile": "assets/sources/batch3/tank-silo-complex.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "silo",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "silo",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "level",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "stroke"
+        },
+        {
+          "id": "manway",
+          "kind": "fill"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.pressure-vessel.minimal",
+      "key": "industrial.flagship.tank.pressure-vessel.minimal",
+      "displayName": "pressure vessel - minimal",
+      "sourceFile": "assets/sources/batch3/tank-pressure-vessel-minimal.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "pressure-vessel",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "pressure vessel",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "nozzle",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.pressure-vessel.flat",
+      "key": "industrial.flagship.tank.pressure-vessel.flat",
+      "displayName": "pressure vessel - flat",
+      "sourceFile": "assets/sources/batch3/tank-pressure-vessel-flat.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "pressure-vessel",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "pressure vessel",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "nozzle",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.pressure-vessel.detailed",
+      "key": "industrial.flagship.tank.pressure-vessel.detailed",
+      "displayName": "pressure vessel - detailed",
+      "sourceFile": "assets/sources/batch3/tank-pressure-vessel-detailed.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "pressure-vessel",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "pressure vessel",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "nozzle",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "level",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.tank.pressure-vessel.complex",
+      "key": "industrial.flagship.tank.pressure-vessel.complex",
+      "displayName": "pressure vessel - complex",
+      "sourceFile": "assets/sources/batch3/tank-pressure-vessel-complex.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "flagship",
+        "tank",
+        "pressure-vessel",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "pressure vessel",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "nozzle",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "level",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "stroke"
+        },
+        {
+          "id": "manway",
+          "kind": "fill"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.user-reference-valve.minimal",
+      "key": "industrial.flagship.valve.user-reference-valve.minimal",
+      "displayName": "user reference valve - minimal",
+      "sourceFile": "assets/sources/batch3/valve-user-reference-valve-minimal.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "user-reference-valve",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "user reference valve",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA adaptation based on Product Owner supplied SVG/path reference geometry; semantic slots and family variants authored for EliteSCADA. No third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.user-reference-valve.flat",
+      "key": "industrial.flagship.valve.user-reference-valve.flat",
+      "displayName": "user reference valve - flat",
+      "sourceFile": "assets/sources/batch3/valve-user-reference-valve-flat.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "user-reference-valve",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "user reference valve",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "handle",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA adaptation based on Product Owner supplied SVG/path reference geometry; semantic slots and family variants authored for EliteSCADA. No third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.user-reference-valve.detailed",
+      "key": "industrial.flagship.valve.user-reference-valve.detailed",
+      "displayName": "user reference valve - detailed",
+      "sourceFile": "assets/sources/batch3/valve-user-reference-valve-detailed.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "user-reference-valve",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "user reference valve",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "handle",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA adaptation based on Product Owner supplied SVG/path reference geometry; semantic slots and family variants authored for EliteSCADA. No third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.user-reference-valve.complex",
+      "key": "industrial.flagship.valve.user-reference-valve.complex",
+      "displayName": "user reference valve - complex",
+      "sourceFile": "assets/sources/batch3/valve-user-reference-valve-complex.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "user-reference-valve",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "user reference valve",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "handle",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA adaptation based on Product Owner supplied SVG/path reference geometry; semantic slots and family variants authored for EliteSCADA. No third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.gate.minimal",
+      "key": "industrial.flagship.valve.gate.minimal",
+      "displayName": "gate - minimal",
+      "sourceFile": "assets/sources/batch3/valve-gate-minimal.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "gate",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "gate",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "handle",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.gate.flat",
+      "key": "industrial.flagship.valve.gate.flat",
+      "displayName": "gate - flat",
+      "sourceFile": "assets/sources/batch3/valve-gate-flat.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "gate",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "gate",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "handle",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.gate.detailed",
+      "key": "industrial.flagship.valve.gate.detailed",
+      "displayName": "gate - detailed",
+      "sourceFile": "assets/sources/batch3/valve-gate-detailed.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "gate",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "gate",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "handle",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.gate.complex",
+      "key": "industrial.flagship.valve.gate.complex",
+      "displayName": "gate - complex",
+      "sourceFile": "assets/sources/batch3/valve-gate-complex.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "gate",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "gate",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "handle",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.globe.minimal",
+      "key": "industrial.flagship.valve.globe.minimal",
+      "displayName": "globe - minimal",
+      "sourceFile": "assets/sources/batch3/valve-globe-minimal.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "globe",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "globe",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "plug",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.globe.flat",
+      "key": "industrial.flagship.valve.globe.flat",
+      "displayName": "globe - flat",
+      "sourceFile": "assets/sources/batch3/valve-globe-flat.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "globe",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "globe",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "plug",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.globe.detailed",
+      "key": "industrial.flagship.valve.globe.detailed",
+      "displayName": "globe - detailed",
+      "sourceFile": "assets/sources/batch3/valve-globe-detailed.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "globe",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "globe",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "plug",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.globe.complex",
+      "key": "industrial.flagship.valve.globe.complex",
+      "displayName": "globe - complex",
+      "sourceFile": "assets/sources/batch3/valve-globe-complex.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "globe",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "globe",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "plug",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.ball.minimal",
+      "key": "industrial.flagship.valve.ball.minimal",
+      "displayName": "ball - minimal",
+      "sourceFile": "assets/sources/batch3/valve-ball-minimal.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "ball",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "ball",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "ball",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.ball.flat",
+      "key": "industrial.flagship.valve.ball.flat",
+      "displayName": "ball - flat",
+      "sourceFile": "assets/sources/batch3/valve-ball-flat.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "ball",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "ball",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "ball",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.ball.detailed",
+      "key": "industrial.flagship.valve.ball.detailed",
+      "displayName": "ball - detailed",
+      "sourceFile": "assets/sources/batch3/valve-ball-detailed.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "ball",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "ball",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "ball",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.ball.complex",
+      "key": "industrial.flagship.valve.ball.complex",
+      "displayName": "ball - complex",
+      "sourceFile": "assets/sources/batch3/valve-ball-complex.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "ball",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "ball",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "ball",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.butterfly.minimal",
+      "key": "industrial.flagship.valve.butterfly.minimal",
+      "displayName": "butterfly - minimal",
+      "sourceFile": "assets/sources/batch3/valve-butterfly-minimal.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "butterfly",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "butterfly",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "disc",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.butterfly.flat",
+      "key": "industrial.flagship.valve.butterfly.flat",
+      "displayName": "butterfly - flat",
+      "sourceFile": "assets/sources/batch3/valve-butterfly-flat.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "butterfly",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "butterfly",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "disc",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.butterfly.detailed",
+      "key": "industrial.flagship.valve.butterfly.detailed",
+      "displayName": "butterfly - detailed",
+      "sourceFile": "assets/sources/batch3/valve-butterfly-detailed.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "butterfly",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "butterfly",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "disc",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.butterfly.complex",
+      "key": "industrial.flagship.valve.butterfly.complex",
+      "displayName": "butterfly - complex",
+      "sourceFile": "assets/sources/batch3/valve-butterfly-complex.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "butterfly",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "butterfly",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "disc",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.check.minimal",
+      "key": "industrial.flagship.valve.check.minimal",
+      "displayName": "check - minimal",
+      "sourceFile": "assets/sources/batch3/valve-check-minimal.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "check",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "check",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "seat",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.check.flat",
+      "key": "industrial.flagship.valve.check.flat",
+      "displayName": "check - flat",
+      "sourceFile": "assets/sources/batch3/valve-check-flat.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "check",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "check",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "seat",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.check.detailed",
+      "key": "industrial.flagship.valve.check.detailed",
+      "displayName": "check - detailed",
+      "sourceFile": "assets/sources/batch3/valve-check-detailed.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "check",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "check",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "seat",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.check.complex",
+      "key": "industrial.flagship.valve.check.complex",
+      "displayName": "check - complex",
+      "sourceFile": "assets/sources/batch3/valve-check-complex.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "check",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "check",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "seat",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.control.minimal",
+      "key": "industrial.flagship.valve.control.minimal",
+      "displayName": "control - minimal",
+      "sourceFile": "assets/sources/batch3/valve-control-minimal.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "control",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "control",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "actuator",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.control.flat",
+      "key": "industrial.flagship.valve.control.flat",
+      "displayName": "control - flat",
+      "sourceFile": "assets/sources/batch3/valve-control-flat.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "control",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "control",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "actuator",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.control.detailed",
+      "key": "industrial.flagship.valve.control.detailed",
+      "displayName": "control - detailed",
+      "sourceFile": "assets/sources/batch3/valve-control-detailed.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "control",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "control",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "actuator",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.control.complex",
+      "key": "industrial.flagship.valve.control.complex",
+      "displayName": "control - complex",
+      "sourceFile": "assets/sources/batch3/valve-control-complex.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "control",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "control",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "actuator",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.pinch.minimal",
+      "key": "industrial.flagship.valve.pinch.minimal",
+      "displayName": "pinch - minimal",
+      "sourceFile": "assets/sources/batch3/valve-pinch-minimal.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "pinch",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "pinch",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.pinch.flat",
+      "key": "industrial.flagship.valve.pinch.flat",
+      "displayName": "pinch - flat",
+      "sourceFile": "assets/sources/batch3/valve-pinch-flat.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "pinch",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "pinch",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.pinch.detailed",
+      "key": "industrial.flagship.valve.pinch.detailed",
+      "displayName": "pinch - detailed",
+      "sourceFile": "assets/sources/batch3/valve-pinch-detailed.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "pinch",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "pinch",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.valve.pinch.complex",
+      "key": "industrial.flagship.valve.pinch.complex",
+      "displayName": "pinch - complex",
+      "sourceFile": "assets/sources/batch3/valve-pinch-complex.svg",
+      "categoryPath": "industrial/process/valves",
+      "tags": [
+        "flagship",
+        "valve",
+        "pinch",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "pinch",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.screw-compressor.minimal",
+      "key": "industrial.flagship.misc.screw-compressor.minimal",
+      "displayName": "screw compressor - minimal",
+      "sourceFile": "assets/sources/batch3/misc-screw-compressor-minimal.svg",
+      "categoryPath": "industrial/rotating/compressors",
+      "tags": [
+        "flagship",
+        "misc",
+        "screw-compressor",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "screw compressor",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "rotor",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.screw-compressor.flat",
+      "key": "industrial.flagship.misc.screw-compressor.flat",
+      "displayName": "screw compressor - flat",
+      "sourceFile": "assets/sources/batch3/misc-screw-compressor-flat.svg",
+      "categoryPath": "industrial/rotating/compressors",
+      "tags": [
+        "flagship",
+        "misc",
+        "screw-compressor",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "screw compressor",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "rotor",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.screw-compressor.detailed",
+      "key": "industrial.flagship.misc.screw-compressor.detailed",
+      "displayName": "screw compressor - detailed",
+      "sourceFile": "assets/sources/batch3/misc-screw-compressor-detailed.svg",
+      "categoryPath": "industrial/rotating/compressors",
+      "tags": [
+        "flagship",
+        "misc",
+        "screw-compressor",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "screw compressor",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "rotor",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.screw-compressor.complex",
+      "key": "industrial.flagship.misc.screw-compressor.complex",
+      "displayName": "screw compressor - complex",
+      "sourceFile": "assets/sources/batch3/misc-screw-compressor-complex.svg",
+      "categoryPath": "industrial/rotating/compressors",
+      "tags": [
+        "flagship",
+        "misc",
+        "screw-compressor",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "screw compressor",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "rotor",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "detail",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.axial-fan.minimal",
+      "key": "industrial.flagship.misc.axial-fan.minimal",
+      "displayName": "axial fan - minimal",
+      "sourceFile": "assets/sources/batch3/misc-axial-fan-minimal.svg",
+      "categoryPath": "industrial/rotating/fans-blowers",
+      "tags": [
+        "flagship",
+        "misc",
+        "axial-fan",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "axial fan",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "hub",
+          "kind": "fill"
+        },
+        {
+          "id": "blade",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.axial-fan.flat",
+      "key": "industrial.flagship.misc.axial-fan.flat",
+      "displayName": "axial fan - flat",
+      "sourceFile": "assets/sources/batch3/misc-axial-fan-flat.svg",
+      "categoryPath": "industrial/rotating/fans-blowers",
+      "tags": [
+        "flagship",
+        "misc",
+        "axial-fan",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "axial fan",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "hub",
+          "kind": "fill"
+        },
+        {
+          "id": "blade",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.axial-fan.detailed",
+      "key": "industrial.flagship.misc.axial-fan.detailed",
+      "displayName": "axial fan - detailed",
+      "sourceFile": "assets/sources/batch3/misc-axial-fan-detailed.svg",
+      "categoryPath": "industrial/rotating/fans-blowers",
+      "tags": [
+        "flagship",
+        "misc",
+        "axial-fan",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "axial fan",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "hub",
+          "kind": "fill"
+        },
+        {
+          "id": "blade",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.axial-fan.complex",
+      "key": "industrial.flagship.misc.axial-fan.complex",
+      "displayName": "axial fan - complex",
+      "sourceFile": "assets/sources/batch3/misc-axial-fan-complex.svg",
+      "categoryPath": "industrial/rotating/fans-blowers",
+      "tags": [
+        "flagship",
+        "misc",
+        "axial-fan",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "axial fan",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "hub",
+          "kind": "fill"
+        },
+        {
+          "id": "blade",
+          "kind": "fill"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.shell-tube-exchanger.minimal",
+      "key": "industrial.flagship.misc.shell-tube-exchanger.minimal",
+      "displayName": "shell tube exchanger - minimal",
+      "sourceFile": "assets/sources/batch3/misc-shell-tube-exchanger-minimal.svg",
+      "categoryPath": "industrial/utilities",
+      "tags": [
+        "flagship",
+        "misc",
+        "shell-tube-exchanger",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "shell tube exchanger",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "tube",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.shell-tube-exchanger.flat",
+      "key": "industrial.flagship.misc.shell-tube-exchanger.flat",
+      "displayName": "shell tube exchanger - flat",
+      "sourceFile": "assets/sources/batch3/misc-shell-tube-exchanger-flat.svg",
+      "categoryPath": "industrial/utilities",
+      "tags": [
+        "flagship",
+        "misc",
+        "shell-tube-exchanger",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "shell tube exchanger",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "tube",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.shell-tube-exchanger.detailed",
+      "key": "industrial.flagship.misc.shell-tube-exchanger.detailed",
+      "displayName": "shell tube exchanger - detailed",
+      "sourceFile": "assets/sources/batch3/misc-shell-tube-exchanger-detailed.svg",
+      "categoryPath": "industrial/utilities",
+      "tags": [
+        "flagship",
+        "misc",
+        "shell-tube-exchanger",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "shell tube exchanger",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "tube",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.shell-tube-exchanger.complex",
+      "key": "industrial.flagship.misc.shell-tube-exchanger.complex",
+      "displayName": "shell tube exchanger - complex",
+      "sourceFile": "assets/sources/batch3/misc-shell-tube-exchanger-complex.svg",
+      "categoryPath": "industrial/utilities",
+      "tags": [
+        "flagship",
+        "misc",
+        "shell-tube-exchanger",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "shell tube exchanger",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "tube",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "baffle",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.belt-conveyor.minimal",
+      "key": "industrial.flagship.misc.belt-conveyor.minimal",
+      "displayName": "belt conveyor - minimal",
+      "sourceFile": "assets/sources/batch3/misc-belt-conveyor-minimal.svg",
+      "categoryPath": "industrial/utilities",
+      "tags": [
+        "flagship",
+        "misc",
+        "belt-conveyor",
+        "minimal",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "belt conveyor",
+        "equipment",
+        "minimal-outline-v3"
+      ],
+      "styleFamily": "minimal-outline-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "roller",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.belt-conveyor.flat",
+      "key": "industrial.flagship.misc.belt-conveyor.flat",
+      "displayName": "belt conveyor - flat",
+      "sourceFile": "assets/sources/batch3/misc-belt-conveyor-flat.svg",
+      "categoryPath": "industrial/utilities",
+      "tags": [
+        "flagship",
+        "misc",
+        "belt-conveyor",
+        "flat",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "belt conveyor",
+        "equipment",
+        "flat-industrial-v3"
+      ],
+      "styleFamily": "flat-industrial-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "roller",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.belt-conveyor.detailed",
+      "key": "industrial.flagship.misc.belt-conveyor.detailed",
+      "displayName": "belt conveyor - detailed",
+      "sourceFile": "assets/sources/batch3/misc-belt-conveyor-detailed.svg",
+      "categoryPath": "industrial/utilities",
+      "tags": [
+        "flagship",
+        "misc",
+        "belt-conveyor",
+        "detailed",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "belt conveyor",
+        "equipment",
+        "detailed-technical-v3"
+      ],
+      "styleFamily": "detailed-technical-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "roller",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    },
+    {
+      "id": "builtin.asset.flagship.misc.belt-conveyor.complex",
+      "key": "industrial.flagship.misc.belt-conveyor.complex",
+      "displayName": "belt conveyor - complex",
+      "sourceFile": "assets/sources/batch3/misc-belt-conveyor-complex.svg",
+      "categoryPath": "industrial/utilities",
+      "tags": [
+        "flagship",
+        "misc",
+        "belt-conveyor",
+        "complex",
+        "industrial"
+      ],
+      "searchKeywords": [
+        "belt conveyor",
+        "equipment",
+        "complex-equipment-v3"
+      ],
+      "styleFamily": "complex-equipment-v3",
+      "status": "draft",
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "roller",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        },
+        {
+          "id": "belt",
+          "kind": "stroke"
+        },
+        {
+          "id": "brace",
+          "kind": "stroke"
+        }
+      ],
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA flagship equipment variant generated for this curation program; no third-party or rejected PR #451 artwork used."
+      }
+    }
+  ]
+}

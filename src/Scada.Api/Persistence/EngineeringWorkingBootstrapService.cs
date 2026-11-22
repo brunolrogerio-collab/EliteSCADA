@@ -1,0 +1,343 @@
+using Scada.Api.Runtime;
+using Scada.Engineering.Persistence;
+using Scada.Engineering.Contracts;
+
+namespace Scada.Api.Persistence;
+
+public enum EngineeringWorkingBootstrapSource
+{
+    EmptyCatalog,
+    ConfiguredWorking,
+    ConfiguredRuntime,
+    MostRecentlySaved
+}
+
+public sealed record EngineeringWorkingBootstrapResult(
+    EngineeringWorkingBootstrapSource Source,
+    bool CheckedOut,
+    string? ProjectKey,
+    long? Revision,
+    EngineeringWorkspaceDescriptor Workspace);
+
+public interface IEngineeringWorkingBootstrapService
+{
+    Task<EngineeringWorkingBootstrapResult> BootstrapAsync(
+        string? configuredWorkingProjectKey,
+        long? configuredWorkingRevision,
+        string? configuredRuntimeProjectKey,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class EngineeringWorkingBootstrapService(
+    IEngineeringProjectCatalog catalog,
+    IEngineeringWorkspaceCheckoutService checkout,
+    EngineeringWorkspace workspace,
+    IEngineeringProjectPersistenceService? persistence = null) : IEngineeringWorkingBootstrapService
+{
+    private static readonly string[] RemovedBuiltinDynamoKeys =
+    [
+        "indicator.lamp.stacked",
+        "motor.foot-mounted",
+        "operator.button.guarded",
+        "valve.diaphragm",
+        "motor.finned", "motor.large-frame", "motor.vfd-package",
+        "valve.butterfly", "valve.control",
+        "electrical.contact-tri-vertical", "electrical.isolator-horizontal", "electrical.isolator-vertical"
+    ];
+
+    public async Task<EngineeringWorkingBootstrapResult> BootstrapAsync(
+        string? configuredWorkingProjectKey,
+        long? configuredWorkingRevision,
+        string? configuredRuntimeProjectKey,
+        CancellationToken cancellationToken = default)
+    {
+        var workingProjectKey = Normalize(configuredWorkingProjectKey);
+        var runtimeProjectKey = Normalize(configuredRuntimeProjectKey);
+        if (configuredWorkingRevision is < 1)
+            throw new InvalidOperationException("EngineeringWorking:Revision must be greater than zero.");
+        if (configuredWorkingRevision.HasValue && workingProjectKey is null)
+            throw new InvalidOperationException("EngineeringWorking:Revision requires EngineeringWorking:ProjectKey.");
+
+        var projects = (await catalog.ListAsync(cancellationToken))
+            .OrderBy(entry => entry.ProjectKey, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (projects.Length == 0)
+        {
+            if (workingProjectKey is not null || runtimeProjectKey is not null)
+                throw new InvalidOperationException("A configured Engineering Working/Runtime project was not found because the persisted project catalog is empty.");
+            return new EngineeringWorkingBootstrapResult(
+                EngineeringWorkingBootstrapSource.EmptyCatalog,
+                false,
+                null,
+                null,
+                workspace.Describe());
+        }
+
+        EngineeringWorkingBootstrapSource source;
+        EngineeringProjectCatalogEntry selected;
+        if (workingProjectKey is not null)
+        {
+            source = EngineeringWorkingBootstrapSource.ConfiguredWorking;
+            selected = FindRequired(projects, workingProjectKey, "EngineeringWorking:ProjectKey");
+        }
+        else if (runtimeProjectKey is not null)
+        {
+            source = EngineeringWorkingBootstrapSource.ConfiguredRuntime;
+            selected = FindRequired(projects, runtimeProjectKey, "EngineeringRuntime:ProjectKey");
+        }
+        else
+        {
+            source = EngineeringWorkingBootstrapSource.MostRecentlySaved;
+            selected = projects
+                .OrderByDescending(entry => entry.LastSavedAtUtc)
+                .ThenBy(entry => entry.ProjectKey, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(entry => entry.ProjectKey, StringComparer.Ordinal)
+                .First();
+        }
+
+        var revision = configuredWorkingRevision ?? selected.LatestRevision;
+        var outcome = await checkout.CheckoutAsync(selected.ProjectKey, revision, cancellationToken);
+        if (outcome is null)
+            throw new InvalidOperationException($"Persisted Engineering Working project '{selected.ProjectKey}' revision {revision} was not found.");
+        if (!outcome.CheckedOut)
+        {
+            var issues = outcome.Preview.Items
+                .SelectMany(item => item.Issues)
+                .Concat(outcome.ApplyResult?.Issues ?? Array.Empty<Scada.Engineering.Contracts.ImportIssue>())
+                .Where(issue => issue.IsError)
+                .Take(8)
+                .Select(issue => $"{issue.Code} ({issue.EntityKind}:{issue.EntityKey}): {issue.Message}")
+                .ToArray();
+            var diagnostic = issues.Length == 0
+                ? "No validation details were returned."
+                : string.Join(" | ", issues);
+            throw new InvalidOperationException(
+                $"Persisted Engineering Working project '{selected.ProjectKey}' revision {revision} could not be checked out. {diagnostic}");
+        }
+
+        var requiresDynamoMigration = workspace.Assets.SnapshotDynamos().Any(dynamo =>
+            dynamo.Metadata is not null &&
+            ((dynamo.Metadata.TryGetValue("builtinLibrary", out var builtin) &&
+              string.Equals(builtin, "true", StringComparison.OrdinalIgnoreCase) &&
+              dynamo.Metadata.GetValueOrDefault("catalogStatus") != "active") ||
+             dynamo.Metadata.TryGetValue("importedDynamoLibrary", out var imported) &&
+              string.Equals(imported, "true", StringComparison.OrdinalIgnoreCase) ||
+             dynamo.Metadata.TryGetValue("assetOrigin", out var origin) &&
+              string.Equals(origin, "elipse-e3-import", StringComparison.OrdinalIgnoreCase)) ||
+            IsOutdatedBuiltinDynamo(dynamo));
+
+        UpgradeBuiltinDynamos(workspace);
+        RemoveImportedE3Dynamos();
+
+        // Persist a one-time migration of retired platform libraries so the old
+        // definitions do not return on the next restart. Only migrate the latest
+        // revision; explicitly pinned historical checkouts remain read-only.
+        if (requiresDynamoMigration && persistence is not null && revision == selected.LatestRevision)
+        {
+            var saveVersion = workspace.CaptureChangeVersion();
+            var migrated = await persistence.SaveCurrentDerivedAsync(
+                selected.ProjectKey,
+                outcome.Snapshot.ProjectName,
+                outcome.Snapshot.Revision,
+                "system:builtin-dynamo-migration",
+                cancellationToken);
+            workspace.AcceptSave(
+                migrated.ProjectKey,
+                migrated.ProjectName,
+                migrated.Revision,
+                migrated.SavedAtUtc,
+                saveVersion);
+            outcome = outcome with { Snapshot = migrated };
+        }
+
+        return new EngineeringWorkingBootstrapResult(
+            source,
+            true,
+            outcome.Snapshot.ProjectKey,
+            outcome.Snapshot.Revision,
+            workspace.Describe());
+    }
+
+    /// <summary>
+    /// Applies first-party builtin dynamo library upgrades to an already-loaded
+    /// workspace. Also used after importing legacy packages while the API is running.
+    /// </summary>
+    public static void UpgradeBuiltinDynamos(EngineeringWorkspace workspace)
+    {
+        var existingDynamos = workspace.Assets.SnapshotDynamos()
+            .ToDictionary(dynamo => dynamo.Key, StringComparer.OrdinalIgnoreCase);
+        var existingBuiltins = existingDynamos
+            .Where(pair =>
+                pair.Value.Metadata is not null &&
+                pair.Value.Metadata.TryGetValue("builtinLibrary", out var isBuiltin) &&
+                string.Equals(isBuiltin, "true", StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+
+        // Retire only platform-owned entries from the old generation; project-authored
+        // definitions and the replacement V1 catalog remain untouched.
+        var hadBuiltInCatalog = existingBuiltins.Count > 0;
+        foreach (var legacy in existingBuiltins.Values.Where(definition =>
+                     definition.Metadata?.GetValueOrDefault("catalogStatus") != "active"))
+            workspace.Assets.RemoveDynamo(legacy.Key);
+
+        // Preserve projects that never opted into the platform catalog.
+        if (!hadBuiltInCatalog) return;
+
+        // Retire only these platform-owned definitions and their private artwork;
+        // user dynamos and unrelated visual assets remain untouched.
+        var projectElements = workspace.Views.SnapshotScreens().SelectMany(screen => screen.Elements ?? [])
+            .Concat(workspace.Views.SnapshotPopups().SelectMany(popup => popup.Elements ?? []))
+            .Concat(existingDynamos.Values.Where(d => !RemovedBuiltinDynamoKeys.Contains(d.Key, StringComparer.OrdinalIgnoreCase)
+                || !existingBuiltins.ContainsKey(d.Key)).SelectMany(d => d.Elements ?? []));
+        var elements = WalkElements(projectElements).ToArray();
+        foreach (var key in RemovedBuiltinDynamoKeys)
+        {
+            if (!existingBuiltins.TryGetValue(key, out var retired)) continue;
+            if (elements.Any(e => string.Equals(e.DynamoKey, key, StringComparison.OrdinalIgnoreCase)
+                || (retired.Id.HasValue && e.DynamoDefinitionId == retired.Id))) continue;
+            workspace.Assets.RemoveDynamo(key);
+            var artwork = workspace.VisualAssets.FindAssetByKey($"builtin.dynamo.v1.{key.Replace('.', '-')}");
+            if (artwork?.Metadata?.GetValueOrDefault("assetOrigin") == "original-elitescada-vector-factory"
+                && !elements.Any(e => e.Properties?.TryGetValue("assetRef", out var reference) == true
+                    && reference.ValueKind == System.Text.Json.JsonValueKind.Object
+                    && reference.TryGetProperty("assetId", out var id)
+                    && id.ValueKind == System.Text.Json.JsonValueKind.String && id.TryGetGuid(out var assetId)
+                    && assetId == artwork.Id))
+                workspace.VisualAssets.RemoveAsset(artwork.Id!.Value);
+        }
+
+        var remainingDynamos = workspace.Assets.SnapshotDynamos()
+            .ToDictionary(dynamo => dynamo.Key, StringComparer.OrdinalIgnoreCase);
+        var remainingBuiltins = remainingDynamos
+            .Where(pair => pair.Value.Metadata is not null &&
+                pair.Value.Metadata.TryGetValue("builtinLibrary", out var isBuiltin) &&
+                string.Equals(isBuiltin, "true", StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+        UpgradeBuiltinDynamoCatalogV1(workspace, remainingDynamos, remainingBuiltins);
+    }
+
+    private static IEnumerable<VisualElementEngineeringDto> WalkElements(IEnumerable<VisualElementEngineeringDto> elements)
+    {
+        foreach (var element in elements)
+        {
+            yield return element;
+            if (element.Children is null) continue;
+            foreach (var child in WalkElements(element.Children)) yield return child;
+        }
+    }
+
+    private static void UpgradeBuiltinDynamoCatalogV1(
+        EngineeringWorkspace workspace,
+        IReadOnlyDictionary<string, Scada.Engineering.Contracts.DynamoEngineeringDto> existingDynamos,
+        IReadOnlyDictionary<string, Scada.Engineering.Contracts.DynamoEngineeringDto> existingBuiltins)
+    {
+        var artwork = BuiltinDynamoCatalogV1.CreateArtworkAssets();
+        var definitions = BuiltinDynamoCatalogV1.Create();
+        var blockedDefinitions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // A persisted workspace has replaced the in-memory demo registries. Restore
+        // first-party artwork before adding definitions which reference those assets.
+        foreach (var (asset, payload) in artwork)
+        {
+            var byKey = workspace.VisualAssets.FindAssetByKey(asset.Key);
+            var byId = workspace.VisualAssets.FindAsset(asset.Id!.Value);
+            if ((byKey is not null && byKey.Id != asset.Id) ||
+                (byId is not null && !byId.Key.Equals(asset.Key, StringComparison.OrdinalIgnoreCase)))
+            {
+                var definition = definitions.FirstOrDefault(item =>
+                    $"builtin.dynamo.v1.{item.Key.Replace('.', '-')}".Equals(asset.Key, StringComparison.OrdinalIgnoreCase));
+                if (definition is not null) blockedDefinitions.Add(definition.Key);
+                continue;
+            }
+
+            if (byKey is null)
+            {
+                workspace.VisualAssets.UpsertAsset(asset);
+                workspace.VisualAssets.PutPayload(payload);
+            }
+            else if (byKey.Metadata?.GetValueOrDefault("assetOrigin") == "original-elitescada-vector-factory" &&
+                     (!byKey.Sha256.Equals(asset.Sha256, StringComparison.OrdinalIgnoreCase) ||
+                      !workspace.VisualAssets.HasPayload(asset.Sha256) ||
+                      asset.Metadata?.Any(pair => byKey.Metadata?.GetValueOrDefault(pair.Key) != pair.Value) == true))
+            {
+                // A Dynamo visual refresh keeps the stable asset key/ID while replacing
+                // only platform-owned artwork bytes. Never rewrite project/user artwork.
+                workspace.VisualAssets.UpsertAsset(asset);
+                if (!workspace.VisualAssets.HasPayload(asset.Sha256)) workspace.VisualAssets.PutPayload(payload);
+            }
+            else if (!workspace.VisualAssets.HasPayload(byKey.Sha256))
+            {
+                var definition = definitions.FirstOrDefault(item =>
+                    $"builtin.dynamo.v1.{item.Key.Replace('.', '-')}".Equals(asset.Key, StringComparison.OrdinalIgnoreCase));
+                if (definition is not null) blockedDefinitions.Add(definition.Key);
+            }
+        }
+
+        foreach (var latest in definitions)
+        {
+            if (blockedDefinitions.Contains(latest.Key)) continue;
+            if (existingDynamos.TryGetValue(latest.Key, out var sameKeyDynamo) &&
+                !existingBuiltins.ContainsKey(latest.Key))
+                continue;
+
+            if (existingBuiltins.TryGetValue(latest.Key, out var current))
+            {
+                var currentVersionText = current.Properties is not null &&
+                    current.Properties.TryGetValue("libraryVersion", out var versionText)
+                    ? versionText
+                    : null;
+                if (Version.TryParse(currentVersionText, out var currentVersion) &&
+                    Version.TryParse(BuiltinDynamoCatalogV1.Version, out var latestVersion) &&
+                    currentVersion >= latestVersion)
+                    continue;
+
+                workspace.Assets.UpsertDynamo(latest with { Id = current.Id });
+                continue;
+            }
+
+            workspace.Assets.UpsertDynamo(latest);
+        }
+    }
+
+    private void RemoveImportedE3Dynamos()
+    {
+        // Legacy project snapshots can still contain the trial imports. Remove
+        // only library-owned Elipse E3 definitions; leave native built-ins and
+        // user-authored dynamos untouched. The source drawings and converter stay
+        // available offline for a future explicit import.
+        var importedKeys = workspace.Assets.SnapshotDynamos()
+            .Where(dynamo => dynamo.Metadata is not null &&
+                (dynamo.Metadata.TryGetValue("importedDynamoLibrary", out var imported) &&
+                    string.Equals(imported, "true", StringComparison.OrdinalIgnoreCase) ||
+                 dynamo.Metadata.TryGetValue("assetOrigin", out var origin) &&
+                    string.Equals(origin, "elipse-e3-import", StringComparison.OrdinalIgnoreCase)))
+            .Select(dynamo => dynamo.Key)
+            .ToArray();
+
+        foreach (var key in importedKeys)
+            workspace.Assets.RemoveDynamo(key);
+    }
+
+    private static bool IsOutdatedBuiltinDynamo(Scada.Engineering.Contracts.DynamoEngineeringDto dynamo)
+    {
+        if (dynamo.Metadata?.TryGetValue("builtinLibrary", out var builtin) != true ||
+            !string.Equals(builtin, "true", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var currentVersionText = dynamo.Properties?.GetValueOrDefault("libraryVersion");
+        return !Version.TryParse(currentVersionText, out var currentVersion) ||
+               !Version.TryParse(BuiltinDynamoCatalogV1.Version, out var latestVersion) ||
+               currentVersion < latestVersion;
+    }
+
+    private static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static EngineeringProjectCatalogEntry FindRequired(
+        IReadOnlyCollection<EngineeringProjectCatalogEntry> projects,
+        string projectKey,
+        string settingName) =>
+        projects.FirstOrDefault(entry => entry.ProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException($"Configured {settingName} '{projectKey}' does not exist in the persisted project catalog.");
+}

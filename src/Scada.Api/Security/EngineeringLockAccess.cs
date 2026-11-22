@@ -40,7 +40,10 @@ public static class EngineeringLockAccess
             DateTimeOffset.UtcNow,
             Array.Empty<TagEngineeringDto>(),
             Array.Empty<AlarmEngineeringDto>(),
-            EngineeringLock: normalized);
+            EngineeringLock: normalized,
+            // A lock change is a partial Engineering package. Keep the immutable
+            // Authority binding so canonical validation still sees the same policy.
+            AuthorityPolicyReference: current.AuthorityPolicyReference);
 
         var preview = exchange.Preview(lockOnly, ImportMode.UpdateExisting);
         if (!preview.CanApply)

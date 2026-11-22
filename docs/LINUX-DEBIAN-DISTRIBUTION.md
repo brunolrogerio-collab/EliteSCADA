@@ -93,3 +93,29 @@ This is a commercial-distribution gate, not a claim that the currently accepted 
 ## Start rule
 
 Implementation begins only when the Development Lead explicitly requests the installable `.deb` version. At that time the Coordinator must re-read live `main`, licensing behavior, current Driver dependencies, the exact DNP3 licensing disposition, supported Debian versions and current CI before creating a dedicated packaging branch.
+
+
+## Container-native architecture interaction
+
+ADR-010 / #363 introduces a strategic candidate in which the common EliteSCADA product is distributed as a canonical OCI image, initially for `linux/amd64` and `linux/arm64`, with host-specific packaging acting as an adapter where appropriate.
+
+This does **not** yet invalidate the Linux `.deb` contract above.
+
+Until the OCI spike is accepted, the current Debian contract remains the supported future Linux packaging baseline.
+
+The container-native spike must determine whether the eventual Debian deliverable should be:
+
+1. a native self-contained EliteSCADA package as currently specified;
+2. a host-adapter package that installs/configures a supported OCI runtime, pinned EliteSCADA image, systemd lifecycle and persistent directories; or
+3. both profiles during a transition/support period.
+
+The decision must be evidence-based and preserve:
+- systemd administration;
+- protected config/secrets;
+- durable state and licensing across reboot/upgrade;
+- external PostgreSQL/TimescaleDB support;
+- Driver capability support;
+- offline industrial installation;
+- SBOM/dependency-license evidence.
+
+Do not force the OCI path merely for packaging uniformity if it creates a worse operational/security/support boundary on a target host.

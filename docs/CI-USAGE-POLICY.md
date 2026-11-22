@@ -32,6 +32,20 @@ The optimization target is **when and how often CI runs**, not what the final pr
 
 ## Normal-mode execution rules
 
+### Wave 15 validation tiers
+
+- **T0:** local deterministic inspection and focused tests before push.
+- **T1:** `wave15-pr.yml` for a leaf PR to `wave15/corrections-integration`; its required `VALIDATION_PROFILE` is the declared risk intent, while path inference is a non-bypassable floor.
+- **T2:** broad `dotnet-ci.yml` push validation on `wave15/corrections-integration` for integrated checkpoints.
+- **T3:** specialized risk-sensitive workflows (Driver/Interop, licensing preview and equivalent labs), manually or checkpoint-triggered when their risk applies.
+- **T4:** universal `dotnet-ci.yml` PR acceptance for `main` and release/final integration evidence.
+
+The T1 vocabulary is: `FOUNDATION_LIFECYCLE`, `FOUNDATION_TIMING`, `AUTHORITY_CORE`, `SESSION_LICENSING`, `SCRIPT_RUNTIME`, `RUNTIME_RENDERER`, `APP_SHELL`, `UI_EDITOR`, `SCRIPT_ENGINEERING`, `AUTHORITY_UX`, `LICENSING_UX`, `ELITEGO_RUNTIME`, `DATABASE_TOPOLOGY`, `INSTALLATION`, `HA_DISTRIBUTED`, `DOCS_I18N_HELP`, `EEE_PACKAGE`, `CI_INFRA`, `DRIVER_PROTOCOL`.
+
+T1 does not delete required product evidence. It assigns focused evidence to the changed risk. Browser specs are routed by the files that own them rather than by broad directory ancestry: HA Admin does not pull the visual-editor suite, database topology does not pull installation/local-auth, and backend-only changes do not start Web/Chromium unless a web owner changed. HA two-process evidence is reserved for HA core/protocol changes, not HA UI-only changes. The Coordinator may always escalate a PR to any heavier/specialized gate. A declared inexpensive profile never suppresses an inferred profile.
+
+T1 setup must also remain proportional: .NET restores only selected owning projects; Chromium restores only the API project it boots; npm and Playwright browser downloads use dependency-keyed caches where safe. T2/T4 remain the broad integrated/final matrix and are not replaced by this routing.
+
 ### Workers — DEV 1 / DEV 2 / DEV 3
 
 1. Run the focused validation required by the active assignment.

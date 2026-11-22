@@ -1,7 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import type { EngineeringLocale } from '../src/engineering/i18n';
-import type { VisualElementEngineering } from '../src/engineering/types';
+import type { DynamoEngineering, VisualElementEngineering } from '../src/engineering/types';
 import { CanonicalVisualRenderer } from '../src/engineering/visual-editor/CanonicalVisualRenderer';
 import {
   BUILTIN_VISUAL_OBJECT_TYPES,
@@ -19,6 +19,13 @@ const requestedLocale = params.get('locale');
 const locale: EngineeringLocale = requestedLocale === 'en' || requestedLocale === 'es' ? requestedLocale : 'pt-BR';
 const count = params.get('count') === '2' ? 2 : 1;
 const showQuality = params.get('quality') !== 'off';
+const operatorTimeRangeControls = params.get('controls') === 'on';
+const showTimeAxis = params.get('timeAxis') !== 'off';
+const renderDynamo = params.get('dynamo') === 'on';
+const axisFontSize = Number(params.get('axisFontSize') ?? 16);
+const legendFontSize = Number(params.get('legendFontSize') ?? 14);
+const requestedTrendWidth = Number(params.get('width') ?? 760);
+const trendWidth = Number.isFinite(requestedTrendWidth) ? Math.min(760, Math.max(280, requestedTrendWidth)) : 760;
 
 const pressure = createTrendPen({
   id: tagOne,
@@ -33,13 +40,29 @@ const flow = createTrendPen({
   unit: 'm3/h'
 }, 1);
 
-const elements: VisualElementEngineering[] = [trendElement(
+const elements: VisualElementEngineering[] = renderDynamo ? [{
+  id: 'test-dynamo-instance', key: 'test-dynamo-instance', type: BUILTIN_VISUAL_OBJECT_TYPES.group,
+  dynamoKey: 'test.fitted', dynamoDefinitionId: 'test-dynamo-definition',
+  properties: { [VISUAL_PROPERTY_KEYS.x]: 10, [VISUAL_PROPERTY_KEYS.y]: 10, [VISUAL_PROPERTY_KEYS.width]: 200, [VISUAL_PROPERTY_KEYS.height]: 150 }
+}] : [trendElement(
   'trend-harness-1',
   'trend-harness-primary',
   10,
-  [pressure, flow]
+  params.get('hidden') === 'all' ? [pressure, flow].map(pen => ({ ...pen, visible: false })) : [pressure, flow]
 )];
-if (count === 2) {
+const dynamoDefinitions: DynamoEngineering[] = renderDynamo ? [{
+  id: 'test-dynamo-definition', key: 'test.fitted', name: 'Fitted test Dynamo',
+  properties: { defaultWidth: '100', defaultHeight: '100' },
+  elements: [{
+    id: 'test-dynamo-rect', key: 'test-dynamo-rect', type: BUILTIN_VISUAL_OBJECT_TYPES.rectangle,
+    properties: {
+      [VISUAL_PROPERTY_KEYS.x]: 10, [VISUAL_PROPERTY_KEYS.y]: 20,
+      [VISUAL_PROPERTY_KEYS.width]: 30, [VISUAL_PROPERTY_KEYS.height]: 40,
+      [VISUAL_PROPERTY_KEYS.fillColor]: '#00FF00'
+    }
+  }]
+}] : [];
+if (count === 2 && !renderDynamo) {
   elements.push(trendElement(
     'trend-harness-2',
     'trend-harness-secondary',
@@ -61,7 +84,7 @@ function trendElement(
     properties: {
       [VISUAL_PROPERTY_KEYS.x]: 10,
       [VISUAL_PROPERTY_KEYS.y]: y,
-      [VISUAL_PROPERTY_KEYS.width]: 760,
+      [VISUAL_PROPERTY_KEYS.width]: trendWidth,
       [VISUAL_PROPERTY_KEYS.height]: 240,
       [VISUAL_PROPERTY_KEYS.zIndex]: y,
       [VISUAL_PROPERTY_KEYS.trendMode]: mode,
@@ -70,6 +93,9 @@ function trendElement(
       [VISUAL_PROPERTY_KEYS.trendLegendVisible]: true,
       [VISUAL_PROPERTY_KEYS.trendGridVisible]: true,
       [VISUAL_PROPERTY_KEYS.trendAxesVisible]: true,
+      [VISUAL_PROPERTY_KEYS.trendAxisFontSize]: axisFontSize,
+      [VISUAL_PROPERTY_KEYS.trendTimeAxisVisible]: showTimeAxis,
+      [VISUAL_PROPERTY_KEYS.trendLegendFontSize]: legendFontSize,
       [VISUAL_PROPERTY_KEYS.trendQualityVisible]: showQuality,
       [TREND_PENS_PROPERTY]: trendPensEngineeringValue(pens)
     }
@@ -85,6 +111,8 @@ createRoot(root).render(
       elements={elements}
       emptyLabel="No visual elements"
       locale={locale}
+      dynamoDefinitions={dynamoDefinitions}
+      operatorTimeRangeControls={operatorTimeRangeControls}
     />
   </div>
 );

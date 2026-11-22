@@ -1,4 +1,5 @@
 import type {
+  AuthorityPolicyReferenceEngineering,
   CanonicalScriptPackage,
   ScriptEngineeringDefinition,
   ScriptEngineeringDependency,
@@ -34,6 +35,44 @@ export const SCRIPT_DEPENDENCY_KINDS: ScriptEngineeringDependencyKind[] = [
 ];
 
 export const MINIMUM_SCRIPT_TIMER_INTERVAL_MS = 50;
+export const DEFAULT_SCRIPT_TIMER_INTERVAL_MS = 1000;
+
+export function isScriptEventAllowedForScope(
+  scope: ScriptEngineeringScope,
+  eventKind: ScriptEngineeringEventKind
+): boolean {
+  if (scope === 'clientVisual') return eventKind !== 'serverRuntimeEvent';
+  return eventKind === 'initialize' ||
+    eventKind === 'dispose' ||
+    eventKind === 'tagChanged' ||
+    eventKind === 'timer' ||
+    eventKind === 'serverRuntimeEvent';
+}
+
+export function retargetScriptEntryPoint(
+  entryPoint: ScriptEngineeringEntryPoint,
+  eventKind: ScriptEngineeringEventKind
+): ScriptEngineeringEntryPoint {
+  if (entryPoint.eventKind === eventKind) {
+    return {
+      ...entryPoint,
+      tagReference: entryPoint.tagReference
+        ? {
+            ...entryPoint.tagReference,
+            selector: entryPoint.tagReference.selector ? { ...entryPoint.tagReference.selector } : null
+          }
+        : null
+    };
+  }
+
+  return {
+    eventKind,
+    handlerName: entryPoint.handlerName,
+    targetReference: null,
+    tagReference: null,
+    timerIntervalMs: eventKind === 'timer' ? DEFAULT_SCRIPT_TIMER_INTERVAL_MS : null
+  };
+}
 
 const numericScopes: ScriptEngineeringScope[] = ['clientVisual', 'server'];
 const numericEvents: ScriptEngineeringEventKind[] = SCRIPT_EVENT_KINDS;
@@ -141,7 +180,8 @@ export function scriptMutationMode(
 export function buildCanonicalScriptPackage(
   script: ScriptEngineeringDefinition,
   allVisualReferences: readonly ScriptVisualEventReference[],
-  exportedAt = new Date().toISOString()
+  exportedAt = new Date().toISOString(),
+  authorityPolicyReference?: AuthorityPolicyReferenceEngineering | null
 ): CanonicalScriptPackage {
   const ownedReferences = allVisualReferences
     .filter(reference => reference.scriptId === script.id)
@@ -154,7 +194,8 @@ export function buildCanonicalScriptPackage(
 
   return {
     schema: 'scada.engineering',
-    schemaVersion: 10,
+    // Schema 29 supports partial imports into projects with resource folders.
+    schemaVersion: 29,
     exportedAt,
     tags: [],
     alarms: [],
@@ -177,7 +218,8 @@ export function buildCanonicalScriptPackage(
       description: script.description?.trim() ? script.description : null,
       metadata: { ...script.metadata }
     }],
-    scriptVisualEventReferences: ownedReferences
+    scriptVisualEventReferences: ownedReferences,
+    authorityPolicyReference: authorityPolicyReference ?? null
   };
 }
 
@@ -208,6 +250,7 @@ export function validateScriptDraft(script: ScriptEngineeringDefinition): string
   const entryKeys = new Set<string>();
   for (const entry of script.entryPoints) {
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(entry.handlerName.trim())) issues.push('entryPoint');
+    if (!isScriptEventAllowedForScope(script.scope, entry.eventKind)) issues.push('entryPointScope');
     issues.push(...validateEventTarget(entry.eventKind, entry.targetReference, entry.tagReference, entry.timerIntervalMs));
     const key = eventAssociationIdentity(entry.eventKind, entry.handlerName.trim(), entry.targetReference, entry.tagReference, entry.timerIntervalMs);
     if (entryKeys.has(key)) issues.push('entryPointDuplicate');
@@ -229,6 +272,10 @@ export function validateVisualEventReference(reference: ScriptVisualEventReferen
   if (!reference.visualDefinitionId.trim()) issues.push('visualDefinitionId');
   if (!reference.scriptId.trim()) issues.push('scriptId');
   if (!reference.entryPoint.trim()) issues.push('entryPoint');
+  if (reference.eventKind === 'objectInteraction' &&
+      !['click', 'pointerenter', 'pointermove', 'pointerleave'].includes((reference.eventKey ?? 'click').trim().toLocaleLowerCase('en-US'))) {
+    issues.push('interactionEventKey');
+  }
   issues.push(...validateEventTarget(
     reference.eventKind,
     reference.targetReference,
@@ -255,8 +302,18 @@ function normalizeEntryPoint(raw: Record<string, unknown>): ScriptEngineeringEnt
 function normalizeDependency(raw: Record<string, unknown>): ScriptEngineeringDependency {
   return {
     kind: normalizeDependencyKind(raw.kind),
-    stableReference: String(raw.stableReference ?? '')
+    stableReference: String(raw.stableReference ?? ''),
+    tagBinding: normalizeTagBinding(raw.tagBinding)
   };
+}
+
+function normalizeTagBinding(value: unknown): ScriptEngineeringDependency['tagBinding'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const reference = typeof raw.reference === 'string' ? raw.reference : '';
+  const version = typeof raw.version === 'number' ? raw.version : 0;
+  const expected = normalizeTagReference(raw.expected);
+  return reference && version > 0 && expected ? { version, reference, expected } : null;
 }
 
 function normalizeTagReference(value: unknown): ScriptEngineeringEntryPoint['tagReference'] {

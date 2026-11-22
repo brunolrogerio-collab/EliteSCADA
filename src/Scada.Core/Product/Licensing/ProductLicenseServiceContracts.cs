@@ -10,6 +10,7 @@ public interface IProductLicenseService : IProductRunEntitlementProvider
     string MachineFingerprint { get; }
     string MachineRequestCode { get; }
     LicenseVerificationResult CurrentVerification { get; }
+    LicenseVerificationResult VerifyCandidate(string licenseCode);
     void InstallLicense(string licenseCode);
     void RemoveLicense();
 }

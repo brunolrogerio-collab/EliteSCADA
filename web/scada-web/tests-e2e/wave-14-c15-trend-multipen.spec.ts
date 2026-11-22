@@ -138,18 +138,81 @@ test('C15 Popup authoring round-trip uses the same canonical Trend object and na
   expect(readTrendPens(persisted.elements![0])).toEqual(fixturePens());
 });
 
-test('C15 builds one protected historian.samples query for all visible Pens', () => {
+test('C15 builds one bounded transient sampled Data Query for all visible Pens', () => {
   const request = buildTrendHistoricalQuery(fixturePens(), 3600);
-  expect(request.datasetKey).toBe('historian.samples');
-  expect(request.version).toBe(1);
-  expect(request.timeRange).toEqual({ kind: 'relative', durationSeconds: 3600, anchor: 'now' });
-  expect(request.filters).toEqual([{
-    field: 'tag.id', operator: 'in', values: [
-      { kind: 'guid', value: tagOne },
-      { kind: 'guid', value: tagTwo }
-    ]
-  }]);
-  expect(request.orderBy).toEqual([{ field: 'timestamp', direction: 'ascending' }]);
+  expect(request).toMatchObject({
+    execution: {},
+    definition: {
+      providerKey: 'historical',
+      version: 1,
+      selectedFields: ['tag.id', 'tag.path', 'quality', 'value', 'timestamp'],
+      query: {
+        datasetKey: 'historian.samples',
+        version: 1,
+        timeRange: { kind: 'relative', durationSeconds: 3600, anchor: 'now' },
+        filters: [{ field: 'tag.id', operator: 'in', values: [
+          { kind: 'guid', value: tagOne },
+          { kind: 'guid', value: tagTwo }
+        ] }],
+        orderBy: [{ field: 'timestamp', direction: 'ascending' }],
+        page: { limit: 200 }
+      },
+      historianRetrieval: {
+        mode: 'sampledFixedStep',
+        stepMilliseconds: expect.any(Number),
+        maximumGapMilliseconds: expect.any(Number)
+      }
+    }
+  });
+  expect(request.definition.historianRetrieval.stepMilliseconds).toBeGreaterThan(0);
+  expect(request.definition.historianRetrieval.maximumGapMilliseconds).toBeGreaterThan(0);
+  expect(request.definition.historianRetrieval.maximumGapMilliseconds).toBeLessThanOrEqual(60_000);
+});
+
+test('C15 sampled Data Query keeps the requested point budget bounded as visible pen count grows', () => {
+  const pens = Array.from({ length: 16 }, (_, index) => createTrendPen({
+    id: `00000000-0000-0000-0000-${String(index + 1).padStart(12, '0')}`,
+    path: `Area/Pump/Tag${index + 1}`
+  }, index));
+  const request = buildTrendHistoricalQuery(pens, 24 * 60 * 60);
+  const tagCount = request.definition.query.filters?.[0].values.length ?? 0;
+  const step = request.definition.historianRetrieval.stepMilliseconds;
+  const duration = 24 * 60 * 60 * 1000;
+  const gridCount = Math.floor(duration / step) + 1;
+
+  expect(tagCount).toBe(16);
+  expect(gridCount * tagCount).toBeLessThanOrEqual(request.definition.query.page!.limit);
+  expect(request.definition.query.page!.limit).toBeLessThanOrEqual(200);
+});
+
+test('C15 keeps hidden Pens out of the transient query and rejects Live as a historian range', () => {
+  const [visible, hidden] = fixturePens();
+  const request = buildTrendHistoricalQuery([visible, { ...hidden, visible: false }], 3600);
+  expect(request.definition.query.filters?.[0].values.map(value => value.value)).toEqual([tagOne]);
+  expect(() => buildTrendHistoricalQuery(fixturePens(), {
+    mode: 'live',
+    relativeAmount: 1,
+    relativeUnit: 'hours',
+    absoluteFromLocal: '',
+    absoluteToLocal: ''
+  })).toThrow('Live Trend does not query Historian history.');
+});
+
+test('C15 bounds trend samples while spanning the full absolute time range', () => {
+  const request = buildTrendHistoricalQuery(fixturePens(), Object.freeze({
+    mode: 'absolute',
+    relativeAmount: 1,
+    relativeUnit: 'hours',
+    absoluteFromLocal: '2026-10-20T18:29:00',
+    absoluteToLocal: '2026-10-20T23:44:00'
+  }));
+  const from = Date.parse(request.definition.query.timeRange.kind === 'absolute' ? request.definition.query.timeRange.fromUtc : '');
+  const to = Date.parse(request.definition.query.timeRange.kind === 'absolute' ? request.definition.query.timeRange.toUtc : '');
+  const step = request.definition.historianRetrieval.stepMilliseconds;
+  const pointsPerPen = Math.floor((Math.floor(200 / 2) - 1) + 1);
+  expect(to - from).toBe(5 * 60 * 60 * 1000 + 15 * 60 * 1000);
+  expect(Math.ceil((to - from) / step) + 1).toBeLessThanOrEqual(pointsPerPen);
+  expect(request.definition.historianRetrieval.maximumGapMilliseconds).toBeLessThanOrEqual(60_000);
 });
 
 test('C15 groups historian rows by canonical tag id and preserves quality', () => {
@@ -219,3 +282,17 @@ function row(tagId: string, tagPath: string, timestamp: string, value: string, q
     quality: Object.freeze({ kind: 'enum' as const, value: quality })
   }) });
 }
+
+
+test('C15 canonical Trend sends the same absolute interval to every visible Pen', () => {
+  const request = buildTrendHistoricalQuery(fixturePens(), {
+    mode: 'absolute',
+    relativeAmount: 1,
+    relativeUnit: 'hours',
+    absoluteFromLocal: '2026-09-27T01:00:00',
+    absoluteToLocal: '2026-09-28T12:00:00'
+  });
+  expect(request.definition.query.timeRange.kind).toBe('absolute');
+  expect(request.definition.query.filters?.[0]).toMatchObject({ field: 'tag.id', operator: 'in' });
+  expect(request.definition.query.filters?.[0].values).toHaveLength(2);
+});

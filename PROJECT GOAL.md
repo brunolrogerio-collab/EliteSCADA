@@ -4,11 +4,11 @@
 >
 > This file preserves stable product goals and locked architecture across ChatGPT conversations, developers and tooling. It defines intent, not merely current implementation state.
 
-**Last reviewed:** 2026-09-01
+**Last reviewed:** 2026-10-26
 
 ## Mandatory continuity protocol
 
-1. At the beginning of every EliteSCADA task, read `PROJECT GOAL.md` and `LAST CHANGE.md` before planning or changing code.
+1. At mission bootstrap or after context loss, read `PROJECT GOAL.md` and the current `LAST CHANGE.md` entry before planning or changing code. During continuation of that established mission, revalidate changed authoritative inputs under `docs/CHAT-COLLABORATION-PROTOCOL.md` section 9.
 2. The repository, not chat history, is the persistent coordination memory. A fresh ChatGPT conversation must be able to resume safely from repository state alone.
 3. Every material coordination cycle, decision, blocker, fix, validation run or change of next action must review and synchronize **both** `PROJECT GOAL.md` and `LAST CHANGE.md` in the same task when their recorded state is affected.
 4. Stable product goals, architecture and permanent coordination rules belong in `PROJECT GOAL.md`; exact mutable branch/SHA/run/issue/blocker/next-action state belongs in `LAST CHANGE.md`.
@@ -23,7 +23,25 @@
 
 ### Current release-sequencing gate
 
-The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, the pre-Wave-11 owner-usability gate #191 was accepted and integrated, and Wave 11 established the Active persisted canonical Engineering revision as HMI Runtime application truth with an owner-testable `.escadapkg` handoff. **Wave 12 hardening is complete and accepted under issue #201. Wave 14 product-owner validation/corrections are the active product priority under issue #211; Wave 13 signed Windows x64 + Authenticode/trusted-timestamp release work remains a separate paused stage until the corrected Wave 14 product baseline is accepted.** Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
+The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, the pre-Wave-11 owner-usability gate #191 was accepted and integrated, and Wave 11 established the Active persisted canonical Engineering revision as HMI Runtime application truth with an owner-testable `.escadapkg` handoff. **Wave 12 hardening is complete and accepted under issue #201. Wave 15 complete-product delivery remains active under #297; the Product Owner accepted the current SVG factory/catalog and usable Dynamo set, with further visual polish deferred beyond this gate. Productization and final Preview remain under #306/#300, alongside localization/help/manual closure under #379/#424/#425 and the authorized Intelligence sequence. Completed Home/Building and visual-foundation work must not be restarted from stale issue/bootstrap state. Physical driver L4 is human product testing outside GitHub control, not a requirement to keep completed driver issues open. Wave 13 signed Windows x64 + Authenticode/trusted-timestamp release work remains a separate paused stage until the Wave 15 product baseline is accepted.** Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
+
+### Installed Help and complete manuals
+
+The 25 October owner instruction requires explicit editorial review markers wherever current Help depends on a pending product implementation. Keep a searchable marker with issue, affected topic/fields and verification criteria in `docs/manual/PRODUCT-CHANGE-REVIEW-MARKERS.json`; generated manual comments and the audit index retain those links. Keep readable current-behavior limitations in user-facing Help. Revisit the marked text after the implementation is accepted and verified; closing a product issue alone does not validate its documentation.
+
+The Product Owner requires practical guidance sufficient to build an application without assumed familiarity, including explanations of ordinary fields and actions. Help must explain prerequisites, steps, expected behavior and troubleshooting from the implemented product. Script guidance must cover the supported syntax and commands with several concrete examples appropriate to each execution scope. Verify examples against the corresponding implementation; architecture proposals alone are not evidence that an API is available. Preserve the installed/offline Help foundation and pt-BR/en/es semantic parity, and state confirmed limitations accurately. Exact delivery and residual-defect status belongs in `LAST CHANGE.md` and #379/#424/#425.
+
+The 24 October owner review clarifies that topic presence alone does not satisfy this goal. Organize Help into understandable areas and subtopics with search and article navigation. Explain object-specific fields, their purpose, units/options, examples and effects; do not assume all Screen/Popup objects share one property set. Introduce the situation before technical instructions, distinguish Server and Client Visual syntax/APIs, and execute the actual published examples. Images used for instruction must be real product captures with known provenance and an accurate caption; never invent a product interface. Final manual illustration follows the queued interface audit.
+
+The 25 October owner correction explicitly includes every material product area: Intelligence, HA, Database, Templates, Equipment and the remaining workflows. Do not stop at Screen/object or Script coverage. Explain how to reach each feature, the actual fields and conditional choices, examples, ordered actions, expected results and recovery from common mistakes. An area inventory or a passing test is not acceptance of teaching depth. Maintain an honest whole-product depth map, and keep installed Help easy to find from the relevant UI.
+
+### Product online licensing — queued immediately after Help
+
+The Portal handoff received on 25 October communicates the Product Owner's priority: finish active Help #424/#425, then integrate product online licensing under #301 before the operational-improvement queue. This is sequencing/specification, not implemented or accepted online licensing and not permission to enable issuance. Preserve the authoritative #301 comment 6392078669, offline ESLIC1/2/3 parsers, Authority ownership and platform parity. The product alone receives the online public key; activation/48-hour renewal, maximum 72-hour ESLEASE1 verification, protected rotating credentials, explicit online-expiry-to-Demo transition, Demo without a Run timer and backend usage counters require their own implementation/verification. Portal issuance stays disabled until the product cycle and key operation are jointly validated. See `docs/WAVE15-ONLINE-LICENSING-AFTER-HELP-HANDOFF-2026-10-25.md`; Portal and Help PRs remain separate.
+
+### Authorized operational improvements — queued after Help and licensing
+
+The Product Owner requested four queued improvements on 25 October: (1) storage time/size budgets, no automatic expiry and managed archival for modest hardware, reusing existing retention/downsampling; (2) UI-managed TCP/UDP/service ports with validated administrative application/rollback, without editing product source or giving application Scripts arbitrary OS privileges; (3) 1–4-monitor operator stations using independent Runtime windows, navigable/fixed roles and optional placement automation, usable locally or through the web across platforms; (4) explicitly enabled anonymous View Only Runtime with backend-scoped reads, no writes/commands/Engineering, revocation and existing licensing quotas. These are specified/authorized, not implemented. Issues #779–#782 and `docs/WAVE15-OWNER-OPERATIONAL-GAPS-QUEUE-2026-10-25.md` own the detailed plan. Continue the current Help/manual front first; no implicit Preview, port, storage or public-access mutation is authorized by recording the queue.
 
 ## Product mission
 
@@ -154,7 +172,7 @@ Every relevant Engineering entity must be:
 - validated before application;
 - compatible with the common preview/apply workflow.
 
-Canonical technical representation is versioned JSON (`scada.engineering`). CSV is supported for appropriate bulk entities and XLSX is a future Engineering surface. Tabular formats do not replace the canonical model.
+Canonical technical representation is versioned JSON (`scada.engineering`). CSV and XLSX are supported for appropriate flat bulk entities through the same canonical preview/apply authority; neither format replaces the canonical model. One tabular file/workbook covers one entity collection. Complex screens, popups, templates, Dynamos, nested dependencies and reusable fragments remain in canonical JSON/Engineering Fragments rather than lossy spreadsheets.
 
 Mandatory import flow:
 
@@ -176,9 +194,10 @@ The public model covers or must evolve to cover:
 8. **Python Scripts**: stable ID/path, scope, language/version, source, event/entry-point references, dependencies and metadata.
 9. **Reports**: stable identity, page/layout configuration, typed provider/query definitions, runtime parameters/defaults, ordered sections/groups, report controls, aggregation/formatting rules and dependency metadata.
 10. **Security Roles / Policies**.
-11. **Gateway / TAG Bridge routes**.
-12. **Operational Commands**.
-13. Future trends, shell regions, libraries, Engineering Fragments and plugin-owned configuration.
+11. **Gateway / TAG Bridge routes** with stable TAG endpoint identities and portable paths.
+12. **Operational Event definitions** (Engineering configuration only; not Runtime occurrences, event history or audit records).
+13. **Operational Commands**.
+14. Future trends, shell regions, libraries, Engineering Fragments and plugin-owned configuration.
 
 Plugin-owned driver/Data Source configuration must expose a public versioned schema so it can participate in validation, import/export, backup/restore and migration without becoming opaque private state.
 
@@ -561,6 +580,16 @@ Full locked Wave 09 data/reporting semantics:
 - `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`;
 - `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`.
 
+## Asset and Process Intelligence
+
+Asset and Process Intelligence (#588) analyzes equipment and process data already available through the canonical SCADA contracts. It remains separately licensed, selectively enabled per configured scope, read-only and multiplatform; a disabled scope must not consume analysis resources. Generic screen measurement widgets remain usable independently of the Intelligence entitlement.
+
+Product Owner direction on 2026-10-19 fixes the development order: finish Stage 5A's six generic measurement widgets, then return to Stage 4 and complete the residual scope in `docs/ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md` before Stage 5B guided dashboards or Stage 6. Main releases bounded 4D–4G assignments under this authorization after the existing Stage 5A gates. Preserve frozen 4A–4C/ADR-020 contracts. Joint-model methods and thresholds must satisfy the representative-data validation gate before their results are claimed; implementation authorization is not evidence of detector validity.
+
+Owner clarification on 2026-10-19 for the Intelligence sequence: after CODEX delivers the stable Docker Preview, continue development while the owner evaluates and reports corrections later. Stage 5A's manual visual acceptance remains pending before freeze, but is not a residual Stage 4 development blocker after its technical gates pass. This supersedes earlier wording requiring full #639 acceptance before 4D. Preserve the delivered Preview revision/data; later development/tests use isolated checkouts, databases, Compose projects/ports and resources. No automatic Preview reset/redeploy as integration advances. Required local/CI/security evidence is not waived.
+
+On 2026-10-20 the Product Owner delegated definition of the initial Intelligence scope, operational acceptance targets and research-data handling to Main, based on technical literature. Main records concrete choices and their rationale in `docs/WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md`; statistical parameters are not a recurring owner-input prerequisite. Engineering targets remain distinct from measured results and from any normative requirement. Representative-data eligibility and the ADR-021 method/validation gates remain binding; final score methods and thresholds require evidence.
+
 ## Security and audit
 
 Security is backend-enforced, never merely hidden UI.
@@ -613,6 +642,20 @@ Runtime-HMI multilingual application content is a separate capability.
 ## External protocols and installable driver modules
 
 Modbus TCP remains the current real protocol baseline.
+
+### Physical driver validation and issue closeout
+
+Product Owner direction on 2026-10-19: real people perform physical driver L4 while testing the product, outside GitHub issue/run control. Do not retain or create L4 tracking issues merely to prevent closure of an implemented and accepted software package. Close fulfilled driver work with its concrete software evidence; observed corrections may be reported separately later. Existing physical-test timing/disclosure/installation prerequisites are not replaced by a new automated gate.
+
+Software tests, independent peers and human hardware evidence remain distinct. An untested device/family remains `NOT TESTED`; issue closure does not certify hardware, expand vendor compatibility, waive security, or authorize production/distribution. Experimental protocol restrictions remain in force. This rule does not remove required software tests, exact-SHA CI or final whole-product acceptance.
+
+### Experimental Matter Wi-Fi product gate
+
+The current Matter Wi-Fi driver is integrated only as an **experimental version**. In the Data Source type selector, its pt-BR name must be `Matter Wi-Fi (Versão em teste)`; other supported languages use localized equivalent qualifiers. This label communicates maturity and does not change any execution or release gate.
+
+The driver is opt-in only with `Engineering:DeveloperPreviews:MatterWifiV1=true` in `Development` or `Test`, remains absent by default, and is unavailable in `Staging`, `Production` and High Availability installations. After Wave 16, the experimental implementation must be replaced/prepared by a more stable version before any distribution. This integration does not authorize real Matter devices/network traffic, commissioning, interoperability, HA, production use or distribution.
+
+Exact integration/test evidence and mutable handoff state belong in `LAST CHANGE.md` and `docs/research/home-building-drivers/MATTER-WIFI-V1-IMPLEMENTATION-ADR.md`.
 
 After the prerequisite foundation and interface-preview gate:
 
@@ -692,3 +735,38 @@ Full locked semantics and the permitted early non-production spike: `docs/OPC-UA
 - `docs/LINUX-DEBIAN-DISTRIBUTION.md`: future Development-Lead-triggered Linux x64/Debian `.deb` packaging, acceptance and dependency-license contract; specification only until explicitly started.
 
 These documents must remain consistent. `PROJECT GOAL.md` wins for locked product intent; current repository code/`main` wins for implementation truth; `LAST CHANGE.md` records the exact handoff.
+
+
+## Container-native distribution strategic direction
+
+EliteSCADA should converge, where technical validation supports it, on **one common product implementation with a canonical OCI/container distribution artifact** rather than creating separate product forks for Windows, Linux and industrial Edge targets.
+
+Binding strategic preferences:
+
+- preserve the same canonical Engineering model, `.escadapkg`, Runtime, Authority, Licensing and Driver contracts across deployment targets;
+- prefer host adapters/deployment profiles over separate Lite/Edge product forks;
+- initial OCI architecture targets are `linux/amd64` and `linux/arm64`;
+- mutable product state, licensing state, configuration, certificates and diagnostics stay outside immutable image layers;
+- constrained Edge hardware may run the complete product subject to an evidence-based Deployment Capacity Profile rather than a different product implementation;
+- commercial license entitlement and physical hardware capacity are independent constraints;
+- container replacement/update must not invalidate a license merely because ephemeral container identity changed;
+- do not bind licensing to container ID, random hostname, virtual MAC or image digest;
+- container support is per homologated OCI host/platform/Driver matrix, not a claim that every OS/device automatically supports EliteSCADA;
+- Linux/Edge are the preferred first production OCI validation fronts;
+- Windows may later become a host-integration package around the same OCI artifact only if an unattended industrially supportable container-host strategy is proven; preserved native Windows packaging remains valid until then;
+- containerization does not authorize arbitrary stateless replication or bypass existing HA/Active Runtime/Authority/licensing contracts.
+
+Architecture candidate and phased validation plan:
+`docs/ADR-010-CONTAINER-NATIVE-DISTRIBUTION.md` / issue #363.
+
+Current state:
+`STRATEGIC DIRECTION / TECHNICAL VALIDATION REQUIRED / NOT YET A RELEASE CONTRACT`.
+
+
+## Requisitos do proprietário — supressão e autoria operacional (26/10/2026)
+
+Requisitos autorizados para a fila de desenvolvimento, ainda não declarados implementados: supressão de alarmes por alarme/área/subárea com estado efetivo canônico e auditável; objetos genéricos CheckBox e ComboBox no editor e Runtime, inclusive CheckBox num popup de motor ligado à supressão real de seus alarmes. Reutilizar a árvore visual e políticas existentes, manter interação tipada/autorizada e não exigir licença Intelligence para controles genéricos.
+
+A aderência de Intelligence deve ser avaliada contra as premissas originais de análise de ativos/processos, contratos, APIs e percurso real do gestor. Geração automática de dashboards no Runtime é aceita; não é razão para exigir outro subsistema de visualização nem prova suficiente de que a experiência completa foi entregue. Preservar aceites delimitados, widgets aceitos, arquitetura multiplataforma, licença/habilitação opcionais e adiamento de campo.
+
+Help/manual devem acompanhar cada correção aceita, com propriedades, procedimentos, exemplos e capturas reais consistentes. Ordem vigente: concluir Help, executar licenciamento do produto como próxima etapa, depois a fila autorizada. O [programa consolidado](docs/WAVE15-POST-LICENSING-CORRECTIONS-PLAN-2026-10-26.md) reúne esse trabalho sem ativar outra frente.

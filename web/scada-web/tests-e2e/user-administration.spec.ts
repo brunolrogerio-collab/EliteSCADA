@@ -50,7 +50,7 @@ test('Engineering administers local users without exposing credentials and inval
     await localPage.locator('input[name="username"]').fill(username);
     await localPage.locator('input[name="password"]').fill(initialPassword);
     await localPage.locator('button[type="submit"]').click();
-    await expect(localPage.locator('.shell')).toBeVisible();
+    await expect(localPage.getByTestId('runtime-engineering-application')).toBeVisible();
 
     const beforeChange = await localPage.evaluate(async () => (await fetch('/api/auth/me')).status);
     expect(beforeChange).toBe(200);
@@ -133,7 +133,7 @@ test('Engineering administers local users without exposing credentials and inval
     await replacementPage.locator('input[name="username"]').fill(username);
     await replacementPage.locator('input[name="password"]').fill(replacementPassword);
     await replacementPage.locator('button[type="submit"]').click();
-    await expect(replacementPage.locator('.shell')).toBeVisible();
+    await expect(replacementPage.getByTestId('runtime-engineering-application')).toBeVisible();
   } finally {
     await replacementContext.close();
   }

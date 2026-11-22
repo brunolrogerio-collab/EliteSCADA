@@ -1,0 +1,1563 @@
+import { readSingleTargetSignals } from './intelligenceSingleTargetReferences';
+import type { SingleTargetSignal } from './IntelligenceSingleTargetDeviationPanel';
+import { currentFrequencySignals, readCurrentFrequencySignals, type IntelligenceCurrentFrequencySignal } from './intelligenceCurrentFrequencySignals';
+import { readIntelligenceJointSignals, readIntelligenceJointPresentation, type IntelligenceJointPresentation, type IntelligenceJointSignalReference } from './intelligenceJointReferences';
+import { readIntelligenceContextReferences, type IntelligenceContextReference } from './intelligenceContextReferences';
+import type { EngineeringLocale } from './i18n';
+import type {
+  AssetProcessIntelligenceProfileEngineering,
+  AssetProcessIntelligenceSignalEngineering,
+  ScreenEngineering,
+  TagEngineering
+} from './types';
+import {
+  BUILTIN_VISUAL_OBJECT_TYPES,
+  createTrendPen,
+  MAX_TREND_PENS,
+  trendPensEngineeringValue,
+  VISUAL_PROPERTY_KEYS
+} from '../visual-runtime';
+import { createScreenDraft } from './visual-editor/visualEditorCanonicalModel';
+
+export const INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS = 15;
+export type IntelligenceMeasurementDraft = Readonly<{
+  layout: 'value' | 'measurementDial' | 'measurementRing' | 'measurementBar' | 'measurementThermometer' | 'measurementBands' | 'measurementTarget';
+  minimum?: number; maximum?: number; target?: number; bandOneEnd?: number; bandTwoEnd?: number;
+}>;
+export type IntelligenceDashboardAppearance = Readonly<{
+  theme: 'light' | 'dark' | 'high-contrast';
+  measurements: Readonly<Record<string, IntelligenceMeasurementDraft>>;
+}>;
+export const INTELLIGENCE_PROFILE_COMPOSITE_MAX_VALUE_CARDS = 8;
+export const INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS = 32;
+const NUMERIC_DATA_TYPES = new Set([
+  'byte', 'sbyte', 'int8', 'uint8', 'short', 'int16', 'uint16', 'int', 'integer', 'int32', 'uint32',
+  'long', 'int64', 'uint64', 'single', 'float', 'float32', 'double', 'float64', 'decimal', 'number'
+]);
+
+export type IntelligenceDashboardAssignmentSource = Readonly<{
+  equipmentName: string;
+  equipmentPath: string;
+  /** Canonical Equipment scope identity; required for the optional coverage panel. */
+  scopeId?: string;
+  /** Canonical assignment identity; required for a guided single-equipment set. */
+  assignmentId?: string;
+  profile: AssetProcessIntelligenceProfileEngineering;
+}>;
+
+export type IntelligenceDashboardSource = Readonly<{
+  kind: 'equipment-profile' | 'process-stage';
+  stableKey: string;
+  displayName: string;
+  assignments: readonly IntelligenceDashboardAssignmentSource[];
+}>;
+
+export type IntelligencePerformanceDashboardSelection = Readonly<{
+  scopeId: string;
+  assignmentId: string;
+  profileId: string;
+  ruleId: string;
+  ruleVersion: string;
+  signalIds: readonly string[];
+  displayName: string;
+}>;
+
+export type IntelligenceProfileCoverageDashboardSelection = Readonly<{
+  scopeId: string;
+  profileId: string;
+  displayName: string;
+}>;
+
+export type IntelligenceContextEligibilityDashboardSelection = IntelligenceProfileCoverageDashboardSelection & Readonly<{
+  assignmentId: string;
+  contexts: readonly IntelligenceContextReference[];
+}>;
+
+export type IntelligenceCurrentFrequencyDashboardSelection = IntelligenceProfileCoverageDashboardSelection & Readonly<{ assignmentId: string; signals: readonly IntelligenceCurrentFrequencySignal[] }>;
+
+export type IntelligenceExperimentalJointDashboardSelection = IntelligenceContextEligibilityDashboardSelection & Readonly<{
+  signals: readonly IntelligenceJointSignalReference[];
+}>;
+
+export type IntelligenceContextualDeviationDashboardSelection = Readonly<{
+  scopeId: string;
+  assignmentId: string;
+  profileId: string;
+  targetSignalIds: readonly string[];
+  firstContextSignalId: string;
+  firstContextLowerInclusiveCanonical: number;
+  firstContextUpperExclusiveCanonical: number;
+  secondContextSignalId: string;
+  secondContextLowerInclusiveCanonical: number;
+  secondContextUpperExclusiveCanonical: number;
+  displayName: string;
+}>;
+
+export type IntelligenceProcessStageCoverageDashboardSelection = Readonly<{
+  stageId: string;
+  stageKey: string;
+  stageName: string;
+  members: readonly Readonly<{
+    assignmentId: string;
+    scopeId: string;
+    profileId: string;
+    displayLabel: string;
+    order: number;
+  }>[];
+}>;
+
+export type IntelligenceProcessStageInsightsDashboardMember = IntelligenceProcessStageCoverageDashboardSelection['members'][number] & Readonly<{
+  performance: Pick<IntelligencePerformanceDashboardSelection, 'ruleId' | 'ruleVersion' | 'signalIds'>;
+  contextualDeviation: Pick<IntelligenceContextualDeviationDashboardSelection,
+    'targetSignalIds' | 'firstContextSignalId' | 'firstContextLowerInclusiveCanonical' |
+    'firstContextUpperExclusiveCanonical' | 'secondContextSignalId' |
+    'secondContextLowerInclusiveCanonical' | 'secondContextUpperExclusiveCanonical'>;
+}>;
+
+export type IntelligenceProcessStageGuidedDashboardSelection = IntelligenceProcessStageCoverageDashboardSelection;
+
+export type IntelligenceProcessStageInsightsDashboardSelection = Omit<IntelligenceProcessStageCoverageDashboardSelection, 'members'> & Readonly<{
+  members: readonly IntelligenceProcessStageInsightsDashboardMember[];
+}>;
+
+export type IntelligenceProcessStageReportMember = Omit<IntelligenceProcessStageInsightsDashboardMember, 'performance' | 'contextualDeviation'> &
+  Partial<Pick<IntelligenceProcessStageInsightsDashboardMember, 'performance' | 'contextualDeviation'>> & Readonly<{ availabilityVersion?: 2; referenceEvidence?: true; operatingContexts?: readonly IntelligenceContextReference[]; experimentalJoint?: IntelligenceJointPresentation; singleTarget?: readonly SingleTargetSignal[]; currentFrequency?: readonly IntelligenceCurrentFrequencySignal[] }>;
+
+export type IntelligenceProcessStageReportSelection = Omit<IntelligenceProcessStageCoverageDashboardSelection, 'members'> & Readonly<{
+  members: readonly IntelligenceProcessStageReportMember[];
+}>;
+
+type ResolvedSignal = Readonly<{
+  assignment: IntelligenceDashboardAssignmentSource;
+  signal: AssetProcessIntelligenceSignalEngineering;
+  tag: TagEngineering & { id: string };
+}>;
+
+type DashboardText = Readonly<{
+  generatedTitle: (source: string) => string;
+  assignmentSubtitle: (source: IntelligenceDashboardSource) => string;
+  trendTitle: string;
+  summary: (counts: Readonly<{
+    shown: number;
+    supported: number;
+    missing: number;
+    nonNumeric: number;
+    duplicates: number;
+    omitted: number;
+    trended: number;
+    profileCoverage: 'included' | 'unavailable' | 'not-applicable';
+  }>) => string;
+  noNumericSignals: string;
+  invalidMeasurementScale: (name: string) => string;
+}>;
+
+export function generateIntelligenceDashboardDraft(
+  existingScreens: readonly ScreenEngineering[],
+  source: IntelligenceDashboardSource,
+  tags: readonly TagEngineering[],
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID(),
+  appearance?: IntelligenceDashboardAppearance
+): ScreenEngineering {
+  return generateDashboardDraft(existingScreens, source, tags, locale, createId, true, appearance);
+}
+
+function generateDashboardDraft(
+  existingScreens: readonly ScreenEngineering[],
+  source: IntelligenceDashboardSource,
+  tags: readonly TagEngineering[],
+  locale: EngineeringLocale,
+  createId: () => string,
+  includeProfileCoverage: boolean,
+  appearance?: IntelligenceDashboardAppearance
+): ScreenEngineering {
+  const copy = dashboardText(locale);
+  const tagsById = new Map(tags.filter((tag): tag is TagEngineering & { id: string } => Boolean(tag.id?.trim()))
+    .map(tag => [tag.id.toLowerCase(), tag]));
+  const seenTagIds = new Set<string>();
+  const resolved: ResolvedSignal[] = [];
+  let missing = 0;
+  let nonNumeric = 0;
+  let duplicates = 0;
+
+  for (const assignment of source.assignments) {
+    for (const signal of assignment.profile.signals) {
+      const identity = signal.tagId?.trim().toLowerCase();
+      const tag = identity ? tagsById.get(identity) : undefined;
+      if (!tag) {
+        missing++;
+        continue;
+      }
+      if (seenTagIds.has(tag.id.toLowerCase())) {
+        duplicates++;
+        continue;
+      }
+      seenTagIds.add(tag.id.toLowerCase());
+      if (!isNumericTagDataType(tag.dataType)) {
+        nonNumeric++;
+        continue;
+      }
+      resolved.push({ assignment, signal, tag });
+    }
+  }
+  if (resolved.length === 0) throw new Error(copy.noNumericSignals);
+
+  const draft = createIntelligenceScreenDraft(existingScreens, locale);
+  const key = uniqueScreenKey(existingScreens, `intelligence-${slug(source.stableKey)}`);
+  const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
+  const profileAssignment = source.kind === 'equipment-profile' && source.assignments.length === 1
+    ? source.assignments[0]
+    : null;
+  const profileCoverageAvailable = Boolean(profileAssignment &&
+    isCanonicalUuid(profileAssignment.scopeId ?? '') &&
+    isCanonicalUuid(profileAssignment.profile.id ?? ''));
+  const hasProfileCoverage = includeProfileCoverage && profileCoverageAvailable;
+  const profileCoverage: 'included' | 'unavailable' | 'not-applicable' = hasProfileCoverage
+    ? 'included'
+    : includeProfileCoverage && profileAssignment ? 'unavailable' : 'not-applicable';
+  const shownLimit = hasProfileCoverage
+    ? INTELLIGENCE_PROFILE_COMPOSITE_MAX_VALUE_CARDS
+    : INTELLIGENCE_DASHBOARD_MAX_VALUE_CARDS;
+  const shown = resolved.slice(0, shownLimit);
+  const trendSignals = resolved.slice(0, MAX_TREND_PENS);
+  const screenName = copy.generatedTitle(source.displayName);
+  const summary = copy.summary({
+    shown: shown.length,
+    supported: resolved.length,
+    missing,
+    nonNumeric,
+    duplicates,
+    omitted: Math.max(0, resolved.length - shown.length),
+    trended: trendSignals.length,
+    profileCoverage
+  });
+  const allocateId = createUniqueIdAllocator(createId);
+  const elements: NonNullable<ScreenEngineering['elements']> = [
+    {
+      id: allocateId(), key: 'intelligence-dashboard-title', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+      properties: {
+        x: 64, y: 38, width: 1792, height: 60,
+        [VISUAL_PROPERTY_KEYS.text]: copy.generatedTitle(profileAssignment?.equipmentName ?? source.displayName),
+        [VISUAL_PROPERTY_KEYS.fontSize]: 36,
+        [VISUAL_PROPERTY_KEYS.fontWeight]: 700,
+        [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+        [VISUAL_PROPERTY_KEYS.textWrap]: true
+      }
+    },
+    {
+      id: allocateId(), key: 'intelligence-dashboard-source', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+      properties: {
+        x: 64, y: 104, width: 1792, height: 38,
+        [VISUAL_PROPERTY_KEYS.text]: copy.assignmentSubtitle(source),
+        [VISUAL_PROPERTY_KEYS.fontSize]: 18,
+        [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+        [VISUAL_PROPERTY_KEYS.textWrap]: true
+      }
+    }
+  ];
+
+  const columns = hasProfileCoverage ? 2 : 5;
+  const cardWidth = hasProfileCoverage ? 392 : 330;
+  const cardHeight = 132;
+  const columnGap = hasProfileCoverage ? 18 : 24;
+  const rowGap = 18;
+  const rowCount = Math.ceil(shown.length / columns);
+  shown.forEach((item, index) => {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    const x = 64 + column * (cardWidth + columnGap);
+    const y = 166 + row * (cardHeight + rowGap);
+    const label = dashboardMeasurementLabel(item, source.kind);
+    const unit = item.tag.engineeringUnit?.trim();
+    const choice = appearance?.measurements[item.tag.id];
+    const scale = choice ? validScale(choice.minimum, choice.maximum) : validScale(item.tag.scaleMinimum, item.tag.scaleMaximum);
+    if (choice && choice.layout !== 'value' && !scale) throw new Error(copy.invalidMeasurementScale(item.tag.name));
+    if (choice?.layout === 'measurementTarget' && (!Number.isFinite(choice.target) || choice.target! < scale!.minimum || choice.target! > scale!.maximum)) throw new Error(copy.invalidMeasurementScale(item.tag.name));
+    if (choice?.layout === 'measurementBands' && (!Number.isFinite(choice.bandOneEnd) || !Number.isFinite(choice.bandTwoEnd) || choice.bandOneEnd! <= scale!.minimum || choice.bandTwoEnd! >= scale!.maximum || choice.bandOneEnd! >= choice.bandTwoEnd!)) throw new Error(copy.invalidMeasurementScale(item.tag.name));
+    elements.push({
+      id: allocateId(), key: `signal-label-${slug(item.signal.key)}-${index + 1}`, type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+      properties: {
+        x, y, width: cardWidth, height: 32,
+        [VISUAL_PROPERTY_KEYS.text]: unit ? `${label} (${unit})` : label,
+        [VISUAL_PROPERTY_KEYS.fontSize]: 17,
+        [VISUAL_PROPERTY_KEYS.fontWeight]: 600,
+        [VISUAL_PROPERTY_KEYS.textColor]: '#CBD5E1',
+        [VISUAL_PROPERTY_KEYS.textWrap]: true
+      }
+    });
+
+    if (scale && choice?.layout !== 'value') {
+      elements.push({
+        id: allocateId(), key: `measurement-${slug(item.signal.key)}-${index + 1}`,
+        type: choice ? BUILTIN_VISUAL_OBJECT_TYPES[choice.layout as Exclude<IntelligenceMeasurementDraft['layout'], 'value'>] : BUILTIN_VISUAL_OBJECT_TYPES.measurementBar,
+        bindings: [tagBinding(item.tag, VISUAL_PROPERTY_KEYS.value)],
+        properties: {
+          x, y: y + 36, width: cardWidth, height: 92,
+          [VISUAL_PROPERTY_KEYS.minimum]: scale.minimum,
+          [VISUAL_PROPERTY_KEYS.maximum]: scale.maximum,
+          [VISUAL_PROPERTY_KEYS.measurementUnit]: item.tag.engineeringUnit ?? '',
+          [VISUAL_PROPERTY_KEYS.measurementTheme]: appearance?.theme ?? 'dark',
+          ...(choice?.target !== undefined ? { [VISUAL_PROPERTY_KEYS.measurementTarget]: choice.target } : {}),
+          ...(choice?.bandOneEnd !== undefined ? { [VISUAL_PROPERTY_KEYS.measurementBandOneEnd]: choice.bandOneEnd } : {}),
+          ...(choice?.bandTwoEnd !== undefined ? { [VISUAL_PROPERTY_KEYS.measurementBandTwoEnd]: choice.bandTwoEnd } : {}),
+          [VISUAL_PROPERTY_KEYS.measurementFreshnessVisible]: true
+        }
+      });
+    } else {
+      elements.push({
+        id: allocateId(), key: `value-${slug(item.signal.key)}-${index + 1}`,
+        type: BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,
+        bindings: [tagBinding(item.tag, VISUAL_PROPERTY_KEYS.text)],
+        properties: {
+          x, y: y + 36, width: cardWidth, height: 92,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 28,
+          [VISUAL_PROPERTY_KEYS.fontWeight]: 600,
+          [VISUAL_PROPERTY_KEYS.textColorGood]: '#E2E8F0',
+          [VISUAL_PROPERTY_KEYS.textColorBad]: '#FCA5A5'
+        }
+      });
+    }
+  });
+
+  const trendY = 166 + rowCount * (cardHeight + rowGap) + 24;
+  const pens = trendSignals.map((item, index) => ({
+    ...createTrendPen({
+      id: item.tag.id,
+      path: item.tag.path,
+      label: dashboardMeasurementLabel(item, source.kind),
+      unit: item.tag.engineeringUnit
+    }, index),
+    visible: false
+  }));
+  elements.push({
+    id: allocateId(), key: 'intelligence-trend-heading', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+    properties: {
+      x: 64, y: trendY - 30, width: hasProfileCoverage ? 800 : 1792, height: 26,
+      [VISUAL_PROPERTY_KEYS.text]: copy.trendTitle,
+      [VISUAL_PROPERTY_KEYS.fontSize]: 18,
+      [VISUAL_PROPERTY_KEYS.fontWeight]: 600,
+      [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0'
+    }
+  });
+  elements.push({
+    id: allocateId(), key: 'intelligence-source-trend', type: BUILTIN_VISUAL_OBJECT_TYPES.trend,
+    properties: {
+      x: 64, y: trendY, width: 1792, height: 275,
+      trendMode: 'history', trendWindowSeconds: 3600, trendRefreshSeconds: 5,
+      trendLegendVisible: true, trendGridVisible: true, trendAxesVisible: true,
+      trendQualityVisible: true,
+      pens: trendPensEngineeringValue(pens)
+    }
+  });
+  if (hasProfileCoverage && profileAssignment) {
+    elements[elements.length - 1] = {
+      ...elements[elements.length - 1],
+      properties: {
+        ...elements[elements.length - 1].properties,
+        width: 800,
+        height: Math.min(275, Math.max(180, 972 - trendY))
+      }
+    };
+    elements.push({
+      id: allocateId(), key: 'intelligence-profile-coverage-v1',
+      type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1,
+      properties: {
+        x: 900, y: 166, width: 956, height: 806,
+        [VISUAL_PROPERTY_KEYS.intelligenceScopeId]: profileAssignment.scopeId!,
+        [VISUAL_PROPERTY_KEYS.intelligenceProfileId]: profileAssignment.profile.id!
+      }
+    });
+  }
+  return {
+    ...draft,
+    key,
+    name: screenName,
+    route,
+    elements,
+    properties: { ...(draft.properties ?? {}) },
+    context: { ...(draft.context ?? {}) },
+    metadata: {
+      ...(draft.metadata ?? {}),
+      intelligenceDashboardGenerator: hasProfileCoverage ? 'stage5b.8' : 'stage5b.1',
+      intelligenceDashboardSourceKind: source.kind,
+      intelligenceDashboardSourceKey: source.stableKey,
+      intelligenceDashboardSummary: summary
+    }
+  };
+}
+
+export type IntelligenceGuidedDashboardSelections = Readonly<{
+  performance: IntelligencePerformanceDashboardSelection;
+  contextualDeviation: IntelligenceContextualDeviationDashboardSelection;
+}>;
+
+/**
+ * Generates a four-screen, single-Equipment Intelligence set. Every analysis
+ * remains on its existing canonical Screen visual and is connected only by
+ * ordinary Runtime NavigateScreen actions. No report data or query window is
+ * added to Engineering state.
+ */
+export function generateIntelligenceGuidedDashboardDrafts(
+  existingScreens: readonly ScreenEngineering[],
+  source: IntelligenceDashboardSource,
+  tags: readonly TagEngineering[],
+  selections: IntelligenceGuidedDashboardSelections,
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): readonly ScreenEngineering[] {
+  const assignment = source.assignments.length === 1 ? source.assignments[0] : null;
+  const scopeId = assignment?.scopeId ?? '';
+  const assignmentId = assignment?.assignmentId ?? '';
+  const profileId = assignment?.profile.id ?? '';
+  if (source.kind !== 'equipment-profile' || !assignment ||
+      [scopeId, assignmentId, profileId].some(value => !isCanonicalUuid(value))) {
+    throw new Error('A guided Intelligence dashboard requires exactly one complete canonical Equipment assignment and profile.');
+  }
+
+  const signalIds = assignment.profile.signals.map(signal => signal.id);
+  const tagIds = assignment.profile.signals.map(signal => signal.tagId.toLowerCase());
+  if (signalIds.some(value => !isCanonicalUuid(value)) ||
+      new Set(signalIds.map(value => value.toLowerCase())).size !== signalIds.length ||
+      new Set(tagIds).size !== tagIds.length) {
+    throw new Error('A guided Intelligence dashboard requires unique stable signal and TAG bindings in the selected profile.');
+  }
+  const profileSignalIds = new Set(signalIds.map(value => value.toLowerCase()));
+  const taggedIds = new Set(tags.filter((tag): tag is TagEngineering & { id: string } => Boolean(tag.id?.trim()))
+    .map(tag => tag.id.toLowerCase()));
+  const resolvedTagCounts = new Map<string, number>();
+  for (const tag of tags) {
+    if (tag.id?.trim()) resolvedTagCounts.set(tag.id.toLowerCase(), (resolvedTagCounts.get(tag.id.toLowerCase()) ?? 0) + 1);
+  }
+  if (assignment.profile.signals.some(signal => signal.required &&
+      (!taggedIds.has(signal.tagId.toLowerCase()) || resolvedTagCounts.get(signal.tagId.toLowerCase()) !== 1))) {
+    throw new Error('A guided Intelligence dashboard cannot be generated while a required profile TAG binding is missing or ambiguous.');
+  }
+
+  if (!selections?.performance || !selections?.contextualDeviation) {
+    throw new Error('A guided Intelligence dashboard requires a valid Performance rule and a complete contextual-deviation selection.');
+  }
+  const performance = selections.performance;
+  if (performance.scopeId.toLowerCase() !== scopeId.toLowerCase() ||
+      performance.assignmentId.toLowerCase() !== assignmentId.toLowerCase() ||
+      performance.profileId.toLowerCase() !== profileId.toLowerCase() ||
+      performance.signalIds.some(id => !profileSignalIds.has(id.toLowerCase()))) {
+    throw new Error('The selected Performance rule or signals do not belong to the current Equipment assignment and profile.');
+  }
+  const deviation = selections.contextualDeviation;
+  const deviationSignalIds = [
+    ...deviation.targetSignalIds,
+    deviation.firstContextSignalId,
+    deviation.secondContextSignalId
+  ];
+  if (deviation.scopeId.toLowerCase() !== scopeId.toLowerCase() ||
+      deviation.assignmentId.toLowerCase() !== assignmentId.toLowerCase() ||
+      deviation.profileId.toLowerCase() !== profileId.toLowerCase() ||
+      deviationSignalIds.some(id => !profileSignalIds.has(id.toLowerCase()))) {
+    throw new Error('The contextual-deviation signals do not belong to the current Equipment assignment and profile.');
+  }
+
+  const usedVisualIds = new Set<string>();
+  const allocateVisualId = () => {
+    const id = createId().trim();
+    if (!id || usedVisualIds.has(id)) throw new Error('Guided dashboard visual identities must be non-empty and unique across all screens.');
+    usedVisualIds.add(id);
+    return id;
+  };
+  const drafts: ScreenEngineering[] = [];
+  const existingAndDrafts = () => [...existingScreens, ...drafts];
+  drafts.push(generateDashboardDraft(existingAndDrafts(), source, tags, locale, allocateVisualId, false));
+  drafts.push(generateIntelligenceProfileCoverageScreenDraft(existingAndDrafts(), {
+    scopeId,
+    profileId,
+    displayName: source.displayName
+  }, locale, allocateVisualId));
+  drafts.push(generateIntelligencePerformanceScreenDraft(existingAndDrafts(), {
+    ...performance,
+    displayName: source.displayName
+  }, locale, allocateVisualId));
+  drafts.push(generateIntelligenceContextualDeviationScreenDraft(existingAndDrafts(), {
+    ...deviation,
+    displayName: source.displayName
+  }, locale, allocateVisualId));
+
+  const viewRoles = ['values-trend', 'profile-coverage', 'performance', 'contextual-deviation'] as const;
+  return linkDashboardDrafts(drafts, viewRoles, locale, allocateVisualId);
+}
+
+/** Compose only analyses explicitly configured for this equipment, independently. */
+export function generateIntelligenceDashboardCompositionDrafts(
+  existingScreens: readonly ScreenEngineering[], source: IntelligenceDashboardSource, tags: readonly TagEngineering[],
+  selections: Partial<IntelligenceGuidedDashboardSelections> & { referenceEvidence?: IntelligenceProfileCoverageDashboardSelection; contextEligibility?: IntelligenceContextEligibilityDashboardSelection; experimentalJoint?: IntelligenceExperimentalJointDashboardSelection; singleTarget?: IntelligenceProfileCoverageDashboardSelection & {assignmentId:string;signals:readonly SingleTargetSignal[]}; currentFrequency?: IntelligenceCurrentFrequencyDashboardSelection }, appearance: IntelligenceDashboardAppearance,
+  locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
+): readonly ScreenEngineering[] {
+  const allocateId = createUniqueIdAllocator(createId);
+  const drafts = [generateIntelligenceDashboardDraft(existingScreens, source, tags, locale, allocateId, appearance)];
+  const roles: Array<'values-trend' | 'performance' | 'contextual-deviation' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint' | 'current-frequency' | 'single-target'> = ['values-trend'];
+  const member = source.kind === 'equipment-profile' && source.assignments.length === 1 ? source.assignments[0] : null;
+  const valid = (selection: { scopeId: string; assignmentId: string; profileId: string }, signalIds: readonly string[]) =>
+    member && selection.scopeId.toLowerCase() === member.scopeId?.toLowerCase() &&
+    selection.assignmentId.toLowerCase() === member.assignmentId?.toLowerCase() &&
+    selection.profileId.toLowerCase() === member.profile.id?.toLowerCase() &&
+    signalIds.every(id => member.profile.signals.some(signal => signal.id.toLowerCase() === id.toLowerCase()));
+  if (selections.referenceEvidence) {
+    const selection = selections.referenceEvidence;
+    if (!member || selection.scopeId.toLowerCase() !== member.scopeId?.toLowerCase() ||
+        selection.profileId.toLowerCase() !== member.profile.id.toLowerCase()) {
+      throw new Error('Reference evidence selection does not belong to this equipment profile.');
+    }
+    drafts.push(generateIntelligenceReferenceEvidenceScreenDraft([...existingScreens, ...drafts], selection, locale, allocateId));
+    roles.push('reference-evidence');
+  }
+  if (selections.contextEligibility) {
+    const selection = selections.contextEligibility;
+    if (!valid(selection, [])) throw new Error('Context conditions selection does not belong to this equipment profile.');
+    drafts.push(generateIntelligenceContextEligibilityScreenDraft([...existingScreens, ...drafts], selection, locale, allocateId));
+    roles.push('context-eligibility');
+  }
+  if(selections.singleTarget){
+    const selection=selections.singleTarget;
+    if(!valid(selection,selection.signals.map(signal=>signal.id))||!readSingleTargetSignals(JSON.stringify(selection.signals))||selection.signals.some(signal=>!member?.profile.signals.some(item=>item.id===signal.id&&item.tagId===signal.tagId)||!tags.some(tag=>tag.id===signal.tagId&&isNumericTagDataType(tag.dataType))))throw new Error('Single-target references do not belong to this equipment profile.');
+    drafts.push(generateIntelligenceSingleTargetScreenDraft([...existingScreens,...drafts],selection,locale,allocateId));roles.push('single-target');
+  }
+  if (selections.currentFrequency) {
+    const selection = selections.currentFrequency;
+    const eligible = member ? currentFrequencySignals(member.profile, tags) : [];
+    if (!valid(selection, selection.signals.map(signal => signal.id)) || !readCurrentFrequencySignals(JSON.stringify(selection.signals)) ||
+        selection.signals.some(signal => !eligible.some(item => item.id === signal.id && item.tagId === signal.tagId && item.kind === signal.kind && item.basis === signal.basis && item.label === signal.label))) {
+      throw new Error('Current/frequency references must match the controlled measurements in this equipment profile.');
+    }
+    drafts.push(generateIntelligenceCurrentFrequencyScreenDraft([...existingScreens, ...drafts], selection, locale, allocateId));
+    roles.push('current-frequency');
+  }
+  if (selections.experimentalJoint) {
+    const selection = selections.experimentalJoint;
+    if (!valid(selection, selection.signals.map(signal => signal.id)) ||
+        selection.signals.some(signal => !member?.profile.signals.some(item => item.id === signal.id && item.tagId === signal.tagId) ||
+          !tags.some(tag => tag.id === signal.tagId && isNumericTagDataType(tag.dataType))) ||
+        selection.contexts.some(context => context.predicateTagIds.some(id => !member?.profile.signals.some(signal => signal.tagId.toLowerCase() === id.toLowerCase())))) {
+      throw new Error('Joint deviation references must belong to this equipment profile and numeric TAGs.');
+    }
+    drafts.push(generateIntelligenceExperimentalJointScreenDraft([...existingScreens, ...drafts], selection, locale, allocateId));
+    roles.push('experimental-joint');
+  }
+  if (selections.performance) {
+    if (!valid(selections.performance, selections.performance.signalIds)) throw new Error('Performance selection does not belong to this equipment profile.');
+    drafts.push(generateIntelligencePerformanceScreenDraft([...existingScreens, ...drafts], selections.performance, locale, allocateId));
+    roles.push('performance');
+  }
+  if (selections.contextualDeviation) {
+    const selection = selections.contextualDeviation;
+    if (!valid(selection, [...selection.targetSignalIds, selection.firstContextSignalId, selection.secondContextSignalId])) throw new Error('Contextual deviation selection does not belong to this equipment profile.');
+    drafts.push(generateIntelligenceContextualDeviationScreenDraft([...existingScreens, ...drafts], selection, locale, allocateId));
+    roles.push('contextual-deviation');
+  }
+  return drafts.length === 1 ? drafts : linkDashboardDrafts(drafts, roles, locale, allocateId);
+}
+
+function linkDashboardDrafts(
+  drafts: readonly ScreenEngineering[],
+  viewRoles: readonly ('values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint' | 'current-frequency' | 'single-target')[],
+  locale: EngineeringLocale, allocateVisualId: () => string
+): readonly ScreenEngineering[] {
+  const navigationLabels = guidedDashboardNavigationLabels(locale);
+  return drafts.map((screen, index) => {
+    const elements = (screen.elements ?? []).map(element => {
+      if (element.type !== BUILTIN_VISUAL_OBJECT_TYPES.text ||
+          !(element.key.endsWith('-title') || element.key.endsWith('-source') || element.key.endsWith('-subtitle'))) return element;
+      return { ...element, properties: { ...element.properties, width: 1200 } };
+    });
+    const navigation = drafts.flatMap((target, targetIndex) => targetIndex === index ? [] : [{
+      id: allocateVisualId(),
+      key: `intelligence-guided-navigation-${targetIndex + 1}`,
+      type: BUILTIN_VISUAL_OBJECT_TYPES.button,
+      properties: {
+        x: 1304,
+        y: 40,
+        width: 172,
+        height: 44,
+        [VISUAL_PROPERTY_KEYS.text]: navigationLabels[viewRoles[targetIndex]],
+        [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+        [VISUAL_PROPERTY_KEYS.fontWeight]: 600,
+        [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+        [VISUAL_PROPERTY_KEYS.backgroundColor]: '#1E293B',
+        [VISUAL_PROPERTY_KEYS.strokeColor]: '#475569',
+        [VISUAL_PROPERTY_KEYS.strokeWidth]: 1,
+        [VISUAL_PROPERTY_KEYS.cornerRadius]: 8,
+        [VISUAL_PROPERTY_KEYS.textWrap]: true
+      },
+      actions: [{ eventKey: 'click', kind: 'NavigateScreen' as const, targetKey: target.key, version: 1 }]
+    }]);
+    const positionedNavigation = navigation.map((element, buttonIndex) => ({
+      ...element,
+      properties: { ...element.properties, x: 1304 + (buttonIndex % 3) * 184, y: 40 + Math.floor(buttonIndex / 3) * 56 }
+    }));
+    return {
+      ...screen,
+      elements: [...elements, ...positionedNavigation],
+      metadata: {
+        ...(screen.metadata ?? {}),
+        intelligenceDashboardGenerator: 'stage5b.9',
+        intelligenceDashboardSetVersion: 'stage5b.9',
+        intelligenceDashboardSetRootKey: drafts[0].key,
+        intelligenceDashboardViewRole: viewRoles[index]
+      }
+    };
+  });
+}
+
+/**
+ * Creates a canonical Screen draft containing one configured, Runtime-only
+ * Performance V1B object. Its Engineering state stores stable references only;
+ * the analytics result is always queried transiently in the active Runtime.
+ */
+export function generateIntelligencePerformanceScreenDraft(
+  existingScreens: readonly ScreenEngineering[],
+  selection: IntelligencePerformanceDashboardSelection,
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const identifiers = [selection.scopeId, selection.assignmentId, selection.profileId, ...selection.signalIds];
+  if (identifiers.some(value => !isCanonicalUuid(value)) ||
+      selection.signalIds.length < 2 || selection.signalIds.length > 3 ||
+      new Set(selection.signalIds.map(id => id.toLowerCase())).size !== selection.signalIds.length ||
+      !selection.ruleId.trim() || selection.ruleId !== selection.ruleId.trim() || selection.ruleId.length > 128 ||
+      !selection.ruleVersion.trim() || selection.ruleVersion !== selection.ruleVersion.trim() || selection.ruleVersion.length > 32) {
+    throw new Error('A performance screen requires one stable equipment assignment, profile, catalog rule and two or three unique signals.');
+  }
+
+  const displayName = selection.displayName.trim() || selection.scopeId;
+  const key = uniqueScreenKey(existingScreens, `intelligence-performance-${slug(displayName)}`);
+  const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
+  const draft = createIntelligenceScreenDraft(existingScreens, locale);
+  const allocateId = createUniqueIdAllocator(createId);
+  const title = locale === 'en' ? `Recorded performance · ${displayName}`
+    : locale === 'es' ? `Rendimiento registrado · ${displayName}`
+      : `Desempenho registrado · ${displayName}`;
+  const subtitle = locale === 'en'
+    ? 'Choose a period to calculate the performance indicators configured for this equipment.'
+    : locale === 'es'
+      ? 'Elija un período para calcular los indicadores de rendimiento configurados para este equipo.'
+      : 'Escolha um período para calcular os indicadores de desempenho configurados para este equipamento.';
+  const elements: NonNullable<ScreenEngineering['elements']> = [
+    {
+      id: allocateId(), key: 'intelligence-performance-title', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+      properties: {
+        x: 64, y: 36, width: 1792, height: 52,
+        [VISUAL_PROPERTY_KEYS.text]: title,
+        [VISUAL_PROPERTY_KEYS.fontSize]: 32,
+        [VISUAL_PROPERTY_KEYS.fontWeight]: 700,
+        [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+        [VISUAL_PROPERTY_KEYS.textWrap]: true
+      }
+    },
+    {
+      id: allocateId(), key: 'intelligence-performance-subtitle', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+      properties: {
+        x: 64, y: 98, width: 1792, height: 34,
+        [VISUAL_PROPERTY_KEYS.text]: subtitle,
+        [VISUAL_PROPERTY_KEYS.fontSize]: 16,
+        [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+        [VISUAL_PROPERTY_KEYS.textWrap]: true
+      }
+    },
+    {
+      id: allocateId(), key: 'intelligence-performance-v1b',
+      type: BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B,
+      properties: {
+        x: 64, y: 152, width: 1200, height: 720,
+        [VISUAL_PROPERTY_KEYS.intelligenceScopeId]: selection.scopeId,
+        [VISUAL_PROPERTY_KEYS.intelligenceAssignmentId]: selection.assignmentId,
+        [VISUAL_PROPERTY_KEYS.intelligenceProfileId]: selection.profileId,
+        [VISUAL_PROPERTY_KEYS.intelligenceRuleId]: selection.ruleId,
+        [VISUAL_PROPERTY_KEYS.intelligenceRuleVersion]: selection.ruleVersion,
+        [VISUAL_PROPERTY_KEYS.intelligenceSignalIds]: JSON.stringify(selection.signalIds)
+      }
+    },
+    {
+      id: allocateId(), key: 'intelligence-performance-limits', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+      properties: {
+        x: 64, y: 900, width: 1792, height: 74,
+        [VISUAL_PROPERTY_KEYS.text]: locale === 'en'
+          ? 'The report describes recorded Historian evidence only. It is not a field-validated diagnosis, physical simultaneity claim or total-system efficiency measure.'
+          : locale === 'es'
+            ? 'El informe describe solo evidencia registrada en Historian. No es un diagnóstico validado en campo, una afirmación de simultaneidad física ni una medida de eficiencia total del sistema.'
+            : 'O relatório descreve somente evidências registradas no Historian. Não é diagnóstico validado em campo, afirmação de simultaneidade física nem medida de eficiência total do sistema.',
+        [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+        [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+        [VISUAL_PROPERTY_KEYS.textWrap]: true
+      }
+    }
+  ];
+
+  return {
+    ...draft,
+    key,
+    name: title,
+    route,
+    elements,
+    metadata: {
+      ...(draft.metadata ?? {}),
+      intelligenceDashboardGenerator: 'stage5b.4',
+      intelligencePerformanceRuleId: selection.ruleId,
+      intelligencePerformanceRuleVersion: selection.ruleVersion
+    }
+  };
+}
+
+/**
+ * Creates a canonical Screen draft containing one Runtime-only, on-demand
+ * profile-coverage visual. Engineering state stores stable scope/profile refs;
+ * the requested window and returned coverage report are transient Runtime state.
+ */
+export function generateIntelligenceProfileCoverageScreenDraft(
+  existingScreens: readonly ScreenEngineering[], selection: IntelligenceProfileCoverageDashboardSelection,
+  locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  return generateIntelligenceProfileReportScreenDraft(existingScreens, selection, locale, createId, false);
+}
+
+export function generateIntelligenceReferenceEvidenceScreenDraft(
+  existingScreens: readonly ScreenEngineering[], selection: IntelligenceProfileCoverageDashboardSelection,
+  locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  return generateIntelligenceProfileReportScreenDraft(existingScreens, selection, locale, createId, true);
+}
+
+export function generateIntelligenceContextEligibilityScreenDraft(
+  existingScreens: readonly ScreenEngineering[], selection: IntelligenceContextEligibilityDashboardSelection,
+  locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const json = JSON.stringify(selection.contexts);
+  if (!isCanonicalUuid(selection.assignmentId) || !readIntelligenceContextReferences(json)) {
+    throw new Error('Context conditions require stable assignment and bounded versioned context references.');
+  }
+  const draft = generateIntelligenceReferenceEvidenceScreenDraft(existingScreens, selection, locale, createId);
+  const { intelligenceReferenceEvidenceProfileId: _referenceProfile, ...metadata } = draft.metadata ?? {};
+  const key = uniqueScreenKey(existingScreens, `intelligence-context-conditions-${slug(selection.displayName)}`);
+  const title = locale === 'pt-BR' ? 'Condições de operação' : locale === 'es' ? 'Condiciones de operación' : 'Operating conditions';
+  return { ...draft, key, route: uniqueScreenRoute(key, existingScreens.map(screen => screen.route)), name: `${title} · ${selection.displayName}`,
+    elements: (draft.elements ?? []).map(element => {
+      if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1) return { ...element,
+        key: 'intelligence-context-eligibility-v1', type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextEligibilityV1,
+        properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.intelligenceAssignmentId]: selection.assignmentId,
+          [VISUAL_PROPERTY_KEYS.intelligenceOperatingContexts]: json } };
+      if (element.key.endsWith('-title')) return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: title } };
+      if (element.key.endsWith('-limits')) return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: locale === 'pt-BR'
+        ? 'São verificadas as condições do contexto salvo. Se ele mudar, gere e publique novamente esta vista; as versões não são substituídas silenciosamente.'
+        : locale === 'es' ? 'Se verifican las condiciones del contexto guardado. Si cambia, genere y publique de nuevo esta vista; las versiones no se sustituyen silenciosamente.'
+          : 'Saved context conditions are checked. If they change, generate and publish this view again; versions are never silently substituted.' } };
+      return element;
+    }), metadata: { ...metadata, intelligenceDashboardGenerator: 'context-eligibility.v1', intelligenceContextEligibilityAssignmentId: selection.assignmentId }
+  };
+}
+
+export function generateIntelligenceSingleTargetScreenDraft(
+  existingScreens: readonly ScreenEngineering[], selection: IntelligenceProfileCoverageDashboardSelection & { assignmentId: string; signals: readonly SingleTargetSignal[] },
+  locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const json = JSON.stringify(selection.signals);
+  if (!isCanonicalUuid(selection.assignmentId) || !readSingleTargetSignals(json)) throw new Error('Single-target comparison requires bounded distinct numeric references and a controlled condition.');
+  const draft = generateIntelligenceReferenceEvidenceScreenDraft(existingScreens, selection, locale, createId);
+  const key = uniqueScreenKey(existingScreens, `intelligence-single-target-${slug(selection.displayName)}`);
+  const title = locale === 'pt-BR' ? 'Medições sob uma condição' : locale === 'es' ? 'Mediciones bajo una condición' : 'Measurements under one condition';
+  return { ...draft, key, route: uniqueScreenRoute(key, existingScreens.map(screen => screen.route)), name: `${title} · ${selection.displayName}`,
+    elements: (draft.elements ?? []).map(element => element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1
+      ? { ...element, key:'intelligence-single-target-v1', type:BUILTIN_VISUAL_OBJECT_TYPES.intelligenceSingleTargetDeviationV1,
+          properties:{...element.properties,[VISUAL_PROPERTY_KEYS.intelligenceAssignmentId]:selection.assignmentId,[VISUAL_PROPERTY_KEYS.intelligenceSingleTargetSignals]:json} }
+      : element.key.endsWith('-title') ? {...element,properties:{...element.properties,[VISUAL_PROPERTY_KEYS.text]:title}}
+      : element.key.endsWith('-limits') ? {...element,properties:{...element.properties,[VISUAL_PROPERTY_KEYS.text]:locale==='pt-BR'?'A referência é escolhida pelo usuário. O desvio não diagnostica falhas nem comprova eficiência.':locale==='es'?'El usuario elige la referencia. El desvío no diagnostica fallos ni demuestra eficiencia.':'The user selects the reference. Deviation does not diagnose faults or establish efficiency.'}} : element),
+    metadata:{...draft.metadata,intelligenceDashboardGenerator:'single-target.v1'} };
+}
+
+export function generateIntelligenceCurrentFrequencyScreenDraft(
+  existingScreens: readonly ScreenEngineering[], selection: IntelligenceCurrentFrequencyDashboardSelection,
+  locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const signalsJson = JSON.stringify(selection.signals);
+  if (!isCanonicalUuid(selection.assignmentId) || !readCurrentFrequencySignals(signalsJson)) throw new Error('Current/frequency comparison requires distinct controlled current and measured-frequency references.');
+  const draft = generateIntelligenceReferenceEvidenceScreenDraft(existingScreens, selection, locale, createId);
+  const key = uniqueScreenKey(existingScreens, `intelligence-current-frequency-${slug(selection.displayName)}`);
+  const title = locale === 'pt-BR' ? 'Corrente em frequência semelhante' : locale === 'es' ? 'Corriente a frecuencia similar' : 'Current at similar frequency';
+  return { ...draft, key, route: uniqueScreenRoute(key, existingScreens.map(screen => screen.route)), name: `${title} · ${selection.displayName}`,
+    elements: (draft.elements ?? []).map(element => {
+      if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1) return { ...element,
+        key: 'intelligence-current-frequency-v1', type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceCurrentFrequencyComparisonV1,
+        properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.intelligenceAssignmentId]: selection.assignmentId, [VISUAL_PROPERTY_KEYS.intelligenceCurrentFrequencySignals]: signalsJson } };
+      if (element.key.endsWith('-title')) return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: title } };
+      if (element.key.endsWith('-limits')) return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: locale === 'pt-BR'
+        ? 'Frequência semelhante não comprova mesma carga, eficiência ou defeito. A consulta compara leituras registradas e não preenche dados ausentes.'
+        : locale === 'es' ? 'Frecuencia similar no demuestra igual carga, eficiencia ni un fallo. La consulta compara lecturas registradas y no rellena datos ausentes.'
+          : 'Similar frequency does not establish equal load, efficiency or a fault. The query compares recorded readings and does not fill missing data.' } };
+      return element;
+    }), metadata: { ...draft.metadata, intelligenceDashboardGenerator: 'current-frequency.v1', intelligenceCurrentFrequencyAssignmentId: selection.assignmentId }
+  };
+}
+
+export function generateIntelligenceExperimentalJointScreenDraft(
+  existingScreens: readonly ScreenEngineering[], selection: IntelligenceExperimentalJointDashboardSelection,
+  locale: EngineeringLocale, createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const signalsJson = JSON.stringify(selection.signals);
+  if (!readIntelligenceJointSignals(signalsJson) || !selection.contexts.some(context =>
+      selection.signals.filter(signal => !context.predicateTagIds.some(id => id.toLowerCase() === signal.tagId.toLowerCase())).length >= 2)) {
+    throw new Error('Joint deviation requires at least two distinct measurements outside a saved context.');
+  }
+  const draft = generateIntelligenceContextEligibilityScreenDraft(existingScreens, selection, locale, createId);
+  const { intelligenceContextEligibilityAssignmentId: _contextAssignment, ...metadata } = draft.metadata ?? {};
+  const key = uniqueScreenKey(existingScreens, `intelligence-joint-deviation-${slug(selection.displayName)}`);
+  const title = locale === 'pt-BR' ? 'Desvio conjunto experimental' : locale === 'es' ? 'Desviación conjunta experimental' : 'Experimental joint deviation';
+  return { ...draft, key, route: uniqueScreenRoute(key, existingScreens.map(screen => screen.route)), name: `${title} · ${selection.displayName}`,
+    elements: (draft.elements ?? []).map(element => {
+      if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextEligibilityV1) return { ...element,
+        key: 'intelligence-experimental-joint-v1', type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceExperimentalJointDeviationV1,
+        properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.intelligenceJointSignals]: signalsJson } };
+      if (element.key.endsWith('-title')) return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: title } };
+      if (element.key.endsWith('-limits')) return { ...element, properties: { ...element.properties, [VISUAL_PROPERTY_KEYS.text]: locale === 'pt-BR'
+        ? 'Experimental, validado por simulação. O resultado não diagnostica defeitos, não prevê vida útil e não tem limiar de alarme validado em campo.'
+        : locale === 'es' ? 'Experimental, validado por simulación. No diagnostica fallos, no predice vida útil ni tiene umbral de alarma validado en campo.'
+          : 'Experimental, validated by simulation. Results do not diagnose faults, predict remaining life or provide a field-validated alarm threshold.' } };
+      return element;
+    }), metadata: { ...metadata, intelligenceDashboardGenerator: 'experimental-joint.v1', intelligenceExperimentalJointAssignmentId: selection.assignmentId }
+  };
+}
+
+function generateIntelligenceProfileReportScreenDraft(
+  existingScreens: readonly ScreenEngineering[],
+  selection: IntelligenceProfileCoverageDashboardSelection,
+  locale: EngineeringLocale,
+  createId: () => string,
+  referenceEvidence: boolean
+): ScreenEngineering {
+  if (!isCanonicalUuid(selection.scopeId) || !isCanonicalUuid(selection.profileId)) {
+    throw new Error('A coverage screen requires canonical Equipment scope and profile UUIDs.');
+  }
+
+  const displayName = selection.displayName.trim() || selection.scopeId;
+  const reportKey = referenceEvidence ? "reference-evidence" : "coverage";
+  const key = uniqueScreenKey(existingScreens, `intelligence-${reportKey}-${slug(displayName)}`);
+  const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
+  const draft = createIntelligenceScreenDraft(existingScreens, locale);
+  const allocateId = createUniqueIdAllocator(createId);
+  const title = referenceEvidence
+    ? `${locale === 'pt-BR' ? 'Dados da referência' : locale === 'es' ? 'Datos de referencia' : 'Reference data'} · ${displayName}`
+    : locale === 'en' ? `Data availability · ${displayName}`
+    : locale === 'es' ? `Datos disponibles · ${displayName}`
+      : `Dados disponíveis · ${displayName}`;
+  const subtitle = locale === 'en'
+    ? 'Check which measurements have usable readings before choosing a reference period.'
+    : locale === 'es'
+      ? 'Revise qué mediciones tienen lecturas utilizables antes de elegir un período de referencia.'
+      : 'Confira quais medições têm leituras aproveitáveis antes de escolher um período de referência.';
+
+  return {
+    ...draft,
+    key,
+    name: title,
+    route,
+    elements: [
+      {
+        id: allocateId(), key: `intelligence-${reportKey}-title`, type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 36, width: 1792, height: 52,
+          [VISUAL_PROPERTY_KEYS.text]: referenceEvidence ? title.split(' · ')[0] : title,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 32,
+          [VISUAL_PROPERTY_KEYS.fontWeight]: 700,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: `intelligence-${reportKey}-subtitle`, type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 98, width: 1792, height: referenceEvidence ? 48 : 34,
+          [VISUAL_PROPERTY_KEYS.text]: referenceEvidence ? displayName : subtitle,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 16,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: referenceEvidence ? 'intelligence-reference-evidence-v1' : 'intelligence-profile-coverage-v1',
+        type: referenceEvidence ? BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1 : BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1,
+        properties: {
+          x: 64, y: 152, width: 1792, height: 790,
+          [VISUAL_PROPERTY_KEYS.intelligenceScopeId]: selection.scopeId,
+          [VISUAL_PROPERTY_KEYS.intelligenceProfileId]: selection.profileId
+        }
+      },
+      {
+        id: allocateId(), key: `intelligence-${reportKey}-limits`, type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 960, width: 1792, height: 74,
+          [VISUAL_PROPERTY_KEYS.text]: locale === 'en'
+            ? 'Exact Historian timestamps do not prove source acquisition synchronization. Unknown cadence/completeness remains unknown; no process KPI is inferred.'
+            : locale === 'es'
+              ? 'Las marcas de tiempo exactas de Historian no prueban sincronización de adquisición. La cadencia/completitud desconocida sigue desconocida; no se infiere un KPI de proceso.'
+              : 'Timestamps exatos do Historian não comprovam sincronização da aquisição. Cadência/completude desconhecida permanece desconhecida; nenhum KPI de processo é inferido.',
+          [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      }
+    ],
+    metadata: {
+      ...(draft.metadata ?? {}),
+      intelligenceDashboardGenerator: 'stage5b.5',
+      ...(referenceEvidence ? { intelligenceReferenceEvidenceProfileId: selection.profileId } : { intelligenceProfileCoverageProfileId: selection.profileId })
+    }
+  };
+}
+
+/**
+ * Creates a canonical Screen draft that lets Runtime inspect one configured
+ * process-stage member's profile coverage at a time. Only stable references and
+ * display labels are saved; the existing per-profile report remains authoritative.
+ */
+export function generateIntelligenceProcessStageCoverageScreenDraft(
+  existingScreens: readonly ScreenEngineering[],
+  selection: IntelligenceProcessStageCoverageDashboardSelection,
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const members = validateProcessStageCoverageSelection(selection);
+  const displayName = selection.stageName;
+  const key = uniqueScreenKey(existingScreens, `intelligence-stage-coverage-${slug(selection.stageKey)}`);
+  const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
+  const draft = createIntelligenceScreenDraft(existingScreens, locale);
+  const allocateId = createUniqueIdAllocator(createId);
+  const title = locale === 'en' ? `Process-stage coverage · ${displayName}`
+    : locale === 'es' ? `Cobertura de etapa · ${displayName}`
+      : `Cobertura da etapa · ${displayName}`;
+  const subtitle = locale === 'en'
+    ? 'Select one configured Equipment assignment and explicitly request its independent, read-only coverage report.'
+    : locale === 'es'
+      ? 'Seleccione una asignación de equipo configurada y solicite explícitamente su informe de cobertura independiente y de solo lectura.'
+      : 'Selecione um Equipamento associado e solicite explicitamente seu relatório de cobertura independente e somente leitura.';
+
+  return {
+    ...draft,
+    key,
+    name: title,
+    route,
+    elements: [
+      {
+        id: allocateId(), key: 'intelligence-process-stage-coverage-title', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 36, width: 1792, height: 52,
+          [VISUAL_PROPERTY_KEYS.text]: title,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 32,
+          [VISUAL_PROPERTY_KEYS.fontWeight]: 700,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-process-stage-coverage-subtitle', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 98, width: 1792, height: 36,
+          [VISUAL_PROPERTY_KEYS.text]: subtitle,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 16,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-process-stage-coverage-v1',
+        type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageCoverageV1,
+        properties: {
+          x: 64, y: 150, width: 1792, height: 790,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageId]: selection.stageId,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageKey]: selection.stageKey,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageName]: selection.stageName,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageMembers]: JSON.stringify(members)
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-process-stage-coverage-limits', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 954, width: 1792, height: 86,
+          [VISUAL_PROPERTY_KEYS.text]: locale === 'en'
+            ? 'Results stay separate per Equipment profile. This screen does not combine samples, compare assets, or compute a process KPI, efficiency score or diagnosis.'
+            : locale === 'es'
+              ? 'Los resultados se mantienen separados por perfil de equipo. Esta pantalla no combina muestras, compara activos ni calcula un KPI de proceso, una eficiencia o un diagnóstico.'
+              : 'Os resultados permanecem separados por perfil de Equipamento. Esta tela não combina amostras, compara ativos nem calcula KPI de processo, eficiência ou diagnóstico.',
+          [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      }
+    ],
+    metadata: {
+      ...(draft.metadata ?? {}),
+      intelligenceDashboardGenerator: 'stage5b.7',
+      intelligenceProcessStageCoverageStageId: selection.stageId
+    }
+  };
+}
+
+function validateProcessStageCoverageSelection(
+  selection: IntelligenceProcessStageCoverageDashboardSelection
+): IntelligenceProcessStageCoverageDashboardSelection['members'] {
+  const members = Array.isArray(selection?.members) ? selection.members : [];
+  const identifiers = [selection?.stageId, ...members.flatMap(member => [
+    member?.assignmentId, member?.scopeId, member?.profileId
+  ])];
+  if (identifiers.some(value => typeof value !== 'string' || !isCanonicalUuid(value)) ||
+      typeof selection?.stageKey !== 'string' || !selection.stageKey.trim() ||
+      selection.stageKey !== selection.stageKey.trim() || selection.stageKey.length > 64 ||
+      typeof selection?.stageName !== 'string' || !selection.stageName.trim() ||
+      selection.stageName !== selection.stageName.trim() || selection.stageName.length > 128 ||
+      members.length < 1 || members.length > INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS ||
+      members.some(member => !member || typeof member.displayLabel !== 'string' || !member.displayLabel.trim() ||
+        member.displayLabel !== member.displayLabel.trim() || member.displayLabel.length > 320 ||
+        !Number.isInteger(member.order) || member.order < 0) ||
+      new Set(members.map(member => member.assignmentId.toLowerCase())).size !== members.length ||
+      new Set(members.map(member => `${member.scopeId.toLowerCase()}:${member.profileId.toLowerCase()}`)).size !== members.length ||
+      new Set(members.map(member => member.order)).size !== members.length) {
+    throw new Error('A process-stage coverage screen requires a canonical stage and one to 32 unique, ordered assignment/scope/profile references.');
+  }
+
+  return [...members].sort((left, right) => left.order - right.order || left.assignmentId.localeCompare(right.assignmentId));
+}
+
+/**
+ * Generates a linked pair for one process stage: a TAG values/trend overview
+ * and the existing per-member coverage selector. The overview juxtaposes
+ * configured TAGs only; no samples are combined and no process KPI is inferred.
+ */
+export function generateIntelligenceProcessStageGuidedDashboardDrafts(
+  existingScreens: readonly ScreenEngineering[],
+  source: IntelligenceDashboardSource,
+  selection: IntelligenceProcessStageGuidedDashboardSelection,
+  tags: readonly TagEngineering[],
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID(),
+  appearance?: IntelligenceDashboardAppearance
+): readonly ScreenEngineering[] {
+  const orderedMembers = validateProcessStageCoverageSelection(selection);
+  if (source.kind !== 'process-stage' || source.stableKey !== selection.stageKey ||
+      source.displayName !== selection.stageName || source.assignments.length !== selection.members.length ||
+      source.assignments.length < 1 || source.assignments.length > INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS) {
+    throw new Error('A guided process-stage dashboard requires one complete process stage with matching canonical member references.');
+  }
+
+  const membersByAssignmentId = new Map(orderedMembers.map(member => [member.assignmentId.toLowerCase(), member]));
+  const sourceAssignmentIds = source.assignments.map(assignment => assignment.assignmentId?.toLowerCase() ?? '');
+  if (new Set(sourceAssignmentIds).size !== source.assignments.length ||
+      source.assignments.some((assignment, index) => {
+    const member = membersByAssignmentId.get(sourceAssignmentIds[index]);
+    return !member || !isCanonicalUuid(assignment.assignmentId ?? '') ||
+      !isCanonicalUuid(assignment.scopeId ?? '') || !isCanonicalUuid(assignment.profile.id) ||
+      !assignment.equipmentName.trim() || !assignment.equipmentPath.trim() ||
+      member.assignmentId.toLowerCase() !== orderedMembers[index].assignmentId.toLowerCase() ||
+      member.scopeId.toLowerCase() !== assignment.scopeId!.toLowerCase() ||
+      member.profileId.toLowerCase() !== assignment.profile.id.toLowerCase();
+  })) {
+    throw new Error('A guided process-stage dashboard requires every member to match its stable assignment, Equipment and profile references.');
+  }
+
+  const usedVisualIds = new Set<string>();
+  const allocateVisualId = () => {
+    const id = createId().trim();
+    if (!id || usedVisualIds.has(id)) throw new Error('Guided dashboard visual identities must be non-empty and unique across all screens.');
+    usedVisualIds.add(id);
+    return id;
+  };
+  const drafts: ScreenEngineering[] = [];
+  const existingAndDrafts = () => [...existingScreens, ...drafts];
+  drafts.push(generateDashboardDraft(existingAndDrafts(), source, tags, locale, allocateVisualId, false, appearance));
+  drafts.push(generateIntelligenceProcessStageCoverageScreenDraft(existingAndDrafts(), {
+    stageId: selection.stageId, stageKey: selection.stageKey, stageName: selection.stageName, members: orderedMembers
+  }, locale, allocateVisualId));
+
+  const labels = locale === 'en'
+    ? ['Values & trend', 'Member coverage'] as const
+    : locale === 'es'
+      ? ['Valores y tendencia', 'Cobertura por equipo'] as const
+      : ['Valores e tendência', 'Cobertura por Equipamento'] as const;
+  return drafts.map((screen, index) => {
+    const elements = (screen.elements ?? []).map(element => {
+      if (element.type !== BUILTIN_VISUAL_OBJECT_TYPES.text ||
+          !(element.key.endsWith('-title') || element.key.endsWith('-source') || element.key.endsWith('-subtitle'))) return element;
+      return { ...element, properties: { ...element.properties, width: 1200 } };
+    });
+    const targetIndex = index === 0 ? 1 : 0;
+    const navigation = {
+      id: allocateVisualId(),
+      key: `intelligence-stage-guided-navigation-${targetIndex + 1}`,
+      type: BUILTIN_VISUAL_OBJECT_TYPES.button,
+      properties: {
+        x: 1304,
+        y: 40,
+        width: 220,
+        height: 44,
+        [VISUAL_PROPERTY_KEYS.text]: labels[targetIndex],
+        [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+        [VISUAL_PROPERTY_KEYS.fontWeight]: 600,
+        [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+        [VISUAL_PROPERTY_KEYS.backgroundColor]: '#1E293B',
+        [VISUAL_PROPERTY_KEYS.strokeColor]: '#475569',
+        [VISUAL_PROPERTY_KEYS.strokeWidth]: 1,
+        [VISUAL_PROPERTY_KEYS.cornerRadius]: 8,
+        [VISUAL_PROPERTY_KEYS.textWrap]: true
+      },
+      actions: [{ eventKey: 'click', kind: 'NavigateScreen' as const, targetKey: drafts[targetIndex].key, version: 1 }]
+    };
+    return {
+      ...screen,
+      elements: [...elements, navigation],
+      metadata: {
+        ...(screen.metadata ?? {}),
+        intelligenceDashboardGenerator: 'stage5b.10',
+        intelligenceDashboardSetVersion: 'stage5b.10',
+        intelligenceDashboardSetRootKey: drafts[0].key,
+        intelligenceDashboardViewRole: index === 0 ? 'values-trend' : 'process-stage-coverage'
+      }
+    };
+  });
+}
+
+/**
+ * Creates a separate process-stage member-insights Screen. The established
+ * Stage 5B.10 overview/coverage pair remains usable without these selections.
+ */
+export function generateIntelligenceProcessStageInsightsDashboardDraft(
+  existingScreens: readonly ScreenEngineering[],
+  source: IntelligenceDashboardSource,
+  selection: IntelligenceProcessStageInsightsDashboardSelection,
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const ordered = validateProcessStageReports(source, selection, false);
+  return generateIntelligenceProcessStageInsightsScreenDraft(existingScreens, ordered, locale, createId);
+}
+
+function validateProcessStageReports(
+  source: IntelligenceDashboardSource, selection: IntelligenceProcessStageReportSelection, allowPartial: boolean
+): IntelligenceProcessStageReportSelection {
+  const orderedMembers = validateProcessStageCoverageSelection(selection);
+  if (source.kind !== 'process-stage' || source.stableKey !== selection.stageKey ||
+      source.displayName !== selection.stageName || source.assignments.length !== orderedMembers.length ||
+      source.assignments.length < 1 || source.assignments.length > INTELLIGENCE_PROCESS_STAGE_COVERAGE_MAX_MEMBERS) {
+    throw new Error('A process-stage member-insights screen requires one complete process stage with matching canonical member references.');
+  }
+
+  const membersByAssignmentId = new Map(selection.members.map(member => [member.assignmentId.toLowerCase(), member]));
+  const sourceAssignmentIds = source.assignments.map(assignment => assignment.assignmentId?.toLowerCase() ?? '');
+  if (new Set(sourceAssignmentIds).size !== source.assignments.length || source.assignments.some((assignment, index) => {
+    const member = membersByAssignmentId.get(sourceAssignmentIds[index]);
+    return !member || !isCanonicalUuid(assignment.assignmentId ?? '') ||
+      !isCanonicalUuid(assignment.scopeId ?? '') || !isCanonicalUuid(assignment.profile.id) ||
+      !assignment.equipmentName.trim() || !assignment.equipmentPath.trim() ||
+      member.assignmentId.toLowerCase() !== orderedMembers[index].assignmentId.toLowerCase() ||
+      member.scopeId.toLowerCase() !== assignment.scopeId!.toLowerCase() ||
+      member.profileId.toLowerCase() !== assignment.profile.id.toLowerCase();
+  })) {
+    throw new Error('A process-stage member-insights screen requires every member to match its stable assignment, Equipment and profile references.');
+  }
+
+  for (const assignment of source.assignments) {
+    const member = membersByAssignmentId.get(assignment.assignmentId!.toLowerCase());
+    const profileSignalIds = new Set(assignment.profile.signals.map(signal => signal.id.toLowerCase()));
+    const performance = member?.performance;
+    const deviation = member?.contextualDeviation;
+    const joint = member?.experimentalJoint;
+    const singleTarget = member?.singleTarget;
+    const currentFrequency = member?.currentFrequency;
+    const deviationSignalIds = deviation
+      ? [...deviation.targetSignalIds, deviation.firstContextSignalId, deviation.secondContextSignalId]
+      : [];
+    if (!member || (member.availabilityVersion !== undefined && member.availabilityVersion !== 2) ||
+        (member.referenceEvidence !== undefined && (member.referenceEvidence !== true || member.availabilityVersion !== 2)) ||
+        (member.operatingContexts !== undefined && (member.availabilityVersion !== 2 ||
+          !readIntelligenceContextReferences(JSON.stringify(member.operatingContexts)) ||
+          member.operatingContexts.some(context => context.predicateTagIds.some(id =>
+            !assignment.profile.signals.some(signal => signal.tagId.toLowerCase() === id.toLowerCase()))))) ||
+        (singleTarget !== undefined && (member.availabilityVersion !== 2 || !readSingleTargetSignals(JSON.stringify(singleTarget)) || singleTarget.some(signal=>!assignment.profile.signals.some(item=>item.id.toLowerCase()===signal.id.toLowerCase()&&item.tagId.toLowerCase()===signal.tagId.toLowerCase())))) ||
+        (currentFrequency !== undefined && (member.availabilityVersion !== 2 || !readCurrentFrequencySignals(JSON.stringify(currentFrequency)) ||
+          currentFrequency.some(signal => !assignment.profile.signals.some(item => item.id.toLowerCase() === signal.id.toLowerCase() && item.tagId.toLowerCase() === signal.tagId.toLowerCase())))) ||
+        (joint !== undefined && (member.availabilityVersion !== 2 || !readIntelligenceJointPresentation(joint) ||
+          joint.signals.some(signal => !assignment.profile.signals.some(item => item.id.toLowerCase()===signal.id.toLowerCase() && item.tagId.toLowerCase()===signal.tagId.toLowerCase())) ||
+          joint.contexts.some(context=>context.predicateTagIds.some(id=>!assignment.profile.signals.some(signal=>signal.tagId.toLowerCase()===id.toLowerCase()))))) ||
+        (allowPartial ? member.availabilityVersion !== 2 : !performance || !deviation) ||
+        (performance !== undefined && (!performance ||
+        performance.signalIds.length < 2 || performance.signalIds.length > 3 ||
+        !performance.ruleId || performance.ruleId !== performance.ruleId.trim() || performance.ruleId.length > 128 ||
+        !performance.ruleVersion || performance.ruleVersion !== performance.ruleVersion.trim() || performance.ruleVersion.length > 32 ||
+        performance.signalIds.some(id => !isCanonicalUuid(id) || !profileSignalIds.has(id.toLowerCase())) ||
+        new Set(performance.signalIds.map(id => id.toLowerCase())).size !== performance.signalIds.length)) ||
+        (deviation !== undefined && (!deviation || deviation.targetSignalIds.length < 2 || deviation.targetSignalIds.length > 8 ||
+        deviationSignalIds.some(id => !isCanonicalUuid(id) || !profileSignalIds.has(id.toLowerCase())) ||
+        new Set(deviationSignalIds.map(id => id.toLowerCase())).size !== deviationSignalIds.length ||
+        !validCanonicalRange(deviation.firstContextLowerInclusiveCanonical, deviation.firstContextUpperExclusiveCanonical) ||
+        !validCanonicalRange(deviation.secondContextLowerInclusiveCanonical, deviation.secondContextUpperExclusiveCanonical)))) {
+      throw new Error('A process-stage member-insights screen requires complete Performance and contextual-deviation selections belonging to every stable member profile.');
+    }
+  }
+
+  const orderedSelection: IntelligenceProcessStageReportSelection = {
+    ...selection,
+    members: orderedMembers.map(member => membersByAssignmentId.get(member.assignmentId.toLowerCase())!)
+  };
+  if (JSON.stringify(orderedSelection.members).length > 65536) {
+    throw new Error('The process-stage member insight configuration exceeds the supported 64 KB limit.');
+  }
+  return orderedSelection;
+}
+
+
+/** Composes independent stage views; availability v2 changes presentation only, never analytical contracts. */
+export function generateIntelligenceProcessStageCompositionDrafts(
+  existingScreens: readonly ScreenEngineering[], source: IntelligenceDashboardSource,
+  coverage: IntelligenceProcessStageCoverageDashboardSelection, reports: IntelligenceProcessStageReportSelection | null,
+  tags: readonly TagEngineering[], appearance: IntelligenceDashboardAppearance,
+  include: Readonly<{ coverage: boolean; reports: boolean }>, locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): readonly ScreenEngineering[] {
+  const allocateId = createUniqueIdAllocator(createId);
+  const pair = generateIntelligenceProcessStageGuidedDashboardDrafts(existingScreens, source, coverage, tags, locale, allocateId, appearance);
+  const drafts = [pair[0]];
+  const roles: Array<'values-trend' | 'process-stage-coverage' | 'process-stage-insights'> = ['values-trend'];
+  if (include.coverage) { drafts.push(pair[1]); roles.push('process-stage-coverage'); }
+  if (include.reports) {
+    if (!reports || reports.stageId !== coverage.stageId || reports.stageKey !== coverage.stageKey || reports.stageName !== coverage.stageName ||
+        !reports.members.some(member => member.performance || member.contextualDeviation || member.referenceEvidence || member.operatingContexts || member.experimentalJoint || member.currentFrequency || member.singleTarget)) {
+      throw new Error('Stage reports require matching references and at least one configured member analysis.');
+    }
+    if (reports.members.some(member=>member.singleTarget?.some(signal=>!tags.some(tag=>tag.id?.toLowerCase()===signal.tagId.toLowerCase()&&isNumericTagDataType(tag.dataType)))))throw new Error('Single-target stage members require numeric TAG references.');
+    if (reports.members.some(member => member.currentFrequency?.some(signal => {
+      const assignment = source.assignments.find(item => item.assignmentId === member.assignmentId);
+      return !assignment || !currentFrequencySignals(assignment.profile, tags).some(item => item.id === signal.id && item.tagId === signal.tagId && item.kind === signal.kind && item.basis === signal.basis && item.label === signal.label);
+    }))) throw new Error('Current/frequency member references must match controlled current and measured-frequency TAGs.');
+    if (reports.members.some(member=>member.experimentalJoint?.signals.some(signal=>!tags.some(tag=>tag.id?.toLowerCase()===signal.tagId.toLowerCase() && isNumericTagDataType(tag.dataType))))) {
+      throw new Error('Joint deviation members require numeric TAG references.');
+    }
+    const ordered = validateProcessStageReports(source, reports, true);
+    drafts.push(generateIntelligenceProcessStageInsightsScreenDraft([...existingScreens, ...drafts], ordered, locale, allocateId));
+    roles.push('process-stage-insights');
+  }
+  const unlinked = drafts.map(screen => ({ ...screen, elements: (screen.elements ?? []).filter(element => !element.key.startsWith('intelligence-stage-guided-navigation-')) }));
+  return unlinked.length === 1 ? unlinked : linkDashboardDrafts(unlinked, roles, locale, allocateId);
+}
+
+function generateIntelligenceProcessStageInsightsScreenDraft(
+  existingScreens: readonly ScreenEngineering[],
+  selection: IntelligenceProcessStageReportSelection,
+  locale: EngineeringLocale,
+  createId: () => string
+): ScreenEngineering {
+  const key = uniqueScreenKey(existingScreens, `intelligence-process-stage-insights-${slug(selection.stageKey)}`);
+  const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
+  const draft = createIntelligenceScreenDraft(existingScreens, locale);
+  const allocateId = createUniqueIdAllocator(createId);
+  const title = locale === 'en' ? `Process-stage member insights · ${selection.stageName}`
+    : locale === 'es' ? `Análisis de miembros de etapa · ${selection.stageName}`
+      : `Análises dos membros da etapa · ${selection.stageName}`;
+  const subtitle = locale === 'en'
+    ? 'Choose one configured Equipment member, then explicitly open one independent read-only report.'
+    : locale === 'es'
+      ? 'Elija un miembro de equipo configurado y abra explícitamente uno de sus informes independientes y de solo lectura.'
+      : 'Escolha um Equipamento associado e abra explicitamente um dos relatórios independentes e somente leitura.';
+  return {
+    ...draft,
+    key,
+    name: title,
+    route,
+    elements: [
+      {
+        id: allocateId(), key: 'intelligence-process-stage-insights-title', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 36, width: 1200, height: 52,
+          [VISUAL_PROPERTY_KEYS.text]: title.split(' · ')[0],
+          [VISUAL_PROPERTY_KEYS.fontSize]: 32,
+          [VISUAL_PROPERTY_KEYS.fontWeight]: 700,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-process-stage-insights-subtitle', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 98, width: 1200, height: 36,
+          [VISUAL_PROPERTY_KEYS.text]: subtitle,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 16,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-process-stage-insights-v1',
+        type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1,
+        properties: {
+          x: 64, y: 150, width: 1792, height: 790,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageId]: selection.stageId,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageKey]: selection.stageKey,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageName]: selection.stageName,
+          [VISUAL_PROPERTY_KEYS.intelligenceStageMembers]: JSON.stringify(selection.members)
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-process-stage-insights-limits', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 954, width: 1792, height: 86,
+          [VISUAL_PROPERTY_KEYS.text]: locale === 'en'
+            ? 'Reports remain attributable to the selected Equipment assignment. No process-wide score, timestamp join, diagnosis or efficiency claim is produced.'
+            : locale === 'es'
+              ? 'Los informes siguen atribuidos a la asignación de equipo seleccionada. No se produce una puntuación de proceso, unión de marcas de tiempo, diagnóstico ni afirmación de eficiencia.'
+              : 'Os relatórios permanecem atribuídos ao Equipamento selecionado. Não é gerado score do processo, cruzamento de timestamps, diagnóstico ou afirmação de eficiência.',
+          [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      }
+    ],
+    metadata: {
+      ...(draft.metadata ?? {}),
+      intelligenceDashboardGenerator: 'stage5b.11',
+      intelligenceProcessStageInsightsStageId: selection.stageId
+    }
+  };
+}
+
+/**
+ * Creates a Screen-only Runtime V2 contextual-deviation visual. The draft stores
+ * stable signal references and caller-declared canonical ranges only; time
+ * windows, Historian samples and analysis results remain transient Runtime state.
+ */
+export function generateIntelligenceContextualDeviationScreenDraft(
+  existingScreens: readonly ScreenEngineering[],
+  selection: IntelligenceContextualDeviationDashboardSelection,
+  locale: EngineeringLocale,
+  createId: () => string = () => crypto.randomUUID()
+): ScreenEngineering {
+  const identifiers = [selection.scopeId, selection.assignmentId, selection.profileId,
+    ...selection.targetSignalIds, selection.firstContextSignalId, selection.secondContextSignalId];
+  const allSignalIds = [...selection.targetSignalIds, selection.firstContextSignalId, selection.secondContextSignalId];
+  if (identifiers.some(value => !isCanonicalUuid(value)) ||
+      selection.targetSignalIds.length < 2 || selection.targetSignalIds.length > 8 ||
+      new Set(allSignalIds.map(id => id.toLowerCase())).size !== allSignalIds.length ||
+      !validCanonicalRange(selection.firstContextLowerInclusiveCanonical, selection.firstContextUpperExclusiveCanonical) ||
+      !validCanonicalRange(selection.secondContextLowerInclusiveCanonical, selection.secondContextUpperExclusiveCanonical)) {
+    throw new Error('A contextual deviation screen requires canonical Equipment, assignment, profile and unique signal UUIDs, two to eight targets, and finite lower-inclusive/upper-exclusive canonical ranges.');
+  }
+
+  const displayName = selection.displayName.trim() || selection.scopeId;
+  const key = uniqueScreenKey(existingScreens, `intelligence-contextual-deviation-${slug(displayName)}`);
+  const route = uniqueScreenRoute(key, existingScreens.map(screen => screen.route));
+  const draft = createIntelligenceScreenDraft(existingScreens, locale);
+  const allocateId = createUniqueIdAllocator(createId);
+  const title = locale === 'en' ? `Contextual deviation · ${displayName}`
+    : locale === 'es' ? `Desviación contextual · ${displayName}`
+      : `Desvio contextual · ${displayName}`;
+  const subtitle = locale === 'en'
+    ? 'Compare measurements with a period of normal operation under similar conditions.'
+    : locale === 'es'
+      ? 'Compare las mediciones con un período de operación normal en condiciones similares.'
+      : 'Compare as medições com um período de operação normal em condições semelhantes.';
+  const caution = locale === 'en'
+    ? 'Each target is compared with its own joint-context reference distribution. The result is not a combined anomaly, diagnosis, fault classification or remaining-life estimate.'
+    : locale === 'es'
+      ? 'Cada señal objetivo se compara con su propia distribución de referencia en el contexto conjunto. El resultado no es una anomalía combinada, diagnóstico, clasificación de falla ni estimación de vida restante.'
+      : 'Cada sinal-alvo é comparado com sua própria distribuição de referência no contexto conjunto. O resultado não é anomalia combinada, diagnóstico, classificação de falha nem estimativa de vida restante.';
+
+  return {
+    ...draft,
+    key,
+    name: title,
+    route,
+    elements: [
+      {
+        id: allocateId(), key: 'intelligence-contextual-deviation-title', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 36, width: 1792, height: 52,
+          [VISUAL_PROPERTY_KEYS.text]: title,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 32,
+          [VISUAL_PROPERTY_KEYS.fontWeight]: 700,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#E2E8F0',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-contextual-deviation-subtitle', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 98, width: 1792, height: 34,
+          [VISUAL_PROPERTY_KEYS.text]: subtitle,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 16,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-contextual-deviation-v2',
+        type: BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2,
+        properties: {
+          x: 64, y: 152, width: 1792, height: 720,
+          [VISUAL_PROPERTY_KEYS.intelligenceScopeId]: selection.scopeId,
+          [VISUAL_PROPERTY_KEYS.intelligenceAssignmentId]: selection.assignmentId,
+          [VISUAL_PROPERTY_KEYS.intelligenceProfileId]: selection.profileId,
+          [VISUAL_PROPERTY_KEYS.intelligenceSignalIds]: JSON.stringify(selection.targetSignalIds),
+          [VISUAL_PROPERTY_KEYS.intelligenceFirstContextSignalId]: selection.firstContextSignalId,
+          [VISUAL_PROPERTY_KEYS.intelligenceFirstContextLowerInclusiveCanonical]: selection.firstContextLowerInclusiveCanonical,
+          [VISUAL_PROPERTY_KEYS.intelligenceFirstContextUpperExclusiveCanonical]: selection.firstContextUpperExclusiveCanonical,
+          [VISUAL_PROPERTY_KEYS.intelligenceSecondContextSignalId]: selection.secondContextSignalId,
+          [VISUAL_PROPERTY_KEYS.intelligenceSecondContextLowerInclusiveCanonical]: selection.secondContextLowerInclusiveCanonical,
+          [VISUAL_PROPERTY_KEYS.intelligenceSecondContextUpperExclusiveCanonical]: selection.secondContextUpperExclusiveCanonical
+        }
+      },
+      {
+        id: allocateId(), key: 'intelligence-contextual-deviation-limits', type: BUILTIN_VISUAL_OBJECT_TYPES.text,
+        properties: {
+          x: 64, y: 900, width: 1792, height: 74,
+          [VISUAL_PROPERTY_KEYS.text]: caution,
+          [VISUAL_PROPERTY_KEYS.fontSize]: 14,
+          [VISUAL_PROPERTY_KEYS.textColor]: '#94A3B8',
+          [VISUAL_PROPERTY_KEYS.textWrap]: true
+        }
+      }
+    ],
+    metadata: {
+      ...(draft.metadata ?? {}),
+      intelligenceDashboardGenerator: 'stage5b.6',
+      intelligenceContextualDeviationRuleId: 'contextual-deviation-vector.v2',
+      intelligenceContextualDeviationRuleVersion: '2.0.0'
+    }
+  };
+}
+
+export function isNumericTagDataType(dataType: string | null | undefined): boolean {
+  const normalized = dataType?.trim().toLowerCase();
+  return normalized !== undefined && NUMERIC_DATA_TYPES.has(normalized);
+}
+
+function guidedDashboardNavigationLabels(locale: EngineeringLocale): Readonly<Record<
+  'values-trend' | 'profile-coverage' | 'performance' | 'contextual-deviation' | 'process-stage-coverage' | 'process-stage-insights' | 'reference-evidence' | 'context-eligibility' | 'experimental-joint' | 'current-frequency' | 'single-target', string
+>> {
+  if (locale === 'en') return {
+    'process-stage-coverage': 'Member coverage', 'process-stage-insights': 'Member analyses', 'reference-evidence': 'Reference data', 'context-eligibility': 'Operating conditions', 'experimental-joint': 'Joint deviation (experimental)', 'current-frequency': 'Current at similar frequency', 'single-target': 'Measurement under a condition',
+    'values-trend': 'Measurements & trend',
+    'profile-coverage': 'Data availability',
+    performance: 'Performance KPIs',
+    'contextual-deviation': 'Compare deviations'
+  };
+  if (locale === 'es') return {
+    'process-stage-coverage': 'Cobertura por equipo', 'process-stage-insights': 'Análisis por equipo', 'reference-evidence': 'Datos de referencia', 'context-eligibility': 'Condiciones de operación', 'experimental-joint': 'Desviación conjunta (experimental)', 'current-frequency': 'Corriente a frecuencia similar', 'single-target': 'Medición bajo condición',
+    'values-trend': 'Mediciones y tendencia',
+    'profile-coverage': 'Datos disponibles',
+    performance: 'Indicadores (KPI)',
+    'contextual-deviation': 'Comparar desviaciones'
+  };
+  return {
+    'process-stage-coverage': 'Cobertura por equipamento', 'process-stage-insights': 'Análises por equipamento', 'reference-evidence': 'Dados da referência', 'context-eligibility': 'Condições de operação', 'experimental-joint': 'Desvio conjunto (experimental)', 'current-frequency': 'Corrente em frequência semelhante', 'single-target': 'Medição sob condição',
+    'values-trend': 'Medições e tendência',
+    'profile-coverage': 'Dados disponíveis',
+    performance: 'Indicadores (KPI)',
+    'contextual-deviation': 'Comparar desvios'
+  };
+}
+
+function guidedDashboardSummary(locale: EngineeringLocale): string {
+  if (locale === 'en') return 'Values and trend are shown here. Profile coverage, recorded performance and contextual deviation are separate linked screens; each analysis runs only after an explicit Runtime request.';
+  if (locale === 'es') return 'Aquí se muestran valores y tendencia. La cobertura del perfil, el rendimiento registrado y la desviación contextual son pantallas vinculadas independientes; cada análisis solo se ejecuta tras una solicitud explícita en Runtime.';
+  return 'Esta tela mostra valores e tendência. Cobertura do perfil, desempenho registrado e desvio contextual ficam em telas vinculadas separadas; cada análise só é executada após solicitação explícita no Runtime.';
+}
+
+function tagBinding(tag: TagEngineering & { id: string }, destination: string) {
+  const unit = tag.engineeringUnit?.trim();
+  return {
+    key: destination,
+    kind: 'Tag',
+    target: tag.path,
+    ...(unit ? { metadata: { engineeringUnit: unit } } : {}),
+    tagReference: { tagId: tag.id }
+  };
+}
+
+function dashboardMeasurementLabel(item: ResolvedSignal, sourceKind: IntelligenceDashboardSource['kind']): string {
+  const name = item.tag.name.trim() || item.tag.path;
+  return sourceKind === 'process-stage' ? `${item.assignment.equipmentName} · ${name}` : name;
+}
+
+function validScale(minimum: number | null | undefined, maximum: number | null | undefined): { minimum: number; maximum: number } | null {
+  return typeof minimum === 'number' && Number.isFinite(minimum) &&
+    typeof maximum === 'number' && Number.isFinite(maximum) && minimum < maximum
+    ? { minimum, maximum }
+    : null;
+}
+
+function validCanonicalRange(lowerInclusive: number, upperExclusive: number): boolean {
+  return Number.isFinite(lowerInclusive) && Number.isFinite(upperExclusive) && lowerInclusive < upperExclusive;
+}
+
+function createUniqueIdAllocator(createId: () => string): () => string {
+  const used = new Set<string>();
+  return () => {
+    const id = createId().trim();
+    if (!id || used.has(id)) throw new Error('Dashboard visual identities must be non-empty and unique.');
+    used.add(id);
+    return id;
+  };
+}
+
+function uniqueScreenKey(screens: readonly ScreenEngineering[], base: string): string {
+  const used = new Set(screens.map(screen => screen.key.trim().toLowerCase()));
+  let candidate = base.slice(0, 80);
+  let suffix = 2;
+  while (used.has(candidate.toLowerCase())) {
+    const tail = `-${suffix++}`;
+    candidate = `${base.slice(0, 80 - tail.length)}${tail}`;
+  }
+  return candidate;
+}
+
+function uniqueScreenRoute(key: string, routes: readonly (string | null | undefined)[]): string {
+  const used = new Set(routes.map(route => route?.trim().toLowerCase()).filter((route): route is string => Boolean(route)));
+  let candidate = `/${key}`;
+  let suffix = 2;
+  while (used.has(candidate.toLowerCase())) candidate = `/${key}-${suffix++}`;
+  return candidate;
+}
+
+function slug(value: string): string {
+  return value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'source';
+}
+
+function isCanonicalUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function dashboardText(locale: EngineeringLocale): DashboardText {
+  if (locale === 'en') return {
+    invalidMeasurementScale: name => `Check the scale, bands or target for ${name}. Enter valid limits; they are not inferred.`,
+    generatedTitle: source => `Intelligence · ${source}`,
+    assignmentSubtitle: source => source.kind === 'process-stage' ? 'Measurements by equipment' : source.assignments[0]?.profile.name ?? '',
+    trendTitle: 'Historical trend',
+    summary: counts => `${counts.shown} value cards from ${counts.supported} numeric TAGs; ${counts.trended} TAG references configured in the historical trend, initially hidden until enabled in Runtime.${counts.missing ? ` ${counts.missing} missing references.` : ''}${counts.nonNumeric ? ` ${counts.nonNumeric} non-numeric signals omitted.` : ''}${counts.duplicates ? ` ${counts.duplicates} duplicate TAG references omitted.` : ''}${counts.omitted ? ` ${counts.omitted} additional numeric signals omitted from value cards.` : ''}${counts.profileCoverage === 'included' ? ' A separate profile-coverage report is available on this screen and runs only after an explicit Runtime request.' : counts.profileCoverage === 'unavailable' ? ' Profile coverage was omitted because canonical Equipment/profile references are unavailable.' : ''} Starter screen only: it does not calculate KPIs, aggregate coverage, deviations, efficiency, diagnosis, or predictions.`,
+    noNumericSignals: 'This source has no resolvable numeric TAGs to place on a read-only dashboard.'
+  };
+  if (locale === 'es') return {
+    invalidMeasurementScale: name => `Revise escala, intervalos o meta de ${name}. Indique límites válidos; no se infieren.`,
+    generatedTitle: source => `Inteligencia · ${source}`,
+    assignmentSubtitle: source => source.kind === 'process-stage' ? 'Mediciones por equipo' : source.assignments[0]?.profile.name ?? '',
+    trendTitle: 'Tendencia histórica',
+    summary: counts => `${counts.shown} tarjetas de valor de ${counts.supported} TAG numéricos; ${counts.trended} referencias TAG configuradas en la tendencia histórica, ocultas hasta activarlas en Runtime.${counts.missing ? ` ${counts.missing} referencias ausentes.` : ''}${counts.nonNumeric ? ` ${counts.nonNumeric} señales no numéricas omitidas.` : ''}${counts.duplicates ? ` ${counts.duplicates} referencias TAG duplicadas omitidas.` : ''}${counts.omitted ? ` ${counts.omitted} señales numéricas adicionales omitidas de las tarjetas.` : ''}${counts.profileCoverage === 'included' ? ' Esta pantalla incluye un informe separado de cobertura del perfil que solo consulta Historian tras una solicitud explícita en Runtime.' : counts.profileCoverage === 'unavailable' ? ' Se omitió cobertura del perfil porque faltan referencias canónicas de Equipo/perfil.' : ''} Pantalla inicial: no deriva KPI de proceso, desviaciones, eficiencia, diagnóstico ni predicciones.`,
+    noNumericSignals: 'Esta fuente no tiene TAG numéricos resolubles para una pantalla de solo lectura.'
+  };
+  return {
+    invalidMeasurementScale: name => `Confira escala, faixas ou meta de ${name}. Informe limites válidos; eles não são inferidos.`,
+    generatedTitle: source => `Inteligência · ${source}`,
+    assignmentSubtitle: source => source.kind === 'process-stage' ? 'Medições por equipamento' : source.assignments[0]?.profile.name ?? '',
+    trendTitle: 'Tendência histórica',
+    summary: counts => `${counts.shown} cartões de valor para ${counts.supported} TAGs numéricos; ${counts.trended} referências TAG configuradas na tendência histórica, ocultas até ativação no Runtime.${counts.missing ? ` ${counts.missing} referências ausentes.` : ''}${counts.nonNumeric ? ` ${counts.nonNumeric} sinais não numéricos omitidos.` : ''}${counts.duplicates ? ` ${counts.duplicates} referências TAG duplicadas omitidas.` : ''}${counts.omitted ? ` ${counts.omitted} sinais numéricos adicionais omitidos dos cartões.` : ''}${counts.profileCoverage === 'included' ? ' Esta tela inclui um relatório separado de cobertura do perfil, consultado somente após ação explícita no Runtime.' : counts.profileCoverage === 'unavailable' ? ' A cobertura do perfil foi omitida porque faltam referências canônicas de Equipamento/perfil.' : ''} Tela inicial: não calcula KPIs de processo, desvios, eficiência, diagnóstico nem predições.`,
+    noNumericSignals: 'Esta origem não tem TAGs numéricos resolvíveis para uma tela somente leitura.'
+  };
+}
+
+// Generated foregrounds use a coordinated dark palette. Persist its matching
+// canvas so the result keeps readable contrast under either application theme.
+function createIntelligenceScreenDraft(existing: readonly ScreenEngineering[], locale: EngineeringLocale): ScreenEngineering {
+  return {
+    ...createScreenDraft(existing, locale),
+    properties: { backgroundMode: 'color', backgroundColor: '#0F172A' }
+  };
+}

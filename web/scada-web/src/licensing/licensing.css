@@ -1,19 +1,26 @@
 .licensing-page {
-  display: grid;
-  gap: 18px;
+  box-sizing: border-box;
+  height: calc(100dvh - 54px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  padding: 10px 18px;
 }
 
 .licensing-heading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 20px;
 }
 
 .licensing-heading h1 {
   margin: 0;
-  font-size: 1.65rem;
+  font-size: 18px;
 }
+.licensing-heading > div:first-child { display: flex; align-items: baseline; min-width: 0; }
 
 .licensing-heading p {
   margin: 5px 0 0;
@@ -39,26 +46,70 @@
 .licensing-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-rows: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 10px;
 }
 
 .licensing-card {
   border: 1px solid #2d4057;
   border-radius: 12px;
   background: #101d2c;
-  padding: 18px;
+  padding: 12px;
   min-width: 0;
+  min-height: 0;
+  overflow: auto;
 }
 
 .licensing-card h2 {
-  margin: 0 0 14px;
-  font-size: 1.05rem;
+  margin: 0 0 8px;
+  font-size: 1rem;
 }
+
+.licensing-online-status {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.licensing-connectivity {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0 4px;
+}
+
+.licensing-connectivity-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: #8090a0;
+}
+
+.licensing-connectivity-reachable .licensing-connectivity-dot { background: #18b981; }
+.licensing-connectivity-unreachable .licensing-connectivity-dot { background: #ef6262; }
+.licensing-connectivity-help { margin: 0 0 8px; }
+
+.licensing-machine-install {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #2d4057;
+}
+
+.licensing-machine-install h3 {
+  margin: 0 0 8px;
+  font-size: .95rem;
+}
+
+.licensing-online-activation { margin-top: 14px; }
+.licensing-online-activation form label { margin-top: 10px; }
+.licensing-online-activation input { box-sizing: border-box; width: 100%; padding: 8px; border: 1px solid #3d526b; border-radius: 8px; background: #0b1623; color: #e9f0f7; font: inherit; }
 
 .licensing-card dl {
   display: grid;
   grid-template-columns: minmax(120px, max-content) minmax(0, 1fr);
-  gap: 9px 16px;
+  gap: 5px 10px;
   margin: 0;
 }
 
@@ -71,21 +122,17 @@
   overflow-wrap: anywhere;
 }
 
-.licensing-wide {
-  grid-column: 1 / -1;
-}
-
 .licensing-request,
 .licensing-card form textarea {
   width: 100%;
   box-sizing: border-box;
-  min-height: 112px;
+  min-height: 72px;
   resize: vertical;
   border: 1px solid #3d526b;
   border-radius: 8px;
   background: #0b1623;
   color: #e9f0f7;
-  padding: 11px;
+  padding: 8px;
   font: inherit;
 }
 
@@ -105,7 +152,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 9px;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .licensing-actions .licensing-danger {
@@ -114,7 +161,7 @@
 }
 
 .licensing-help {
-  margin: 12px 0 0;
+  margin: 7px 0 0;
   color: #91a4b9;
   font-size: .9rem;
 }
@@ -136,13 +183,18 @@
   background: #163426;
 }
 
-@media (max-width: 760px) {
-  .licensing-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 900px) {
+  .licensing-page {
+    height: auto;
+    min-height: calc(100dvh - 54px);
+    overflow: visible;
+    padding: 14px 16px;
   }
 
-  .licensing-wide {
-    grid-column: auto;
+  .licensing-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    flex: 0 0 auto;
   }
 
   .licensing-heading {

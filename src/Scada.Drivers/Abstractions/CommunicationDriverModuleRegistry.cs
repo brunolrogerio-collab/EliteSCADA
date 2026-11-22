@@ -12,7 +12,8 @@ public sealed record CommunicationDriverModuleRegistration(
     ICommunicationDriverDiscoverySource? DiscoverySource = null,
     ICommunicationDriverBrowser? Browser = null,
     ICommunicationDriverFileImporter? FileImporter = null,
-    ICommunicationDriverReconciler? Reconciler = null)
+    ICommunicationDriverReconciler? Reconciler = null,
+    ICommunicationDriverPointReadTester? PointReadTester = null)
 {
     public CommunicationDriverTypeDescriptor Descriptor => DescriptorProvider.Descriptor;
 
@@ -48,6 +49,7 @@ public sealed record CommunicationDriverModuleRegistration(
         ValidateProvider(Browser, descriptor, DriverEngineeringCapabilities.Browse, nameof(Browser));
         ValidateProvider(FileImporter, descriptor, DriverEngineeringCapabilities.FileImport, nameof(FileImporter));
         ValidateProvider(Reconciler, descriptor, DriverEngineeringCapabilities.Reconcile, nameof(Reconciler));
+        ValidateProvider(PointReadTester, descriptor, DriverEngineeringCapabilities.PointReadTest, nameof(PointReadTester));
     }
 
     private static void ValidateProvider(

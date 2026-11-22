@@ -86,7 +86,9 @@ internal sealed class DataSourceEngineeringHandler
             return;
 
         foreach (var currentTag in _tags.Snapshot()
-                     .Where(tag => string.Equals(tag.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase)))
+                     .Where(tag => tag.DataSourceId.HasValue
+                         ? dataSource.Id.HasValue && tag.DataSourceId == dataSource.Id
+                         : string.Equals(tag.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase)))
         {
             var imported = package.Tags.FirstOrDefault(tag =>
                 tag.Id == currentTag.Id ||
@@ -95,7 +97,7 @@ internal sealed class DataSourceEngineeringHandler
 
             // A TAG explicitly moved to another source in the same package is no
             // longer affected by this Data Source driver transition.
-            if (!string.Equals(effective.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase))
+            if (!IsAssociated(effective, dataSource))
                 continue;
 
             if (effective.Historian?.Enabled == true)
@@ -144,6 +146,15 @@ internal sealed class DataSourceEngineeringHandler
                     true));
             }
         }
+    }
+
+    private static bool IsAssociated(TagEngineeringDto tag, DataSourceEngineeringDto dataSource)
+    {
+        if (tag.DataSourceId.HasValue)
+            return dataSource.Id.HasValue && tag.DataSourceId == dataSource.Id;
+
+        return !string.IsNullOrWhiteSpace(tag.Source) &&
+               string.Equals(tag.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase);
     }
 
     private DataSourceEngineeringDto? ResolveExisting(DataSourceEngineeringDto dto)

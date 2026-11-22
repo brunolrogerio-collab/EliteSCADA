@@ -1,0 +1,18 @@
+using Scada.Api.Product;
+
+namespace Scada.Drivers.Tests;
+
+public sealed class ProductIdentityApiTests
+{
+    [Fact]
+    public void ProductIdentity_ComesFromCanonicalAssemblyMetadata()
+    {
+        var identity = ProductIdentityApi.Describe(typeof(ProductIdentityApi).Assembly);
+
+        Assert.Equal("SCADIVO", identity.ProductName);
+        Assert.Equal("Alpha", identity.Channel);
+        Assert.Equal("0.16.1.1", identity.Version);
+        Assert.Equal("SCADIVO Alpha 0.16.1.1", identity.DisplayVersion);
+        Assert.Contains("SCADIVO Alpha 0.16.1.1", identity.InformationalVersion, StringComparison.Ordinal);
+    }
+}

@@ -1,7 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as monaco from 'monaco-editor';
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker';
+import { useAppliedAppTheme } from '../../appTheme';
 import type { EngineeringLocale } from '../i18n';
+import {
+  createEngineeringClientVisualPythonSyntaxValidator,
+  type EngineeringClientVisualPythonSyntaxValidator
+} from '../../python-runtime/engineeringPythonPreview';
+import { validateServerScriptPython } from '../scripts/scriptEngineeringApi';
 import { PythonPreviewTestPanel } from '../scripts/PythonPreviewTestPanel';
 import { PythonScriptAssistant } from '../scripts/PythonScriptAssistant';
 import { PythonScriptReferenceDiagnostics } from '../scripts/PythonScriptReferenceDiagnostics';
@@ -48,6 +54,7 @@ export type PythonMonacoEditorProps = {
   locale: EngineeringLocale;
   diagnostics: PythonEditorDiagnosticState;
   onSourceChange(source: string): void;
+  onAssistantEntryPointNeeded?(handlerName: string): void;
   insertion?: PythonEditorInsertion | null;
   readOnly?: boolean;
 };
@@ -63,10 +70,13 @@ export function PythonMonacoEditor({
   locale,
   diagnostics,
   onSourceChange,
+  onAssistantEntryPointNeeded,
   insertion = null,
   readOnly = false
 }: PythonMonacoEditorProps) {
   const copy = useMemo(() => pythonEditorCopy(locale), [locale]);
+  const appTheme = useAppliedAppTheme();
+  const monacoTheme = appTheme === 'dark' ? 'vs-dark' : 'vs';
   const containerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const modelRef = useRef<monaco.editor.ITextModel | null>(null);
@@ -74,6 +84,9 @@ export function PythonMonacoEditor({
   const entryPointsRef = useRef(entryPoints);
   const sourceRef = useRef(source);
   const lastInsertionIdRef = useRef<string | number | null>(null);
+  const syntaxValidatorRef = useRef<EngineeringClientVisualPythonSyntaxValidator | null>(null);
+  const syntaxGenerationRef = useRef(0);
+  const [continuousDiagnostics, setContinuousDiagnostics] = useState<PythonEditorDiagnosticState | null>(null);
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
   const [editorError, setEditorError] = useState<string | null>(null);
   const [previewDiagnostics, setPreviewDiagnostics] = useState<PythonEditorDiagnosticSnapshot | null>(null);
@@ -84,7 +97,7 @@ export function PythonMonacoEditor({
 
   const effectiveDiagnostics: PythonEditorDiagnosticState = previewDiagnostics?.source === source
     ? { status: 'ready', diagnostics: previewDiagnostics.diagnostics }
-    : diagnostics;
+    : continuousDiagnostics ?? diagnostics;
 
   const projection = useMemo(
     () => effectiveDiagnostics.status === 'ready'
@@ -119,10 +132,18 @@ export function PythonMonacoEditor({
 
     const selection = editor.getSelection() ?? new monaco.Selection(1, 1, 1, 1);
     const linePrefix = model.getLineContent(selection.startLineNumber).slice(0, Math.max(0, selection.startColumn - 1));
+    const endLine = model.getLineContent(selection.endLineNumber);
+    const lineSuffix = endLine.slice(Math.max(0, selection.endColumn - 1));
     const indentation = /^\s*/.exec(linePrefix)?.[0] ?? '';
-    const text = indentation && selection.startColumn > 1
-      ? rawText.replace(/\n/g, `\n${indentation}`)
-      : rawText;
+    const snippet = rawText.trim();
+    const indentedSnippet = indentation && selection.startColumn > 1
+      ? snippet.replace(/\n/g, `\n${indentation}`)
+      : snippet;
+    // Assistant entries are complete Python statements. Keep them separate from
+    // surrounding tokens so consecutive inserts cannot form e.g. `)pass`.
+    const before = linePrefix.trim() ? `\n${indentation}` : linePrefix;
+    const after = lineSuffix.trim() ? `\n${indentation}` : '';
+    const text = `${before}${indentedSnippet}${after}`;
 
     editor.pushUndoStop();
     editor.executeEdits('elitescada-script-assistant', [{
@@ -134,6 +155,16 @@ export function PythonMonacoEditor({
     editor.focus();
     return true;
   }, [readOnly]);
+
+  const insertAssistantSnippet = useCallback((rawText: string): boolean => {
+    if (!rawText.includes('await ') || entryPointsRef.current.length > 0) return insertAtCursor(rawText);
+    const model = modelRef.current;
+    if (!model) return false;
+    const handlerName = 'initialize';
+    onAssistantEntryPointNeeded?.(handlerName);
+    const body = rawText.trim().split('\n').map(line => `    ${line}`).join('\n');
+    return insertAtCursor(`async def ${handlerName}(event):\n${body}`);
+  }, [insertAtCursor, onAssistantEntryPointNeeded]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -151,6 +182,7 @@ export function PythonMonacoEditor({
       model = monaco.editor.createModel(sourceRef.current, 'python', uri);
       editor = monaco.editor.create(container, {
         model,
+        theme: monacoTheme,
         automaticLayout: true,
         readOnly,
         lineNumbers: 'on',
@@ -243,6 +275,67 @@ export function PythonMonacoEditor({
   }, [readOnly]);
 
   useEffect(() => {
+    syntaxGenerationRef.current++;
+    const generation = syntaxGenerationRef.current;
+    setContinuousDiagnostics(null);
+
+    if (readOnly || scope !== 'clientVisual') {
+      syntaxValidatorRef.current = null;
+      return;
+    }
+
+    const validator = createEngineeringClientVisualPythonSyntaxValidator(scriptId);
+    syntaxValidatorRef.current = validator;
+    return () => {
+      if (syntaxGenerationRef.current === generation) syntaxValidatorRef.current = null;
+      void validator.dispose();
+    };
+  }, [scriptId, scope, readOnly]);
+
+  useEffect(() => {
+    if (readOnly) {
+      setContinuousDiagnostics(null);
+      return;
+    }
+
+    const generation = ++syntaxGenerationRef.current;
+    setContinuousDiagnostics({ status: 'checking' });
+    const timer = globalThis.setTimeout(() => {
+      void (async () => {
+        try {
+          if (scope === 'clientVisual') {
+            const validator = syntaxValidatorRef.current;
+            if (!validator) {
+              if (generation === syntaxGenerationRef.current) {
+                setContinuousDiagnostics({ status: 'unavailable', message: copy.diagnosticsUnavailable });
+              }
+              return;
+            }
+            const result = await validator.compile(source);
+            if (generation !== syntaxGenerationRef.current || result.superseded) return;
+            setContinuousDiagnostics({ status: 'ready', diagnostics: result.snapshot.diagnostics });
+            return;
+          }
+
+          const snapshot = await validateServerScriptPython(source);
+          if (generation !== syntaxGenerationRef.current) return;
+          setContinuousDiagnostics({ status: 'ready', diagnostics: snapshot.diagnostics });
+        } catch {
+          if (generation === syntaxGenerationRef.current) {
+            setContinuousDiagnostics({ status: 'unavailable', message: copy.diagnosticsUnavailable });
+          }
+        }
+      })();
+    }, 350);
+
+    return () => globalThis.clearTimeout(timer);
+  }, [scriptId, scope, source, readOnly, copy.diagnosticsUnavailable]);
+
+  useEffect(() => {
+    monaco.editor.setTheme(monacoTheme);
+  }, [monacoTheme]);
+
+  useEffect(() => {
     const model = modelRef.current;
     if (!model) return;
     monaco.editor.setModelMarkers(
@@ -308,9 +401,17 @@ export function PythonMonacoEditor({
 
       <footer className="python-editor__status">
         <span>{copy.sourceAuthority}</span>
-        {effectiveDiagnostics.status === 'ready' ? (
-          <strong className={errorCount > 0 ? 'python-editor__diagnostic-error' : ''}>
-            {copy.diagnosticsReady}: {errorCount} {copy.errors}, {warningCount} {copy.warnings}
+        {effectiveDiagnostics.status === 'checking' ? (
+          <strong className="python-editor__muted">{copy.diagnosticsChecking}</strong>
+        ) : effectiveDiagnostics.status === 'ready' ? (
+          <strong className={
+            errorCount > 0
+              ? 'python-editor__diagnostic-error'
+              : warningCount > 0
+                ? 'python-editor__diagnostic-warning'
+                : 'python-editor__diagnostic-success'
+          }>
+            {errorCount > 0 ? copy.diagnosticsError : copy.diagnosticsValid}: {errorCount} {copy.errors}, {warningCount} {copy.warnings}
             {projection.rejectedCount > 0 ? ` · ${projection.rejectedCount} ${copy.diagnosticsRejected}` : ''}
           </strong>
         ) : effectiveDiagnostics.status === 'stale' ? (
@@ -321,6 +422,28 @@ export function PythonMonacoEditor({
           </strong>
         )}
       </footer>
+
+      {projection.markers.length > 0 && (
+        <div className="python-editor__diagnostic-list" aria-label={copy.diagnosticsList}>
+          {projection.markers.map((marker, index) => (
+            <button
+              type="button"
+              key={`${marker.code}-${marker.startLineNumber}-${marker.startColumn}-${index}`}
+              className={`python-editor__diagnostic-link python-editor__diagnostic-link--${marker.severity}`}
+              onClick={() => {
+                const editor = editorRef.current;
+                if (!editor) return;
+                editor.setPosition({ lineNumber: marker.startLineNumber, column: marker.startColumn });
+                editor.revealLineInCenter(marker.startLineNumber);
+                editor.focus();
+              }}
+            >
+              <code>{marker.startLineNumber}:{marker.startColumn}</code>
+              <span>{marker.message}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {scope === 'clientVisual' && !readOnly && (
         <PythonScriptReferenceDiagnostics
@@ -333,7 +456,7 @@ export function PythonMonacoEditor({
         <PythonScriptAssistant
           locale={locale}
           scriptId={scriptId}
-          onInsert={insertAtCursor}
+          onInsert={insertAssistantSnippet}
         />
       )}
 

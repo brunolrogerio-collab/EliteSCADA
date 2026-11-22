@@ -61,6 +61,35 @@ public sealed class SystemRecoveryApplicationServiceTests
     }
 
     [Fact]
+    public void BootstrapPreview_DefersOnlyCurrentAuthorityReferenceMismatch()
+    {
+        var authorityMismatch = PreviewWithError(new ImportIssue(
+            SystemRecoveryApplicationService.DeferredBootstrapAuthorityReferenceMismatchCode,
+            "Current Authority does not yet match the recovery package.",
+            ImportEntityKind.SecurityRole,
+            "authority-policy",
+            IsError: true));
+
+        Assert.False(SystemRecoveryApplicationService.HasBlockingImportPreviewErrors(
+            authorityMismatch,
+            deferCurrentAuthorityReferenceMismatch: true));
+        Assert.True(SystemRecoveryApplicationService.HasBlockingImportPreviewErrors(
+            authorityMismatch,
+            deferCurrentAuthorityReferenceMismatch: false));
+
+        var unrelatedError = PreviewWithError(new ImportIssue(
+            "TAG_INVALID_FOR_RECOVERY",
+            "A non-Authority package error must remain blocking.",
+            ImportEntityKind.Tag,
+            "Plant.Invalid",
+            IsError: true));
+
+        Assert.True(SystemRecoveryApplicationService.HasBlockingImportPreviewErrors(
+            unrelatedError,
+            deferCurrentAuthorityReferenceMismatch: true));
+    }
+
+    [Fact]
     public async Task ApplyAsync_ReplacesWorkingSavesRootPublishesAndActivates()
     {
         using var workspace = new EngineeringWorkspace();
@@ -110,7 +139,112 @@ public sealed class SystemRecoveryApplicationServiceTests
     }
 
     [Fact]
-    public async Task ApplyAsync_BlockingReplacementPreviewRestoresPreviousWorkspaceAndDoesNotPersist()
+    public async Task ApplyAsync_UsesInstallationBindingJournalFromNeutralThroughDurableRecovery()
+    {
+        using var workspace = new EngineeringWorkspace();
+        var gateways = new InMemoryGatewayEngineeringRegistry(workspace.MarkDirty);
+        var reports = new InMemoryReportEngineeringRegistry(workspace.MarkDirty);
+        var exchange = CreateExchange(workspace, gateways, reports);
+        var packages = new ProjectPackageService(exchange, workspace.VisualAssets);
+        var binding = new RecordingInstallationBindingStore();
+        var store = new InMemoryProjectStore();
+        var persistence = new EngineeringProjectPersistenceService(
+            exchange,
+            store,
+            workspace.VisualAssets,
+            binding);
+        var identities = new InMemoryLocalIdentityStore();
+        var actor = Account(LocalIdentityBootstrapService.InitialAdministratorRole);
+        await identities.CreateAsync(actor);
+
+        var packageBytes = BuildPackage(
+            "plant-a",
+            "Plant A",
+            LocalIdentityBootstrapService.InitialAdministratorRole,
+            SecurityCapability.EngineeringModify,
+            SecurityCapability.UserRoleAdmin);
+        var service = CreateService(
+            packages,
+            persistence,
+            new EmptyCatalog(store),
+            new SuccessfulActivationService(persistence),
+            identities,
+            workspace,
+            exchange,
+            gateways,
+            reports,
+            "plant-a",
+            binding);
+
+        var result = await service.ApplyAsync(packageBytes, actor, "recovery-test");
+
+        Assert.True(result.Recovered);
+        Assert.Equal(1, binding.BeginAttachCalls);
+        Assert.Equal(1, binding.CompleteAttachCalls);
+        Assert.Equal(0, binding.AbortAttachCalls);
+        Assert.Equal(EngineeringInstallationBindingState.Attached, binding.Snapshot.State);
+        Assert.Equal("plant-a", binding.Snapshot.ProjectKey);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_NeutralBindingUsesPackageIdentityInsteadOfStaleLegacyRuntimeKey()
+    {
+        using var workspace = new EngineeringWorkspace();
+        var gateways = new InMemoryGatewayEngineeringRegistry(workspace.MarkDirty);
+        var reports = new InMemoryReportEngineeringRegistry(workspace.MarkDirty);
+        var exchange = CreateExchange(workspace, gateways, reports);
+        var packages = new ProjectPackageService(exchange, workspace.VisualAssets);
+        var binding = new RecordingInstallationBindingStore();
+        var store = new InMemoryProjectStore();
+        var persistence = new EngineeringProjectPersistenceService(
+            exchange,
+            store,
+            workspace.VisualAssets,
+            binding);
+        var identities = new InMemoryLocalIdentityStore();
+        var actor = Account(LocalIdentityBootstrapService.InitialAdministratorRole);
+        await identities.CreateAsync(actor);
+
+        var packageBytes = BuildPackage(
+            "plant-b",
+            "Plant B",
+            LocalIdentityBootstrapService.InitialAdministratorRole,
+            SecurityCapability.EngineeringModify,
+            SecurityCapability.UserRoleAdmin);
+        var activation = new BindingAwareActivationService(persistence, binding);
+        var service = CreateService(
+            packages,
+            persistence,
+            new EmptyCatalog(store),
+            activation,
+            identities,
+            workspace,
+            exchange,
+            gateways,
+            reports,
+            "plant-a",
+            binding);
+
+        var preview = await service.PreviewAsync(
+            packageBytes,
+            actor,
+            requireCurrentUserAdmission: true);
+
+        Assert.True(preview.CanApply);
+        Assert.True(preview.RuntimeBindingMatches);
+        Assert.Null(preview.ConfiguredProjectKey);
+
+        var result = await service.ApplyAsync(packageBytes, actor, "recovery-test");
+
+        Assert.True(result.Recovered);
+        Assert.True(activation.SawAttachedBinding);
+        Assert.Equal(EngineeringInstallationBindingState.Attached, binding.Snapshot.State);
+        Assert.Equal("plant-b", binding.Snapshot.ProjectKey);
+        Assert.Equal("plant-b", result.Revision!.ProjectKey);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_BlockingPreflightDoesNotStartAttachOrPersist()
     {
         using var workspace = new EngineeringWorkspace();
         var gateways = new InMemoryGatewayEngineeringRegistry(workspace.MarkDirty);
@@ -120,7 +254,12 @@ public sealed class SystemRecoveryApplicationServiceTests
         var beforeDescriptor = workspace.Describe();
         var packages = new ProjectPackageService(exchange, workspace.VisualAssets);
         var store = new InMemoryProjectStore();
-        var persistence = new EngineeringProjectPersistenceService(exchange, store, workspace.VisualAssets);
+        var binding = new RecordingInstallationBindingStore();
+        var persistence = new EngineeringProjectPersistenceService(
+            exchange,
+            store,
+            workspace.VisualAssets,
+            binding);
         var identities = new InMemoryLocalIdentityStore();
         var actor = Account(LocalIdentityBootstrapService.InitialAdministratorRole);
         await identities.CreateAsync(actor);
@@ -139,13 +278,18 @@ public sealed class SystemRecoveryApplicationServiceTests
             exchange,
             gateways,
             reports,
-            "plant-a");
+            "plant-a",
+            binding);
 
         var result = await service.ApplyAsync(brokenPackage, actor, "recovery-test");
 
         Assert.False(result.Recovered);
         Assert.False(result.DurableRevisionSaved);
         Assert.Null(store.Snapshot);
+        Assert.Equal(0, binding.BeginAttachCalls);
+        Assert.Equal(0, binding.CompleteAttachCalls);
+        Assert.Equal(0, binding.AbortAttachCalls);
+        Assert.Equal(EngineeringInstallationBindingState.Neutral, binding.Snapshot.State);
         var after = exchange.ExportPackage();
         Assert.Equal(
             before.Tags.Select(x => (x.Id, x.Path)).OrderBy(x => x.Path),
@@ -155,6 +299,21 @@ public sealed class SystemRecoveryApplicationServiceTests
         Assert.Equal(beforeDescriptor.BaseRevision, afterDescriptor.BaseRevision);
         Assert.Equal(beforeDescriptor.ChangeVersion, afterDescriptor.ChangeVersion);
     }
+
+    private static ImportPreview PreviewWithError(ImportIssue issue) =>
+        new(
+            ImportMode.CreateAndUpdate,
+            CreateCount: 0,
+            UpdateCount: 0,
+            SkipCount: 0,
+            ErrorCount: 1,
+            [
+                new ImportPreviewItem(
+                    issue.EntityKind,
+                    issue.EntityKey,
+                    ImportOperation.Error,
+                    [issue])
+            ]);
 
     private static SystemRecoveryApplicationService CreateService(
         IProjectPackageService packages,
@@ -166,7 +325,8 @@ public sealed class SystemRecoveryApplicationServiceTests
         IEngineeringExchangeService exchange,
         IGatewayEngineeringRegistry gateways,
         IReportEngineeringRegistry reports,
-        string configuredProjectKey) =>
+        string configuredProjectKey,
+        IEngineeringInstallationBindingStore? installationBinding = null) =>
         new(
             packages,
             persistence,
@@ -183,7 +343,8 @@ public sealed class SystemRecoveryApplicationServiceTests
                 {
                     ["EngineeringRuntime:ProjectKey"] = configuredProjectKey
                 })
-                .Build());
+                .Build(),
+            installationBinding);
 
     private static EngineeringExchangeService CreateExchange(
         EngineeringWorkspace workspace,
@@ -263,6 +424,82 @@ public sealed class SystemRecoveryApplicationServiceTests
             now);
     }
 
+    private sealed class RecordingInstallationBindingStore : IEngineeringInstallationBindingStore
+    {
+        public EngineeringInstallationBindingSnapshot Snapshot { get; private set; } =
+            new(EngineeringInstallationBindingState.Neutral, null, 1, DateTimeOffset.UtcNow);
+
+        public int BeginAttachCalls { get; private set; }
+        public int CompleteAttachCalls { get; private set; }
+        public int AbortAttachCalls { get; private set; }
+
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<EngineeringInstallationBindingSnapshot> GetAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Snapshot);
+
+        public Task<EngineeringInstallationBindingSnapshot> AdoptLegacyAsync(
+            string? projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<EngineeringInstallationBindingSnapshot> BeginAttachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default)
+        {
+            BeginAttachCalls++;
+            Assert.Equal(EngineeringInstallationBindingState.Neutral, Snapshot.State);
+            Snapshot = Snapshot with
+            {
+                State = EngineeringInstallationBindingState.AttachInProgress,
+                ProjectKey = projectKey
+            };
+            return Task.FromResult(Snapshot);
+        }
+
+        public Task<EngineeringInstallationBindingSnapshot> CompleteAttachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default)
+        {
+            CompleteAttachCalls++;
+            Assert.Equal(EngineeringInstallationBindingState.AttachInProgress, Snapshot.State);
+            Assert.Equal(projectKey, Snapshot.ProjectKey);
+            Snapshot = Snapshot with
+            {
+                State = EngineeringInstallationBindingState.Attached,
+                Generation = Snapshot.Generation + 1
+            };
+            return Task.FromResult(Snapshot);
+        }
+
+        public Task<EngineeringInstallationBindingSnapshot> AbortAttachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default)
+        {
+            AbortAttachCalls++;
+            Assert.Equal(EngineeringInstallationBindingState.AttachInProgress, Snapshot.State);
+            Assert.Equal(projectKey, Snapshot.ProjectKey);
+            Snapshot = Snapshot with
+            {
+                State = EngineeringInstallationBindingState.Neutral,
+                ProjectKey = null,
+                Generation = Snapshot.Generation + 1
+            };
+            return Task.FromResult(Snapshot);
+        }
+
+        public Task<EngineeringInstallationBindingSnapshot> BeginDetachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<EngineeringInstallationBindingSnapshot> CompleteDetachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
     private sealed class EmptyCatalog(InMemoryProjectStore? store = null) : IEngineeringProjectCatalog
     {
         public Task<IReadOnlyCollection<EngineeringProjectCatalogEntry>> ListAsync(CancellationToken cancellationToken = default) =>
@@ -277,6 +514,27 @@ public sealed class SystemRecoveryApplicationServiceTests
 
         public Task<bool> HasAnyAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(store?.Snapshot is not null);
+    }
+
+    private sealed class BindingAwareActivationService(
+        IEngineeringProjectPersistenceService persistence,
+        RecordingInstallationBindingStore binding) : IPublishedRuntimeActivationService
+    {
+        public bool SawAttachedBinding { get; private set; }
+
+        public async Task<PublishedRuntimeActivationOutcome> ActivateAsync(
+            string projectKey,
+            string? activatedBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            Assert.Equal(EngineeringInstallationBindingState.Attached, binding.Snapshot.State);
+            Assert.Equal(projectKey, binding.Snapshot.ProjectKey);
+            SawAttachedBinding = true;
+            return await new SuccessfulActivationService(persistence).ActivateAsync(
+                projectKey,
+                activatedBy,
+                cancellationToken);
+        }
     }
 
     private sealed class SuccessfulActivationService(IEngineeringProjectPersistenceService persistence) : IPublishedRuntimeActivationService

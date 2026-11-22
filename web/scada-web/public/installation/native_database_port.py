@@ -1,0 +1,278 @@
+"""Administrative native candidate; profile and credentials are provisioned by the host."""
+import json
+import os
+from pathlib import Path
+import re
+import socket
+import subprocess
+import time
+import uuid
+import importlib.util
+
+
+def authenticated_readiness(application):
+    config=json.loads(Path(application).read_text(encoding='utf-8-sig'))
+    origin=config['Kestrel']['Endpoints']['Api']['Url']
+    spec=importlib.util.spec_from_file_location('native_authenticated_postflight',Path(__file__).with_name('verify_native_readiness.py'))
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    return module.verify(origin,os.environ.get('SCADIVO_INSTALLATION_BEARER',''))
+
+
+def ensure_no_other_recovery(config, allowed=None):
+    for operation in ('access', 'database', 'media'):
+        if operation != allowed and config.with_name(config.name + '.' + operation + '-port-pending.json').exists():
+            raise RuntimeError('Another administrative operation requires recovery')
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description='Administrative local PostgreSQL port configuration')
+    parser.add_argument('--profile', required=True)
+    parser.add_argument('--database-port', type=int)
+    parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--recover', action='store_true')
+    parser.add_argument('--verify-authenticated', action='store_true')
+    args = parser.parse_args()
+    if args.recover and (args.apply or args.database_port is not None):
+        parser.error('Recovery cannot be combined with a port change')
+    profile = json.loads(Path(args.profile).read_text())
+    if profile.get('platform') != 'linux' or os.name != 'posix':
+        raise ValueError('Use the Windows administrative wrapper on Windows')
+    print(execute(args.profile, args.database_port, args.apply, args.recover,args.verify_authenticated))
+
+
+def wait_database_identity(read_identity, database_name, port):
+    """Retry startup failures, but reject a responding unexpected database immediately."""
+    deadline = time.monotonic() + 60
+    while True:
+        try:
+            identity = read_identity()
+        except (subprocess.SubprocessError, OSError):
+            if time.monotonic() >= deadline:
+                raise RuntimeError('Database readiness timed out; journal retained') from None
+            time.sleep(1)
+            continue
+        if identity != [database_name, str(port)]:
+            raise RuntimeError('Database identity or effective port mismatch; journal retained')
+        return
+
+
+def recover_locked(profile_path, verify_authenticated=False):
+    """Caller must hold the same installation network lock as execute_locked."""
+    profile = json.loads(Path(profile_path).read_text())
+    if verify_authenticated and not os.environ.get('SCADIVO_INSTALLATION_BEARER'):
+        raise ValueError('Temporary administrator session required before recovery')
+    if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('windows', 'linux'):
+        raise ValueError('Registered native profile required')
+    topology = json.loads(Path(profile['topologyFile']).read_text())
+    if topology.get('schemaVersion') != 1 or topology.get('active', {}).get('mode') != 'LocalManaged' or topology.get('pending') is not None:
+        raise ValueError('Idle local topology required for recovery')
+    app = Path(profile['configurationFile']).resolve(strict=True)
+    ensure_no_other_recovery(app, 'database')
+    pg = Path(profile['database']['configurationFile']).resolve(strict=True)
+    if app == pg or profile['serviceName'] == profile['database']['serviceName']:
+        raise ValueError('Distinct application and database files and services required')
+    journal = app.with_name(app.name + '.database-port-pending.json')
+    record = json.loads(journal.read_text())
+    if record.get('schema') != 'scadivo-database-port-recovery-v1' or not isinstance(record.get('oldPort'), int) or not 1 <= record['oldPort'] <= 65535:
+        raise ValueError('Invalid recovery record')
+    restored = []
+    for target, key in ((app, 'applicationBackup'), (pg, 'postgresqlBackup')):
+        backup = Path(record[key]).resolve(strict=True)
+        if backup.parent != target.parent or not backup.name.startswith(target.name + '.network-backup-'):
+            raise ValueError('Backup is outside registered configuration directory')
+        restored.append((target, backup.read_bytes()))
+    json.loads(restored[0][1].decode('utf-8-sig'))
+    db = profile['database']
+    psql = Path(db['psqlExecutable']).resolve(strict=True)
+    # Validate service names before any mutation.
+    for name in (profile['serviceName'], db['serviceName']):
+        if not re.fullmatch(r'[A-Za-z0-9_.-]+', name):
+            raise ValueError('Invalid service identity')
+    control_service(profile['platform'], 'stop', profile['serviceName'])
+    if json.loads(Path(profile['topologyFile']).read_text()) != topology:
+        raise RuntimeError('Topology changed before recovery; no configuration restored and journal retained')
+    for target, content in restored:
+        target.write_bytes(content)
+    control_service(profile['platform'], 'restart', db['serviceName'])
+    def read_identity():
+        result = subprocess.run([str(psql), '-X', '-w', '-h', '127.0.0.1', '-p', str(record['oldPort']),
+                             '-U', db['username'], '-d', db['databaseName'], '-At', '-c',
+                             'SELECT current_database(); SHOW port;'],
+                            check=True, capture_output=True, text=True, timeout=15)
+        return result.stdout.strip().splitlines()
+    wait_database_identity(read_identity, db['databaseName'], record['oldPort'])
+    control_service(profile['platform'], 'start', profile['serviceName'])
+    if verify_authenticated: authenticated_readiness(app)
+    journal.unlink()
+    return 'Previous database configuration restored; authenticated readiness verified' if verify_authenticated else 'Previous database configuration restored; application readiness still requires validation'
+
+
+def control_service(platform, action, name):
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+', name):
+        raise ValueError('Invalid service identity')
+    if action not in ('stop', 'start', 'restart'):
+        raise ValueError('Invalid service action')
+    if platform == 'linux':
+        command = ['systemctl', action, name]
+    elif platform == 'windows':
+        # Name is restricted above; no credentials or arbitrary commands allowed.
+        verb = {'stop':'Stop-Service', 'start':'Start-Service', 'restart':'Restart-Service'}[action]
+        state = 'Stopped' if action == 'stop' else 'Running'
+        script = (f"$ErrorActionPreference='Stop'; {verb} -Name '{name}' -ErrorAction Stop; "
+                  f"(Get-Service -Name '{name}').WaitForStatus('{state}', [TimeSpan]::FromSeconds(30))")
+        command = ['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script]
+    else:
+        raise ValueError('Unsupported platform')
+    subprocess.run(command, check=True, capture_output=True, timeout=45)
+
+
+def execute(profile_path, port=None, apply=False, recover=False, verify_authenticated=False):
+    # Linux advisory lock is released by the kernel after process termination.
+    # All native administrative operations for this installation must share it.
+    import fcntl
+    profile = json.loads(Path(profile_path).read_text())
+    config = Path(profile['configurationFile']).resolve(strict=True)
+    lock_path = config.with_name(config.name + '.network.lock')
+    descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if verify_authenticated:
+            return recover_locked(profile_path,True) if recover else execute_locked(profile_path,port,apply,True)
+        return recover_locked(profile_path) if recover else execute_locked(profile_path, port, apply)
+    finally:
+        os.close(descriptor)
+
+
+def execute_locked(profile_path, port=None, apply=False, verify_authenticated=False):
+    profile = json.loads(Path(profile_path).read_text())
+    if verify_authenticated and not os.environ.get('SCADIVO_INSTALLATION_BEARER'):
+        raise ValueError('Temporary administrator session required before a change')
+    if profile.get('schema') != 'scadivo-native-network-v1' or profile.get('platform') not in ('linux', 'windows'):
+        raise ValueError('Registered native profile required')
+    topology = json.loads(Path(profile['topologyFile']).read_text())
+    if topology.get('schemaVersion') != 1 or topology.get('active', {}).get('mode') != 'LocalManaged' or topology.get('pending') is not None:
+        raise ValueError('An idle LocalManaged topology is required')
+    db = profile['database']
+    api_service, db_service = profile['serviceName'], db['serviceName']
+    if any(not re.fullmatch(r'[A-Za-z0-9_.-]+', item) for item in (api_service, db_service)) or api_service == db_service:
+        raise ValueError('Distinct service identities required')
+    app_path = Path(profile['configurationFile']).resolve(strict=True)
+    ensure_no_other_recovery(app_path, 'database')
+    pg_path = Path(db['configurationFile']).resolve(strict=True)
+    if app_path == pg_path:
+        raise ValueError('Distinct application and database configuration files required')
+    psql = Path(db['psqlExecutable']).resolve(strict=True)
+    journal = app_path.with_name(app_path.name + '.database-port-pending.json')
+    if journal.exists():
+        raise RuntimeError('An interrupted database port operation requires recovery before another change')
+    app_bytes, pg_bytes = app_path.read_bytes(), pg_path.read_bytes()
+    app = json.loads(app_bytes.decode('utf-8-sig'))
+    # The profile records the installation's initial port. Subsequent successful
+    # operations persist the effective override consumed by the product resolver.
+    old_port = app.get('DatabaseTopology', {}).get('LocalManagedPort', db['currentPort'])
+    if not isinstance(old_port, int) or isinstance(old_port, bool) or not 1 <= old_port <= 65535:
+        raise ValueError('Invalid persisted local database port')
+    port = old_port if port is None else int(port)
+    if not 1 <= port <= 65535:
+        raise ValueError('Invalid port')
+
+    def sql(at_port, query):
+        # Authentication uses the host account/libpq passfile; no password in arguments.
+        result = subprocess.run([str(psql), '-X', '-w', '-h', '127.0.0.1', '-p', str(at_port),
+                                 '-U', db['username'], '-d', db['databaseName'], '-At', '-c', query],
+                                check=True, capture_output=True, text=True, timeout=15)
+        return result.stdout.strip()
+
+    def service(action, name):
+        control_service(profile['platform'], action, name)
+
+    def wait_database(at_port):
+        wait_database_identity(
+            lambda: [sql(at_port, 'SELECT current_database()'), sql(at_port, 'SHOW port')],
+            db['databaseName'], at_port)
+
+    if Path(sql(old_port, 'SHOW config_file')).resolve() != pg_path or sql(old_port, 'SHOW port') != str(old_port):
+        raise ValueError('PostgreSQL effective configuration differs from registered profile')
+    if sql(old_port, 'SELECT current_database()') != db['databaseName']:
+        raise ValueError('Database identity differs from profile')
+    if port == old_port:
+        if verify_authenticated: authenticated_readiness(app_path)
+        return 'No change required'
+    with socket.socket() as probe:
+        probe.bind(('0.0.0.0', port))
+    if not apply:
+        return f'Plan: local PostgreSQL {old_port} -> {port}'
+    backups = []
+    for path, original in ((app_path, app_bytes), (pg_path, pg_bytes)):
+        backup = path.with_name(path.name + '.network-backup-' + uuid.uuid4().hex)
+        if os.name == 'nt':
+            subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+                            str(Path(__file__).with_name('copy-native-protected-backup.ps1')),
+                            '-SourcePath', str(path), '-DestinationPath', str(backup)],
+                           check=True, capture_output=True, timeout=30)
+        else:
+            with os.fdopen(os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as output:
+                output.write(original)
+                output.flush()
+                os.fsync(output.fileno())
+        backups.append(backup)
+    # Persist recovery references before the first disruptive action. No credentials.
+    recovery = {'schema': 'scadivo-database-port-recovery-v1', 'oldPort': old_port,
+                'newPort': port, 'applicationBackup': str(backups[0]),
+                'postgresqlBackup': str(backups[1])}
+    if os.name == 'nt':
+        subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+                        str(Path(__file__).with_name('copy-native-protected-backup.ps1')),
+                        '-SourcePath', str(app_path), '-DestinationPath', str(journal), '-CreateEmpty'],
+                       check=True, capture_output=True, timeout=30)
+        descriptor = os.open(journal, os.O_WRONLY)
+    else:
+        descriptor = os.open(journal, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, 'w') as output:
+        json.dump(recovery, output)
+        output.flush()
+        os.fsync(output.fileno())
+    # Revalidate after quiescing the owning API service: the initial read alone
+    # cannot exclude a migration prepared while SQL/preflight/backups ran.
+    try:
+        service('stop', api_service)
+        quiesced_topology = json.loads(Path(profile['topologyFile']).read_text())
+        if quiesced_topology != topology:
+            raise RuntimeError('Database topology changed during preparation')
+    except Exception:
+        try:
+            service('start', api_service)
+        except Exception:
+            raise RuntimeError('API recovery failed before database mutation; journal retained') from None
+        journal.unlink()
+        raise RuntimeError('Preparation failed; database unchanged and API restarted') from None
+    try:
+        app.setdefault('DatabaseTopology', {})['LocalManagedPort'] = port
+        app_path.write_text(json.dumps(app, indent=2), encoding='utf-8')
+        pg_path.write_bytes(pg_bytes + f'\n# SCADIVO managed local port\nport = {port}\n'.encode())
+        service('restart', db_service)
+        wait_database(port)
+        service('start', api_service)
+        if verify_authenticated: authenticated_readiness(app_path)
+        journal.unlink()
+        return 'Database port applied; authenticated readiness verified' if verify_authenticated else 'Database port applied; application readiness still requires validation'
+    except Exception:
+        try:
+            service('stop', api_service)
+            app_path.write_bytes(app_bytes)
+            pg_path.write_bytes(pg_bytes)
+            service('restart', db_service)
+            wait_database(old_port)
+            service('start', api_service)
+            if verify_authenticated: authenticated_readiness(app_path)
+        except Exception:
+            raise RuntimeError('Recovery failed; use the protected configuration backups') from None
+        journal.unlink()
+        raise RuntimeError('Change failed; configuration restored and database connection verified') from None
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception:
+        raise SystemExit('Native database operation failed. Check protected backups and service diagnostics.')

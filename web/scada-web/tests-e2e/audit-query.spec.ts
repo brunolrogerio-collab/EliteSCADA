@@ -1,5 +1,6 @@
 import { expect, request as playwrightRequest, test } from '@playwright/test';
 import { createE2eJwt } from './jwt';
+import { admitInteractiveRuntimeSession, terminateRuntimeSession } from './runtimeSessionLease';
 
 const baseURL = 'http://127.0.0.1:5173';
 
@@ -10,8 +11,11 @@ test('Audit uses bounded keyset pagination while preserving the array response c
   const frequency = tags.find(tag => tag.path === 'Demo.P01.Frequency');
   expect(frequency).toBeTruthy();
 
-  expect((await request.post(`/api/tags/${frequency!.id}/write`, { data: { value: 55 } })).status()).toBe(202);
-  expect((await request.post(`/api/tags/${frequency!.id}/write`, { data: { value: 56 } })).status()).toBe(202);
+  const leaseHeaders = await admitInteractiveRuntimeSession(request);
+  const firstWrite = await request.post(`/api/tags/${frequency!.id}/write`, { data: { value: 55 }, headers: leaseHeaders });
+  expect(firstWrite.status(), await firstWrite.text()).toBe(202);
+  expect((await request.post(`/api/tags/${frequency!.id}/write`, { data: { value: 56 }, headers: leaseHeaders })).status()).toBe(202);
+  await terminateRuntimeSession(request, leaseHeaders);
 
   const queryPath = '/api/audit?limit=1&action=tag.write&targetKind=tag&targetId=Demo.P01.Frequency';
 

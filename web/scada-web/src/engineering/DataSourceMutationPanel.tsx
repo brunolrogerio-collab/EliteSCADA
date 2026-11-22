@@ -116,15 +116,15 @@ function text(locale: EngineeringLocale) {
     preview: 'Preview bulk change', apply: 'Apply bulk change', bulkConfirm: 'Apply this bulk change to the official Engineering Workspace?', valid: 'Valid candidate', invalid: 'Invalid candidate', affected: 'Affected', errors: 'Errors'
   };
   if (locale === 'es') return {
-    title: 'Eliminar y edición por lote', description: 'Mutaciones destructivas y homogéneas explícitas de Data Source.',
+    title: 'Eliminar y edición por lote', description: 'Mutaciones destructivas y homogéneas explícitas de Fuente de datos.',
     deleteTitle: 'Eliminación explícita', deleteHint: 'El servidor verifica dependencias.', entity: 'Entidad', deleteAction: 'Eliminar entidad', deleteConfirm: 'Eliminar explícitamente',
-    bulkTitle: 'Edición segura por lote', bulkHint: 'Cambie Habilitado para las Data Sources seleccionadas.', enabled: 'Habilitado', trueValue: 'Verdadero', falseValue: 'Falso',
-    preview: 'Preview del lote', apply: 'Aplicar lote', bulkConfirm: '¿Aplicar este cambio al Engineering Workspace oficial?', valid: 'Candidato válido', invalid: 'Candidato inválido', affected: 'Afectados', errors: 'Errores'
+    bulkTitle: 'Edición segura por lote', bulkHint: 'Cambie Habilitado para las Fuentes de datos seleccionadas.', enabled: 'Habilitado', trueValue: 'Verdadero', falseValue: 'Falso',
+    preview: 'Vista previa del lote', apply: 'Aplicar lote', bulkConfirm: '¿Aplicar este cambio al Área de trabajo de Ingeniería?', valid: 'Candidato válido', invalid: 'Candidato inválido', affected: 'Afectados', errors: 'Errores'
   };
   return {
-    title: 'Excluir e editar em lote', description: 'Mutações destrutivas e homogêneas explícitas de Data Source.',
-    deleteTitle: 'Delete explícito', deleteHint: 'O servidor verifica dependências.', entity: 'Entidade', deleteAction: 'Excluir entidade', deleteConfirm: 'Excluir explicitamente',
-    bulkTitle: 'Edição segura em lote', bulkHint: 'Altere Habilitado nas Data Sources persistidas selecionadas.', enabled: 'Habilitado', trueValue: 'Verdadeiro', falseValue: 'Falso',
-    preview: 'Validar lote', apply: 'Aplicar lote', bulkConfirm: 'Aplicar esta alteração ao Engineering Workspace oficial?', valid: 'Candidato válido', invalid: 'Candidato inválido', affected: 'Afetadas', errors: 'Erros'
+    title: 'Excluir e editar em lote', description: 'Mutações destrutivas e homogêneas explícitas de Fonte de dados.',
+    deleteTitle: 'Exclusão explícita', deleteHint: 'O servidor verifica dependências.', entity: 'Entidade', deleteAction: 'Excluir entidade', deleteConfirm: 'Excluir explicitamente',
+    bulkTitle: 'Edição segura em lote', bulkHint: 'Altere Habilitado nas Fontes de dados persistidas selecionadas.', enabled: 'Habilitado', trueValue: 'Verdadeiro', falseValue: 'Falso',
+    preview: 'Validar lote', apply: 'Aplicar lote', bulkConfirm: 'Aplicar esta alteração à Área de trabalho de Engenharia?', valid: 'Candidato válido', invalid: 'Candidato inválido', affected: 'Afetadas', errors: 'Erros'
   };
 }

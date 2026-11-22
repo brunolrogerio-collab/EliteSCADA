@@ -15,8 +15,12 @@ public sealed class BufferedInMemoryHistorian : IHistorian
     private readonly IDisposable _subscription;
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _writer;
+    private readonly HistorianCaptureAdmission _admission = new();
     private long _written;
     private long _pending;
+    private long _accepted;
+    private long _skipped;
+    private long _coalesced;
 
     public BufferedInMemoryHistorian(IScadaEventBus eventBus, int capacity = 100_000)
     {
@@ -32,6 +36,9 @@ public sealed class BufferedInMemoryHistorian : IHistorian
 
     public long WrittenSamples => Interlocked.Read(ref _written);
     public long PendingSamples => Math.Max(0, Interlocked.Read(ref _pending));
+    public long AcceptedSamples => Interlocked.Read(ref _accepted);
+    public long SkippedSamples => Interlocked.Read(ref _skipped);
+    public long CoalescedSamples => Interlocked.Read(ref _coalesced);
 
     public IReadOnlyList<TagValue> Query(Guid tagId, DateTimeOffset from, DateTimeOffset to, int limit = 5000)
     {
@@ -44,10 +51,20 @@ public sealed class BufferedInMemoryHistorian : IHistorian
 
     private ValueTask OnTagValueChangedAsync(TagValueChanged evt)
     {
-        if (!HistorianCapturePolicy.ShouldCapture(evt.Tag))
-            return ValueTask.CompletedTask;
-
-        if (_queue.Writer.TryWrite(evt.Current)) Interlocked.Increment(ref _pending);
+        var decision = _admission.Evaluate(evt);
+        switch (decision.Disposition)
+        {
+            case HistorianCaptureDisposition.Accepted:
+                Interlocked.Increment(ref _accepted);
+                if (_queue.Writer.TryWrite(evt.Current)) Interlocked.Increment(ref _pending);
+                break;
+            case HistorianCaptureDisposition.Skipped:
+                Interlocked.Increment(ref _skipped);
+                break;
+            case HistorianCaptureDisposition.Coalesced:
+                Interlocked.Increment(ref _coalesced);
+                break;
+        }
         return ValueTask.CompletedTask;
     }
 

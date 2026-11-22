@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="16" y="34" width="96" height="62" rx="5" fill="#E5E7EB" stroke="#374151" stroke-width="5" data-elitescada-slot="frame" />
+  <line x1="22" y1="84" x2="106" y2="84" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="conveyor" />
+  <rect x="48" y="60" width="32" height="22" rx="4" fill="none" stroke="#374151" stroke-width="2" data-elitescada-slot="product" />
+  <circle cx="64" cy="46" r="10" fill="none" stroke="#374151" stroke-width="2" data-elitescada-slot="sensor" />
+  <line x1="42" y1="92" x2="86" y2="92" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round" data-elitescada-slot="scale" />
+  <circle cx="104" cy="28" r="4" fill="#9CA3AF" data-elitescada-slot="status" />
+</svg>

@@ -2,6 +2,7 @@ using System.Globalization;
 using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Historian;
 
 namespace Scada.Engineering.ImportExport;
 
@@ -48,7 +49,9 @@ internal static class EngineeringDtoMapper
             initialValue,
             tag.AddressSelector,
             tag.CommunicationBinding,
-            tag.DataSourceId);
+            tag.DataSourceId,
+            HistorianCaptureProfileMetadata.ReadProfileId(tag.Metadata),
+            tag.ControlledEngineeringUnit);
     }
 
     public static AlarmEngineeringDto ToDto(AlarmDefinition alarm, string? tagPath) =>
@@ -68,7 +71,10 @@ internal static class EngineeringDtoMapper
             alarm.RequiresAcknowledgement,
             alarm.ShelvingAllowed,
             alarm.Enabled,
-            alarm.Metadata?.ToDictionary(x => x.Key, x => x.Value));
+            alarm.Metadata?.ToDictionary(x => x.Key, x => x.Value),
+            alarm.SoundProfile,
+            alarm.LocationId,
+            alarm.EquipmentId);
 
     private static string? Meta(IReadOnlyDictionary<string, string>? metadata, string key) =>
         metadata is not null && metadata.TryGetValue(key, out var value) ? value : null;

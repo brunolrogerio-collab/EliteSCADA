@@ -9,9 +9,13 @@ import {
 } from './historicalQueryApi';
 import {
   historicalBrowserCopy,
+  historicalFieldLabel,
   type HistoricalBrowserLocale
 } from './historicalBrowserI18n';
+import { historicalTimeRangeToQuery } from '../historicalTimeRange';
 import {
+  formatHistoricalDateTime,
+  historicalBrowserTimeRange,
   validateHistoricalBrowserDraft,
   type HistoricalBrowserDraft
 } from './historicalBrowserPresentation';
@@ -30,6 +34,7 @@ export type HistoricalBrowserProjectedColumn = Readonly<{
 export type HistoricalBrowserProjectedRow = Readonly<{
   id: string;
   cells: Readonly<Record<string, string>>;
+  cellTitles: Readonly<Record<string, string>>;
   detail: readonly Readonly<{ label: string; value: string }>[];
 }>;
 
@@ -59,17 +64,7 @@ export function buildHistoricalQueryRequest(
     throw new Error(`Historical search cannot exceed ${HISTORICAL_BROWSER_SEARCH_LIMIT} characters.`);
   }
 
-  const timeRange = draft.timeMode === 'relative'
-    ? Object.freeze({
-        kind: 'relative' as const,
-        durationSeconds: draft.relativeDurationSeconds,
-        anchor: 'now' as const
-      })
-    : Object.freeze({
-        kind: 'absolute' as const,
-        fromUtc: localDateTimeToUtc(draft.absoluteFromLocal),
-        toUtc: localDateTimeToUtc(draft.absoluteToLocal)
-      });
+  const timeRange = historicalTimeRangeToQuery(historicalBrowserTimeRange(draft));
 
   return Object.freeze({
     version: HISTORICAL_QUERY_VERSION,
@@ -86,9 +81,10 @@ export function projectHistoricalQueryResponse(
   response: HistoricalQueryResponse,
   locale: HistoricalBrowserLocale = 'en'
 ): HistoricalBrowserProjectedPage {
-  const columns = response.columns.map(column => Object.freeze({
+  const visibleColumns = response.columns.filter(column => !isInternalIdentityColumn(column));
+  const columns = visibleColumns.map(column => Object.freeze({
     key: column.field,
-    label: historicalFieldLabel(column),
+    label: historicalFieldLabel(column.field, locale),
     filterable: column.filterable,
     sortable: column.sortable,
     searchable: column.searchable
@@ -96,15 +92,21 @@ export function projectHistoricalQueryResponse(
 
   const rows = response.rows.map((row, rowIndex) => {
     const cells: Record<string, string> = {};
+    const cellTitles: Record<string, string> = {};
     const detail: Array<Readonly<{ label: string; value: string }>> = [];
-    for (const column of response.columns) {
+    for (const column of visibleColumns) {
       const formatted = formatHistoricalQueryValue(row.cells[column.field], locale);
       cells[column.field] = formatted;
-      detail.push(Object.freeze({ label: historicalFieldLabel(column), value: formatted }));
+      if (column.type === 'dateTime') {
+        const raw = row.cells[column.field]?.value;
+        if (raw) cellTitles[column.field] = raw;
+      }
+      detail.push(Object.freeze({ label: historicalFieldLabel(column.field, locale), value: formatted }));
     }
     return Object.freeze({
       id: historicalRowIdentity(row.cells, rowIndex),
       cells: Object.freeze(cells),
+      cellTitles: Object.freeze(cellTitles),
       detail: Object.freeze(detail)
     });
   });
@@ -143,7 +145,7 @@ export function formatHistoricalQueryValue(
       if (value.value === 'false') return text.falseLabel;
       return text.unavailable;
     case 'dateTime':
-      return value.value.trim() ? value.value : text.unavailable;
+      return formatHistoricalDateTime(value.value, locale) || text.unavailable;
     case 'guid':
     case 'string':
     case 'enum':
@@ -159,22 +161,12 @@ export function sortableHistoricalColumns(columns: readonly HistoricalColumn[]):
   return columns.filter(column => column.sortable);
 }
 
-function historicalFieldLabel(column: Pick<HistoricalColumn, 'field'>): string {
-  return column.field
-    .split('.')
-    .map(part => part.replace(/([a-z0-9])([A-Z])/g, '$1 $2'))
-    .join(' / ')
-    .replace(/^./, value => value.toUpperCase());
+export function isInternalIdentityColumn(column: HistoricalColumn): boolean {
+  return column.type === 'guid' && /\.id$/i.test(column.field);
 }
 
 function historicalRowIdentity(cells: Readonly<Record<string, HistoricalQueryValue>>, index: number): string {
   const identity = cells['event.id']?.value ?? cells['alarm.id']?.value ?? cells['tag.id']?.value ?? 'row';
   const timestamp = cells.timestamp?.value ?? 'no-time';
   return `${identity}:${timestamp}:${index}`;
-}
-
-function localDateTimeToUtc(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) throw new Error('Absolute period contains an invalid local date/time.');
-  return parsed.toISOString();
 }

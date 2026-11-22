@@ -2,10 +2,18 @@ using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
+using Scada.Api.Security;
+using Scada.Api.VisualAssets;
 using Scada.Engineering.Assets;
+using Scada.Engineering.Branding;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.DataQueries;
+using Scada.Engineering.Historian;
+using Scada.Engineering.Interactions;
+using Scada.Engineering.Intelligence;
+using Scada.Engineering.Media;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
@@ -32,7 +40,10 @@ public sealed record EngineeringWorkspaceDescriptor(
     int PopupCount,
     int SecurityRoleCount,
     int CommandCount,
-    int VisualAssetCount = 0);
+    int VisualAssetCount = 0,
+    int DataQueryCount = 0,
+    int AlarmViewCount = 0,
+    AuthorityPolicyReferenceEngineeringDto? AuthorityPolicyReference = null);
 
 public sealed class EngineeringWorkspaceVersionConflictException : InvalidOperationException
 {
@@ -60,31 +71,52 @@ public sealed class EngineeringWorkspace : IDisposable
     private bool _isDirty;
     private long _changeVersion;
 
-    public EngineeringWorkspace()
+    public EngineeringWorkspace() : this(seedDemo: true)
+    {
+    }
+
+    public EngineeringWorkspace(bool seedDemo)
     {
         SessionId = Guid.NewGuid();
         Tags = new InMemoryTagRegistry(MarkDirty);
         Alarms = new InMemoryAlarmEngine(_eventBus, MarkDirty);
         DataSources = new InMemoryDataSourceEngineeringRegistry(MarkDirty);
+        DataQueries = new InMemoryDataQueryEngineeringRegistry(MarkDirty);
+        AlarmViews = new InMemoryAlarmViewEngineeringRegistry(MarkDirty);
+        HistorianCaptureProfiles = new InMemoryHistorianCaptureProfileEngineeringRegistry(
+            MarkDirty,
+            profileId => Tags.Snapshot().Any(tag =>
+                HistorianCaptureProfileMetadata.ReadProfileId(tag.Metadata) == profileId));
         Assets = new InMemoryEngineeringAssetRegistry(MarkDirty);
         Views = new InMemoryEngineeringViewRegistry(MarkDirty);
         SecurityPolicies = new InMemorySecurityPolicyEngineeringRegistry(MarkDirty);
         Commands = new InMemoryCommandEngineeringRegistry(MarkDirty);
+        Interactions = new InMemoryDriverInteractionEngineeringRegistry(MarkDirty);
         Scripts = new InMemoryScriptEngineeringRegistry(MarkDirty);
         VisualAssets = new InMemoryVisualAssetEngineeringRegistry(MarkDirty);
-        SeedDemo();
+        Branding = new InMemoryApplicationBrandingEngineeringRegistry(MarkDirty);
+        MediaSources = new InMemoryMediaSourceEngineeringRegistry(MarkDirty);
+        AssetProcessIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry(MarkDirty);
+        if (seedDemo) SeedDemo();
     }
 
     public Guid SessionId { get; }
     public InMemoryTagRegistry Tags { get; }
     public InMemoryAlarmEngine Alarms { get; }
     public InMemoryDataSourceEngineeringRegistry DataSources { get; }
+    public InMemoryDataQueryEngineeringRegistry DataQueries { get; }
+    public InMemoryAlarmViewEngineeringRegistry AlarmViews { get; }
+    public InMemoryHistorianCaptureProfileEngineeringRegistry HistorianCaptureProfiles { get; }
     public InMemoryEngineeringAssetRegistry Assets { get; }
     public InMemoryEngineeringViewRegistry Views { get; }
     public InMemorySecurityPolicyEngineeringRegistry SecurityPolicies { get; }
     public InMemoryCommandEngineeringRegistry Commands { get; }
+    public InMemoryDriverInteractionEngineeringRegistry Interactions { get; }
     public InMemoryScriptEngineeringRegistry Scripts { get; }
     public InMemoryVisualAssetEngineeringRegistry VisualAssets { get; }
+    public InMemoryApplicationBrandingEngineeringRegistry Branding { get; }
+    public InMemoryMediaSourceEngineeringRegistry MediaSources { get; }
+    public InMemoryAssetProcessIntelligenceEngineeringRegistry AssetProcessIntelligence { get; }
 
     public EngineeringWorkspaceDescriptor Describe()
     {
@@ -108,7 +140,9 @@ public sealed class EngineeringWorkspace : IDisposable
                 Views.SnapshotPopups().Count,
                 SecurityPolicies.SnapshotRoles().Count,
                 Commands.Snapshot().Count,
-                VisualAssets.SnapshotAssets().Count);
+                VisualAssetClassification.CountUserAssets(VisualAssets.SnapshotAssets()),
+                DataQueries.Snapshot().Count,
+                AlarmViews.Snapshot().Count);
         }
     }
 
@@ -211,12 +245,41 @@ public sealed class EngineeringWorkspace : IDisposable
         Alarms.Clear();
         Tags.Clear();
         DataSources.Clear();
+        DataQueries.Clear();
+        AlarmViews.Clear();
+        HistorianCaptureProfiles.Clear();
         Assets.Clear();
         Views.Clear();
         SecurityPolicies.Clear();
         Commands.Clear();
+        Interactions.Clear();
         Scripts.Clear();
         VisualAssets.Clear();
+        Branding.Clear();
+        MediaSources.Clear();
+        AssetProcessIntelligence.Clear();
+    }
+
+    public void ResetToNeutral()
+    {
+        Clear();
+        lock (_stateGate)
+        {
+            _projectKey = null;
+            _projectName = null;
+            _baseRevision = null;
+            _checkedOutAtUtc = null;
+            _lastSavedAtUtc = null;
+            _isDirty = false;
+            _changeVersion = checked(_changeVersion + 1);
+        }
+    }
+
+    internal void InitializeDemo()
+    {
+        if (Describe().ChangeVersion != 0)
+            throw new InvalidOperationException("Demo bootstrap requires an empty Engineering Workspace.");
+        SeedDemo();
     }
 
     private void SeedDemo()
@@ -304,7 +367,12 @@ public sealed class EngineeringWorkspace : IDisposable
                 ["process"] = "Discharge"
             }));
 
-        foreach (var dynamo in BuiltinDynamoLibrary.Create())
+        foreach (var (asset, payload) in BuiltinDynamoCatalogV1.CreateArtworkAssets())
+        {
+            VisualAssets.UpsertAsset(asset);
+            VisualAssets.PutPayload(payload);
+        }
+        foreach (var dynamo in BuiltinDynamoCatalogV1.Create())
             Assets.UpsertDynamo(dynamo);
 
         Views.UpsertScreen(new ScreenEngineeringDto(
@@ -326,16 +394,6 @@ public sealed class EngineeringWorkspace : IDisposable
                         ["label"] = JsonSerializer.SerializeToElement("Reservatório TK01"),
                         ["x"] = JsonSerializer.SerializeToElement(100d),
                         ["y"] = JsonSerializer.SerializeToElement(100d)
-                    }),
-                new VisualElementEngineeringDto(
-                    Key: "pump01",
-                    Type: "dynamo",
-                    DynamoKey: "dynamo.pump.standard",
-                    EquipmentPath: "Demo.P01",
-                    Properties: new Dictionary<string, JsonElement>
-                    {
-                        ["x"] = JsonSerializer.SerializeToElement(430d),
-                        ["y"] = JsonSerializer.SerializeToElement(160d)
                     }),
                 new VisualElementEngineeringDto(
                     Key: "pressure",
@@ -436,14 +494,7 @@ public sealed class EngineeringWorkspace : IDisposable
                 new CapabilityGrantEngineeringDto(SecurityCapability.TrendUse)
             }));
 
-        SecurityPolicies.UpsertRole(new SecurityRoleEngineeringDto(
-            Id: Guid.Parse("46000000-0000-0000-0000-000000000002"),
-            Key: "developer",
-            Name: "Developer",
-            Description: "Demo engineering/development role with all currently defined capabilities granted explicitly.",
-            Grants: Enum.GetValues<SecurityCapability>()
-                .Select(capability => new CapabilityGrantEngineeringDto(capability))
-                .ToArray()));
+        SecurityPolicies.UpsertRole(BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole());
 
         lock (_stateGate)
         {

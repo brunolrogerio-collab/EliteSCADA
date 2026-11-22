@@ -52,9 +52,10 @@ test('Report Designer creates, previews and applies one canonical report', async
   await page.route('**/api/auth/effective-capabilities', async route => {
     await route.fulfill({
       json: {
+        authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
         authenticationEnabled: false,
         runtime: ['View', 'TrendUse', 'SystemAdmin'],
-        workspace: ['EngineeringModify']
+        workspace: ['EngineeringView', 'EngineeringModify']
       }
     });
   });
@@ -130,6 +131,15 @@ test('Report Designer creates, previews and applies one canonical report', async
   const designer = page.getByTestId('report-designer-workspace');
   await expect(designer).toBeVisible();
   await expect(designer.getByRole('heading', { name: 'Designer de Relatórios' })).toBeVisible();
+  await designer.locator('details.report-designer-help > summary').click();
+  await expect(designer.getByRole('link', { name: 'Como configurar dados, campos e página' })).toHaveAttribute('href', '/help?topic=reports.data-designer');
+  const tableLayout = designer.getByRole('combobox', { name: 'Apresentação', exact: true });
+  await expect(tableLayout).toHaveValue('long');
+  await expect(tableLayout.locator('option[value="wide"]')).toHaveJSProperty('disabled', true);
+  await designer.getByRole('combobox', { name: 'Resolução', exact: true }).selectOption('aggregate');
+  await expect(tableLayout.locator('option[value="wide"]')).toHaveJSProperty('disabled', false);
+  await designer.getByRole('combobox', { name: 'Resolução', exact: true }).selectOption('raw');
+  await expect(tableLayout.locator('option[value="wide"]')).toHaveJSProperty('disabled', true);
 
   await designer.getByLabel('Nome').fill('Pump history');
   await designer.getByRole('button', { name: /Detail/ }).click();

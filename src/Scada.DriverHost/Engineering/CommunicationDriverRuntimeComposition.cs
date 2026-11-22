@@ -3,10 +3,20 @@ using Scada.Drivers.Abstractions;
 using Scada.Drivers.AllenBradley;
 using Scada.Drivers.Bacnet;
 using Scada.Drivers.Dnp3;
+using Scada.Drivers.ESPHome;
+using Scada.Drivers.HomeAssistant;
 using Scada.Drivers.Iec60870;
 using Scada.Drivers.Mqtt;
+using Scada.Drivers.Modbus;
+using Scada.Drivers.Mitsubishi;
+using Scada.Drivers.Panasonic;
+using Scada.Drivers.Serial;
 using Scada.Drivers.OpcUa;
 using Scada.Drivers.SiemensS7Iso;
+using Scada.Drivers.Simulation;
+using Scada.Drivers.Shelly;
+using Scada.Drivers.Zigbee2Mqtt;
+using Scada.Drivers.HostResources;
 
 namespace Scada.DriverHost.Engineering;
 
@@ -26,11 +36,44 @@ public static class CommunicationDriverRuntimeComposition
         ILogixProtocolClientFactory? logixClientFactory = null,
         Func<OpcUaRuntimeConnectionOptions, IOpcUaRuntimeSecurityMaterialProvider, IOpcUaRuntimeSessionFactory>? opcUaSessionFactoryBuilder = null,
         IDnp3MasterSessionFactory? dnp3SessionFactory = null,
-        IBacnetSessionFactory? bacnetSessionFactory = null)
+        IBacnetSessionFactory? bacnetSessionFactory = null,
+        HostSerialBusCoordinator? serialBusCoordinator = null,
+        HostResourceRegistry? hostResources = null,
+        HostResourceLeaseCoordinator? hostResourceLeases = null,
+        ZigbeeNativeSidecarDeploymentOptions? zigbeeDeployment = null,
+        KnxIpSidecarDeploymentOptions? knxIpDeployment = null,
+        ZWaveJsSidecarDeploymentOptions? zwaveJsDeployment = null,
+        MatterWifiSidecarDeploymentOptions? matterWifiDeployment = null,
+        Func<bool>? highAvailabilityEnabled = null,
+        bool matterWifiPreviewEnabled = false)
     {
         var protectedMaterialResolver = hostProtectedMaterialResolver
             ?? EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment();
+        var serialCoordinator = serialBusCoordinator
+            ?? new HostSerialBusCoordinator(new SystemHostSerialPortProvider());
         var registry = new CommunicationDriverRuntimeComponentRegistry();
+        var resources = hostResources ?? new HostResourceRegistry();
+        var resourceLeases = hostResourceLeases ?? new HostResourceLeaseCoordinator(resources);
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ModbusTcpCommunicationRuntimePlanner(),
+            new ModbusTcpCommunicationRuntimeFactory(),
+            ModbusTcpDriverDescriptorProvider.SharedDescriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new SimulationCommunicationRuntimePlanner(),
+            new SimulationCommunicationRuntimeFactory(),
+            SimulationDriverDescriptorProvider.SharedDescriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ModbusRtuCommunicationRuntimePlanner(),
+            new ModbusRtuCommunicationRuntimeFactory(serialCoordinator),
+            ModbusRtuDriverDescriptorProvider.SharedDescriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ModbusTcpServerCommunicationRuntimePlanner(),
+            new ModbusTcpServerCommunicationRuntimeFactory(),
+            ModbusTcpServerDriverDescriptorProvider.SharedDescriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ModbusRtuServerCommunicationRuntimePlanner(),
+            new ModbusRtuServerCommunicationRuntimeFactory(serialCoordinator),
+            ModbusRtuServerDriverDescriptorProvider.SharedDescriptor));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new MqttCommunicationRuntimePlanner(),
             new HostProtectedMaterialRuntimeFactory(
@@ -60,9 +103,78 @@ public static class CommunicationDriverRuntimeComposition
             new S7IsoCommunicationRuntimeFactory(),
             new S7IsoEngineeringAdapter().Descriptor));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new MitsubishiMelsecCommunicationRuntimePlanner(),
+            new MitsubishiMelsecCommunicationRuntimeFactory(),
+            MitsubishiMelsecDriverDescriptorProvider.SharedDescriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new PanasonicMewtocolCommunicationRuntimePlanner(PanasonicMewtocolDriverDescriptorProvider.TcpDriverTypeId),
+            new PanasonicMewtocolCommunicationRuntimeFactory(PanasonicMewtocolDriverDescriptorProvider.TcpDriverTypeId, serialCoordinator),
+            PanasonicMewtocolDriverDescriptorProvider.TcpDescriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new PanasonicMewtocolCommunicationRuntimePlanner(PanasonicMewtocolDriverDescriptorProvider.SerialDriverTypeId),
+            new PanasonicMewtocolCommunicationRuntimeFactory(PanasonicMewtocolDriverDescriptorProvider.SerialDriverTypeId, serialCoordinator),
+            PanasonicMewtocolDriverDescriptorProvider.SerialDescriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new BacnetCommunicationRuntimePlanner(),
             new BacnetCommunicationRuntimeFactory(bacnetSessionFactory),
             BacnetDriverDescriptor.Instance));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new EspHomeCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new EspHomeCommunicationRuntimeFactory(),
+                protectedMaterialResolver),
+            new EspHomeDriverDescriptorProvider().Descriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new HomeAssistantCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new HomeAssistantCommunicationRuntimeFactory(),
+                protectedMaterialResolver),
+            new HomeAssistantDriverDescriptorProvider().Descriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ShellyCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new ShellyCommunicationRuntimeFactory(),
+                protectedMaterialResolver),
+            new ShellyDriverDescriptorProvider().Descriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new Zigbee2MqttCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new Zigbee2MqttCommunicationRuntimeFactory(mqttTransportFactory),
+                protectedMaterialResolver),
+            new Zigbee2MqttDriverDescriptorProvider().Descriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ZigbeeNativeCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new ZigbeeNativeCommunicationRuntimeFactory(resources, resourceLeases,
+                    zigbeeDeployment ?? ZigbeeNativeSidecarDeploymentOptions.Default),
+                protectedMaterialResolver),
+            new ZigbeeNativeDriverDescriptorProvider().Descriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new KnxIpCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new KnxIpCommunicationRuntimeFactory(resources, resourceLeases,
+                    knxIpDeployment ?? KnxIpSidecarDeploymentOptions.Default),
+                protectedMaterialResolver),
+            new KnxIpDriverDescriptorProvider().Descriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ZWaveJsCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new ZWaveJsCommunicationRuntimeFactory(resources, resourceLeases,
+                    zwaveJsDeployment ?? ZWaveJsSidecarDeploymentOptions.Default),
+                protectedMaterialResolver),
+            new ZWaveJsDriverDescriptorProvider().Descriptor));
+        if (matterWifiPreviewEnabled && highAvailabilityEnabled?.Invoke() != true)
+        {
+            registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+                new MatterWifiCommunicationRuntimePlanner(highAvailabilityEnabled),
+                new HostProtectedMaterialRuntimeFactory(
+                    new MatterWifiCommunicationRuntimeFactory(resources, resourceLeases,
+                        matterWifiDeployment ?? MatterWifiSidecarDeploymentOptions.Default,
+                        isHighAvailabilityEnabled: highAvailabilityEnabled,
+                        matterWifiPreviewEnabled: true),
+                    protectedMaterialResolver),
+                new MatterWifiDriverDescriptorProvider().Descriptor));
+        }
         return registry;
     }
 

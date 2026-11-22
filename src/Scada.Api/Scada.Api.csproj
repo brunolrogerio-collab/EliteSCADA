@@ -2,6 +2,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Scada.Core/Scada.Core.csproj" />
@@ -17,10 +18,44 @@
     <InternalsVisibleTo Include="Scada.Drivers.Tests" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Runtime/ImportedE3DynamoLibraryData.json" />
+    <EmbeddedResource Include="Runtime/HelpExamples/*.py" />
+    <EmbeddedResource Include="Runtime/HelpGuides/*.json" />
+    <EmbeddedResource Include="../../assets/sources/**/*.svg;../../assets/sources/**/*.batch.json"
+                      LogicalName="EliteSCADA.StaticArtwork.%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
     <None Update="Runtime/ServerScriptRunner.py"
           TargetPath="ServerScriptRunner.py"
           CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZigbeeNative/src/**/*.mjs"
+             Link="sidecars/zigbee-native/src/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZigbeeNative/package*.json;../Scada.DriverHost/Sidecars/ZigbeeNative/SBOM.cdx.json;../Scada.DriverHost/Sidecars/ZigbeeNative/THIRD-PARTY-NOTICES.md"
+             Link="sidecars/zigbee-native/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZigbeeNative/licenses/**"
+             Link="sidecars/zigbee-native/licenses/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/KnxIp/main.py;../Scada.DriverHost/Sidecars/KnxIp/security.py;../Scada.DriverHost/Sidecars/KnxIp/requirements.lock;../Scada.DriverHost/Sidecars/KnxIp/SBOM.cdx.json;../Scada.DriverHost/Sidecars/KnxIp/THIRD-PARTY-NOTICES.md"
+             Link="sidecars/knx-ip/%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/KnxIp/licenses/**"
+             Link="sidecars/knx-ip/licenses/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/src/**/*.mjs"
+             Link="sidecars/zwave-js/src/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/scripts/**/*.mjs"
+             Link="sidecars/zwave-js/scripts/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/package*.json;../Scada.DriverHost/Sidecars/ZWaveJs/SBOM.cdx.json;../Scada.DriverHost/Sidecars/ZWaveJs/THIRD-PARTY-NOTICES.md"
+             Link="sidecars/zwave-js/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/licenses/**"
+             Link="sidecars/zwave-js/licenses/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <Target Name="IncludeEliteScadaDnp3DistributionFiles" AfterTargets="ComputeFilesToPublish"

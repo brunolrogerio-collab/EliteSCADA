@@ -1,55 +1,148 @@
 using System.Text;
+using System.Text.Json.Serialization;
+using System.Security.Claims;
+using System.Threading.RateLimiting;
+using Scada.Core.Persistence;
+using Microsoft.AspNetCore.Http.Json;
+using Microsoft.AspNetCore.RateLimiting;
 using Scada.Api.Historian;
+using Scada.Api.Engineering;
 using Scada.Api.HostedServices;
 using Scada.Api.Licensing;
+using Scada.Core.Product.Licensing;
 using Scada.Api.Persistence;
 using Scada.Api.ProjectPackages;
+using Scada.Api.Product;
 using Scada.Api.Realtime;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
+using Scada.Api.Timing;
 using Scada.Core.Abstractions;
+using Scada.Core.Commands;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.InternalMemory;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
-using Scada.Drivers.Simulation;
+using Scada.Drivers.Abstractions;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.DataQueries;
 using Scada.Engineering.Gateways;
+using Scada.Engineering.Historian;
+using Scada.Engineering.Interactions;
+using Scada.Engineering.Intelligence;
+using Scada.Engineering.Media;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
+using Scada.Engineering.Persistence;
 using Scada.Engineering.Views;
 using Scada.Historian.Abstractions;
+using Scada.Persistence.PostgreSql;
 using Scada.Security.Audit;
+using Scada.Security.Authentication;
 using Scada.Security.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 var authenticationEnabled = builder.AddEliteScadaJwtAuthentication();
 builder.AddConfiguredProductLicensing();
+builder.Services.AddSingleton<AssetProcessIntelligenceExecutionGate>();
+builder.AddTimingPolicyV1();
+var databaseConnections = builder.AddDatabaseTopologyCore();
 
 builder.Services.AddSingleton<IScadaEventBus, InMemoryScadaEventBus>();
+builder.Services.Configure<JsonOptions>(options =>
+{
+    options.SerializerOptions.Converters.Add(new SecurityCapabilityJsonConverter());
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<AssetProcessIntelligenceOperatingContextPredicateKind>());
+});
 builder.Services.AddSingleton<TagRealtimeHub>();
-builder.AddConfiguredHistorian();
-builder.AddConfiguredServerMemoryRetention();
+builder.AddConfiguredHistorian(databaseConnections);
+builder.AddConfiguredServerMemoryRetention(databaseConnections);
+builder.AddConfiguredAlarmSuppression(databaseConnections);
+builder.Services.AddSingleton<RuntimeHaHostConfigurationAuthority>();
+builder.Services.AddSingleton(sp =>
+{
+    var hostConfiguration = sp.GetRequiredService<RuntimeHaHostConfigurationAuthority>();
+    var topology = hostConfiguration.RunningTopology;
+    return new RuntimeHighAvailabilityService(
+        topology,
+        externalIndustrialFenceRequired: topology.Enabled);
+});
+builder.Services.AddRuntimeHighAvailabilityPeerTransport();
+builder.Services.AddRuntimeHighAvailabilityProtection();
+builder.Services.AddRuntimeHaActiveRequestProxy();
 
-builder.Services.AddSingleton<EngineeringWorkspace>();
+
+builder.Services.AddSingleton(_ => new EngineeringWorkspace(seedDemo: false));
 builder.Services.AddSingleton<ITagRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Tags);
 builder.Services.AddSingleton<IAlarmEngine>(sp => sp.GetRequiredService<EngineeringWorkspace>().Alarms);
 builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().DataSources);
+builder.Services.AddSingleton<IHistorianCaptureProfileEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().HistorianCaptureProfiles);
+builder.Services.AddSingleton<IDataQueryEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().DataQueries);
+builder.Services.AddSingleton<IAlarmViewEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().AlarmViews);
+builder.Services.AddSingleton<IMediaSourceEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().MediaSources);
+builder.Services.AddSingleton<IAssetProcessIntelligenceEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().AssetProcessIntelligence);
+builder.Services.AddSingleton<RuntimeMediaRelay>();
+builder.Services.AddSingleton<Scada.Api.VisualAssets.StaticArtworkCatalog>();
 builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Assets);
 builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
-builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().SecurityPolicies);
+var authorityConnectionString = databaseConnections.PrimaryConnectionString;
+builder.Services.AddSingleton<IAuthorityPolicyStore>(sp =>
+    string.IsNullOrWhiteSpace(authorityConnectionString)
+        ? new InMemoryAuthorityPolicyStore()
+        : new PostgreSqlAuthorityPolicyStore(
+            authorityConnectionString,
+            sp.GetService<IDurableWriteAdmission>()));
+builder.Services.AddSingleton<IAuthorityPolicyReplicationStore, AuthorityPolicyReplicationStoreAdapter>();
+builder.Services.AddSingleton<AuthorityPolicyHaCoordinator>();
+builder.Services.AddHostedService<AuthorityPolicyHaSynchronizationHostedService>();
+builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry, AuthorityPolicyRegistryView>();
+builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath]));
+builder.Services.AddSingleton(sp => new AuthorityPolicyBootstrapService(
+    sp.GetRequiredService<IAuthorityPolicyStore>(),
+    sp.GetService<ILocalIdentityStore>(),
+    sp.GetService<IEngineeringProjectCatalog>(),
+    sp.GetService<IEngineeringProjectStore>(),
+    sp.GetRequiredService<AuthorityPolicyBootstrapOptions>(),
+    sp.GetService<EngineeringWorkspace>()));
+builder.Services.AddSingleton<AuthorityLifecycleBootstrapService>();
+builder.Services.AddSingleton<AuthorityDetachService>();
+builder.Services.AddSingleton<AuthorityAttachService>();
+builder.Services.AddSingleton<AuthoritySwitchService>();
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
+builder.Services.AddSingleton<IDriverInteractionEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Interactions);
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
     new InMemoryGatewayEngineeringRegistry(sp.GetRequiredService<EngineeringWorkspace>().MarkDirty));
-builder.Services.AddSingleton<DemoRuntimeServices>();
+
+builder.Services.AddSingleton<ActiveDriverInteractionRuntimeCatalog>();
+builder.Services.AddSingleton<ITransientEventDefinitionResolver>(sp =>
+    sp.GetRequiredService<ActiveDriverInteractionRuntimeCatalog>());
+builder.Services.AddSingleton<IRichCommandDefinitionResolver>(sp =>
+    sp.GetRequiredService<ActiveDriverInteractionRuntimeCatalog>());
+builder.Services.AddSingleton<IRichCommandBindingResolver>(sp =>
+    sp.GetRequiredService<ActiveDriverInteractionRuntimeCatalog>());
+builder.Services.AddSingleton<TransientEventRuntimeDispatcher>(sp =>
+    new TransientEventRuntimeDispatcher(
+        sp.GetRequiredService<ITransientEventDefinitionResolver>(),
+        sp.GetRequiredService<IScadaEventBus>()));
+builder.Services.AddSingleton<ITransientEventRuntimeIngress>(sp =>
+    sp.GetRequiredService<TransientEventRuntimeDispatcher>());
+builder.Services.AddSingleton<IRichCommandRuntime>(sp =>
+    RichCommandRuntimeService.CreateWithAsyncAuthority(
+        sp.GetRequiredService<IRichCommandDefinitionResolver>(),
+        sp.GetRequiredService<IRichCommandBindingResolver>(),
+        sp.GetRequiredService<IRichCommandDriverExecutorResolver>(),
+        async ct => sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects() &&
+            await sp.GetRequiredService<ProductLicensedRuntimeCoordinator>().CanStartLicensedEffectAsync(ct)));
+builder.Services.AddSingleton<IRichCommandHmiAuthorization, ApiRichCommandHmiAuthorization>();
+builder.Services.AddSingleton<HmiRichCommandInvocationService>();
 
 builder.Services.AddSingleton<IEngineeringDriverCompiler, EngineeringDriverCompiler>();
 builder.Services.AddSingleton<GatewayEngineeringRuntimeCoordinator>(sp =>
@@ -60,7 +153,16 @@ builder.Services.AddSingleton<GatewayEngineeringRuntimeCoordinator>(sp =>
             TimeSpan.FromSeconds(Math.Max(
                 1,
                 builder.Configuration.GetValue<double?>("EngineeringRuntime:ActivationTimeoutSeconds") ?? 10)),
-            sp.GetRequiredService<IServerMemoryRetentionStore>()),
+            sp.GetRequiredService<IServerMemoryRetentionStore>(),
+            communicationComponents: sp.GetRequiredService<CommunicationDriverRuntimeComponentRegistry>(),
+            protectedMaterialResolver: sp.GetService<ICommunicationDriverProtectedMaterialResolver>(),
+            industrialEffectAuthority: () =>
+                sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects(),
+            transientEventIngress: sp.GetRequiredService<ITransientEventRuntimeIngress>(),
+            intelligenceAlarmPermit: (projectKey, revision, equipmentId) =>
+                sp.GetRequiredService<IProductLicenseService>().CurrentVerification.HasAssetProcessIntelligence &&
+                sp.GetRequiredService<AssetProcessIntelligenceExecutionGate>()
+                    .Describe(projectKey, AssetProcessIntelligenceScopeKind.Equipment, equipmentId)?.Revision == revision),
         sp.GetRequiredService<IScadaEventBus>()));
 builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
     sp.GetRequiredService<GatewayEngineeringRuntimeCoordinator>());
@@ -69,51 +171,131 @@ builder.Services.AddSingleton<IGatewayRuntimeDiagnosticsProvider>(sp =>
 // Product licensing is registered after the raw runtime so its host-owned coordinator
 // becomes the final IEngineeringRuntimeCoordinator/diagnostics boundary resolved by DI.
 builder.AddProductLicensedRuntimeCoordinator();
+builder.Services.AddSingleton<HighAvailabilityRuntimeCoordinator>();
+builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
+    sp.GetRequiredService<HighAvailabilityRuntimeCoordinator>());
+builder.Services.AddSingleton<IRuntimeApplicationProjectionProvider>(sp =>
+    sp.GetRequiredService<HighAvailabilityRuntimeCoordinator>());
+builder.Services.AddSingleton<IGatewayRuntimeDiagnosticsProvider>(sp =>
+    sp.GetRequiredService<HighAvailabilityRuntimeCoordinator>());
 
-builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
+builder.Services.AddSingleton<EngineeringExchangeService>();
+builder.Services.AddSingleton<IEngineeringExchangeService>(
+    EngineeringExchangeProductionComposition.Create);
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
-builder.Services.AddSingleton<ApiAuthorizationService>();
-builder.AddOptionalEngineeringPersistence();
-builder.AddConfiguredAudit();
-builder.Services.AddOpenApi();
-builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
-    policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
-
-builder.Services.AddSingleton(sp =>
+builder.AddConfiguredRuntimeSessionLeaseStore(databaseConnections);
+builder.Services.AddSingleton<ProductLicenseLifecycleCoordinator>();
+builder.Services.AddHostedService<OnlineLicenseExpiryHostedService>();
+builder.Services.AddSingleton<ApiAuthorizationService>(sp =>
+    new ApiAuthorizationService(
+        sp,
+        sp.GetRequiredService<IAuthorityPolicyStore>(),
+        sp.GetRequiredService<IConfiguration>(),
+        sp.GetRequiredService<IRuntimeSessionLeaseStore>()));
+builder.AddOptionalEngineeringPersistence(databaseConnections);
+var localIdentityEnabled = builder.AddConfiguredAudit(databaseConnections);
+if (localIdentityEnabled && !string.IsNullOrWhiteSpace(authorityConnectionString))
 {
-    var demoRuntime = sp.GetRequiredService<DemoRuntimeServices>();
-    return new SimulationDriver(
-        demoRuntime.Cache,
-        demoRuntime.Registry,
-        DemoProcessModel.CreateSimulationPoints(),
-        TimeSpan.FromMilliseconds(500));
+    builder.Services.AddSingleton(sp => new AssetProcessIntelligenceActivationStore(
+        authorityConnectionString, sp.GetService<IDurableWriteAdmission>()));
+    builder.Services.AddSingleton<AssetProcessIntelligenceStartupRecovery>();
+    builder.Services.AddHostedService<AssetProcessIntelligenceStartupRecoveryHostedService>();
+}
+builder.AddHostProtectedMaterialAuthority();
+builder.AddConfiguredOnlineLicenseDevice();
+if (localIdentityEnabled)
+    builder.Services.AddSingleton<InstallationDetachService>();
+builder.Services.AddOpenApi();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(NetworkReachabilityDiagnosticsApi.RateLimitPolicy, context =>
+    {
+        var principal = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "anonymous";
+        var address = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            $"{principal}|{address}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 6,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
 });
+builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
+    policy
+        .AllowAnyOrigin()
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .WithExposedHeaders(TimingCorrelationMiddleware.CorrelationResponseHeader)));
+
 builder.Services.AddSingleton<ScadaRuntimeFacade>();
-var historicalQueryEnabled = builder.AddConfiguredHistoricalQuery();
-builder.Services.AddHostedService<SimulationDriverHostedService>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<AlarmSuppressionRuntimeProjection>();
+var historicalQueryEnabled = builder.AddConfiguredHistoricalQuery(databaseConnections);
 
 var app = builder.Build();
 
 // Resolve the historian before the hosted driver starts so it subscribes to the event bus.
 _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
-await app.InitializeEngineeringPersistenceAsync();
-await app.InitializeAuditAsync();
+await app.InitializeAlarmSuppressionAsync();
+await app.InitializeRuntimeSessionLeaseStoreAsync();
+await app.Services.GetRequiredService<ProductLicenseLifecycleCoordinator>().ReconcilePendingAsync();
+// Durable Engineering storage, Authority hydration, installation-journal recovery and
+// persisted Working checkout use one tested startup ordering boundary.
+await app.InitializeInstallationFoundationAsync();
+if (app.Services.GetService<AssetProcessIntelligenceActivationStore>() is { } intelligenceActivationStore)
+{
+    await intelligenceActivationStore.InitializeAsync();
+    var intelligenceExecutionGate = app.Services.GetRequiredService<AssetProcessIntelligenceExecutionGate>();
+    intelligenceExecutionGate.BeginStartupRecovery();
+    intelligenceExecutionGate
+        .ConfigureDurableInvalidation(
+            () => intelligenceActivationStore.InvalidateOwnedAsync().GetAwaiter().GetResult(),
+            (project, revision) => intelligenceActivationStore.InvalidateOwnedAsync(
+                retainedProject: project, retainedRevision: revision).GetAwaiter().GetResult());
+}
 
+app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseCors();
-if (authenticationEnabled) app.UseAuthentication();
 app.UseWebSockets();
+app.UseMiddleware<RuntimeHaActiveRequestProxyMiddleware>();
+app.UseMiddleware<DatabaseMaintenanceMiddleware>();
+app.MapConfiguredNativeWeb();
+if (authenticationEnabled) app.UseAuthentication();
+app.UseRateLimiter();
 app.MapOpenApi();
+app.MapTimingPolicyV1Endpoints();
 app.MapProjectPackageEndpoints();
 app.MapEngineeringPersistenceEndpoints();
 app.MapEngineeringMutationEndpoints();
+app.MapInstallationNetworkProfileEndpoints();
+app.MapInstallationHostNetworkEndpoints();
+Scada.Api.VisualAssets.StaticArtworkEndpoints.MapStaticArtworkEndpoints(app);
 app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();
+app.MapAlarmSuppressionEndpoints();
 app.MapCommandEndpoints();
+app.MapHmiRichCommandEndpoints();
 app.MapInternalMemoryEndpoints();
 app.MapProductLicensingEndpoints();
+app.MapAssetProcessIntelligenceEndpoints();
+app.MapProductIdentityEndpoints();
+app.MapDatabaseTopologyEndpoints();
+app.MapHistorianStorageAdministrationEndpoints();
 app.MapRuntimeEngineeringPackageEndpoints();
-if (historicalQueryEnabled) app.MapHistoricalQueryEndpoints();
+if (localIdentityEnabled) app.MapInstallationDetachEndpoints();
+app.MapRuntimeHighAvailabilityEndpoints();
+app.MapRuntimeHighAvailabilityPeerTransportEndpoints();
+app.MapAuthorityPolicyHaPeerEndpoints();
+if (historicalQueryEnabled)
+{
+    app.MapHistoricalQueryEndpoints();
+    app.MapAssetProcessIntelligenceAnalyticsEndpoints();
+}
 
 // Public health intentionally exposes no plant, driver, project or historian detail.
 app.MapGet("/health", () => Results.Ok(new
@@ -133,7 +315,10 @@ app.MapGet("/api/diagnostics/runtime", (ScadaRuntimeFacade runtime, IHistorian h
         {
             provider = HistorianConfiguration.DescribeProvider(historian),
             historian.WrittenSamples,
-            historian.PendingSamples
+            historian.PendingSamples,
+            historian.AcceptedSamples,
+            historian.SkippedSamples,
+            historian.CoalescedSamples
         },
         activeAlarms = descriptor.ActiveAlarmCount
     });
@@ -145,6 +330,14 @@ app.MapGet("/api/gateway/diagnostics", (IGatewayRuntimeDiagnosticsProvider gatew
 
 app.MapGet("/api/auth/me", (HttpContext context, ApiAuthorizationService security) =>
 {
+    // A public Runtime visitor has a signed, short-lived token for read-only
+    // resource checks, but is not an application user session.
+    if (PublicRuntimeSessionSecurity.TryRead(context.User, out _))
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        return Results.Unauthorized();
+    }
+
     var principal = security.GetPrincipal(context);
     if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
         return Results.Unauthorized();
@@ -299,11 +492,14 @@ app.MapGet("/api/history/{tagId:guid}", async (
 
 app.MapGet("/api/alarms", async (
     bool? activeOnly,
+    string? alarmViewKey,
     HttpContext context,
     ScadaRuntimeFacade runtime,
+    AlarmSuppressionRuntimeProjection suppressionProjection,
     ApiAuthorizationService security,
     CancellationToken ct) =>
 {
+    if (!runtime.IsEngineeringActive) return Results.Ok(Array.Empty<RuntimeAlarmProjection>());
     var tagAccess = await security.GetReadableRuntimeTagsAsync(context, runtime, ct);
     var failure = tagAccess.FailureResult();
     if (failure is not null) return failure;
@@ -321,7 +517,29 @@ app.MapGet("/api/alarms", async (
             visible.Add(alarm);
     }
 
-    return Results.Ok(visible);
+    try
+    {
+        var snapshot = await suppressionProjection.BuildAsync(runtime, ct);
+        var projected = AlarmSuppressionRuntimeProjection.ProjectAlarms(visible, snapshot);
+        if (string.IsNullOrWhiteSpace(alarmViewKey)) return Results.Ok(projected);
+
+        var catalog = context.RequestServices.GetService<Scada.Api.Reports.RuntimeReportCatalog>();
+        var package = catalog is null ? null : await catalog.ActivePackageAsync(ct);
+        var view = RuntimeSavedHistory.FindAlarmView(package, alarmViewKey);
+        if (view is null) return Results.NotFound();
+        var definitions = runtime.AlarmDefinitions().ToDictionary(alarm => alarm.Id);
+        var byId = visible.ToDictionary(alarm => alarm.DefinitionId);
+        return Results.Ok(projected.Where(alarm => AlarmViewMatcher.Matches(view.Filter,
+            RuntimeSavedHistory.AlarmFacts(byId[alarm.DefinitionId], definitions.GetValueOrDefault(alarm.DefinitionId)))).ToArray());
+    }
+    catch (AlarmSuppressionUnavailableException)
+    {
+        return Results.Problem("Durable alarm suppression storage is unavailable.", statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Exception exception) when (exception is not OperationCanceledException || !ct.IsCancellationRequested)
+    {
+        return Results.Problem("Alarm suppression state could not be read safely.", statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
 });
 
 app.MapGet("/api/alarms/definitions", async (
@@ -418,9 +636,17 @@ app.MapPost("/api/alarms/{id:guid}/ack", async (
 app.MapGet("/api/drivers", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.Drivers()))
     .RequireRuntimeEngineeringRead();
 
-app.MapGet("/api/engineering/workspace", (EngineeringWorkspace workspace) => Results.Ok(workspace.Describe()))
+app.MapGet("/api/engineering/workspace", (EngineeringWorkspace workspace, IEngineeringExchangeService exchange) =>
+    Results.Ok(workspace.Describe() with
+    {
+        AuthorityPolicyReference = exchange.ExportPackage().AuthorityPolicyReference
+    }))
     .RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/data-sources", (IDataSourceEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/data-queries", (IDataQueryEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/alarm-views", (IAlarmViewEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
     .RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/templates", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotTemplates()))
     .RequireWorkspaceEngineeringRead();
@@ -428,8 +654,30 @@ app.MapGet("/api/engineering/equipment", (IEngineeringAssetRegistry registry) =>
     .RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/dynamos", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotDynamos()))
     .RequireWorkspaceEngineeringRead();
-app.MapGet("/api/engineering/screens", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotScreens()))
-    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/screens", (
+    HttpContext context,
+    IEngineeringViewRegistry registry,
+    ApiAuthorizationService security,
+    IEngineeringExchangeService exchange) =>
+{
+    if (security.AuthenticationEnabled)
+    {
+        var principal = security.GetPrincipal(context);
+        if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
+            return Results.Unauthorized();
+    }
+
+    if (!EngineeringLockAccess.IsWorkspaceReadExempt(context.Request))
+    {
+        var lockFailure = EngineeringLockAccess.ProtectedEngineeringFailure(exchange);
+        if (lockFailure is not null) return lockFailure;
+    }
+
+    return Results.Ok(EngineeringScreenAuthorization.FilterReadable(
+        context,
+        security,
+        registry.SnapshotScreens()));
+}).RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/popups", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotPopups()))
     .RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/security-roles", (ISecurityPolicyEngineeringRegistry registry) => Results.Ok(registry.SnapshotRoles()))
@@ -465,7 +713,7 @@ app.MapPost("/api/engineering/import/json/preview", async (HttpRequest request, 
         mode,
         exchange,
         EngineeringImportBodyReader.ReadJsonAsync,
-        exchange.ParseJson))
+        exchange.ParseJsonForImport))
     .RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/json/apply", async (
@@ -487,7 +735,7 @@ app.MapPost("/api/engineering/import/json/apply", async (
         async () =>
         {
             var body = await EngineeringImportBodyReader.ReadJsonAsync(request, context.RequestAborted);
-            return exchange.ParseJson(body);
+            return exchange.ParseJsonForImport(body);
         });
 });
 
@@ -587,9 +835,44 @@ app.MapPost("/api/engineering/import/datasources.csv/apply", async (
         });
 });
 
+var engineeringTabular = new EngineeringTabularExchange();
+foreach (var tabularEntity in Enum.GetValues<EngineeringTabularEntity>())
+{
+    var selectedEntity = tabularEntity;
+    var stem = EngineeringTabularExchange.FileStem(selectedEntity);
+    app.MapGet($"/api/engineering/export/tabular/{stem}/csv", (IEngineeringExchangeService exchange) =>
+        Results.File(Encoding.UTF8.GetBytes(engineeringTabular.ExportCsv(exchange.ExportPackage(), selectedEntity)),
+            "text/csv; charset=utf-8", $"scada-{stem}.csv"))
+        .RequireWorkspaceEngineeringRead();
+    app.MapGet($"/api/engineering/export/tabular/{stem}/xlsx", (IEngineeringExchangeService exchange) =>
+        Results.File(engineeringTabular.ExportXlsx(exchange.ExportPackage(), selectedEntity),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"scada-{stem}.xlsx"))
+        .RequireWorkspaceEngineeringRead();
+
+    app.MapPost($"/api/engineering/import/tabular/{stem}/csv/preview", async (
+        HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+        await PreviewEngineeringTabularImportAsync(request, mode, exchange, engineeringTabular, selectedEntity, "csv"))
+        .RequireWorkspaceEngineeringRead();
+    app.MapPost($"/api/engineering/import/tabular/{stem}/xlsx/preview", async (
+        HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+        await PreviewEngineeringTabularImportAsync(request, mode, exchange, engineeringTabular, selectedEntity, "xlsx"))
+        .RequireWorkspaceEngineeringRead();
+    app.MapPost($"/api/engineering/import/tabular/{stem}/csv/apply", async (
+        HttpRequest request, HttpContext context, ImportMode? mode, IEngineeringExchangeService exchange,
+        ApiAuthorizationService security, ApiAuditService audit) =>
+        await ApplyEngineeringImportAsync(request, context, mode, exchange, security, audit, $"{stem}.csv",
+            () => ReadEngineeringTabularPackageAsync(request, exchange, engineeringTabular, selectedEntity, "csv", context.RequestAborted)));
+    app.MapPost($"/api/engineering/import/tabular/{stem}/xlsx/apply", async (
+        HttpRequest request, HttpContext context, ImportMode? mode, IEngineeringExchangeService exchange,
+        ApiAuthorizationService security, ApiAuditService audit) =>
+        await ApplyEngineeringImportAsync(request, context, mode, exchange, security, audit, $"{stem}.xlsx",
+            () => ReadEngineeringTabularPackageAsync(request, exchange, engineeringTabular, selectedEntity, "xlsx", context.RequestAborted)));
+}
+
 app.Map("/ws/tags", async (
     HttpContext context,
     TagRealtimeHub hub,
+    ScadaRuntimeFacade runtime,
     ApiAuthorizationService security) =>
 {
     if (!context.WebSockets.IsWebSocketRequest)
@@ -607,6 +890,10 @@ app.Map("/ws/tags", async (
     }
 
     DateTimeOffset? expiresAtUtc = null;
+    long? localAuthorityEpoch = null;
+    Guid? runtimeSessionId = null;
+    string? runtimeClientInstanceId = null;
+    PublicRuntimeSessionIdentity? publicRuntimeVisitor = null;
     if (security.AuthenticationEnabled)
     {
         if (!long.TryParse(context.User.FindFirst("exp")?.Value, out var expiresAtUnix))
@@ -624,6 +911,62 @@ app.Map("/ws/tags", async (
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
         }
+
+        // JwtAuthenticationConfiguration has already validated this proof at connection time.
+        // Retain it on the client so every later delivery can re-check the canonical lifecycle.
+        // External JWT providers intentionally have no local Authority epoch.
+        if (string.Equals(
+                context.User.FindFirst(JwtTokenIssuer.IdentityProviderClaim)?.Value,
+                JwtTokenIssuer.LocalIdentityProvider,
+                StringComparison.Ordinal))
+        {
+            if (!long.TryParse(
+                    context.User.FindFirst(JwtTokenIssuer.AuthorityEpochClaim)?.Value,
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var epoch))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
+
+            localAuthorityEpoch = epoch;
+        }
+
+        var sessionIds = context.Request.Query["runtimeSessionId"];
+        var clientInstanceIds = context.Request.Query["clientInstanceId"];
+        if (PublicRuntimeSessionSecurity.TryRead(context.User, out var publicVisitor))
+        {
+            if (sessionIds.Count != 1 || !Guid.TryParse(sessionIds.ToString(), out var publicSessionId) ||
+                publicSessionId != publicVisitor.SessionId || clientInstanceIds.Count != 1 ||
+                !string.Equals(clientInstanceIds.ToString(), publicVisitor.ClientInstanceId, StringComparison.Ordinal))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+            publicRuntimeVisitor = publicVisitor;
+        }
+        if (!RuntimeSessionWebSocketAdmission.IsLegacyEngineeringSocket(sessionIds, clientInstanceIds))
+        {
+            // A socket opting into Runtime Session identity must use the same logical lease as
+            // REST. The only lease-less path is the explicit server-to-client Engineering
+            // read-only transport, which neither mutates nor participates in seat accounting.
+            var lease = await RuntimeSessionWebSocketAdmission.ValidateAsync(
+                security,
+                principal,
+                runtime,
+                sessionIds,
+                clientInstanceIds,
+                context.RequestAborted);
+            if (!lease.IsValid)
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+
+            runtimeSessionId = lease.Lease!.SessionId;
+            runtimeClientInstanceId = lease.Lease.ClientInstanceId;
+        }
     }
 
     var socket = await context.WebSockets.AcceptWebSocketAsync();
@@ -632,10 +975,65 @@ app.Map("/ws/tags", async (
         principal,
         security.AuthenticationEnabled,
         expiresAtUtc,
-        context.RequestAborted);
+        localAuthorityEpoch,
+        context.RequestAborted,
+        runtimeSessionId,
+        runtimeClientInstanceId,
+        publicRuntimeVisitor);
 });
 
 app.Run();
+
+static async Task<IResult> PreviewEngineeringTabularImportAsync(
+    HttpRequest request,
+    ImportMode? mode,
+    IEngineeringExchangeService exchange,
+    EngineeringTabularExchange tabular,
+    EngineeringTabularEntity entity,
+    string format)
+{
+    try
+    {
+        var package = await ReadEngineeringTabularPackageAsync(
+            request, exchange, tabular, entity, format, request.HttpContext.RequestAborted);
+        return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
+    }
+    catch (EngineeringImportBodyTooLargeException exception)
+    {
+        return Results.Json(new { error = "Engineering import payload exceeds its safety limit.", limitBytes = exception.LimitBytes },
+            statusCode: StatusCodes.Status413PayloadTooLarge);
+    }
+    catch (EngineeringImportBodyEncodingException)
+    {
+        return Results.BadRequest(new { error = "Engineering import payload must be valid UTF-8." });
+    }
+    catch (InvalidDataException exception)
+    {
+        return Results.BadRequest(new { error = exception.Message });
+    }
+}
+
+static async Task<EngineeringPackage> ReadEngineeringTabularPackageAsync(
+    HttpRequest request,
+    IEngineeringExchangeService exchange,
+    EngineeringTabularExchange tabular,
+    EngineeringTabularEntity entity,
+    string format,
+    CancellationToken cancellationToken)
+{
+    var current = exchange.ExportPackage();
+    if (string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase))
+    {
+        var csv = await EngineeringImportBodyReader.ReadCsvAsync(request, cancellationToken);
+        return tabular.ParseCsv(current, entity, csv);
+    }
+    if (string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase))
+    {
+        var xlsx = await EngineeringImportBodyReader.ReadXlsxAsync(request, cancellationToken);
+        return tabular.ParseXlsx(current, entity, xlsx);
+    }
+    throw new InvalidDataException("Unsupported Engineering tabular format.");
+}
 
 static async Task<IResult> PreviewEngineeringImportAsync(
     HttpRequest request,
@@ -663,6 +1061,10 @@ static async Task<IResult> PreviewEngineeringImportAsync(
     catch (EngineeringImportBodyEncodingException)
     {
         return Results.BadRequest(new { error = "Engineering import payload must be valid UTF-8." });
+    }
+    catch (InvalidDataException exception)
+    {
+        return Results.BadRequest(new { error = exception.Message });
     }
 }
 
@@ -747,8 +1149,17 @@ static async Task<IResult> ApplyEngineeringImportAsync(
             return Results.BadRequest(preview);
         }
 
+        var changeVersionBeforeApply = workspace.CaptureChangeVersion();
+        var runtimePresentationChanged = preview.Items.Any(item =>
+            item.EntityKind == ImportEntityKind.RuntimePresentation &&
+            (item.Operation == ImportOperation.Create || item.Operation == ImportOperation.Update));
         var result = exchange.Apply(package, importMode);
         var hasErrors = result.Issues.Any(x => x.IsError);
+        if (!hasErrors && runtimePresentationChanged && workspace.CaptureChangeVersion() == changeVersionBeforeApply)
+            workspace.MarkDirty();
+        if (!hasErrors)
+            EngineeringWorkingBootstrapService.UpgradeBuiltinDynamos(workspace);
+
         await audit.RecordAsync(
             context,
             authorization.Principal,
@@ -807,6 +1218,22 @@ static async Task<IResult> ApplyEngineeringImportAsync(
             });
         return Results.BadRequest(new { error = "Engineering import payload must be valid UTF-8." });
     }
+    catch (InvalidDataException exception)
+    {
+        await audit.RecordAsync(
+            context,
+            authorization.Principal,
+            AuditActions.EngineeringImportApply,
+            AuditOutcome.Failed,
+            "engineering-workspace",
+            "current",
+            new Dictionary<string, string>
+            {
+                ["format"] = format,
+                ["reason"] = "invalid-tabular-input"
+            });
+        return Results.BadRequest(new { error = exception.Message });
+    }
     catch (EngineeringWorkspaceVersionConflictException conflict)
     {
         await audit.RecordAsync(
@@ -850,3 +1277,23 @@ static async Task<IResult> ApplyEngineeringImportAsync(
 
 public sealed record TagWriteRequest(object? Value);
 public sealed record AlarmAckRequest(string? User = null);
+
+
+internal static class EngineeringExchangeProductionComposition
+{
+    internal static IEngineeringExchangeService Create(IServiceProvider services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        IEngineeringExchangeService exchange =
+            services.GetRequiredService<EngineeringExchangeService>();
+        exchange = new HistorianCaptureProfileEngineeringExchangeDecorator(
+            exchange,
+            services.GetRequiredService<IHistorianCaptureProfileEngineeringRegistry>());
+
+        return new DataQueryEngineeringExchangeDecorator(
+            exchange,
+            services.GetRequiredService<IDataQueryEngineeringRegistry>(),
+            services.GetRequiredService<IAlarmViewEngineeringRegistry>());
+    }
+}

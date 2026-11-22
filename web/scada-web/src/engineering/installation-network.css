@@ -1,0 +1,69 @@
+.installation-network {
+  display: grid;
+  gap: 18px;
+  margin-top: 22px;
+  border-top: 1px solid var(--eng-border);
+  padding-top: 22px;
+  color: var(--eng-text);
+}
+
+.installation-network h2,
+.installation-network h3,
+.installation-network p { margin-top: 0; }
+.installation-network h2 { margin-bottom: 4px; }
+.installation-network h3 { margin-bottom: 6px; }
+.installation-network p { color: var(--eng-muted); line-height: 1.5; }
+.installation-network__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.installation-network__header > div > span { color: var(--eng-muted); font-size: 11px; letter-spacing: .08em; }
+.installation-network__header p { margin-bottom: 0; max-width: 820px; }
+.installation-network__current,
+.installation-network__form,
+.installation-network__preview,
+.installation-network__limits,
+.installation-network__apply {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--eng-border);
+  border-radius: 10px;
+  background: var(--eng-panel);
+  padding: 16px;
+}
+.installation-network__current > div:first-child p { margin-bottom: 0; }
+.installation-network__current > code { width: fit-content; border: 1px solid var(--eng-border-soft); border-radius: 5px; padding: 4px 7px; }
+.installation-network__table-wrap { overflow-x: auto; }
+.installation-network table { width: 100%; border-collapse: collapse; text-align: left; }
+.installation-network th,
+.installation-network td { padding: 9px 10px; border-bottom: 1px solid var(--eng-border-soft); white-space: nowrap; }
+.installation-network thead th { color: var(--eng-muted); font-size: 12px; }
+.installation-network__form > label,
+.installation-network__grid label,
+.installation-network__apply label { display: grid; gap: 6px; color: var(--eng-muted); font-size: 13px; }
+.installation-network input,
+.installation-network select,
+.installation-network textarea {
+  width: 100%; min-width: 0;
+  border: 1px solid var(--eng-border); border-radius: 6px;
+  background: var(--eng-input-bg); color: var(--eng-text); padding: 9px 10px;
+}
+.installation-network__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.installation-network__grid small { color: var(--eng-muted); line-height: 1.4; }
+.installation-network__help { margin: -6px 0 0; }
+.installation-network__preview dl { display: grid; grid-template-columns: minmax(140px, .25fr) minmax(0, 1fr); gap: 7px 14px; margin: 0; }
+.installation-network__preview dt { color: var(--eng-muted); }
+.installation-network__preview dd { margin: 0; font-family: var(--eng-mono, monospace); }
+.installation-network__preview p { margin-bottom: 0; }
+.installation-network__warning,
+.installation-network__notice,
+.installation-network__error { border: 1px solid var(--eng-border); border-radius: 8px; padding: 11px 13px; margin-bottom: 0; }
+.installation-network__warning { border-color: var(--eng-warning, #b9821d); }
+.installation-network__error { border-color: var(--eng-danger); color: var(--eng-danger) !important; }
+.installation-network__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.installation-network__apply textarea { font-family: var(--eng-mono, monospace); font-size: 12px; white-space: pre; }
+.installation-network__apply a { width: fit-content; }
+
+@media (max-width: 720px) {
+  .installation-network__header { flex-direction: column; }
+  .installation-network__grid { grid-template-columns: 1fr; }
+  .installation-network__preview dl { grid-template-columns: 1fr; gap: 2px; }
+  .installation-network__preview dd { margin-bottom: 8px; }
+}

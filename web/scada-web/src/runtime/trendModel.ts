@@ -1,3 +1,4 @@
+import { HISTORICAL_MAX_RANGE_SECONDS } from './historicalTimeRange';
 import { normalizeRuntimeTagQuality } from './tagInspectorModel';
 import type {
   BasicTrendMode,
@@ -16,7 +17,7 @@ const windowMilliseconds: Record<BasicTrendWindow, number> = {
   '24h': 24 * 60 * 60_000
 };
 
-export const MAX_TREND_WINDOW_MILLISECONDS = windowMilliseconds['24h'];
+export const MAX_TREND_WINDOW_MILLISECONDS = HISTORICAL_MAX_RANGE_SECONDS * 1000;
 export const MAX_TREND_SAMPLES = 1000;
 
 export function trendWindowMilliseconds(window: BasicTrendWindow): number {
@@ -30,7 +31,7 @@ export function buildBasicTrendRange(
   now = new Date()
 ): BasicTrendRange {
   const nowMs = now.getTime();
-  const requestedEnd = mode === 'historical' && historicalEnd && Number.isFinite(historicalEnd.getTime())
+  const requestedEnd = mode !== 'live' && historicalEnd && Number.isFinite(historicalEnd.getTime())
     ? historicalEnd.getTime()
     : nowMs;
   const endMs = Math.min(requestedEnd, nowMs);
@@ -51,8 +52,8 @@ export function validateTrendRange(from: string, to: string): void {
   const start = new Date(from).getTime();
   const end = new Date(to).getTime();
   if (!Number.isFinite(start) || !Number.isFinite(end)) throw new Error('Trend range timestamps must be valid ISO dates.');
-  if (end < start) throw new Error('Trend range end must be greater than or equal to start.');
-  if (end - start > MAX_TREND_WINDOW_MILLISECONDS) throw new Error('Trend range cannot exceed 24 hours.');
+  if (end <= start) throw new Error('Trend range end must be greater than start.');
+  if (end - start > MAX_TREND_WINDOW_MILLISECONDS) throw new Error('Trend range cannot exceed 31 days.');
 }
 
 export function trendQualityTone(value: string | number | null | undefined): BasicTrendQualityTone {

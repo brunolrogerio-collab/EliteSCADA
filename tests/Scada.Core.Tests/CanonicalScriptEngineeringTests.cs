@@ -35,6 +35,11 @@ public sealed class CanonicalScriptEngineeringTests
         Assert.Contains(action.Dependencies, dependency =>
             dependency.Kind == ScriptEngineeringDependencyKind.Script &&
             dependency.StableReference == ScriptEngineeringReferenceKeys.Script(source.LibraryScriptId));
+        Assert.Contains(action.Dependencies, dependency =>
+            dependency.Kind == ScriptEngineeringDependencyKind.Tag &&
+            dependency.StableReference == source.TagId.ToString("D") &&
+            dependency.TagBinding is { Version: 1, Reference: "Plant.Process.LevelPct" } binding &&
+            binding.Expected.TagId == source.TagId);
         Assert.Contains(action.EntryPoints, entryPoint =>
             entryPoint.EventKind == ScriptEngineeringEventKind.Initialize &&
             entryPoint.HandlerName == "on_load");
@@ -183,6 +188,10 @@ public sealed class CanonicalScriptEngineeringTests
 
         harness.LibraryScriptId = Guid.Parse("72000000-0000-0000-0000-000000000001");
         harness.ActionScriptId = Guid.Parse("72000000-0000-0000-0000-000000000002");
+        harness.TagId = harness.Tags.Register(TagDefinition.Create(
+            "LevelPct",
+            "Plant.Process.LevelPct",
+            TagDataType.Double)).Id;
 
         harness.Scripts.Upsert(new ScriptEngineeringDefinition(
             harness.LibraryScriptId,
@@ -209,7 +218,14 @@ public sealed class CanonicalScriptEngineeringTests
             [
                 new ScriptEngineeringDependency(
                     ScriptEngineeringDependencyKind.Script,
-                    ScriptEngineeringReferenceKeys.Script(harness.LibraryScriptId))
+                    ScriptEngineeringReferenceKeys.Script(harness.LibraryScriptId)),
+                new ScriptEngineeringDependency(
+                    ScriptEngineeringDependencyKind.Tag,
+                    harness.TagId.ToString("D"),
+                    new ScriptTagReferenceBinding(
+                        1,
+                        "Plant.Process.LevelPct",
+                        new TagValueReference(harness.TagId)))
             ],
             metadata: new Dictionary<string, string> { ["owner"] = "wave05" }));
 
@@ -263,6 +279,7 @@ public sealed class CanonicalScriptEngineeringTests
 
         public Guid LibraryScriptId { get; set; }
         public Guid ActionScriptId { get; set; }
+        public Guid TagId { get; set; }
         public InMemoryTagRegistry Tags { get; }
         public InMemoryAlarmEngine Alarms { get; }
         public InMemoryDataSourceEngineeringRegistry DataSources { get; }

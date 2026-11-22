@@ -1,3 +1,4 @@
+import { contextualHelpTopic } from '../src/help/contextualHelpTopic';
 import { expect, test, type Page } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
@@ -12,18 +13,19 @@ const authConfiguration = {
 };
 
 const localeText = {
-  'pt-BR': { title: 'Modbus TCP', summary: 'Driver de comunicação registrado nesta compilação do EliteSCADA.' },
-  en: { title: 'Modbus TCP', summary: 'Communication driver registered in this EliteSCADA build.' },
-  es: { title: 'Modbus TCP', summary: 'Driver de comunicación registrado en esta compilación de EliteSCADA.' }
+  'pt-BR': { title: 'Modbus TCP', summary: 'Driver de comunicação registrado nesta compilação do SCADIVO.' },
+  en: { title: 'Modbus TCP', summary: 'Communication driver registered in this SCADIVO build.' },
+  es: { title: 'Modbus TCP', summary: 'Driver de comunicación registrado en esta compilación de SCADIVO.' }
 } as const;
 
 async function installHelpContract(page: Page) {
   await page.route('**/api/auth/config', route => route.fulfill({ json: authConfiguration }));
   await page.route('**/api/auth/effective-capabilities', route => route.fulfill({
     json: {
+      authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
       authenticationEnabled: false,
-      runtime: ['View', 'TrendUse', 'AuditRead', 'LicenseManage'],
-      workspace: ['EngineeringModify', 'AuditRead', 'LicenseManage']
+      runtime: ['View', 'TrendUse', 'SystemAdmin'],
+      workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
     }
   }));
   await page.route('**/api/help?*', route => {
@@ -42,13 +44,25 @@ async function installHelpContract(page: Page) {
           'publish_server_memory_sample',
           'emit_operational_event'
         ],
+        serverScriptApiDetails: [
+          { name: 'read_tag', signature: 'read_tag(tag_id)', parameters: 'tag_id', result: 'value', safety: 'declared dependency', example: 'value = read_tag("<stable-tag-id>")' }
+        ],
         topics: [
           {
             id: 'driver.modbus.tcp',
             category: 'drivers',
             title: text.title,
             summary: text.summary,
-            sections: [{ heading: 'Type key', body: 'modbus.tcp' }]
+            sections: [{ heading: 'Type key', body: 'modbus.tcp' }],
+            relatedTopicIds: ['sources.data-sources']
+          },
+          {
+            id: 'sources.data-sources',
+            category: 'sources',
+            title: locale === 'en' ? 'Data Sources' : locale === 'es' ? 'Data Sources' : 'Data Sources',
+            summary: 'Data Sources',
+            sections: [{ heading: 'Guide', body: 'Data Sources' }],
+            relatedTopicIds: []
           },
           {
             id: 'runtime.overview',
@@ -74,14 +88,77 @@ test('contextual Help resolves a stable topic locally and follows the canonical 
   await installHelpContract(page);
 
   await page.goto('/help?topic=driver.modbus.tcp');
+  await expect(page.getByRole('heading', { name: 'Ajuda do SCADIVO' })).toBeVisible();
   const article = page.locator('[data-help-topic="driver.modbus.tcp"]');
   await expect(article).toBeVisible();
-  await expect(article.getByText('Driver de comunicação registrado nesta compilação do EliteSCADA.')).toBeVisible();
+  await expect(article.getByText('Driver de comunicação registrado nesta compilação do SCADIVO.')).toBeVisible();
   await expect(page.getByRole('link', { name: /Ajuda/ })).toHaveAttribute('aria-current', 'page');
 
   await page.getByLabel('Idioma').selectOption('en');
+  await expect(page.getByRole('heading', { name: 'SCADIVO Help' })).toBeVisible();
   await expect(page.locator('[data-help-locale="en"]')).toBeVisible();
-  await expect(article.getByText('Communication driver registered in this EliteSCADA build.')).toBeVisible();
+  await expect(article.getByText('Communication driver registered in this SCADIVO build.')).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('elitescada.engineering.locale'))).toBe('en');
   await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('en');
+});
+
+test('global Help navigation opens its canonical SPA route', async ({ page }) => {
+  await installHelpContract(page);
+
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Ajuda' }).click();
+  await expect(page).toHaveURL(/\/help\/\?topic=runtime\.overview$/);
+  await expect(page.getByRole('heading', { name: 'Ajuda do SCADIVO' })).toBeVisible();
+  await expect(page.locator('[data-help-topic="runtime.overview"]')).toBeVisible();
+});
+
+test('contextual Help renders the structured Server Script API contract', async ({ page }) => {
+  await installHelpContract(page);
+  await page.goto('/help?topic=scripts.server');
+  const api = page.getByTestId('server-script-api-details');
+  await expect(api).toBeVisible();
+  await expect(api.getByText('read_tag(tag_id)')).toBeVisible();
+  await expect(api.getByText('declared dependency')).toBeVisible();
+});
+
+
+test('contextual Help renders related local topics and keeps an unknown topic explicit', async ({ page }) => {
+  await installHelpContract(page);
+
+  await page.goto('/help?topic=driver.modbus.tcp');
+  await expect(page.getByRole('heading', { name: /Continue por aqui/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Data Sources' }).last()).toHaveAttribute('href', '/help?topic=sources.data-sources');
+
+  await page.goto('/help?topic=missing.topic');
+  await expect(page.getByText('Tópico de ajuda não encontrado.')).toBeVisible();
+  await expect(page.locator('[data-help-topic="runtime.overview"]')).toHaveCount(0);
+});
+
+test('contextual entry routes resolve stable Phase 1 topic IDs', () => {
+  const cases: Array<[string, string]> = [
+    ['/engineering/scripts', 'scripts.engineering'],
+    ['/engineering/libraries', 'libraries.associate-incorporate'],
+    ['/engineering/dataSources', 'sources.connection-workflow'],
+    ['/engineering/tags', 'tags.overview'],
+    ['/engineering/gateway', 'gateway.configure-test'],
+    ['/engineering/alarms', 'alarms.configuration'],
+    ['/engineering/operationalEvents', 'operational-events.configuration'],
+    ['/engineering/dynamos', 'dynamos.overview'],
+    ['/engineering/screens', 'screens.overview'],
+    ['/engineering/popups', 'popups.overview'],
+    ['/engineering/historian', 'historian.capture-query'],
+    ['/engineering/reports', 'reports.data-designer'],
+    ['/engineering/security', 'security.local-accounts'],
+    ['/engineering/diagnostics/tag-monitor', 'engineering.tag-monitor'],
+    ['/engineering/monitor', 'engineering.development-monitor'],
+    ['/engineering/information', 'engineering.information'],
+    ['/engineering', 'engineering.shell-navigation'],
+    ['/audit', 'audit.query-diagnostics'],
+    ['/licensing', 'licensing.overview'],
+    ['/runtime/history', 'runtime.history'],
+    ['/', 'runtime.overview']
+  ];
+
+  for (const [path, topic] of cases)
+    expect(contextualHelpTopic(path)).toBe(topic);
 });

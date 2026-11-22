@@ -1,0 +1,151 @@
+import { expect, test } from '@playwright/test';
+
+const equipmentId = '15000000-0000-0000-0000-000000000301';
+const measurementProfileId = '15000000-0000-0000-0000-000000000501';
+const measurementSignalId = '15000000-0000-0000-0000-000000000502';
+const tagId = '15000000-0000-0000-0000-000000000101';
+const alarmTargetId = '15000000-0000-0000-0000-000000000102';
+const assignmentId = '15000000-0000-0000-0000-000000000601';
+
+test('Stage 4E authors and saves a versioned numeric operating context from the assigned profile', async ({ page }) => {
+  let configuration: Record<string, any> = {
+    version: 3,
+    scopes: [],
+    profiles: [{
+      id: measurementProfileId,
+      key: 'pump-process',
+      name: 'Pump process',
+      signals: [{ id: measurementSignalId, key: 'temperature', signalRole: 'process', tagId, required: true },
+        { id: '15000000-0000-0000-0000-000000000503', key: 'current', signalRole: 'Motor current', tagId: alarmTargetId, required: true }]
+    }],
+    assignments: [{ id: assignmentId, equipmentId, profileId: measurementProfileId }],
+    processStages: [],
+    operatingContextProfiles: []
+  };
+  let saved: Record<string, any> | null = null;
+  let currentEngineeringUnit = '°C';
+
+  await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
+    authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+    authenticationEnabled: true,
+    runtime: [],
+    workspace: ['EngineeringModify', 'AssetProcessIntelligenceManage']
+  } }));
+  await page.route('**/api/engineering/asset-process-intelligence/semantic-contracts/v2/catalog', route => route.fulfill({ json: {
+    supportedSemanticContractVersions: [1, 2],
+    semanticCatalogs: [{ catalogVersion: 1, roles: [] }, { catalogVersion: 2, roles: [] }],
+    controlledEngineeringUnitCatalogs: [{ catalogVersion: 1, units: [] }, { catalogVersion: 2, units: [] }]
+  } }));
+  await page.route('**/api/engineering/asset-process-intelligence/scopes', route => route.fulfill({ json: {
+    configuration,
+    resources: [{ kind: 'Equipment', scopeId: equipmentId, path: 'Plant.Pump01', name: 'Pump P01' }],
+    tags: [{ id: tagId, name: 'Temperature', path: 'Plant.Pump.Temperature', dataType: 'Double', engineeringUnit: currentEngineeringUnit },
+      { id: alarmTargetId, name: 'Motor current', path: 'Plant.Pump.Current', dataType: 'Double', engineeringUnit: 'A' }],
+    licensed: true,
+    execution: { stage: 'Stage1', workerRegistered: false, queueDepth: 0, activePermitCount: 0, projectKey: 'test-project', activeRevision: 1, workspaceDirty: false }
+  } }));
+  await page.route('**/api/engineering/asset-process-intelligence/configuration', async route => {
+    const payload = route.request().postDataJSON() as Record<string, any>;
+    saved = payload;
+    const previousProfiles = configuration.operatingContextProfiles as Array<Record<string, any>>;
+    const versionedContextProfiles = (payload.operatingContextProfiles as Array<Record<string, any>>).map(profile => {
+      const previous = previousProfiles.find(item => item.id === profile.id);
+      const unchanged = previous && JSON.stringify(previous.predicates) === JSON.stringify(profile.predicates);
+      return { ...profile, version: previous ? previous.version + (unchanged ? 0 : 1) : 1 };
+    });
+    if (previousProfiles.length === 0) currentEngineeringUnit = 'K';
+    configuration = { ...configuration, ...payload, operatingContextProfiles: versionedContextProfiles };
+    await route.fulfill({ json: { configuration, workspace: {} } });
+  });
+
+  await page.route('**/api/engineering/asset-process-intelligence/analytics/query', route => {
+    const request = route.request().postDataJSON();
+    expect(request).toMatchObject({ tagId: alarmTargetId, scopeId: equipmentId });
+    return route.fulfill({ json: { projectKey: 'test-project', activeRevision: 1, scopeId: equipmentId,
+      tagId: alarmTargetId, period: { window: request.window, summary: { acceptedSampleCount: 48, minimum: 2.5, maximum: 5.25 } } } });
+  });
+
+  await page.goto('/tests-e2e/harness/authoring-preview.html?intelligence&locale=pt-BR');
+  const workspace = page.getByTestId('intelligence-stage2-authoring');
+  const contextEditor = workspace.getByTestId('intelligence-context-profiles');
+
+  await contextEditor.getByLabel('Associação de equipamento').selectOption(assignmentId);
+  await contextEditor.getByRole('button', { name: 'Novo contexto' }).click();
+  await contextEditor.getByLabel('Nome do contexto').fill('Operação normal');
+  await contextEditor.getByLabel('Medição do perfil associado').selectOption(tagId);
+  await contextEditor.getByLabel('De (incluindo o limite)').fill('2');
+  await contextEditor.getByLabel('Até (incluindo o limite)').fill('8');
+  await contextEditor.getByRole('button', { name: 'Adicionar condição' }).click();
+
+  await expect(contextEditor.getByText('Plant.Pump.Temperature')).toBeVisible();
+  await contextEditor.getByRole('checkbox', { name: 'Gerar alarme na área Intelligence' }).check();
+  const min = contextEditor.getByLabel('Mínimo esperado');
+  const max = contextEditor.getByLabel('Máximo esperado');
+  await contextEditor.getByText('Sugerir pelo histórico', { exact: true }).click();
+  await contextEditor.getByRole('button', { name: 'Preencher limites' }).click();
+  await expect(min).toHaveValue('2.5');
+  await expect(max).toHaveValue('5.25');
+  await max.fill('6');
+  await workspace.locator('.asset-process-intelligence__authoring-footer')
+    .getByRole('button', { name: 'Salvar configuração de processo' }).click();
+  await expect.poll(() => saved).not.toBeNull();
+
+  const payload = saved as unknown as {
+    operatingContextProfiles: Array<{
+      id: string;
+      key: string;
+      displayLabel: string;
+      assignmentId: string;
+      predicates: Array<{
+        tagId: string;
+        kind: string;
+        minimum: number | null;
+        maximum: number | null;
+        engineeringUnit: string | null;
+        engineeringUnitConfirmed: boolean;
+      }>;
+    }>;
+    expectedOperatingContextProfileVersions: Array<{ id: string; version: number }>;
+  };
+  expect(payload.expectedOperatingContextProfileVersions).toEqual([]);
+  expect(payload.operatingContextProfiles).toHaveLength(1);
+  expect(payload.operatingContextProfiles[0]).toMatchObject({
+    key: expect.stringMatching(/^context-[a-f0-9]{32}$/),
+    displayLabel: 'Operação normal',
+    assignmentId,
+    deviationAlarm: { tagId: alarmTargetId, minimum: 2.5, maximum: 6, persistenceSeconds: 10 },
+    updateDeviationAlarm: true,
+    predicates: [{
+      tagId,
+      kind: 'NumericInterval',
+      minimum: 2,
+      maximum: 8,
+      engineeringUnit: '°C',
+      engineeringUnitConfirmed: true
+    }]
+  });
+  const contextId = payload.operatingContextProfiles[0].id;
+  expect(payload.operatingContextProfiles[0]).not.toHaveProperty('version');
+  await expect(contextEditor).not.toContainText(payload.operatingContextProfiles[0].key);
+  await expect(contextEditor).not.toContainText(contextId);
+  await expect(contextEditor).not.toContainText('Versão salva pelo servidor');
+  await expect(contextEditor.getByText('Operação normal')).toBeVisible();
+
+  await expect(contextEditor.getByRole('status')).toContainText('Unidade salva: °C; Unidade atual: K');
+  await expect(contextEditor.getByLabel('De (incluindo o limite)')).toBeDisabled();
+  await contextEditor.getByRole('button', { name: 'Confirmar limites na unidade atual' }).click();
+  await expect(contextEditor.getByLabel('De (incluindo o limite)')).toBeEnabled();
+  await workspace.locator('.asset-process-intelligence__authoring-footer')
+    .getByRole('button', { name: 'Salvar configuração de processo' }).click();
+  await expect.poll(() => saved?.expectedOperatingContextProfileVersions).toEqual([
+    { id: contextId, version: 1 }
+  ]);
+  const reconfirmed = saved as unknown as {
+    operatingContextProfiles: Array<{ predicates: Array<{ engineeringUnit: string | null; engineeringUnitConfirmed: boolean }> }>;
+  };
+  expect(reconfirmed.operatingContextProfiles[0].predicates[0]).toMatchObject({
+    engineeringUnit: 'K',
+    engineeringUnitConfirmed: true
+  });
+  await expect(contextEditor).not.toContainText('Versão salva pelo servidor');
+});

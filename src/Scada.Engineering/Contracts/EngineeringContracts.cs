@@ -1,7 +1,9 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
 using Scada.Core.Tags;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
 using Scada.Security.Authorization;
@@ -31,7 +33,36 @@ public enum ImportEntityKind
     Gateway,
     Script,
     VisualAsset,
-    Report
+    Report,
+    SecurityScope,
+    HistorianCaptureProfile,
+    DataQuery,
+    AlarmView,
+    Branding,
+    RuntimePresentation,
+    MediaSource,
+    Location,
+    TransientEventDefinition,
+    CapabilityEventReference,
+    RichCommandDefinition,
+    DriverCommandBinding,
+    AssetProcessIntelligenceScope,
+    AssetProcessIntelligenceProfile,
+    AssetProcessIntelligenceAssignment,
+    AssetProcessIntelligenceProcessStage,
+    AssetProcessIntelligenceConfiguration,
+    ResourceOrganization
+}
+
+public enum SecurityScopeNodeKind
+{
+    Plant,
+    Area,
+    Equipment,
+    Tag,
+    Screen,
+    Command,
+    Location
 }
 
 public enum ImportOperation
@@ -112,7 +143,9 @@ public sealed record TagEngineeringDto(
     MemoryInitialValueDto? InitialValue = null,
     TagValueSelector? AddressSelector = null,
     CommunicationTagBinding? CommunicationBinding = null,
-    Guid? DataSourceId = null);
+    Guid? DataSourceId = null,
+    Guid? HistorianCaptureProfileId = null,
+    ControlledEngineeringUnitReference? ControlledEngineeringUnit = null);
 
 public sealed record AlarmEngineeringDto(
     Guid? Id,
@@ -130,7 +163,10 @@ public sealed record AlarmEngineeringDto(
     bool RequiresAcknowledgement = true,
     bool ShelvingAllowed = true,
     bool Enabled = true,
-    Dictionary<string, string>? Metadata = null);
+    Dictionary<string, string>? Metadata = null,
+    string? SoundProfile = null,
+    Guid? LocationId = null,
+    Guid? EquipmentId = null);
 
 /// <summary>
 /// First-class, protocol-neutral operational process Event definition. This is
@@ -162,6 +198,36 @@ public sealed record DataSourceEngineeringDto(
     Dictionary<string, string>? SecretReferences = null,
     Dictionary<string, string>? Metadata = null);
 
+[JsonConverter(typeof(MediaSourceProtocolJsonConverter))]
+public enum MediaSourceProtocol
+{
+    Http,
+    Hls,
+    Mjpeg,
+    Rtsp
+}
+
+public sealed class MediaSourceProtocolJsonConverter : JsonStringEnumConverter<MediaSourceProtocol>
+{
+    public MediaSourceProtocolJsonConverter()
+        : base(JsonNamingPolicy.CamelCase, allowIntegerValues: false)
+    {
+    }
+}
+
+/// <summary>
+/// Portable, non-secret configuration for a server-owned media source. Credentials are
+/// provisioned separately through the protected-material authority and are never embedded
+/// in this DTO or its endpoint URI.
+/// </summary>
+public sealed record MediaSourceEngineeringDto(
+    Guid? Id,
+    string Key,
+    string Name,
+    MediaSourceProtocol Protocol,
+    string Endpoint,
+    bool Enabled = true);
+
 /// <summary>
 /// Generic Engineering binding. In a visual-element binding, <see cref="Key"/>
 /// is the destination visual-property/slot key. <see cref="Target"/> remains the
@@ -184,7 +250,173 @@ public sealed record EquipmentTemplateEngineeringDto(
     IReadOnlyCollection<EngineeringBindingDto>? Bindings = null,
     Dictionary<string, string>? Properties = null,
     Dictionary<string, string>? Context = null,
+    Dictionary<string, string>? Metadata = null,
+    IReadOnlyCollection<VisualElementEngineeringDto>? Elements = null);
+
+public sealed record LocationEngineeringDto(
+    Guid? Id,
+    string Name,
+    Guid? ParentLocationId = null,
+    string? Kind = null,
     Dictionary<string, string>? Metadata = null);
+
+public enum AssetProcessIntelligenceScopeKind
+{
+    Equipment,
+    Location
+}
+
+public sealed record AssetProcessIntelligenceScopeEngineeringDto(
+    AssetProcessIntelligenceScopeKind Kind,
+    Guid ScopeId,
+    bool Active = false);
+
+/// <summary>
+/// A static reference from a reusable Intelligence profile to one canonical TAG.
+/// SignalRole is domain metadata only; it is not an Authority role/capability.
+/// </summary>
+public sealed record AssetProcessIntelligenceSignalEngineeringDto(
+    Guid Id,
+    string Key,
+    string SignalRole,
+    Guid TagId,
+    bool Required = true,
+    AssetProcessIntelligenceSignalSemanticBindingEngineeringDto? SemanticBinding = null);
+
+/// <summary>
+/// Explicit Stage 3 semantic annotation. SignalRole remains opaque legacy text.
+/// Only the qualifier relevant to RoleCode may be populated.
+/// </summary>
+public sealed record AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(
+    int CatalogVersion,
+    string RoleCode,
+    string? CurrentBasis = null,
+    string? SignalKind = null,
+    string? FrequencyReference = null,
+    string? PressureReference = null,
+    string? FlowDirection = null);
+
+public sealed record AssetProcessIntelligenceProfileEngineeringDto(
+    Guid Id,
+    string Key,
+    string Name,
+    IReadOnlyCollection<AssetProcessIntelligenceSignalEngineeringDto>? Signals = null);
+
+/// <summary>Stable association between a canonical Equipment and reusable profile.</summary>
+public sealed record AssetProcessIntelligenceAssignmentEngineeringDto(
+    Guid Id,
+    Guid EquipmentId,
+    Guid ProfileId);
+
+public sealed record AssetProcessIntelligenceProcessStageLinkEngineeringDto(
+    Guid AssignmentId,
+    int Order);
+
+public sealed record AssetProcessIntelligenceProcessStageEngineeringDto(
+    Guid Id,
+    string Key,
+    string Name,
+    int Order,
+    IReadOnlyCollection<AssetProcessIntelligenceProcessStageLinkEngineeringDto>? Links = null);
+
+public enum AssetProcessIntelligenceOperatingContextPredicateKind
+{
+    NumericInterval,
+    BooleanEquals,
+    StringEquals,
+    EnumEquals
+}
+
+/// <summary>A required typed condition over a TAG in the assigned measurement profile.</summary>
+public sealed record AssetProcessIntelligenceOperatingContextPredicateEngineeringDto(
+    Guid TagId,
+    AssetProcessIntelligenceOperatingContextPredicateKind Kind,
+    double? Minimum = null,
+    double? Maximum = null,
+    bool? BooleanValue = null,
+    string? ExactValue = null,
+    string? EngineeringUnit = null,
+    bool EngineeringUnitConfirmed = false);
+
+/// <summary>Versioned operator-authored context; it contains configuration only, never samples.</summary>
+public sealed record AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
+    Guid Id,
+    string Key,
+    string DisplayLabel,
+    Guid AssignmentId,
+    int Version,
+    IReadOnlyCollection<AssetProcessIntelligenceOperatingContextPredicateEngineeringDto>? Predicates = null,
+    AssetProcessIntelligenceDeviationAlarmEngineeringDto? DeviationAlarm = null);
+
+public sealed record AssetProcessIntelligenceDeviationAlarmEngineeringDto(
+    Guid TagId,
+    double Minimum,
+    double Maximum,
+    int PersistenceSeconds);
+
+public enum AssetProcessIntelligenceIssueEntity
+{
+    Configuration,
+    Scope,
+    Profile,
+    Assignment,
+    ProcessStage,
+    OperatingContextProfile
+}
+
+/// <summary>
+/// Versioned Engineering configuration for Asset & Process Intelligence. Version 1
+/// contains only Stage 1 scopes. Version 2 adds static profiles, signal references,
+/// Equipment assignments and ordered process stages. Version 3 adds operator-authored
+/// operating-context predicates; no version stores sampled values.
+/// </summary>
+public sealed record AssetProcessIntelligenceEngineeringDto(
+    int Version = 1,
+    IReadOnlyCollection<AssetProcessIntelligenceScopeEngineeringDto>? Scopes = null,
+    IReadOnlyCollection<AssetProcessIntelligenceProfileEngineeringDto>? Profiles = null,
+    IReadOnlyCollection<AssetProcessIntelligenceAssignmentEngineeringDto>? Assignments = null,
+    IReadOnlyCollection<AssetProcessIntelligenceProcessStageEngineeringDto>? ProcessStages = null,
+    IReadOnlyCollection<AssetProcessIntelligenceOperatingContextProfileEngineeringDto>? OperatingContextProfiles = null);
+
+public sealed record AssetProcessIntelligenceEngineeringIssue(
+    string Code,
+    string Message,
+    AssetProcessIntelligenceIssueEntity Entity = AssetProcessIntelligenceIssueEntity.Configuration,
+    Guid? ResourceId = null);
+
+public sealed record EquipmentSourceBindingEngineeringDto(
+    Guid DataSourceId,
+    string StableDeviceIdentity,
+    string? Role = null,
+    Dictionary<string, string>? Metadata = null);
+
+public sealed record CapabilityRoleBindingEngineeringDto(
+    string Role,
+    Guid? TagId = null,
+    Guid? CommandId = null);
+
+public sealed record EquipmentCapabilityEngineeringDto(
+    string Id,
+    string Kind,
+    IReadOnlyCollection<CapabilityRoleBindingEngineeringDto>? Bindings = null,
+    Dictionary<string, string>? Metadata = null,
+    int Version = 1);
+
+public static class EquipmentCapabilityKinds
+{
+    public const string OnOff = "OnOff";
+    public const string Light = "Light";
+    public const string Dimmer = "Dimmer";
+    public const string ColorLight = "ColorLight";
+    public const string Cover = "Cover";
+    public const string Temperature = "Temperature";
+    public const string Humidity = "Humidity";
+    public const string Power = "Power";
+    public const string Energy = "Energy";
+    public const string Voltage = "Voltage";
+    public const string Current = "Current";
+    public const string BinaryInput = "BinaryInput";
+}
 
 public sealed record EquipmentEngineeringDto(
     Guid? Id,
@@ -194,7 +426,11 @@ public sealed record EquipmentEngineeringDto(
     IReadOnlyCollection<EngineeringBindingDto>? Bindings = null,
     Dictionary<string, string>? Properties = null,
     Dictionary<string, string>? Context = null,
-    Dictionary<string, string>? Metadata = null);
+    Dictionary<string, string>? Metadata = null,
+    Guid? TemplateId = null,
+    Guid? LocationId = null,
+    IReadOnlyCollection<EquipmentSourceBindingEngineeringDto>? SourceBindings = null,
+    IReadOnlyCollection<EquipmentCapabilityEngineeringDto>? Capabilities = null);
 
 public sealed record DynamoEngineeringDto(
     Guid? Id,
@@ -206,7 +442,8 @@ public sealed record DynamoEngineeringDto(
     Dictionary<string, string>? Context = null,
     Dictionary<string, string>? Metadata = null,
     IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto>? Parameters = null,
-    IReadOnlyCollection<VisualElementEngineeringDto>? Elements = null);
+    IReadOnlyCollection<VisualElementEngineeringDto>? Elements = null,
+    Guid? TemplateId = null);
 
 /// <summary>
 /// Canonical Engineering node for a visual-object tree. Id is the stable object
@@ -234,8 +471,11 @@ public sealed record VisualElementEngineeringDto(
     IReadOnlyCollection<VisualPropertyExpressionEngineeringDto>? PropertyExpressions = null,
     IReadOnlyCollection<VisualBooleanConditionEngineeringDto>? BooleanConditions = null,
     VisualAnalogFillEngineeringDto? AnalogFill = null,
+    IReadOnlyCollection<VisualPropertyMapEngineeringDto>? PropertyMaps = null,
     IReadOnlyCollection<DynamoParameterValueEngineeringDto>? DynamoParameters = null,
-    IReadOnlyCollection<VisualNavigationActionEngineeringDto>? Actions = null);
+    IReadOnlyCollection<VisualNavigationActionEngineeringDto>? Actions = null,
+    Guid? DynamoDefinitionId = null,
+    Guid? EquipmentId = null);
 
 public sealed record ScreenEngineeringDto(
     Guid? Id,
@@ -261,7 +501,8 @@ public sealed record PopupEngineeringDto(
     Dictionary<string, string>? Context = null,
     Dictionary<string, string>? Metadata = null,
     double X = 0,
-    double Y = 0);
+    double Y = 0,
+    Guid? TemplateId = null);
 
 /// <summary>
 /// First-class Wave 08 project image asset metadata. Raw raster bytes are not
@@ -269,6 +510,83 @@ public sealed record PopupEngineeringDto(
 /// content stored in the project/revision asset blob boundary. Id is the stable
 /// project reference used by visual assetRef values.
 /// </summary>
+public enum ApplicationBrandingMode
+{
+    Default,
+    Text,
+    Image,
+    None
+}
+
+/// <summary>
+/// Canonical application branding configuration. Absence is intentionally
+/// equivalent to <see cref="ApplicationBrandingMode.Default"/> for legacy
+/// Engineering packages. IMAGE references the stable VisualAsset identity and
+/// never a filesystem/browser-local path.
+/// </summary>
+public sealed record ApplicationBrandingEngineeringDto(
+    ApplicationBrandingMode Mode = ApplicationBrandingMode.Default,
+    string? Text = null,
+    string? Subtitle = null,
+    Guid? VisualAssetId = null);
+
+/// <summary>
+/// Typed project-level Runtime presentation policy. Absence in legacy packages is
+/// equivalent to Version 1 with Historical Playback disabled.
+/// </summary>
+public sealed record RuntimePresentationEngineeringDto(
+    bool HistoricalPlaybackEnabled = false,
+    string MobileOrientation = "landscape",
+    int Version = 1,
+    RuntimeHeaderEngineeringDto? Header = null,
+    IReadOnlyDictionary<string, string>? MobileScreens = null,
+    IReadOnlyList<RuntimeStationProfileEngineeringDto>? StationProfiles = null);
+
+/// <summary>
+/// One authored Runtime station. Its windows are independent Runtime clients;
+/// slot order is presentation order, never a physical monitor coordinate.
+/// </summary>
+public sealed record RuntimeStationProfileEngineeringDto(
+    string Id,
+    string Name,
+    IReadOnlyList<RuntimeStationWindowEngineeringDto> Windows);
+
+public sealed record RuntimeStationWindowEngineeringDto(
+    string ScreenKey,
+    string Mode);
+
+public sealed record RuntimeHeaderEngineeringDto(
+    bool Enabled = true,
+    int Height = 56,
+    string? BackgroundColor = null,
+    string TitlePosition = "left",
+    string ControlsPosition = "right",
+    int ControlsOrder = 2,
+    bool ShowScreenName = false,
+    RuntimeHeaderTextStyleEngineeringDto? TitleStyle = null,
+    RuntimeHeaderTextStyleEngineeringDto? ScreenNameStyle = null,
+    RuntimeHeaderDateTimeEngineeringDto? DateTime = null,
+    bool OverviewVisible = true,
+    bool HistoryVisible = true,
+    bool AlarmsVisible = true,
+    bool PlaybackVisible = true,
+    IReadOnlyList<RuntimeHeaderLinkEngineeringDto>? Links = null);
+
+public sealed record RuntimeHeaderTextStyleEngineeringDto(
+    string? FontFamily = null,
+    int? FontSize = null,
+    System.Text.Json.JsonElement? FontWeight = null,
+    string? Color = null);
+
+public sealed record RuntimeHeaderDateTimeEngineeringDto(
+    string Mode = "off",
+    string Position = "right",
+    int Order = 1,
+    string DateFormat = "dd/MM/yyyy",
+    string TimeFormat = "24h");
+
+public sealed record RuntimeHeaderLinkEngineeringDto(string Label, string ScreenKey, Guid? VisualAssetId = null);
+
 public sealed record VisualAssetEngineeringDto(
     Guid? Id,
     string Key,
@@ -287,7 +605,22 @@ public sealed record AuthorizationScopeEngineeringDto(
     string? EquipmentPath = null,
     string? ScreenKey = null,
     string? TagPath = null,
-    string? CommandKey = null);
+    string? CommandKey = null,
+    Guid? ScopeNodeId = null,
+    bool IncludeDescendants = false);
+
+/// <summary>
+/// Canonical Authority hierarchy node. Resource nodes are bound by the immutable
+/// Engineering resource id; Key and Name remain human-facing identifiers only.
+/// </summary>
+public sealed record SecurityScopeEngineeringDto(
+    Guid Id,
+    string Key,
+    string Name,
+    SecurityScopeNodeKind Kind,
+    Guid? ParentId = null,
+    Guid? ResourceId = null,
+    Dictionary<string, string>? Metadata = null);
 
 public sealed record CapabilityGrantEngineeringDto(
     SecurityCapability Capability,
@@ -301,6 +634,14 @@ public sealed record SecurityRoleEngineeringDto(
     string? Description = null,
     IReadOnlyCollection<CapabilityGrantEngineeringDto>? Grants = null,
     Dictionary<string, string>? Metadata = null);
+
+/// <summary>Non-mutable application-package reference to the canonical Security Authority policy.</summary>
+public sealed record AuthorityPolicyReferenceEngineeringDto(
+    string Contract,
+    int ContractVersion,
+    long PolicyVersion,
+    IReadOnlyCollection<Guid> RoleIds,
+    IReadOnlyCollection<Guid> ScopeIds);
 
 public sealed record CommandEngineeringDto(
     Guid? Id,
@@ -363,6 +704,78 @@ public sealed record EngineeringLockEngineeringDto(
     bool Locked = false,
     EngineeringLockVerifierDto? Verifier = null);
 
+/// <summary>
+/// Optional, project-owned folder organization for Engineering resources. Folder
+/// membership is metadata only: resource IDs and Runtime behavior remain unchanged.
+/// </summary>
+public sealed record EngineeringResourceFolderEngineeringDto(
+    string Id,
+    string Name,
+    bool Collapsed = false,
+    string? ParentId = null);
+
+public sealed record EngineeringResourceOrganizationEngineeringDto(
+    int Version,
+    IReadOnlyCollection<EngineeringResourceFolderEngineeringDto> Folders,
+    IReadOnlyDictionary<string, string> Assignments,
+    bool Seeded = false);
+
+public sealed record EngineeringResourceOrganizationEntryEngineeringDto(
+    string Kind,
+    EngineeringResourceOrganizationEngineeringDto Organization);
+
+public static class EngineeringResourceOrganizationContract
+{
+    public static IReadOnlySet<string> SupportedKinds { get; } = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "screens", "templates", "popups", "tags", "dataSources", "mediaSources",
+        "alarms", "operationalEvents", "gatewayRoutes"
+    };
+
+    public static string? Validate(EngineeringResourceOrganizationEntryEngineeringDto? entry)
+    {
+        if (entry is null) return "Resource organization entry cannot be null.";
+        if (!SupportedKinds.Contains(entry.Kind)) return $"Unsupported resource organization kind '{entry.Kind}'.";
+        var organization = entry.Organization;
+        if (organization is null || organization.Version != 1)
+            return "Resource organization version must be 1.";
+        if (organization.Folders is null || organization.Assignments is null)
+            return "Resource organization folders and assignments are required.";
+        if (organization.Folders.Count > 5000 || organization.Assignments.Count > 50000)
+            return "Resource organization exceeds its item safety limit.";
+
+        var folders = new Dictionary<string, EngineeringResourceFolderEngineeringDto>(StringComparer.Ordinal);
+        foreach (var folder in organization.Folders)
+        {
+            if (folder is null || string.IsNullOrWhiteSpace(folder.Id) || folder.Id.Length > 128 ||
+                string.IsNullOrWhiteSpace(folder.Name) || folder.Name.Length > 128 || folder.Name.Any(char.IsControl))
+                return "Resource folder ID/name is invalid.";
+            if (!folders.TryAdd(folder.Id, folder)) return $"Resource folder ID '{folder.Id}' is duplicated.";
+        }
+
+        foreach (var folder in folders.Values)
+        {
+            if (folder.ParentId is not null && (!folders.ContainsKey(folder.ParentId) || folder.ParentId == folder.Id))
+                return $"Resource folder '{folder.Id}' has an invalid parent.";
+            var seen = new HashSet<string>(StringComparer.Ordinal) { folder.Id };
+            var parentId = folder.ParentId;
+            while (parentId is not null)
+            {
+                if (!seen.Add(parentId)) return $"Resource folder '{folder.Id}' participates in a parent cycle.";
+                parentId = folders[parentId].ParentId;
+            }
+        }
+
+        foreach (var assignment in organization.Assignments)
+        {
+            if (string.IsNullOrWhiteSpace(assignment.Key) || assignment.Key.Length > 512 ||
+                string.IsNullOrWhiteSpace(assignment.Value) || !folders.ContainsKey(assignment.Value))
+                return "Resource assignment has an invalid identity or folder reference.";
+        }
+        return null;
+    }
+}
+
 public sealed record EngineeringPackage(
     string Schema,
     int SchemaVersion,
@@ -384,7 +797,22 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<ReportEngineeringDto>? Reports = null,
     IReadOnlyCollection<OperationalEventEngineeringDto>? OperationalEvents = null,
     Guid? StartupScreenId = null,
-    EngineeringLockEngineeringDto? EngineeringLock = null);
+    EngineeringLockEngineeringDto? EngineeringLock = null,
+    IReadOnlyCollection<SecurityScopeEngineeringDto>? SecurityScopes = null,
+    AuthorityPolicyReferenceEngineeringDto? AuthorityPolicyReference = null,
+    IReadOnlyCollection<HistorianCaptureProfileEngineeringDto>? HistorianCaptureProfiles = null,
+    IReadOnlyCollection<DataQueryEngineeringDto>? DataQueries = null,
+    IReadOnlyCollection<AlarmViewEngineeringDto>? AlarmViews = null,
+    ApplicationBrandingEngineeringDto? Branding = null,
+    RuntimePresentationEngineeringDto? RuntimePresentation = null,
+    IReadOnlyCollection<MediaSourceEngineeringDto>? MediaSources = null,
+    IReadOnlyCollection<LocationEngineeringDto>? Locations = null,
+    IReadOnlyCollection<TransientEventDefinitionEngineeringDto>? TransientEventDefinitions = null,
+    IReadOnlyCollection<CapabilityEventReferenceEngineeringDto>? CapabilityEventReferences = null,
+    IReadOnlyCollection<RichCommandDefinitionEngineeringDto>? RichCommandDefinitions = null,
+    IReadOnlyCollection<DriverCommandBindingEngineeringDto>? DriverCommandBindings = null,
+    AssetProcessIntelligenceEngineeringDto? AssetProcessIntelligence = null,
+    IReadOnlyCollection<EngineeringResourceOrganizationEntryEngineeringDto>? ResourceOrganizations = null);
 
 public sealed record ImportIssue(
     string Code,

@@ -1,13 +1,18 @@
 import type {
+  ApplicationBrandingEngineering,
   DynamoEngineering,
+  EquipmentEngineering,
   PopupEngineering,
   ScreenEngineering,
+  RuntimePresentationEngineering,
+  TemplateEngineering,
   VisualAssetEngineering
 } from '../../engineering/types';
 import type {
   ScriptEngineeringDefinition,
   ScriptVisualEventReference
 } from '../../engineering/scripts/scriptEngineeringTypes';
+import { getActiveRuntimeSession } from '../runtimeSessionAdmissionApi';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
@@ -19,13 +24,17 @@ export type RuntimeHmiEngineeringPackage = Readonly<{
   screens: ScreenEngineering[];
   popups: PopupEngineering[];
   dynamos: DynamoEngineering[];
+  equipment: EquipmentEngineering[];
+  templates: TemplateEngineering[];
   scripts: ScriptEngineeringDefinition[];
   scriptVisualEventReferences: ScriptVisualEventReference[];
   visualAssets: VisualAssetEngineering[];
+  branding?: ApplicationBrandingEngineering | null;
+  runtimePresentation?: RuntimePresentationEngineering | null;
 }>;
 
 export type RuntimeApplicationProjection = Readonly<{
-  mode: 'simulation' | 'engineering';
+  mode: 'neutral' | 'simulation' | 'engineering';
   projectKey?: string | null;
   projectName?: string | null;
   revision?: number | null;
@@ -54,9 +63,10 @@ export async function loadRuntimeApplicationProjection(
   signal?: AbortSignal
 ): Promise<RuntimeApplicationProjection> {
   let response: Response;
+  const session = getActiveRuntimeSession();
   try {
     response = await fetch(`${API}/api/runtime/application`, {
-      headers: { accept: 'application/json' },
+      headers: { accept: 'application/json', ...(session?.headers ?? {}) },
       signal
     });
   } catch (reason) {

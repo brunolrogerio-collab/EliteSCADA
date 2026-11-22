@@ -77,7 +77,13 @@ public static class ScriptEngineeringAdapters
 
         return new PythonScriptDependency(
             ToRuntimeDependencyKind(dependency.Kind),
-            dependency.StableReference);
+            dependency.StableReference,
+            dependency.TagBinding is null
+                ? null
+                : new PythonScriptTagReferenceBinding(
+                    dependency.TagBinding.Version,
+                    dependency.TagBinding.Reference,
+                    dependency.TagBinding.Expected));
     }
 
     public static VisualScriptHandlerReference ToVisualHandler(
@@ -103,6 +109,7 @@ public static class ScriptEngineeringAdapters
                 reference.VisualDefinitionId == visualDefinitionId &&
                 reference.VisualObjectId == visualObjectId)
             .OrderBy(reference => (int)reference.EventKind)
+            .ThenBy(reference => reference.EventKey, StringComparer.OrdinalIgnoreCase)
             .ThenBy(reference => reference.ScriptId)
             .ThenBy(reference => reference.EntryPoint, StringComparer.Ordinal)
             .ThenBy(reference => reference.TargetReference ?? string.Empty, StringComparer.Ordinal)
@@ -212,6 +219,7 @@ public static class ScriptEngineeringAdapters
             ScriptEngineeringDependencyKind.ClientMemoryTag => "client-memory-tag",
             ScriptEngineeringDependencyKind.ServerMemoryTag => "server-memory-tag",
             ScriptEngineeringDependencyKind.Resource => "resource",
+            ScriptEngineeringDependencyKind.RichCommand => "rich-command",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported Script Engineering dependency kind.")
         };
 }

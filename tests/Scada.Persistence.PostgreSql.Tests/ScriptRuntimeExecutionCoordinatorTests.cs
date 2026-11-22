@@ -110,6 +110,154 @@ public sealed class ScriptRuntimeExecutionCoordinatorTests
     }
 
     [Fact]
+    public async Task Coordinator_RecoversWithOneProbeAfterBoundedCooldown()
+    {
+        var entry = new PythonScriptEntryPoint(
+            PythonScriptEventKind.ObjectInteraction,
+            "on_click",
+            "object:first");
+        var probeEntry = new PythonScriptEntryPoint(
+            PythonScriptEventKind.ObjectInteraction,
+            "on_click",
+            "object:probe");
+        var script = CreateClientScript(entry, probeEntry);
+        var clock = new MutableTimeProvider(DateTimeOffset.Parse("2026-01-01T00:00:00Z"));
+        var executor = new FaultThenCompleteExecutor();
+        var policy = new ScriptExecutionPolicy(
+            TimeSpan.FromMilliseconds(200),
+            maxQueuedEvents: 4,
+            minimumTimerInterval: TimeSpan.FromMilliseconds(50),
+            maxConsecutiveFailuresBeforeThrottle: 1,
+            failureRecoveryCooldown: TimeSpan.FromSeconds(10));
+
+        await using var coordinator = new ScriptRuntimeExecutionCoordinator(
+            script,
+            "runtime-1",
+            policy,
+            executor,
+            clock);
+
+        coordinator.Enqueue(Identity(entry));
+        coordinator.Enqueue(Identity(probeEntry));
+
+        var first = await coordinator.ProcessNextAsync();
+        var coolingDown = coordinator.GetDiagnostics();
+        var blocked = await coordinator.ProcessNextAsync();
+
+        Assert.Equal(ScriptExecutionStatus.Faulted, first.Execution!.Status);
+        Assert.Equal(ScriptFailureRecoveryState.CoolingDown, coolingDown.RecoveryState);
+        Assert.Equal(clock.GetUtcNow() + TimeSpan.FromSeconds(10), coolingDown.NextRecoveryProbeAt);
+        Assert.Equal(ScriptRuntimeDispatchStatus.Throttled, blocked.Status);
+        Assert.Equal(1, executor.InvocationCount);
+
+        clock.Advance(TimeSpan.FromSeconds(10));
+        var probe = await coordinator.ProcessNextAsync();
+        var recovered = coordinator.GetDiagnostics();
+
+        Assert.Equal(ScriptRuntimeDispatchStatus.Executed, probe.Status);
+        Assert.Equal(ScriptExecutionStatus.Completed, probe.Execution!.Status);
+        Assert.Equal(2, executor.InvocationCount);
+        Assert.Equal(ScriptFailureRecoveryState.Healthy, recovered.RecoveryState);
+        Assert.False(recovered.IsThrottled);
+        Assert.Null(recovered.NextRecoveryProbeAt);
+        Assert.Equal(0, recovered.ConsecutiveFailures);
+    }
+
+    [Fact]
+    public async Task Coordinator_FailedProbeReturnsToCooldownWithoutBusyLoop()
+    {
+        var entry = new PythonScriptEntryPoint(
+            PythonScriptEventKind.ObjectInteraction,
+            "on_click",
+            "object:first");
+        var probeEntry = new PythonScriptEntryPoint(
+            PythonScriptEventKind.ObjectInteraction,
+            "on_click",
+            "object:probe");
+        var pendingEntry = new PythonScriptEntryPoint(
+            PythonScriptEventKind.ObjectInteraction,
+            "on_click",
+            "object:pending");
+        var script = CreateClientScript(entry, probeEntry, pendingEntry);
+        var clock = new MutableTimeProvider(DateTimeOffset.Parse("2026-01-01T00:00:00Z"));
+        var executor = new AlwaysFaultExecutor();
+        var policy = new ScriptExecutionPolicy(
+            TimeSpan.FromMilliseconds(200),
+            maxQueuedEvents: 4,
+            minimumTimerInterval: TimeSpan.FromMilliseconds(50),
+            maxConsecutiveFailuresBeforeThrottle: 1,
+            failureRecoveryCooldown: TimeSpan.FromSeconds(10));
+
+        await using var coordinator = new ScriptRuntimeExecutionCoordinator(
+            script,
+            "runtime-1",
+            policy,
+            executor,
+            clock);
+
+        coordinator.Enqueue(Identity(entry));
+        coordinator.Enqueue(Identity(probeEntry));
+        coordinator.Enqueue(Identity(pendingEntry));
+
+        _ = await coordinator.ProcessNextAsync();
+        Assert.Equal(ScriptRuntimeDispatchStatus.Throttled, (await coordinator.ProcessNextAsync()).Status);
+        Assert.Equal(1, executor.InvocationCount);
+
+        clock.Advance(TimeSpan.FromSeconds(10));
+        var failedProbe = await coordinator.ProcessNextAsync();
+        var coolingDownAgain = coordinator.GetDiagnostics();
+
+        Assert.Equal(ScriptExecutionStatus.Faulted, failedProbe.Execution!.Status);
+        Assert.Equal(2, executor.InvocationCount);
+        Assert.Equal(ScriptFailureRecoveryState.CoolingDown, coolingDownAgain.RecoveryState);
+        Assert.Equal(clock.GetUtcNow() + TimeSpan.FromSeconds(10), coolingDownAgain.NextRecoveryProbeAt);
+        Assert.Equal(ScriptRuntimeDispatchStatus.Throttled, (await coordinator.ProcessNextAsync()).Status);
+        Assert.Equal(2, executor.InvocationCount);
+    }
+
+    [Fact]
+    public async Task Coordinator_CancelledProbeReturnsToBoundedCooldown()
+    {
+        var entry = new PythonScriptEntryPoint(
+            PythonScriptEventKind.ObjectInteraction,
+            "on_click",
+            "object:first");
+        var probeEntry = new PythonScriptEntryPoint(
+            PythonScriptEventKind.ObjectInteraction,
+            "on_click",
+            "object:probe");
+        var script = CreateClientScript(entry, probeEntry);
+        var clock = new MutableTimeProvider(DateTimeOffset.Parse("2026-01-01T00:00:00Z"));
+        var policy = new ScriptExecutionPolicy(
+            TimeSpan.FromSeconds(2),
+            maxQueuedEvents: 4,
+            minimumTimerInterval: TimeSpan.FromMilliseconds(50),
+            maxConsecutiveFailuresBeforeThrottle: 1,
+            failureRecoveryCooldown: TimeSpan.FromSeconds(10));
+
+        await using var coordinator = new ScriptRuntimeExecutionCoordinator(
+            script,
+            "runtime-1",
+            policy,
+            new FaultThenWaitForCancellationExecutor(),
+            clock);
+
+        coordinator.Enqueue(Identity(entry));
+        coordinator.Enqueue(Identity(probeEntry));
+        _ = await coordinator.ProcessNextAsync();
+
+        clock.Advance(TimeSpan.FromSeconds(10));
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(10));
+        var cancelledProbe = await coordinator.ProcessNextAsync(cancellation.Token);
+        var diagnostics = coordinator.GetDiagnostics();
+
+        Assert.Equal(ScriptExecutionStatus.Cancelled, cancelledProbe.Execution!.Status);
+        Assert.Equal(ScriptFailureRecoveryState.CoolingDown, diagnostics.RecoveryState);
+        Assert.Equal(clock.GetUtcNow() + TimeSpan.FromSeconds(10), diagnostics.NextRecoveryProbeAt);
+        Assert.Equal(ScriptRuntimeDispatchStatus.NoEvent, (await coordinator.ProcessNextAsync()).Status);
+    }
+
+    [Fact]
     public async Task Coordinator_RejectsUndeclaredOrCrossScopeEventsBeforeQueueing()
     {
         var declaredEntry = new PythonScriptEntryPoint(
@@ -207,6 +355,9 @@ public sealed class ScriptRuntimeExecutionCoordinatorTests
             "def on_click():\n    pass",
             entryPoints: entryPoints);
 
+    private static ScriptEventIdentity Identity(PythonScriptEntryPoint entry) =>
+        new(entry.EventKind, entry.HandlerName, entry.TargetReference);
+
     private sealed class NoOpExecutor : IPythonScriptHandlerExecutor
     {
         public ValueTask ExecuteAsync(
@@ -247,5 +398,44 @@ public sealed class ScriptRuntimeExecutionCoordinatorTests
                 Timeout.InfiniteTimeSpan,
                 lease.CancellationToken);
         }
+    }
+
+    private sealed class AlwaysFaultExecutor : IPythonScriptHandlerExecutor
+    {
+        public int InvocationCount { get; private set; }
+
+        public ValueTask ExecuteAsync(
+            PythonScriptDefinition script,
+            ScriptEventEnvelope scriptEvent,
+            ScriptExecutionLease lease)
+        {
+            InvocationCount++;
+            throw new InvalidOperationException("simulated handler failure");
+        }
+    }
+
+    private sealed class FaultThenWaitForCancellationExecutor : IPythonScriptHandlerExecutor
+    {
+        private int _invocationCount;
+
+        public async ValueTask ExecuteAsync(
+            PythonScriptDefinition script,
+            ScriptEventEnvelope scriptEvent,
+            ScriptExecutionLease lease)
+        {
+            if (Interlocked.Increment(ref _invocationCount) == 1)
+                throw new InvalidOperationException("simulated handler failure");
+
+            await Task.Delay(Timeout.InfiniteTimeSpan, lease.CancellationToken);
+        }
+    }
+
+    private sealed class MutableTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        private DateTimeOffset _utcNow = utcNow;
+
+        public override DateTimeOffset GetUtcNow() => _utcNow;
+
+        public void Advance(TimeSpan duration) => _utcNow += duration;
     }
 }

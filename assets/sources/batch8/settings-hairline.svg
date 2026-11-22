@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <circle cx="64" cy="64" r="20" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="body" />
+  <circle cx="64" cy="64" r="7" fill="#9CA3AF" stroke="#374151" stroke-width="2" data-elitescada-slot="accent" />
+  <line x1="94.0" y1="64.0" x2="108.0" y2="64.0" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="outline" />
+  <line x1="85.2" y1="85.2" x2="95.1" y2="95.1" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="outline" />
+  <line x1="64.0" y1="94.0" x2="64.0" y2="108.0" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="outline" />
+  <line x1="42.8" y1="85.2" x2="32.9" y2="95.1" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="outline" />
+</svg>

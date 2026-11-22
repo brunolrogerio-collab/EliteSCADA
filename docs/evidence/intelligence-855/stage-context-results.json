@@ -1,0 +1,31 @@
+{
+  "syntheticOnly": true,
+  "sharedSyntheticDataset": true,
+  "queriesDuringGeneration": 0,
+  "memberResults": [
+    {
+      "scopeId": "85300000-0000-0000-0000-000000000200",
+      "assignmentId": "85500000-0000-0000-0000-000000000401",
+      "profileId": "85500000-0000-0000-0000-000000000301",
+      "contextId": "85700000-0000-0000-0000-000000000501",
+      "version": 1,
+      "revision": 47,
+      "signalCount": 4,
+      "referenceCount": 120,
+      "comparisonCount": 120
+    },
+    {
+      "scopeId": "85500000-0000-0000-0000-000000000501",
+      "assignmentId": "85500000-0000-0000-0000-000000000403",
+      "profileId": "85500000-0000-0000-0000-000000000303",
+      "contextId": "85800000-0000-0000-0000-000000000501",
+      "version": 1,
+      "revision": 47,
+      "signalCount": 2,
+      "referenceCount": 120,
+      "comparisonCount": 120
+    }
+  ],
+  "oldResultCleared": true,
+  "conditionsOnly": true
+}

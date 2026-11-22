@@ -1,11 +1,17 @@
+import { createBrowserUuid } from '../../browserUuid';
 import type {
   DynamoEngineering,
   EngineeringPackageView,
   PopupEngineering,
   ScreenEngineering,
   TagValueReferenceEngineering,
-  VisualElementEngineering
+  VisualElementEngineering,
+  VisualValueSourceEngineering
 } from '../../engineering/types';
+import {
+  normalizeDynamoDefinitionParameterContract,
+  normalizeDynamoInstanceParameterContract
+} from './dynamoParameterWireContract';
 
 export const VISUAL_COMPOSITION_RUNTIME_VERSION = 1 as const;
 
@@ -14,7 +20,9 @@ export type DynamoParameterKindEngineering =
   | 'Number'
   | 'String'
   | 'EquipmentPath'
-  | 'TagReference';
+  | 'TagReference'
+  | 'ValueSource'
+  | 'Command';
 
 export type DynamoParameterDefinitionEngineering = Readonly<{
   key: string;
@@ -22,6 +30,8 @@ export type DynamoParameterDefinitionEngineering = Readonly<{
   required?: boolean;
   defaultValue?: unknown;
   defaultTagReference?: TagValueReferenceEngineering | null;
+  defaultValueSource?: VisualValueSourceEngineering | null;
+  valueSourceType?: 'Boolean' | 'Number' | null;
   version?: number;
 }>;
 
@@ -30,13 +40,19 @@ export type DynamoParameterValueEngineering = Readonly<{
   kind: DynamoParameterKindEngineering;
   value?: unknown;
   tagReference?: TagValueReferenceEngineering | null;
+  valueSource?: VisualValueSourceEngineering | null;
+  commandId?: string | null;
   version?: number;
 }>;
 
 export type VisualNavigationActionKindEngineering =
   | 'NavigateScreen'
   | 'OpenPopup'
-  | 'ClosePopup';
+  | 'ClosePopup'
+  | 'ExecuteCommand'
+  | 'ExecuteRichCommand'
+  | 'SetTagValue'
+  | 'ToggleTagBoolean';
 
 export type VisualNavigationActionEngineering = Readonly<{
   eventKey: string;
@@ -44,6 +60,8 @@ export type VisualNavigationActionEngineering = Readonly<{
   targetKey?: string | null;
   parameters?: Readonly<Record<string, unknown>> | null;
   version?: number;
+  commandId?: string | null;
+  commandParameterKey?: string | null;
 }>;
 
 export type CanonicalVisualElementEngineering = VisualElementEngineering & Readonly<{
@@ -233,19 +251,64 @@ export function resolveMountedPopup(
 
 export function resolveDynamoDefinition(
   definitions: readonly DynamoEngineering[] | null | undefined,
-  dynamoKey: string
+  dynamoKey: string | null | undefined,
+  dynamoDefinitionId?: string | null
 ): CanonicalDynamoEngineering {
-  const catalog = indexByKey((definitions ?? []).map(asCanonicalDynamo), 'Dynamo');
-  return resolveCatalogEntity(catalog, dynamoKey, 'Dynamo', 'VISUAL_RUNTIME_DYNAMO_NOT_FOUND');
+  const canonical = (definitions ?? []).map(asCanonicalDynamo);
+  const stableId = dynamoDefinitionId?.trim();
+  if (stableId) {
+    const normalizedId = stableId.toLocaleLowerCase();
+    const byId = canonical.find(definition => definition.id?.trim().toLocaleLowerCase() === normalizedId);
+    if (!byId) {
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_DYNAMO_NOT_FOUND',
+        `Dynamo definition '${stableId}' was not found.`
+      );
+    }
+    const alias = dynamoKey?.trim();
+    if (alias) {
+      const aliasMatch = canonical.find(definition => equalsKey(definition.key, alias));
+      if (aliasMatch && aliasMatch.id?.trim().toLocaleLowerCase() !== normalizedId) {
+        throw new RuntimeVisualCompositionError(
+          'VISUAL_RUNTIME_DYNAMO_REFERENCE_MISMATCH',
+          `Dynamo alias '${alias}' resolves to a different stable definition.`
+        );
+      }
+    }
+    return byId;
+  }
+
+  const alias = dynamoKey?.trim();
+  if (!alias) {
+    throw new RuntimeVisualCompositionError(
+      'VISUAL_RUNTIME_DYNAMO_NOT_FOUND',
+      'Dynamo reference requires a stable definition ID or compatibility key.'
+    );
+  }
+  const catalog = indexByKey(canonical, 'Dynamo');
+  return resolveCatalogEntity(catalog, alias, 'Dynamo', 'VISUAL_RUNTIME_DYNAMO_NOT_FOUND');
 }
 
 export function composeDynamoRuntime(
   instanceInput: VisualElementEngineering,
   definitionInput: DynamoEngineering
 ): DynamoRuntimeCompositionView {
-  const instance = asCanonicalVisualElement(instanceInput);
-  const definition = asCanonicalDynamo(definitionInput);
-  if (!instance.dynamoKey || !equalsKey(instance.dynamoKey, definition.key)) {
+  // `composeDynamoRuntime` is also used directly by authoring previews and
+  // tests, not only by the Runtime projection. Normalize here as the final
+  // wire-contract boundary so camelCase enum values from the API cannot reach
+  // the strict canonical validators below.
+  const instance = normalizeDynamoInstanceParameterContract(asCanonicalVisualElement(instanceInput));
+  const definition = normalizeDynamoDefinitionParameterContract(asCanonicalDynamo(definitionInput));
+  const stableDefinitionId = instance.dynamoDefinitionId?.trim();
+  const definitionId = definition.id?.trim();
+  if (stableDefinitionId) {
+    if (!definitionId || stableDefinitionId.toLocaleLowerCase() !== definitionId.toLocaleLowerCase()) {
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_DYNAMO_REFERENCE_MISMATCH',
+        `Visual element '${instance.key}' does not reference Dynamo '${definition.key}' by stable identity.`
+      );
+    }
+  } else if (!instance.dynamoKey || !equalsKey(instance.dynamoKey, definition.key)) {
     throw new RuntimeVisualCompositionError(
       'VISUAL_RUNTIME_DYNAMO_REFERENCE_MISMATCH',
       `Visual element '${instance.key}' does not reference Dynamo '${definition.key}'.`
@@ -270,6 +333,13 @@ export function composeDynamoRuntime(
           `Dynamo parameter '${parameter.key}' expects ${parameter.kind} but instance '${instance.key}' supplies ${suppliedValue.kind}.`
         );
       }
+      if (parameter.kind === 'ValueSource' && parameter.valueSourceType &&
+          suppliedValue.valueSource?.valueType !== parameter.valueSourceType) {
+        throw new RuntimeVisualCompositionError(
+          'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_TYPE_MISMATCH',
+          `Dynamo parameter '${parameter.key}' requires a ${parameter.valueSourceType} visual value source.`
+        );
+      }
       validateParameterPayload(suppliedValue, false);
       resolved.set(parameter.key, freezeParameterValue(suppliedValue));
       continue;
@@ -280,6 +350,24 @@ export function composeDynamoRuntime(
         key: parameter.key,
         kind: parameter.kind,
         tagReference: cloneTagReference(parameter.defaultTagReference),
+        version: VISUAL_COMPOSITION_RUNTIME_VERSION
+      };
+      validateParameterPayload(value, false);
+      resolved.set(parameter.key, freezeParameterValue(value));
+      continue;
+    }
+
+    if (parameter.kind === 'ValueSource' && parameter.defaultValueSource) {
+      if (parameter.valueSourceType && parameter.defaultValueSource.valueType !== parameter.valueSourceType) {
+        throw new RuntimeVisualCompositionError(
+          'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_TYPE_MISMATCH',
+          `Dynamo parameter '${parameter.key}' default requires a ${parameter.valueSourceType} visual value source.`
+        );
+      }
+      const value: DynamoParameterValueEngineering = {
+        key: parameter.key,
+        kind: parameter.kind,
+        valueSource: parameter.defaultValueSource,
         version: VISUAL_COMPOSITION_RUNTIME_VERSION
       };
       validateParameterPayload(value, false);
@@ -433,8 +521,28 @@ function uniqueParameterValues(
 }
 
 function validateParameterPayload(value: DynamoParameterValueEngineering, allowMissing: boolean): void {
+  if (value.kind === 'Command') {
+    if (value.value !== undefined || value.tagReference || value.valueSource) {
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_DYNAMO_PARAMETER_SHAPE_INVALID',
+        `Dynamo parameter '${value.key}' of kind Command cannot carry a scalar or TAG reference.`
+      );
+    }
+    if (!value.commandId?.trim()) {
+      if (!allowMissing) {
+        throw new RuntimeVisualCompositionError(
+          'VISUAL_RUNTIME_DYNAMO_PARAMETER_COMMAND_REQUIRED',
+          `Dynamo parameter '${value.key}' requires a stable Command identity.`
+        );
+      }
+      return;
+    }
+    requireStableText(value.commandId, 'Command identity', 'VISUAL_RUNTIME_DYNAMO_PARAMETER_COMMAND_ID_INVALID');
+    return;
+  }
+
   if (value.kind === 'TagReference') {
-    if (value.value !== undefined) {
+    if (value.value !== undefined || value.valueSource) {
       throw new RuntimeVisualCompositionError(
         'VISUAL_RUNTIME_DYNAMO_PARAMETER_SHAPE_INVALID',
         `Dynamo parameter '${value.key}' of kind TagReference cannot carry a scalar value.`
@@ -453,7 +561,27 @@ function validateParameterPayload(value: DynamoParameterValueEngineering, allowM
     return;
   }
 
-  if (value.tagReference) {
+  if (value.kind === 'ValueSource') {
+    if (value.value !== undefined || value.tagReference || value.commandId) {
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_DYNAMO_PARAMETER_SHAPE_INVALID',
+        `Dynamo parameter '${value.key}' of kind ValueSource cannot carry scalar, TAG, or Command payloads.`
+      );
+    }
+    if (!value.valueSource) {
+      if (!allowMissing) {
+        throw new RuntimeVisualCompositionError(
+          'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_REQUIRED',
+          `Dynamo parameter '${value.key}' requires a typed visual value source.`
+        );
+      }
+      return;
+    }
+    validateVisualValueSource(value.valueSource, value.key);
+    return;
+  }
+
+  if (value.tagReference || value.commandId || value.valueSource) {
     throw new RuntimeVisualCompositionError(
       'VISUAL_RUNTIME_DYNAMO_PARAMETER_SHAPE_INVALID',
       `Dynamo parameter '${value.key}' of kind ${value.kind} cannot carry a TAG reference.`
@@ -488,8 +616,37 @@ function freezeParameterValue(value: DynamoParameterValueEngineering): DynamoPar
   return Object.freeze({
     ...value,
     value: value.value === undefined ? undefined : cloneJsonValue(value.value),
-    tagReference: value.tagReference ? cloneTagReference(value.tagReference) : value.tagReference
+    tagReference: value.tagReference ? cloneTagReference(value.tagReference) : value.tagReference,
+    valueSource: value.valueSource ? cloneJsonValue(value.valueSource) : value.valueSource
   });
+}
+
+function validateVisualValueSource(source: VisualValueSourceEngineering, parameterKey: string): void {
+  if (!['Tag', 'ClientMemory', 'Expression'].includes(source.kind) || !['Boolean', 'Number'].includes(source.valueType)) {
+    throw new RuntimeVisualCompositionError(
+      'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_INVALID',
+      `Dynamo parameter '${parameterKey}' carries an unsupported value source.`
+    );
+  }
+  if (source.kind === 'Expression') {
+    if (!source.expression || source.expression.resultType !== source.valueType || !source.expression.text.trim()) {
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_INVALID',
+        `Dynamo parameter '${parameterKey}' requires a matching typed expression.`
+      );
+    }
+    for (const dependency of source.expression.dependencies ?? []) {
+      requireStableText(dependency.tagReference?.tagId ?? '', 'TAG identity', 'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_INVALID');
+    }
+  } else {
+    requireStableText(source.tagReference?.tagId ?? '', 'TAG identity', 'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_INVALID');
+    if (source.expression) {
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_INVALID',
+        `Dynamo parameter '${parameterKey}' direct source cannot also carry an expression.`
+      );
+    }
+  }
 }
 
 function assertNoNestedDynamo(elements: readonly CanonicalVisualElementEngineering[]): void {
@@ -536,14 +693,14 @@ function cloneJsonValue<T>(value: T): T {
 }
 
 function createRuntimeInstanceId(): string {
-  const factory = globalThis.crypto?.randomUUID;
-  if (typeof factory !== 'function') {
+  try {
+    return createBrowserUuid();
+  } catch {
     throw new RuntimeVisualCompositionError(
       'VISUAL_RUNTIME_INSTANCE_ID_FACTORY_UNAVAILABLE',
       'Browser UUID generation is required to mount a Popup runtime instance.'
     );
   }
-  return factory.call(globalThis.crypto);
 }
 
 function normalizeKey(value: string): string {

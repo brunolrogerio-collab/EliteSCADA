@@ -74,9 +74,10 @@ test('TAG write capability fails closed for missing provider, wrong operation an
 test('official provider routes TAG writes to the injected mediated Runtime writer', async () => {
   const calls: Array<{ reference: string; value: unknown }> = [];
   const provider = createClientVisualPythonCapabilityProvider({
-    tagReader: async () => {
-      throw new Error('TAG read is not expected in this test.');
-    },
+    tagReader: async reference => ({
+      tag: { id: reference, name: 'Auto', path: 'Plant.Auto', dataType: 'String', readOnly: false },
+      current: null
+    }),
     tagWriter: async (reference, value) => {
       calls.push({ reference, value });
     }
@@ -92,6 +93,117 @@ test('official provider routes TAG writes to the injected mediated Runtime write
 
   expect(calls).toEqual([{ reference: '22222222-2222-2222-2222-222222222222', value: 'Auto' }]);
   expect(result).toEqual({ accepted: true, reference: '22222222-2222-2222-2222-222222222222' });
+});
+
+test('RED-2: Client Visual readable TAG write resolves the visible path then writes by the returned stable ID', async () => {
+  const calls: Array<{ reference: string; value: unknown }> = [];
+  const stableId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const provider = createClientVisualPythonCapabilityProvider({
+    tagReader: async () => ({
+      tag: { id: stableId, name: 'LevelPct', path: 'Plant.Process.LevelPct', dataType: 'Double', readOnly: false },
+      current: null
+    }),
+    tagWriter: async (reference, value) => { calls.push({ reference, value }); }
+  });
+
+  await provider.readTag('Plant.Process.LevelPct');
+  await provider.writeTag!('Plant.Process.LevelPct', 42);
+
+  expect(calls).toEqual([{ reference: stableId, value: 42 }]);
+});
+
+test('review RED: a declared readable TAG write proves current identity before it writes', async () => {
+  const expectedTagId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const visibleReference = 'Plant.Process.LevelPct';
+  const reads: string[] = [];
+  const writes: Array<{ reference: string; value: unknown }> = [];
+  const provider = createClientVisualPythonCapabilityProvider({
+    tagDependencies: [readableTagDependency(visibleReference, expectedTagId)],
+    tagReader: async reference => {
+      reads.push(reference);
+      return runtimeTagDetail(expectedTagId, visibleReference);
+    },
+    tagWriter: async (reference, value) => { writes.push({ reference, value }); }
+  });
+
+  await provider.writeTag!(visibleReference, 42);
+
+  expect(reads).toEqual([visibleReference]);
+  expect(writes).toEqual([{ reference: expectedTagId, value: 42 }]);
+});
+
+test('review RED: a path reused by another TAG fails closed before Client Visual can write', async () => {
+  const expectedTagId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const replacementTagId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+  const visibleReference = 'Plant.Process.LevelPct';
+  const writes: Array<{ reference: string; value: unknown }> = [];
+  const provider = createClientVisualPythonCapabilityProvider({
+    tagDependencies: [readableTagDependency(visibleReference, expectedTagId)],
+    tagReader: async () => runtimeTagDetail(replacementTagId, visibleReference),
+    tagWriter: async (reference, value) => { writes.push({ reference, value }); }
+  });
+
+  await expect(provider.writeTag!(visibleReference, 42)).rejects.toThrow('declared stable identity');
+  expect(writes).toEqual([]);
+});
+
+test('Client Visual denies an undeclared readable TAG reference before it can read or write', async () => {
+  const expectedTagId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const reads: string[] = [];
+  const writes: string[] = [];
+  const provider = createClientVisualPythonCapabilityProvider({
+    tagDependencies: [readableTagDependency('Plant.Process.Declared', expectedTagId)],
+    tagReader: async reference => {
+      reads.push(reference);
+      return runtimeTagDetail(expectedTagId, reference);
+    },
+    tagWriter: async reference => { writes.push(reference); }
+  });
+
+  await expect(provider.readTag('Plant.Process.Undeclared')).rejects.toThrow('not declared');
+  await expect(provider.writeTag!('Plant.Process.Undeclared', 42)).rejects.toThrow('not declared');
+  expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
+});
+
+test('Client Visual requires the exact declared readable source token after outer trim', async () => {
+  const expectedTagId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const persistedReference = 'Plant.Área.Nível';
+  const sourceReference = 'plant.área.nível';
+  const reads: string[] = [];
+  const writes: Array<{ reference: string; value: unknown }> = [];
+  const provider = createClientVisualPythonCapabilityProvider({
+    tagDependencies: [readableTagDependency(persistedReference, expectedTagId)],
+    tagReader: async reference => {
+      reads.push(reference);
+      return runtimeTagDetail(expectedTagId, persistedReference);
+    },
+    tagWriter: async (reference, value) => { writes.push({ reference, value }); }
+  });
+
+  await expect(provider.readTag(sourceReference)).rejects.toThrow('not declared');
+  await expect(provider.writeTag!(sourceReference, 42)).rejects.toThrow('not declared');
+
+  expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
+});
+
+test('review RED: Client Visual treats a Unicode case variant as undeclared source text', async () => {
+  const expectedTagId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const reads: string[] = [];
+  const provider = createClientVisualPythonCapabilityProvider({
+    tagDependencies: [readableTagDependency('Plant.Σ', expectedTagId)],
+    tagReader: async reference => {
+      reads.push(reference);
+      return runtimeTagDetail(expectedTagId, 'plant.σ');
+    }
+  });
+
+  await expect(provider.readTag('Plant.ς')).rejects.toThrow('not declared');
+  expect(reads).toEqual([]);
+
+  await expect(provider.readTag('  Plant.Σ  ')).resolves.toMatchObject({ id: expectedTagId });
+  expect(reads).toEqual(['Plant.Σ']);
 });
 
 test('Engineering preview can explicitly remove process TAG-write authority while preserving the same sandbox bridge contract', async () => {
@@ -124,4 +236,23 @@ async function expectCapabilityCode(promise: Promise<unknown>, expectedCode: str
     expect(error).toBeInstanceOf(ClientVisualPythonCapabilityError);
     expect((error as ClientVisualPythonCapabilityError).code).toBe(expectedCode);
   }
+}
+
+function readableTagDependency(reference: string, tagId: string) {
+  return {
+    kind: 'tag' as const,
+    stableReference: tagId,
+    tagBinding: {
+      version: 1,
+      reference,
+      expected: { tagId }
+    }
+  };
+}
+
+function runtimeTagDetail(id: string, path: string) {
+  return {
+    tag: { id, name: 'LevelPct', path, dataType: 'Double', readOnly: false },
+    current: null
+  };
 }

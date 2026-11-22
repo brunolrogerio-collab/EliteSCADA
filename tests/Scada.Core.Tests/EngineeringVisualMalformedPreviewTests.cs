@@ -50,6 +50,32 @@ public sealed class EngineeringVisualMalformedPreviewTests
     }
 
     [Fact]
+    public void Preview_ValidatesGraphicalObjectsStoredOnReusableTemplates()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var service = new EngineeringExchangeService(tags, alarms);
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>(),
+            Templates: [new EquipmentTemplateEngineeringDto(
+                null,
+                "faceplate.pump",
+                "Pump Faceplate",
+                Elements: [null!])]);
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+        var issues = preview.Items.SelectMany(item => item.Issues).ToArray();
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(issues, issue => issue.Code == "VISUAL_ELEMENT_NULL" && issue.IsError);
+    }
+
+    [Fact]
     public void Preview_ReturnsIssuesForNullOrKeylessScreenAndPopupJsonInsteadOfThrowing()
     {
         var tags = new InMemoryTagRegistry();

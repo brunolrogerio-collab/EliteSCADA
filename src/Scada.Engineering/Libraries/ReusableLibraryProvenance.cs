@@ -1,3 +1,5 @@
+using Scada.Engineering.Contracts;
+
 namespace Scada.Engineering.Libraries;
 
 /// <summary>
@@ -45,6 +47,56 @@ public static class ReusableLibraryProvenance
         result[PayloadSha256Key] = payload.Sha256.ToLowerInvariant();
         return result;
     }
+
+    public static bool TryRead(
+        IReadOnlyDictionary<string, string>? metadata,
+        out ReusableLibrarySourceProvenanceEngineeringDto provenance)
+    {
+        provenance = null!;
+        if (metadata is null ||
+            !metadata.TryGetValue(LibraryIdKey, out var libraryIdText) ||
+            !metadata.TryGetValue(ResourceIdKey, out var resourceIdText) ||
+            !metadata.TryGetValue(LibraryVersionKey, out var version) ||
+            !metadata.TryGetValue(PayloadSha256Key, out var hash) ||
+            !Guid.TryParse(libraryIdText, out var libraryId) ||
+            libraryId == Guid.Empty ||
+            !Guid.TryParse(resourceIdText, out var resourceId) ||
+            resourceId == Guid.Empty ||
+            string.IsNullOrWhiteSpace(version) ||
+            string.IsNullOrWhiteSpace(hash))
+        {
+            return false;
+        }
+
+        provenance = new ReusableLibrarySourceProvenanceEngineeringDto(
+            libraryId,
+            resourceId,
+            version,
+            hash.ToLowerInvariant());
+        return true;
+    }
+
+    public static Dictionary<string, string> Stamp(
+        IReadOnlyDictionary<string, string>? metadata,
+        ReusableLibrarySourceProvenanceEngineeringDto provenance,
+        string resourceKind)
+    {
+        ArgumentNullException.ThrowIfNull(provenance);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceKind);
+
+        var result = WithoutOrigin(metadata)
+            ?? new Dictionary<string, string>(StringComparer.Ordinal);
+        result[LibraryIdKey] = provenance.SourceLibraryId.ToString("D");
+        result[LibraryVersionKey] = provenance.SourceVersion;
+        result[ResourceIdKey] = provenance.SourceResourceId.ToString("D");
+        result[ResourceKindKey] = resourceKind;
+        result[PayloadSha256Key] = provenance.SourceContentHash.ToLowerInvariant();
+        return result;
+    }
+
+    public static Dictionary<string, string>? Detach(
+        IReadOnlyDictionary<string, string>? metadata) =>
+        WithoutOrigin(metadata);
 
     public static Dictionary<string, string>? WithoutOrigin(
         IReadOnlyDictionary<string, string>? metadata)

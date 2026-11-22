@@ -1,8 +1,10 @@
 using System.Buffers.Binary;
 using System.IO.Compression;
+using System.Text;
 using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
+using Scada.Core.HistoricalQueries;
 using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Commands;
@@ -11,6 +13,7 @@ using Scada.Engineering.DataSources;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
+using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
@@ -136,6 +139,53 @@ public sealed class VisualAssetWave08Tests
     }
 
     [Fact]
+    public void ReportLauncher_RequiresAReportInTheProspectivePackage()
+    {
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var exchange = CreateExchange(alarms, new InMemoryVisualAssetEngineeringRegistry());
+        var report = new ReportEngineeringDto(
+            Guid.NewGuid(),
+            "daily-summary",
+            "Daily summary",
+            Queries:
+            [
+                new ReportQueryEngineeringDto(
+                    "main",
+                    new HistoricalQueryRequest(
+                        HistoricalDatasets.HistorianSamples,
+                        HistoricalTimeRange.Relative(3600)))
+            ],
+            Sections:
+            [
+                new ReportSectionEngineeringDto(null, "detail", ReportSectionKind.Detail, 10, QueryKey: "main")
+            ]);
+        var element = new VisualElementEngineeringDto(
+            "daily-report",
+            "core.reportLauncher",
+            Properties: new Dictionary<string, JsonElement>
+            {
+                ["reportKey"] = JsonSerializer.SerializeToElement("daily-summary")
+            },
+            Id: Guid.NewGuid());
+        var screen = new ScreenEngineeringDto(Guid.NewGuid(), "overview", "Overview", Elements: [element]);
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>(),
+            Screens: [screen],
+            Reports: [report]);
+
+        var valid = exchange.Preview(package, ImportMode.CreateAndUpdate, EngineeringImportContext.Empty);
+        var missing = exchange.Preview(package with { Reports = Array.Empty<ReportEngineeringDto>() }, ImportMode.CreateAndUpdate, EngineeringImportContext.Empty);
+
+        Assert.True(valid.CanApply, string.Join(" | ", valid.Items.SelectMany(x => x.Issues).Select(x => $"{x.Code}: {x.Message}")));
+        Assert.DoesNotContain(valid.Items.SelectMany(x => x.Issues), issue => issue.Code.StartsWith("VISUAL_REPORT_", StringComparison.Ordinal));
+        Assert.Contains(missing.Items.SelectMany(x => x.Issues), issue => issue.Code == "VISUAL_REPORT_REFERENCE_NOT_FOUND" && issue.IsError);
+    }
+
+    [Fact]
     public void ProjectPackageV2_RoundTripsAssetsWithoutInspectMutatingTargetWorking()
     {
         var sourceAssets = new InMemoryVisualAssetEngineeringRegistry();
@@ -168,6 +218,64 @@ public sealed class VisualAssetWave08Tests
         Assert.DoesNotContain(applied.Issues, x => x.IsError);
         var restored = Assert.Single(targetAssets.SnapshotAssets());
         Assert.Equal(asset.Id, restored.Id);
+        Assert.Equal(payload.Content, targetAssets.FindPayload(payload.Sha256)!.Content);
+    }
+
+    [Theory]
+    [InlineData("manual.pdf", "%PDF-1.7\n1 0 obj\n<<>>\nendobj\n%%EOF\n", "application/pdf")]
+    [InlineData("clip.mp4", "000000106674797069736F6D00000000", "video/mp4")]
+    [InlineData("clip.webm", "1A45DFA393428284", "video/webm")]
+    public void ProjectPackageV2_RoundTripsBoundedPdfAndVideoResources(
+        string fileName,
+        string content,
+        string expectedMediaType)
+    {
+        var bytes = expectedMediaType == "application/pdf"
+            ? Encoding.ASCII.GetBytes(content)
+            : Convert.FromHexString(content);
+        var payload = VisualAssetPayload.Create(expectedMediaType, bytes);
+        var sourceAssets = new InMemoryVisualAssetEngineeringRegistry();
+        sourceAssets.PutPayload(payload);
+        sourceAssets.UpsertAsset(CreateAsset(Guid.NewGuid(), "media." + expectedMediaType.Split('/')[1],
+            fileName, fileName, payload));
+        using var sourceAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var sourceExchange = CreateExchange(sourceAlarms, sourceAssets);
+        var package = new ProjectPackageService(sourceExchange, sourceAssets).Export("media-project", "Media project");
+
+        var targetAssets = new InMemoryVisualAssetEngineeringRegistry();
+        using var targetAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var targetPackages = new ProjectPackageService(CreateExchange(targetAlarms, targetAssets), targetAssets);
+        var applied = targetPackages.Apply(package, ImportMode.CreateAndUpdate);
+
+        Assert.DoesNotContain(applied.Issues, issue => issue.IsError);
+        Assert.Equal(bytes, targetAssets.FindPayload(payload.Sha256)!.Content);
+        Assert.Equal(expectedMediaType, Assert.Single(targetAssets.SnapshotAssets()).MediaType);
+    }
+
+    [Fact]
+    public void ProjectPackageV2_RoundTripsSanitizedSvgBackgroundAsset()
+    {
+        const string svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"12\" height=\"8\" viewBox=\"0 0 12 8\"><rect width=\"12\" height=\"8\" fill=\"#123456\"/></svg>";
+        var inspected = StaticSvgInspector.InspectAndSanitize(Encoding.UTF8.GetBytes(svg));
+        var payload = VisualAssetPayload.Create(inspected.MediaType, inspected.CanonicalContent);
+        var sourceAssets = new InMemoryVisualAssetEngineeringRegistry();
+        var asset = CreateAsset(Guid.NewGuid(), "wallpaper", "Wallpaper", "wallpaper.svg", payload);
+        sourceAssets.PutPayload(payload);
+        sourceAssets.UpsertAsset(asset);
+
+        using var sourceAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var sourceExchange = CreateExchange(sourceAlarms, sourceAssets);
+        var bytes = new ProjectPackageService(sourceExchange, sourceAssets).Export("plant-svg", "Plant SVG");
+
+        var targetAssets = new InMemoryVisualAssetEngineeringRegistry();
+        using var targetAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var targetExchange = CreateExchange(targetAlarms, targetAssets);
+        var targetPackages = new ProjectPackageService(targetExchange, targetAssets);
+        var inspection = targetPackages.Inspect(bytes);
+        var applied = targetPackages.Apply(bytes, ImportMode.CreateAndUpdate);
+
+        Assert.Contains(inspection.Manifest.Files, x => x.MediaType == VisualAssetContentInspector.SvgMediaType);
+        Assert.DoesNotContain(applied.Issues, issue => issue.IsError);
         Assert.Equal(payload.Content, targetAssets.FindPayload(payload.Sha256)!.Content);
     }
 
@@ -223,7 +331,7 @@ public sealed class VisualAssetWave08Tests
         string originalFileName,
         VisualAssetPayload payload)
     {
-        var inspection = RasterImageInspector.Inspect(payload.Content);
+        var inspection = VisualAssetContentInspector.InspectAndCanonicalize(payload.Content);
         return new VisualAssetEngineeringDto(
             id,
             key,

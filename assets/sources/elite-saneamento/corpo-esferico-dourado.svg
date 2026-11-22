@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 260" width="100%" height="100%">
+  <defs>
+    <!-- Gradiente dourado/amarelo metálico idêntico ao da imagem -->
+    <linearGradient id="gold-metallic" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#C2C015" />
+      <stop offset="45%" stop-color="#FCFB40" />
+      <stop offset="55%" stop-color="#FCFB40" />
+      <stop offset="100%" stop-color="#9C9B10" />
+    </linearGradient>
+  </defs>
+  <!-- Grupo estrutural com contorno preto fino e fundo transparente -->
+  <g stroke="#000000" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Base Trapezoidal -->
+    <path d="M 90 140 L 210 140 L 250 200 L 50 200 Z" fill="url(#gold-metallic)" />
+    <!-- Corpo Esférico Superior (Círculo) -->
+    <circle cx="150" cy="110" r="75" fill="url(#gold-metallic)" />
+  </g>
+</svg>

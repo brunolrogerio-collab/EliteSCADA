@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="24" y="24" width="80" height="80" rx="6" fill="none" stroke="#374151" stroke-width="5" data-elitescada-slot="body" />
+  <rect x="42" y="48" width="44" height="32" rx="4" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="battery" />
+  <path d="M 48 40 C 56 30 72 30 80 40" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" data-elitescada-slot="input" />
+</svg>

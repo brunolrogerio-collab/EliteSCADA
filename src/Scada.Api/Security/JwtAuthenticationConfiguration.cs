@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Scada.Api.Runtime;
 using Scada.Security.Authentication;
 
 namespace Scada.Api.Security;
@@ -16,8 +17,7 @@ public static class JwtAuthenticationConfiguration
         var issuer = jwt["Issuer"]?.Trim();
         var audience = jwt["Audience"]?.Trim();
         var signingKey = jwt["SigningKey"];
-        var cookieName = section.GetSection("Local")["CookieName"]?.Trim();
-        if (string.IsNullOrWhiteSpace(cookieName)) cookieName = LocalIdentityConfiguration.DefaultCookieName;
+        var cookieName = LocalIdentityConfiguration.ResolveCookieName(builder.Configuration);
 
         if (string.IsNullOrWhiteSpace(issuer))
             throw new InvalidOperationException("Authentication:Jwt:Issuer is required when authentication is enabled.");
@@ -73,24 +73,33 @@ public static class JwtAuthenticationConfiguration
                             !string.IsNullOrWhiteSpace(cookieToken))
                         {
                             context.Token = cookieToken;
+                            return Task.CompletedTask;
                         }
+
+                        if ((context.HttpContext.Request.Path.StartsWithSegments("/api") ||
+                             context.HttpContext.Request.Path.StartsWithSegments("/ws/tags")) &&
+                            context.Request.Cookies.TryGetValue(PublicRuntimeSessionSecurity.CookieName, out var publicToken) &&
+                            !string.IsNullOrWhiteSpace(publicToken))
+                            context.Token = publicToken;
 
                         return Task.CompletedTask;
                     },
                     OnTokenValidated = async context =>
                     {
                         var provider = context.Principal?.FindFirst(JwtTokenIssuer.IdentityProviderClaim)?.Value;
-                        if (!string.Equals(provider, JwtTokenIssuer.LocalIdentityProvider, StringComparison.Ordinal))
-                            return;
-
-                        var subject = context.Principal?.FindFirst("sub")?.Value;
-                        var versionText = context.Principal?.FindFirst(JwtTokenIssuer.LocalUserVersionClaim)?.Value;
-                        if (!Guid.TryParse(subject, out var userId) ||
-                            !long.TryParse(versionText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var tokenVersion))
+                        if (string.Equals(provider, JwtTokenIssuer.PublicRuntimeIdentityProvider, StringComparison.Ordinal))
                         {
-                            context.Fail("Local identity token is missing required version information.");
+                            var publicLifecycle = context.HttpContext.RequestServices.GetService<IAuthorityLifecycleStore>();
+                            if (publicLifecycle is null || !await PublicRuntimeJwtSessionValidator.IsCurrentAsync(
+                                    context.Principal!,
+                                    publicLifecycle,
+                                    context.HttpContext.RequestAborted))
+                                context.Fail("Public Runtime Authority session is no longer current.");
                             return;
                         }
+
+                        if (!string.Equals(provider, JwtTokenIssuer.LocalIdentityProvider, StringComparison.Ordinal))
+                            return;
 
                         var store = context.HttpContext.RequestServices.GetService<ILocalIdentityStore>();
                         if (store is null)
@@ -99,12 +108,33 @@ public static class JwtAuthenticationConfiguration
                             return;
                         }
 
-                        var account = await store.FindByIdAsync(userId, context.HttpContext.RequestAborted);
-                        if (account is null ||
-                            !account.IsEnabled ||
-                            account.UpdatedAtUtc.ToUnixTimeMilliseconds() != tokenVersion)
+                        var lifecycle = context.HttpContext.RequestServices.GetService<IAuthorityLifecycleStore>();
+                        if (lifecycle is null)
+                        {
+                            context.Fail("Authority lifecycle validation is unavailable.");
+                            return;
+                        }
+
+                        if (!await LocalAuthorityJwtSessionValidator.IsCurrentAsync(
+                                context.Principal,
+                                store,
+                                lifecycle,
+                                context.HttpContext.RequestAborted))
                         {
                             context.Fail("Local identity token is no longer current.");
+                            return;
+                        }
+
+                        if (UsesRuntimeSession(context.Request) &&
+                            context.HttpContext.RequestServices.GetService<RuntimeHighAvailabilityService>() is { Enabled: true } ha)
+                        {
+                            var topology = ha.Snapshot();
+                            var issuedFor = context.Principal?.FindFirst(JwtTokenIssuer.RuntimeHaAuthorityClaim)?.Value;
+                            if (topology.AmbiguousAuthority || topology.EffectiveActiveNodeId is null ||
+                                !string.Equals(issuedFor, JwtTokenIssuer.FormatRuntimeHaAuthority(topology), StringComparison.Ordinal))
+                            {
+                                context.Fail("The login is no longer current for the effective HA Runtime.");
+                            }
                         }
                     }
                 };
@@ -112,4 +142,10 @@ public static class JwtAuthenticationConfiguration
 
         return true;
     }
+
+    // Engineering login and the HA diagnostics retain the Security Authority contract.
+    private static bool UsesRuntimeSession(HttpRequest request) =>
+        request.Path.StartsWithSegments("/api/runtime/sessions") ||
+        request.Headers.ContainsKey(ApiAuthorizationService.RuntimeSessionHeaderName) ||
+        (request.Path.StartsWithSegments("/ws/tags") && request.Query.ContainsKey("runtimeSessionId"));
 }

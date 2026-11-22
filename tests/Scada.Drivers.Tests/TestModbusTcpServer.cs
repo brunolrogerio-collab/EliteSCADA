@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using Scada.Drivers.Modbus;
 
 namespace Scada.Drivers.Tests;
 
@@ -21,6 +22,10 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
     public ConcurrentDictionary<ushort, ushort> HoldingRegisters { get; } = new();
     public ConcurrentDictionary<ushort, ushort> InputRegisters { get; } = new();
     public bool RejectWrites { get; set; }
+    public bool ReturnStaleSingleRegisterWriteEcho { get; set; }
+    public bool IgnoreSingleRegisterWrites { get; set; }
+    public bool RejectReads { get; set; }
+    public bool RejectDeviceIdentification { get; set; }
 
     public TimeSpan ResponseDelay
     {
@@ -166,6 +171,12 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
     {
         if (pdu.Length == 0) return new byte[] { 0x80, 0x03 };
         var function = pdu[0];
+        if (RejectReads && function is >= 0x01 and <= 0x04)
+        {
+            var address = pdu.Length >= 3 ? BinaryPrimitives.ReadUInt16BigEndian(pdu.AsSpan(1, 2)) : (ushort)0;
+            Record(unitId, function, address, 1);
+            return new byte[] { (byte)(function | 0x80), 0x02 };
+        }
         try
         {
             return function switch
@@ -174,6 +185,7 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
                 0x02 => ReadBits(unitId, function, pdu, DiscreteInputs),
                 0x03 => ReadRegisters(unitId, function, pdu, HoldingRegisters),
                 0x04 => ReadRegisters(unitId, function, pdu, InputRegisters),
+                0x2B => ReadDeviceIdentification(unitId, pdu),
                 0x05 => RejectWrites ? RejectWrite(unitId, function, pdu) : WriteSingleCoil(unitId, pdu),
                 0x06 => RejectWrites ? RejectWrite(unitId, function, pdu) : WriteSingleRegister(unitId, pdu),
                 0x10 => RejectWrites ? RejectWrite(unitId, function, pdu) : WriteMultipleRegisters(unitId, pdu),
@@ -184,6 +196,14 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
         {
             return new byte[] { (byte)(function | 0x80), 0x03 };
         }
+    }
+
+    private byte[] ReadDeviceIdentification(byte unitId, byte[] pdu)
+    {
+        EnsureLength(pdu, 4);
+        Record(unitId, pdu[0], 0, 1);
+        if (RejectDeviceIdentification) return new byte[] { 0xAB, 0x01 };
+        return new byte[] { 0x2B, 0x0E, 0x01, 0x01, 0x00, 0x00, 0x00 };
     }
 
     private byte[] RejectWrite(byte unitId, byte function, byte[] pdu)
@@ -247,9 +267,12 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
         EnsureLength(pdu, 5);
         var address = BinaryPrimitives.ReadUInt16BigEndian(pdu.AsSpan(1, 2));
         var value = BinaryPrimitives.ReadUInt16BigEndian(pdu.AsSpan(3, 2));
-        HoldingRegisters[address] = value;
+        var previousValue = HoldingRegisters.GetValueOrDefault(address);
+        if (!IgnoreSingleRegisterWrites) HoldingRegisters[address] = value;
         Record(unitId, 0x06, address, 1);
-        return pdu.ToArray();
+        return ReturnStaleSingleRegisterWriteEcho
+            ? ModbusPduCodec.BuildWriteSingleRegisterRequest(0, previousValue)
+            : pdu.ToArray();
     }
 
     private byte[] WriteMultipleRegisters(byte unitId, byte[] pdu)

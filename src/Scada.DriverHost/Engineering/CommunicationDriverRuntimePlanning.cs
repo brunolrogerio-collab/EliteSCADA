@@ -1,6 +1,7 @@
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 using Scada.Engineering.Contracts;
+using Scada.DriverHost.Runtime;
 
 namespace Scada.DriverHost.Engineering;
 
@@ -36,8 +37,28 @@ public sealed record CommunicationDriverRuntimeServices(
     string ProjectKey,
     ICurrentTagCache Cache,
     ITagRegistry Registry,
-    ICommunicationDriverProtectedMaterialResolver? ProtectedMaterialResolver = null)
+    ICommunicationDriverProtectedMaterialResolver? ProtectedMaterialResolver = null,
+    Func<bool>? EffectAuthority = null)
 {
+    /// <summary>
+    /// Canonical host-owned ingress for validated transient device events. Drivers
+    /// may publish only after the Active/effect-authority fence permits forwarding.
+    /// </summary>
+    public ITransientEventRuntimeIngress? TransientEventIngress { get; init; }
+
+    /// <summary>
+    /// Host-owned permission for a Runtime candidate to acquire process inputs
+    /// into its private cache before activation commits. Drivers must not use
+    /// this permission for writes, commands, or other process effects. When no
+    /// separate authority is supplied, preserve the existing effect-fence
+    /// behavior for callers that construct these services directly.
+    /// </summary>
+    public Func<bool>? InputAcquisitionAuthority { get; init; }
+
+    public bool CanOwnExternalEffects => EffectAuthority?.Invoke() ?? true;
+
+    public bool CanAcquireInputs => InputAcquisitionAuthority?.Invoke() ?? CanOwnExternalEffects;
+
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(ProjectKey))

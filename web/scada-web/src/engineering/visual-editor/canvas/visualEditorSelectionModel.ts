@@ -1,6 +1,6 @@
 import type { VisualElementEngineering } from '../../types';
 import {
-  getBuiltinVisualObjectSchema,
+  getVisualSchemaForEngineering,
   VISUAL_PROPERTY_KEYS
 } from '../../../visual-runtime';
 
@@ -149,7 +149,7 @@ function transformedAxisAlignedBounds(element: VisualElementEngineering): Visual
 }
 
 function effectiveNumber(element: VisualElementEngineering, propertyKey: string): number {
-  const schema = getBuiltinVisualObjectSchema(element.type);
+  const schema = getVisualSchemaForEngineering(element.type);
   const explicit = element.properties?.[propertyKey];
   const candidate = explicit === undefined ? schema.getRequired(propertyKey).defaultValue : explicit;
   const validation = schema.validate(propertyKey, candidate);
@@ -160,7 +160,7 @@ function effectiveNumber(element: VisualElementEngineering, propertyKey: string)
 }
 
 function effectiveBoolean(element: VisualElementEngineering, propertyKey: string): boolean {
-  const schema = getBuiltinVisualObjectSchema(element.type);
+  const schema = getVisualSchemaForEngineering(element.type);
   const explicit = element.properties?.[propertyKey];
   const candidate = explicit === undefined ? schema.getRequired(propertyKey).defaultValue : explicit;
   const validation = schema.validate(propertyKey, candidate);

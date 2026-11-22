@@ -1,0 +1,69 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "name": "EliteSCADA KNX/IP Secure sidecar",
+      "version": "1.0.0",
+      "bom-ref": "pkg:generic/elitescada.knx.ip@1.0.0",
+      "properties": [
+        { "name": "elitescada:runtime", "value": "CPython 3.13.x on Windows x64 or Linux x64; provisioned by the host administrator" },
+        { "name": "elitescada:transport", "value": "KNX IP Secure TCP tunneling and Data Secure only" },
+        { "name": "elitescada:dependency-lock", "value": "requirements.lock; --require-hashes --only-binary=:all:" }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "library", "name": "xknx", "version": "3.20.0", "bom-ref": "pkg:pypi/xknx@3.20.0",
+      "purl": "pkg:pypi/xknx@3.20.0", "licenses": [{ "license": { "id": "MIT" } }],
+      "externalReferences": [{ "type": "website", "url": "https://github.com/XKNX/xknx/tree/3.20.0" }],
+      "hashes": [{ "alg": "SHA-256", "content": "064353a2d295d793a4198994d732fb4e5bba922d5e5a47d0f7e14ac3ac16dacc" }]
+    },
+    {
+      "type": "library", "name": "cryptography", "version": "50.0.2", "bom-ref": "pkg:pypi/cryptography@50.0.2",
+      "purl": "pkg:pypi/cryptography@50.0.2", "licenses": [{ "license": { "id": "BSD-3-Clause" } }],
+      "externalReferences": [{ "type": "website", "url": "https://github.com/pyca/cryptography/tree/50.0.2" }],
+      "hashes": [{ "alg": "SHA-256", "content": "630ebfea3bf689d075f82316324ff7433dc447fe6bc1bfc76524b74b4a9567d2" }],
+      "properties": [
+        { "name": "elitescada:wheel-sha256:manylinux2014-x86_64", "value": "630ebfea3bf689d075f82316324ff7433dc447fe6bc1bfc76524b74b4a9567d2" },
+        { "name": "elitescada:wheel-sha256:manylinux_2_28-x86_64", "value": "4061c0079120205fb760c58acab6443e217307dcf05e3702cf970e0689972856" },
+        { "name": "elitescada:wheel-sha256:manylinux_2_34-x86_64", "value": "9dab55f57c74c3cad24c323bacbbd04be4705ba6eb0d92e920b1fc4837ed5079" },
+        { "name": "elitescada:wheel-sha256:win_amd64", "value": "7afa5a6602a9f29af1f3a2965f831bae7c9d5d597b7cbb716d41ab3b7d89879c" }
+      ]
+    },
+    {
+      "type": "library", "name": "ifaddr", "version": "0.2.0", "bom-ref": "pkg:pypi/ifaddr@0.2.0",
+      "purl": "pkg:pypi/ifaddr@0.2.0", "licenses": [{ "license": { "id": "MIT" } }],
+      "externalReferences": [{ "type": "website", "url": "https://github.com/pydron/ifaddr/tree/0.2.0" }],
+      "hashes": [{ "alg": "SHA-256", "content": "085e0305cfe6f16ab12d72e2024030f5d52674afad6911bb1eee207177b8a748" }]
+    },
+    {
+      "type": "library", "name": "cffi", "version": "2.1.1", "bom-ref": "pkg:pypi/cffi@2.1.1",
+      "purl": "pkg:pypi/cffi@2.1.1", "licenses": [{ "license": { "id": "MIT-0" } }],
+      "externalReferences": [{ "type": "website", "url": "https://github.com/python-cffi/cffi/tree/v2.1.1" }],
+      "hashes": [{ "alg": "SHA-256", "content": "a931079504ecc49efed7744c476a5c343a92fabf66dec2db95edb1b2fdc770e2" }],
+      "properties": [
+        { "name": "elitescada:wheel-sha256:manylinux2014-x86_64", "value": "a931079504ecc49efed7744c476a5c343a92fabf66dec2db95edb1b2fdc770e2" },
+        { "name": "elitescada:wheel-sha256:win_amd64", "value": "1aa5645c30469b09530c4ebca77ebf8f17618293c58f8549cb1a543a50236e7d" }
+      ]
+    },
+    {
+      "type": "library", "name": "pycparser", "version": "3.11", "bom-ref": "pkg:pypi/pycparser@3.11",
+      "purl": "pkg:pypi/pycparser@3.11", "licenses": [{ "license": { "id": "BSD-3-Clause" } }],
+      "externalReferences": [{ "type": "website", "url": "https://github.com/eliben/pycparser/tree/release_v3.11" }],
+      "hashes": [{ "alg": "SHA-256", "content": "51d5a8ba2be0bbe440b99d2112604c95bbbc3c2748a64260186c541e1729cd80" }]
+    }
+  ],
+  "dependencies": [
+    { "ref": "pkg:generic/elitescada.knx.ip@1.0.0", "dependsOn": ["pkg:pypi/xknx@3.20.0"] },
+    { "ref": "pkg:pypi/xknx@3.20.0", "dependsOn": ["pkg:pypi/cryptography@50.0.2", "pkg:pypi/ifaddr@0.2.0"] },
+    { "ref": "pkg:pypi/cryptography@50.0.2", "dependsOn": ["pkg:pypi/cffi@2.1.1"] },
+    { "ref": "pkg:pypi/cffi@2.1.1", "dependsOn": ["pkg:pypi/pycparser@3.11"] },
+    { "ref": "pkg:pypi/ifaddr@0.2.0", "dependsOn": [] },
+    { "ref": "pkg:pypi/pycparser@3.11", "dependsOn": [] }
+  ]
+}

@@ -1,124 +1,102 @@
 # EliteSCADA documentation authority map
 
-This directory contains architecture decisions, historical assignments, laboratory evidence, product policy and live coordination notes. They do **not** have the same authority.
+The repository contains stable architecture, product policy, current coordination records, historical Wave evidence and worker assignments. They do **not** have the same operational authority.
 
-## Stable product authority
+## Product manual
+
+The long-form product manual lives under [`docs/manual/`](manual/README.md). Its coverage matrix separates stable product guidance from chapters that still depend on unfinished product surfaces; contextual Help remains the concise in-product companion rather than a duplicate manual.
+
+## 1. Live repository and CI
+
+**Highest authority for what is actually implemented now.**
+
+Before a decision, write, rerun or merge, inspect live refs, exact SHA/tree, latest issue/PR comments and exact-head Actions evidence. A static SHA in documentation is always a snapshot.
+
+## 2. Global collaboration protocol — mandatory for every project chat
+
+### `CHAT-COLLABORATION-PROTOCOL.md`
+
+This protocol applies to **all EliteSCADA chats/agents**, including Main Coordinator, Foundation Work, parallel DEV chats, CI/infrastructure, audit, documentation, UX and Codex.
+
+Mandatory global rules include:
+
+- every user-visible EliteSCADA interaction ends with current `America/Sao_Paulo` time in the format `Hora: HH:MM`;
+- every material project step is persisted in the appropriate repository file, issue or PR instead of existing only in chat history;
+- chats with no write capability must report persistence as `PENDING` and produce a copy-ready handoff rather than falsely claiming an update;
+- parallel chats must re-read shared coordination surfaces before writing and avoid overwriting newer concurrent state.
+
+Every new Work/DEV/coordinator mission must inherit these rules.
+
+## 3. Stable product/architecture authority
 
 ### Root `PROJECT GOAL.md`
 
-**Persistent product north and locked product intent.** Read it before planning new EliteSCADA work. It now includes the final Demo/hardware-bound licensing contract at product-goal level.
+Persistent product north and locked architectural intent. Use it for durable product principles, not as the sole source of mutable Wave execution state.
 
-Current repository code/`main` still wins for what is actually implemented. `PROJECT GOAL.md` wins for explicitly locked future product intent.
+If an old release-sequencing sentence inside `PROJECT GOAL.md` conflicts with the current live handoff/GitHub, use the live Wave handoff/GitHub for execution sequencing while preserving the stable architecture/product rules from `PROJECT GOAL.md`.
 
-## Operational source of truth
+### ADRs and locked contract documents
 
-### `CURRENT-COORDINATOR-HANDOFF.md`
+Versioned public-model, licensing, TAG/bit binding, Driver, lifecycle and related architecture decisions take precedence over old worker/handoff prose when they explicitly lock a contract.
 
-**Single operational handoff.** Use it for current branch/PR, last accepted exact-head CI, Driver convergence stage, current-vs-final Preview capacity distinction, blockers and immediate next action.
+## 4. Current operational authority
 
-Static SHAs are snapshots. Live GitHub refs and exact-head Actions evidence always win after a fresh read.
+When taking over coordination during Wave 15, read in this order:
 
-### Root `LAST CHANGE.md`
+1. root `PROJECT GOAL.md` — durable product/architecture north;
+2. `CHAT-COLLABORATION-PROTOCOL.md` — mandatory behavior for every project chat;
+3. root `LAST CHANGE.md` — short mutable resume point;
+4. `CURRENT-COORDINATOR-HANDOFF.md` — short current combinator/pointer;
+5. `WAVE15-MAIN-COORDINATOR-HANDOFF.md` — **live canonical operational handoff for Main Coordinator <-> Codex/Foundation Work while Wave 15 is active**;
+6. `NEXT-COORDINATOR-CHAT-HANDOFF.md` — permanent, state-independent protocol for replacing the Main Coordinator chat;
+7. `ROADMAP.md` — current sequencing/checkpoints;
+8. current coordinator/Foundation issues and every active mission issue/PR with their latest comments.
 
-Short operational resume point. It must clearly distinguish **MERGED**, **IMPLEMENTED IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
+GitHub live wins over every snapshot.
 
-### `COORDINATOR-TRANSFER-2026-08-31.md`
+Establish this read baseline once per mission or recovery. During continuation, follow `CHAT-COLLABORATION-PROTOCOL.md` section 9: inspect changed authoritative inputs, the active order/issue/PR, and relevant existing runs. Do not reread the full historical handoff chain on every `siga`.
 
-Concise replacement-coordinator checkpoint created after the Demo/licensing product decision. Use it together with `PROJECT GOAL.md`, `LAST CHANGE.md` and the canonical handoff when changing coordinator/chat.
+`WAVE15-MAIN-COORDINATOR-HANDOFF.md` is the detailed living handoff for Wave 15. It must not be classified as historical while Wave 15 is active.
 
-### `COORDINATOR-HANDOFF.md`
+`CURRENT-COORDINATOR-HANDOFF.md` is deliberately smaller: it combines/pivots the current exchange by pointing to the active order, the Wave 15 handoff and live ledgers without maintaining a second full copy of the state.
 
-**Legacy path / superseded.** Retained only for old links and redirected to `CURRENT-COORDINATOR-HANDOFF.md`.
+`NEXT-COORDINATOR-CHAT-HANDOFF.md` intentionally does **not** carry a current SHA/PR snapshot. A replacement coordinator must discover the live state from the sources above rather than inherit stale execution data from the transfer prompt.
 
-## Preview / licensing product policy
+## 5. Coordination surfaces
 
-### `PREVIEW-CAPACITY-POLICY.md`
+Current issue numbers and Wave-specific coordination surfaces can change over the lifetime of the project. Discover them from `LAST CHANGE.md`, `CURRENT-COORDINATOR-HANDOFF.md`, `WAVE15-MAIN-COORDINATOR-HANDOFF.md`, `ROADMAP.md` and live GitHub instead of treating an old issue list as permanent.
 
-Owns the distinction between the **current validated transitional code** and the **final desired Demo behavior**.
+The detailed current Main -> Codex order and expected Codex -> Main return contract belong in `WAVE15-MAIN-COORDINATOR-HANDOFF.md`. `CURRENT-COORDINATOR-HANDOFF.md` is the short combinator/pointer. Issues remain the durable ledger for binding decisions, scope, evidence, blockers, integration and freeze records.
 
-Current validated code at `6d340e8...` / CI #982 uses a static 200-TAG project ceiling and rejects creation/import of the 201st TAG.
+Read recent comments, not only issue bodies. Creation-time sequencing can be superseded by later binding comments.
 
-That is transitional behavior, not the final licensing contract.
+Maintain current pointers/orders in place. The files ending in `HANDOFF-ARCHIVE-2026-10-15.md` preserve earlier snapshots and instructions only; they cannot activate an old lane. Open documentation proposals likewise do not supersede the accepted current order. Review and disposition stale proposals instead of merging their old CURRENT sections later.
 
-### `LICENSING-AND-DEMO-MODE.md`
+## 6. CI authority
 
-Owns the detailed final Demo/licensing specification:
+Repository workflow capability and a particular chat connector's tool capability are different things.
 
-- no license => Demo;
-- Engineering may exceed 200 TAGs;
-- Demo Run gate at 200 TAGs;
-- 300 continuous minutes per explicit Demo Run session;
-- hardware-derived copyable request code;
-- asymmetrically signed machine-bound license;
-- 500 / 1000 / 1500 / 3000 / 5000 / Unlimited tiers;
-- valid licensed/evaluation entitlement removes Demo time limit;
-- installed invalid/wrong-hardware license blocks Run;
-- private signing key never enters GitHub/normal product distribution.
+Use rerun only after diagnosis. If a new dispatch is required and the current chat lacks the operation, delegate through an authorized Work/Codex/CLI/session when available. Do not create empty commits or artificial PR retargeting merely to wake CI.
 
-Status: **SPECIFIED / NOT IMPLEMENTED**. Tracking issue: **#183**.
+Use the current CI policy/profile documents and live workflow definitions for the active development stage. Historical trigger topology from an older Wave is not a reason to run every heavy suite on every PR.
 
-## Architectural authority
+## 7. Historical records
 
-### `DRIVER-CONVERGENCE-COORDINATION-V1.md`
+Old completed-Wave handoffs, Preview evidence, Driver convergence assignments, execution logs and prior coordinator transfers remain valuable historical evidence.
 
-Shared Driver architecture and convergence semantics: registry composition, readiness, protected material, rich binding, operation boundaries and timestamp policy.
+They are **not current execution authority** unless the active Wave handoff or a current binding issue explicitly imports one of their contracts/evidence.
 
-Do not use its observed worker SHAs or old per-Driver milestone prose as current operational status.
+Do not delete historical files simply because they are old. Version control preserves history; this authority map prevents history from pretending to be the present.
 
-### ADRs / locked architecture documents
+## 8. Conflict resolution
 
-Architecture semantics take precedence over old handoff prose when they explicitly lock a decision. They do not replace live implementation evidence.
+When sources disagree:
 
-## Laboratory evidence
+1. inspect the live branch/PR and exact Actions evidence;
+2. use `PROJECT GOAL.md` and locked ADR/contracts for durable product intent;
+3. use `CHAT-COLLABORATION-PROTOCOL.md` for project-wide chat/process behavior;
+4. use `LAST CHANGE.md` + `CURRENT-COORDINATOR-HANDOFF.md` + the active Wave handoff for operational interpretation;
+5. use current coordinator/Foundation issues and active issue latest comments for dependency/mission state;
+6. treat older completed-Wave/assignment/status prose as historical evidence.
 
-### `DRIVER-AND-INTEROP-LAB-STATUS.md`
-
-Owns laboratory evidence and terminology:
-
-- common peer lab health;
-- independent-software L2 product acceptance;
-- post-main integrated L3 definition;
-- distinction between peer health and actual Driver product path.
-
-It does not own coordinator implementation progress.
-
-Issue **#180** owns the integrated seven-Driver post-main L3 campaign.
-
-## Assignment / historical records
-
-### `PARALLEL-DRIVER-WORK-ASSIGNMENTS.md`
-
-Historical worker authorization, ownership and isolation boundaries from the parallel-development phase. Not current Driver status.
-
-### `CHAT-WORK-ASSIGNMENTS.md`
-
-Coordination/assignment record. Treat assignment text and embedded SHAs as snapshots, not as the current product state or merge authority.
-
-## Roadmap
-
-### `ROADMAP.md`
-
-Product sequencing and planned scope. It does not override a live convergence gate or exact-head CI result.
-
-## GitHub coordination surfaces
-
-- Issue **#174**: shared Driver convergence/mainline/L3 stage tracking.
-- Issue **#180**: integrated seven-Driver post-main L3 acceptance.
-- Issue **#183**: Demo/hardware licensing implementation track.
-- Draft PR **#175**: actual long-lived coordinator integration line until controlled merge.
-- Worker PRs: protocol implementation/evidence snapshots; descriptions may lag live branch heads.
-
-## Conflict resolution
-
-When two sources disagree:
-
-1. re-read the live branch/PR ref;
-2. inspect Actions for that exact SHA;
-3. use root `PROJECT GOAL.md` for locked product intent;
-4. use `CURRENT-COORDINATOR-HANDOFF.md` + `LAST CHANGE.md` for operational interpretation;
-5. use `PREVIEW-CAPACITY-POLICY.md` and `LICENSING-AND-DEMO-MODE.md` for current-vs-final Preview/licensing semantics;
-6. use ADRs / `DRIVER-CONVERGENCE-COORDINATION-V1.md` for architecture semantics;
-7. use `DRIVER-AND-INTEROP-LAB-STATUS.md` for lab evidence;
-8. treat older status, assignment and worker-PR prose as historical evidence.
-
-Never inherit green CI from another SHA, never turn peer-lab health into a Driver L2 acceptance claim, and never report a specified licensing feature as implemented without code + exact-head CI evidence.
+Never inherit green CI from another SHA, never call an unexecuted required test PASS, never infer security from role display names and never report a specified feature as implemented without code plus exact-head evidence.

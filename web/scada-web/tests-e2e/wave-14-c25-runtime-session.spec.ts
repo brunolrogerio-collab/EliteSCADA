@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type WebSocketRoute } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
 
@@ -11,6 +11,7 @@ type SessionProfile = {
 };
 
 type LogoutMode = 'success' | 'failure';
+type RuntimeSessionObservation = { clientInstanceId: string; connectionClass: string; url: string };
 
 const administrator: SessionProfile = {
   subjectId: 'local-admin-id',
@@ -50,47 +51,58 @@ const authConfiguration = {
 
 async function installSessionContract(
   page: Page,
-  initialProfile: SessionProfile,
-  initialLogoutMode: LogoutMode = 'success'
+  initialProfile: SessionProfile | null,
+  initialLogoutMode: LogoutMode = 'success',
+  authenticationEnabled = true,
+  onRuntimeSessionAdmission?: (admission: RuntimeSessionObservation) => void
 ) {
   let currentProfile: SessionProfile | null = initialProfile;
   let logoutMode = initialLogoutMode;
   let logoutRequests = 0;
   let loginRequests = 0;
   let runtimeCapabilityRequests = 0;
+  let runtimeSessionAdmissions = 0;
+  let runtimeSessionSequence = 0;
+  const runtimeSessions = new Map<string, { clientInstanceId: string; requestedClass: string; grantedClass: string }>();
 
-  await page.route('**/api/auth/config', route => route.fulfill({ json: authConfiguration }));
-  await page.route('**/api/auth/me', route => {
+  await page.context().route('**/api/auth/config', route => route.fulfill({ json: {
+    ...authConfiguration,
+    authenticationEnabled,
+    localLoginEnabled: authenticationEnabled && authConfiguration.localLoginEnabled
+  }}));
+  await page.context().route('**/api/auth/me', route => {
     if (!currentProfile) return route.fulfill({ status: 401, body: '' });
     return route.fulfill({ json: currentProfile });
   });
-  await page.route('**/api/auth/local-session', route => route.fulfill({
+  await page.context().route('**/api/auth/local-session', route => route.fulfill({
     json: {
       authenticated: currentProfile?.identityProvider === 'local',
       username: currentProfile?.identityProvider === 'local' ? currentProfile.username : null
     }
   }));
-  await page.route('**/api/engineering/persistence/status', route => route.fulfill({
+  await page.context().route('**/api/engineering/persistence/status', route => route.fulfill({
     json: { enabled: true, hasProjects: true }
   }));
-  await page.route('**/api/auth/effective-capabilities', route => {
+  await page.context().route('**/api/auth/effective-capabilities', route => {
     const runtimeOnly = currentProfile?.username === runtimeOperator.username;
     if (runtimeOnly) runtimeCapabilityRequests++;
     return route.fulfill({
       json: runtimeOnly
         ? {
-            authenticationEnabled: true,
+            authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+            authenticationEnabled,
             runtime: ['View'],
             workspace: []
           }
         : {
-            authenticationEnabled: true,
+            authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+            authenticationEnabled,
             runtime: ['View', 'TrendUse', 'SystemAdmin'],
-            workspace: ['EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
+            workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
           }
     });
   });
-  await page.route('**/api/auth/logout', route => {
+  await page.context().route('**/api/auth/logout', route => {
     logoutRequests++;
     if (logoutMode === 'failure') {
       return route.fulfill({ status: 503, json: { error: 'session invalidation unavailable' } });
@@ -99,15 +111,62 @@ async function installSessionContract(
     currentProfile = null;
     return route.fulfill({ status: 204, body: '' });
   });
-  await page.route('**/api/auth/login', async route => {
+  await page.context().route('**/api/auth/login', async route => {
     loginRequests++;
     const request = route.request().postDataJSON() as { username?: string; password?: string };
-    if (request.username !== runtimeOperator.username || request.password !== 'RuntimePass8') {
+    const signedInProfile = request.username === runtimeOperator.username && request.password === 'RuntimePass8'
+      ? runtimeOperator
+      : request.username === administrator.username && request.password === 'AdminPass8'
+        ? administrator
+        : null;
+    if (!signedInProfile) {
       return route.fulfill({ status: 401, body: '' });
     }
 
-    currentProfile = runtimeOperator;
-    return route.fulfill({ json: runtimeOperator });
+    currentProfile = signedInProfile;
+    return route.fulfill({ json: signedInProfile });
+  });
+  await page.context().route('**/api/runtime/sessions', route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    runtimeSessionAdmissions++;
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    const sessionId = `00000000-0000-0000-0000-${String(++runtimeSessionSequence).padStart(12, '0')}`;
+    runtimeSessions.set(sessionId, {
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass
+    });
+    onRuntimeSessionAdmission?.({
+      clientInstanceId: request.clientInstanceId,
+      connectionClass: request.connectionClass,
+      url: route.request().frame().page().url()
+    });
+    return route.fulfill({ status: 201, json: {
+      sessionId,
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.context().route('**/api/runtime/sessions/*/heartbeat', route => {
+    const sessionId = new URL(route.request().url()).pathname.split('/').at(-2) ?? '';
+    const lease = runtimeSessions.get(sessionId);
+    if (!lease) return route.fulfill({ status: 404, json: { error: 'session-not-found' } });
+    return route.fulfill({ json: {
+      sessionId,
+      clientInstanceId: lease.clientInstanceId,
+      requestedClass: lease.requestedClass,
+      grantedClass: lease.grantedClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.context().route('**/api/runtime/sessions/*/terminate', route => {
+    const sessionId = new URL(route.request().url()).pathname.split('/').at(-2) ?? '';
+    runtimeSessions.delete(sessionId);
+    return route.fulfill({ status: 204, body: '' });
   });
 
   return {
@@ -122,13 +181,24 @@ async function installSessionContract(
     },
     get runtimeCapabilityRequests() {
       return runtimeCapabilityRequests;
+    },
+    get runtimeSessionAdmissions() {
+      return runtimeSessionAdmissions;
     }
   };
 }
 
-async function installEngineeringRuntimeProjection(page: Page) {
-  await page.route('**/api/runtime/application', route => route.fulfill({
-    json: {
+async function installEngineeringRuntimeProjection(
+  page: Page,
+  branding?: unknown,
+  visualAssets: unknown[] = [],
+  runtimePresentation?: unknown,
+  onRequest?: (headers: Record<string, string>) => void,
+  screenElements: unknown[] = []
+) {
+  await page.context().route('**/api/runtime/application', route => {
+    onRequest?.(route.request().headers());
+    return route.fulfill({ json: {
       mode: 'engineering',
       projectKey: 'c25-session-runtime',
       projectName: 'C25 Session Runtime',
@@ -142,17 +212,304 @@ async function installEngineeringRuntimeProjection(page: Page) {
           id: 'screen-home-id',
           key: 'home',
           name: 'Home',
-          elements: []
+          elements: screenElements
         }],
         popups: [],
         dynamos: [],
         scripts: [],
         scriptVisualEventReferences: [],
-        visualAssets: []
+        visualAssets,
+        branding,
+        runtimePresentation
       }
-    }
-  }));
+    }});
+  });
 }
+
+test('each Runtime window auto-admits with a distinct logical client identity', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+  const clientIds: string[] = [];
+  await page.context().route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    clientIds.push(request.clientInstanceId);
+    return route.fulfill({ status: 201, json: {
+      sessionId: `00000000-0000-0000-0000-${String(clientIds.length).padStart(12, '0')}`,
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  const windowsButton = page.getByRole('button', { name: 'Janelas', exact: true });
+  const tools = page.getByTestId('runtime-window-tools');
+  await expect(windowsButton).toHaveAttribute('aria-expanded', 'false');
+  await expect(tools).toHaveCount(0);
+  const header = page.locator('.runtime-operator-bar');
+  const closedHeight = await header.evaluate(element => element.getBoundingClientRect().height);
+  await windowsButton.click();
+  await expect(tools).toBeVisible();
+  await expect(tools.getByTestId('runtime-station-launcher')).toHaveCount(0);
+  expect(await header.evaluate(element => element.getBoundingClientRect().height)).toBe(closedHeight);
+
+  const popupPromise = page.context().waitForEvent('page');
+  await tools.getByRole('link', { name: 'Abrir esta tela em outra janela' }).click();
+  const secondWindow = await popupPromise;
+  await expect(secondWindow).toHaveURL(/\?screen=home$/);
+  await expect(secondWindow.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => clientIds.length).toBe(2);
+  expect(clientIds[0]).not.toBe(clientIds[1]);
+
+  const duplicatePromise = page.context().waitForEvent('page');
+  await page.evaluate(() => window.open('/?screen=home', 'runtime-duplicated-tab'));
+  const duplicatedTab = await duplicatePromise;
+  await expect(duplicatedTab.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => clientIds.length).toBe(3);
+  expect(new Set(clientIds).size).toBe(3);
+});
+
+test('Runtime without Authority authentication preserves its existing public projection without a session lease', async ({ page }) => {
+  const contract = await installSessionContract(page, null, 'success', false);
+  await installEngineeringRuntimeProjection(page);
+
+  await page.goto('/');
+
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  expect(contract.runtimeSessionAdmissions).toBe(0);
+  await expect(page.getByTestId('runtime-session-required')).toHaveCount(0);
+});
+
+test('a fixed station window requests View Only before showing its active Runtime projection', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+  const admissions: Array<{ clientInstanceId: string; connectionClass: string }> = [];
+  await page.context().route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    admissions.push(request);
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-000000000781',
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+
+  await page.goto('/?screen=home&station=eee-control-room&slot=1&stationMode=fixed');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => admissions.length).toBe(1);
+  expect(admissions[0].connectionClass).toBe('viewOnly');
+});
+
+test('starting a four-window station opens isolated Runtime sessions with the configured modes', async ({ page }) => {
+  test.setTimeout(150_000);
+  const admissions: RuntimeSessionObservation[] = [];
+  await installSessionContract(page, administrator, 'success', true, admission => admissions.push(admission));
+  await installEngineeringRuntimeProjection(page, undefined, [], {
+    historicalPlaybackEnabled: false,
+    version: 1,
+    stationProfiles: [{
+      id: 'eee-control-room',
+      name: 'Sala de controle',
+      windows: [
+        { screenKey: 'home', mode: 'navigation' },
+        { screenKey: 'home', mode: 'fixed' },
+        { screenKey: 'home', mode: 'fixed' },
+        { screenKey: 'home', mode: 'fixed' }
+      ]
+    }]
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  const stationWindows: Page[] = [];
+  const allWindowsOpened = new Promise<void>(resolve => {
+    const onPage = (openedPage: Page) => {
+      stationWindows.push(openedPage);
+      if (stationWindows.length === 4) {
+        page.context().off('page', onPage);
+        resolve();
+      }
+    };
+    page.context().on('page', onPage);
+  });
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
+  await page.getByRole('button', { name: 'Iniciar estação' }).click();
+  await allWindowsOpened;
+
+  await Promise.all(stationWindows.map(window =>
+    expect(window.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 45_000 })
+  ));
+  expect(stationWindows).toHaveLength(4);
+  const observedSlots = new Set<number>();
+  for (const stationWindow of stationWindows) {
+    const query = new URL(stationWindow.url()).searchParams;
+    expect(query.get('screen')).toBe('home');
+    expect(query.get('station')).toBe('eee-control-room');
+    expect(query.get('stationRun')).toBeTruthy();
+    const slot = Number(query.get('slot'));
+    expect(Number.isInteger(slot) && slot >= 0 && slot < 4).toBe(true);
+    observedSlots.add(slot);
+    expect(query.get('stationMode')).toBe(slot === 0 ? 'navigation' : 'fixed');
+    expect(await stationWindow.evaluate(() => window.opener === null)).toBe(true);
+  }
+  expect(observedSlots).toEqual(new Set([0, 1, 2, 3]));
+
+  await expect.poll(() => admissions.length).toBe(5);
+  expect(new Set(admissions.map(admission => admission.clientInstanceId)).size).toBe(5);
+  const parentAdmission = admissions.find(admission => new URL(admission.url).searchParams.get('slot') === null);
+  expect(parentAdmission?.connectionClass).toBe('interactive');
+  for (let index = 0; index < stationWindows.length; index++) {
+    const admission = admissions.find(candidate =>
+      new URL(candidate.url).searchParams.get('slot') === String(index)
+    );
+    expect(admission?.connectionClass).toBe(index === 0 ? 'interactive' : 'viewOnly');
+    await expect(page.getByTestId(`runtime-station-window-${index + 1}-status`)).toContainText(
+      index === 0 ? 'sessão Interativa confirmada' : 'sessão Somente visualização confirmada'
+    );
+  }
+
+  const originalStationRun = new URL(stationWindows[3].url()).searchParams.get('stationRun');
+  await stationWindows[3].close();
+  await expect(page.getByTestId('runtime-station-window-4-status')).toContainText('janela fechada');
+  const reopenedPagePromise = page.context().waitForEvent('page');
+  await page.getByRole('link', { name: 'Reabrir tela 4' }).click();
+  const reopenedWindow = await reopenedPagePromise;
+  await expect(reopenedWindow.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 45_000 });
+  const reopenedQuery = new URL(reopenedWindow.url()).searchParams;
+  expect(reopenedQuery.get('station')).toBe('eee-control-room');
+  expect(reopenedQuery.get('slot')).toBe('3');
+  expect(reopenedQuery.get('stationRun')).toBe(originalStationRun);
+  await expect.poll(() => admissions.length).toBe(6);
+  await expect(page.getByTestId('runtime-station-window-4-status')).toContainText(
+    'sessão Somente visualização confirmada'
+  );
+  const fourthWindowAdmissions = admissions.filter(admission =>
+    new URL(admission.url).searchParams.get('slot') === '3'
+  );
+  expect(fourthWindowAdmissions).toHaveLength(2);
+  expect(fourthWindowAdmissions[0].clientInstanceId).not.toBe(fourthWindowAdmissions[1].clientInstanceId);
+});
+
+test('station launcher reports when the server rejects a window for exhausted licensed seats', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page, undefined, [], {
+    historicalPlaybackEnabled: false,
+    version: 1,
+    stationProfiles: [{
+      id: 'eee-control-room',
+      name: 'Sala de controle',
+      windows: [
+        { screenKey: 'home', mode: 'navigation' },
+        { screenKey: 'home', mode: 'fixed' }
+      ]
+    }]
+  });
+
+  let successfulAdmissions = 0;
+  await page.context().route('**/api/runtime/sessions', route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const sessionRequest = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    const slot = new URL(route.request().frame().page().url()).searchParams.get('slot');
+    if (slot === '1') {
+      return route.fulfill({ status: 409, json: {
+        error: 'Runtime session capacity is unavailable.',
+        capacityReasonCode: 'ViewOnlyQuotaExhausted'
+      }});
+    }
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-' + String(++successfulAdmissions).padStart(12, '0'),
+      clientInstanceId: sessionRequest.clientInstanceId,
+      requestedClass: sessionRequest.connectionClass,
+      grantedClass: sessionRequest.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  const stationWindows: Page[] = [];
+  const allWindowsOpened = new Promise<void>(resolve => {
+    const onPage = (openedPage: Page) => {
+      stationWindows.push(openedPage);
+      if (stationWindows.length === 2) {
+        page.context().off('page', onPage);
+        resolve();
+      }
+    };
+    page.context().on('page', onPage);
+  });
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
+  await page.getByRole('button', { name: 'Iniciar estação' }).click();
+  await allWindowsOpened;
+
+  const deniedWindow = stationWindows.find(window => new URL(window.url()).searchParams.get('slot') === '1');
+  expect(deniedWindow).toBeTruthy();
+  await expect(deniedWindow!.getByTestId('runtime-session-required')).toBeVisible();
+  await expect(page.getByTestId('runtime-station-window-1-status')).toContainText('sessão Interativa confirmada');
+  await expect(page.getByTestId('runtime-station-window-2-status')).toContainText('sem vaga de visualização disponível na licença');
+});
+
+test('blocked station popups provide a manual link for every configured screen', async ({ page }) => {
+  await page.clock.install();
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page, undefined, [], {
+    historicalPlaybackEnabled: false,
+    version: 1,
+    stationProfiles: [{
+      id: 'eee-control-room',
+      name: 'Sala de controle',
+      windows: [
+        { screenKey: 'home', mode: 'navigation' },
+        { screenKey: 'home', mode: 'fixed' }
+      ]
+    }]
+  });
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'open', { configurable: true, value: () => null });
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
+  await page.getByRole('button', { name: 'Iniciar estação' }).click();
+
+  const status = page.getByRole('status').filter({ hasText: 'O navegador bloqueou 2 de 2 janelas' });
+  await expect(status).toBeVisible();
+  const first = status.getByRole('link', { name: 'Abrir tela 1' });
+  const second = status.getByRole('link', { name: 'Abrir tela 2' });
+  const firstHref = new URL((await first.getAttribute('href'))!, 'http://localhost');
+  const secondHref = new URL((await second.getAttribute('href'))!, 'http://localhost');
+  expect(firstHref.pathname).toBe('/');
+  expect(firstHref.searchParams.get('screen')).toBe('home');
+  expect(firstHref.searchParams.get('station')).toBe('eee-control-room');
+  expect(firstHref.searchParams.get('slot')).toBe('0');
+  expect(firstHref.searchParams.get('stationMode')).toBe('navigation');
+  expect(firstHref.searchParams.get('stationRun')).toBeTruthy();
+  expect(secondHref.pathname).toBe('/');
+  expect(secondHref.searchParams.get('screen')).toBe('home');
+  expect(secondHref.searchParams.get('station')).toBe('eee-control-room');
+  expect(secondHref.searchParams.get('slot')).toBe('1');
+  expect(secondHref.searchParams.get('stationMode')).toBe('fixed');
+  expect(secondHref.searchParams.get('stationRun')).toBe(firstHref.searchParams.get('stationRun'));
+  await expect(first).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(second).toHaveAttribute('target', '_blank');
+  await expect(page.getByTestId('runtime-station-window-1-status')).toContainText('janela bloqueada pelo navegador');
+  await page.clock.fastForward(20_000);
+  await expect(page.getByTestId('runtime-station-window-1-status')).toContainText('janela bloqueada pelo navegador');
+
+  const fallbackWindowPromise = page.context().waitForEvent('page');
+  await first.click();
+  const fallbackWindow = await fallbackWindowPromise;
+  await expect(fallbackWindow).toHaveURL(/screen=home.*station=eee-control-room.*slot=0.*stationMode=navigation/);
+  await expect(fallbackWindow.getByTestId('runtime-engineering-application')).toBeVisible();
+});
 
 test('external identity does not expose local switch-user even when local login is enabled', async ({ page }) => {
   await installSessionContract(page, externalDeveloper);
@@ -163,10 +520,576 @@ test('external identity does not expose local switch-user even when local login 
 
   await expect(page.getByTestId('session-switch-user')).toHaveCount(0);
   await expect(page.getByTestId('session-logout')).toBeVisible();
+  await expect(page.getByTestId('session-close-interface')).toBeVisible();
+});
+
+test('account menu closes with Escape and returns focus to its trigger', async ({ page }) => {
+  await installSessionContract(page, administrator);
+
+  await page.goto('/');
+  const trigger = page.getByTestId('session-menu-toggle');
+  await trigger.focus();
+  await trigger.press('Enter');
+  await expect(page.getByTestId('session-menu-popup')).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('session-menu-popup')).toBeHidden();
+  await expect(trigger).toBeFocused();
+});
+
+test('account menu keeps its localized accessible name and actions in every supported locale', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  const expectations = [
+    { locale: 'pt-BR', account: 'Conta', switchUser: 'Trocar usuário', logout: 'Sair' },
+    { locale: 'en', account: 'Account', switchUser: 'Switch user', logout: 'Sign out' },
+    { locale: 'es', account: 'Cuenta', switchUser: 'Cambiar usuario', logout: 'Salir' }
+  ];
+
+  for (const expected of expectations) {
+    await page.addInitScript(locale => window.localStorage.setItem('elitescada.engineering.locale', locale), expected.locale);
+    await page.goto('/');
+    const trigger = page.getByTestId('session-menu-toggle');
+    await expect(trigger).toHaveAttribute('aria-label', `${expected.account}: Administrador Local`);
+    await trigger.click();
+    await expect(page.getByTestId('session-menu-popup')).toHaveAttribute('aria-label', expected.account);
+    await expect(page.getByTestId('session-switch-user')).toHaveText(expected.switchUser);
+    await expect(page.getByTestId('session-logout')).toHaveText(expected.logout);
+  }
+});
+
+test('Runtime toolbar keeps icon controls localized, labeled and keyboard discoverable', async ({ page }, testInfo) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+
+  const expectations = [
+    { locale: 'pt-BR', overview: 'Visão geral', history: 'Histórico', alarms: 'Alarmes', fullscreen: 'Tela cheia' },
+    { locale: 'en', overview: 'Overview', history: 'History', alarms: 'Alarms', fullscreen: 'Fullscreen' },
+    { locale: 'es', overview: 'Vista general', history: 'Histórico', alarms: 'Alarmas', fullscreen: 'Pantalla completa' }
+  ];
+
+  for (const expected of expectations) {
+    await page.addInitScript(locale => window.localStorage.setItem('elitescada.engineering.locale', locale), expected.locale);
+    await page.goto('/');
+
+    const runtime = page.getByTestId('runtime-engineering-application');
+    const toolbar = runtime.getByRole('toolbar', { name: 'Runtime' });
+    await expect(toolbar).toBeVisible();
+
+    for (const label of [expected.overview, expected.history, expected.alarms, expected.fullscreen]) {
+      const control = toolbar.getByRole('button', { name: label });
+      await expect(control).toBeVisible();
+      await expect(control).toHaveAttribute('title', label);
+      await expect(control).toHaveAttribute('data-tooltip', label);
+    }
+
+    const overview = toolbar.getByRole('button', { name: expected.overview });
+    await expect(overview).toHaveAttribute('aria-pressed', 'true');
+    await overview.focus();
+    await expect(overview).toBeFocused();
+
+    if (expected.locale === 'pt-BR') {
+      await testInfo.attach('runtime-shell-phase-b-toolbar-pt-BR', {
+        body: await runtime.locator('.runtime-operator-bar').screenshot(),
+        contentType: 'image/png'
+      });
+    }
+  }
+});
+
+test('Runtime session panel is compact, localized and reflects automatic session admission', async ({ page }, testInfo) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+
+  const expectations = [
+    { locale: 'pt-BR', viewOnly: 'Visualização', interactive: 'Interativa' },
+    { locale: 'en', viewOnly: 'View only', interactive: 'Interactive' },
+    { locale: 'es', viewOnly: 'Visualización', interactive: 'Interactiva' }
+  ];
+
+  for (const expected of expectations) {
+    await page.addInitScript(locale => window.localStorage.setItem('elitescada.engineering.locale', locale), expected.locale);
+    await page.goto('/');
+    await page.getByTestId('session-menu-toggle').click();
+
+    const popup = page.getByTestId('session-menu-popup');
+    await expect(page.getByTestId('runtime-session-request-viewOnly')).toHaveText(expected.viewOnly);
+    await expect(page.getByTestId('runtime-session-request-interactive')).toHaveText(expected.interactive);
+
+    await expect(page.getByTestId('runtime-session-status').locator('dd')).toHaveText([
+      expected.interactive,
+      expected.interactive
+    ]);
+
+    const popupBox = await popup.boundingBox();
+    const viewOnlyBox = await page.getByTestId('runtime-session-request-viewOnly').boundingBox();
+    const interactiveBox = await page.getByTestId('runtime-session-request-interactive').boundingBox();
+    expect(popupBox).not.toBeNull();
+    expect(viewOnlyBox).not.toBeNull();
+    expect(interactiveBox).not.toBeNull();
+    expect(popupBox!.width).toBeLessThanOrEqual(280);
+    expect(Math.abs(viewOnlyBox!.y - interactiveBox!.y)).toBeLessThanOrEqual(1);
+
+    if (expected.locale === 'pt-BR') {
+      await testInfo.attach('runtime-shell-phase-a-compact-pt-BR', {
+        body: await popup.screenshot(),
+        contentType: 'image/png'
+      });
+    }
+  }
+});
+
+test('Runtime session keeps an Interactive grant visible without promoting technical reason codes', async ({ page }, testInfo) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+
+  await page.route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-000000000789',
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: 'interactive',
+      admissionReasonCode: 'InteractiveGranted',
+      capacityReasonCode: 'InteractiveSeatReserved'
+    }});
+  });
+  await page.route('**/api/runtime/sessions/*/terminate', route => route.fulfill({ status: 204, body: '' }));
+
+  await page.goto('/');
+  await page.getByTestId('session-menu-toggle').click();
+  await page.getByTestId('runtime-session-request-interactive').click();
+
+  const status = page.getByTestId('runtime-session-status');
+  await expect(status.locator('dd')).toHaveText(['Interativa', 'Interativa']);
+  await expect(page.getByTestId('runtime-session-notice')).toHaveCount(0);
+
+  const diagnostics = page.getByTestId('runtime-session-diagnostics');
+  await expect(diagnostics).not.toHaveAttribute('open', '');
+  await expect(diagnostics.getByText('InteractiveGranted')).toBeHidden();
+
+  await testInfo.attach('runtime-shell-phase-a-interactive', {
+    body: await page.getByTestId('session-menu-popup').screenshot(),
+    contentType: 'image/png'
+  });
+});
+
+test('Runtime session keeps Interactive to View Only fallback explicit while diagnostics stay secondary', async ({ page }, testInfo) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+
+  await page.route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-000000000790',
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: 'viewOnly',
+      admissionReasonCode: 'InteractiveDownscoped',
+      capacityReasonCode: 'InteractivePoolsExhausted'
+    }});
+  });
+  await page.route('**/api/runtime/sessions/*/terminate', route => route.fulfill({ status: 204, body: '' }));
+
+  await page.goto('/');
+  await page.getByTestId('session-menu-toggle').click();
+  await page.getByTestId('runtime-session-request-interactive').click();
+
+  await expect(page.getByTestId('runtime-session-status').locator('dd')).toHaveText(['Interativa', 'Visualização']);
+  await expect(page.getByTestId('runtime-session-notice')).toContainText('As vagas interativas estão indisponíveis');
+
+  const diagnostics = page.getByTestId('runtime-session-diagnostics');
+  await expect(diagnostics).not.toHaveAttribute('open', '');
+  await expect(diagnostics.getByText('InteractivePoolsExhausted')).toBeHidden();
+
+  await testInfo.attach('runtime-shell-phase-a-interactive-fallback', {
+    body: await page.getByTestId('session-menu-popup').screenshot(),
+    contentType: 'image/png'
+  });
+});
+
+test('Runtime session class shows requested/granted truth and explicitly ends its user-owned lease', async ({ page }, testInfo) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+  let terminated = false;
+  await page.route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-000000000123', clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass, grantedClass: 'viewOnly', admissionReasonCode: 'ExplicitViewOnly', capacityReasonCode: 'SeatReserved'
+    }});
+  });
+  await page.route('**/api/runtime/sessions/00000000-0000-0000-0000-000000000123/terminate', route => {
+    terminated = true;
+    return route.fulfill({ status: 204, body: '' });
+  });
+
+  await page.goto('/');
+  await page.getByTestId('session-menu-toggle').click();
+  await page.getByTestId('runtime-session-request-viewOnly').click();
+  const status = page.getByTestId('runtime-session-status');
+  await expect(status.locator('dd')).toHaveText(['Visualização', 'Visualização']);
+
+  const diagnostics = page.getByTestId('runtime-session-diagnostics');
+  await expect(diagnostics).not.toHaveAttribute('open', '');
+  await expect(diagnostics.getByText('ExplicitViewOnly')).toBeHidden();
+
+  await testInfo.attach('runtime-shell-phase-a-view-only', {
+    body: await page.getByTestId('session-menu-popup').screenshot(),
+    contentType: 'image/png'
+  });
+
+  await diagnostics.locator('summary').click();
+  await expect(diagnostics.getByText('ExplicitViewOnly')).toBeVisible();
+
+  await page.getByTestId('runtime-session-end').click();
+  await expect.poll(() => terminated).toBe(true);
+  await expect(page.getByTestId('runtime-session-status')).toHaveCount(0);
+  await expect(page.getByTestId('runtime-session-required')).toBeVisible();
+});
+
+test('Runtime renews each window lease and binds its application projection to that lease', async ({ page }) => {
+  await page.clock.install();
+  await installSessionContract(page, administrator);
+  const sessionId = '00000000-0000-0000-0000-000000000782';
+  let clientInstanceId = '';
+  let heartbeatRequests = 0;
+  const boundProjectionSessions: string[] = [];
+  let tagReadSessionId: string | null = null;
+  let runtimeSocketUrl: string | null = null;
+  await installEngineeringRuntimeProjection(page, undefined, [], undefined, headers => {
+    const value = headers['x-elitescada-runtime-session'];
+    if (value) boundProjectionSessions.push(value);
+  });
+  await page.route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    clientInstanceId = request.clientInstanceId;
+    return route.fulfill({ status: 201, json: {
+      sessionId,
+      clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.route('**/api/runtime/sessions/*/heartbeat', route => {
+    heartbeatRequests++;
+    const request = route.request().postDataJSON() as { clientInstanceId: string };
+    expect(request.clientInstanceId).toBe(clientInstanceId);
+    return route.fulfill({ json: {
+      sessionId,
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: 'interactive',
+      grantedClass: 'interactive',
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.route('**/api/tags', route => {
+    tagReadSessionId = route.request().headers()['x-elitescada-runtime-session'] ?? null;
+    return route.fulfill({ json: [] });
+  });
+  await page.routeWebSocket('**/ws/tags*', socket => { runtimeSocketUrl = socket.url(); });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => boundProjectionSessions).toContain(sessionId);
+  await page.evaluate(async () => {
+    const moduleUrl = new URL('/src/runtime/liveTagTransport.ts', window.location.origin).toString();
+    const transport = await import(/* @vite-ignore */ moduleUrl);
+    await transport.loadReadableRuntimeTags();
+    transport.openRuntimeTagSocket();
+  });
+  await expect.poll(() => tagReadSessionId).toBe(sessionId);
+  await expect.poll(() => runtimeSocketUrl).not.toBeNull();
+  expect(new URL(runtimeSocketUrl!).searchParams.get('runtimeSessionId')).toBe(sessionId);
+  expect(new URL(runtimeSocketUrl!).searchParams.get('clientInstanceId')).toBe(clientInstanceId);
+  await page.clock.fastForward(20_000);
+  await expect.poll(() => heartbeatRequests).toBe(1);
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+});
+
+const pressureTag = { id: '00000000-0000-0000-0000-000000000783', name: 'Pressure', path: 'Test.Pressure' };
+const pressureDisplay = {
+  id: 'pressure-display',
+  key: 'pressure-display',
+  type: 'core.text',
+  properties: { x: 20, y: 20, width: 160, height: 40 },
+  bindings: [{ key: 'text', kind: 'Tag', target: pressureTag.path, tagReference: { tagId: pressureTag.id } }]
+};
+
+test('a Runtime screen resumes TAG events on the same session after a WebSocket drop', async ({ page }) => {
+  const session = await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page, undefined, [], undefined, undefined, [pressureDisplay]);
+  // The screen can only receive either test value from its own WebSocket.
+  await page.route('**/api/tags', route => route.fulfill({ json: [] }));
+  const connections: WebSocketRoute[] = [];
+  await page.routeWebSocket('**/ws/tags*', socket => { connections.push(socket); });
+
+  let navigations = 0;
+  page.on('framenavigated', frame => { if (frame === page.mainFrame()) navigations++; });
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => connections.length).toBe(1);
+  const field = page.locator('[data-object-id="pressure-display"][data-dynamic-reference="Test.Pressure"]');
+  const sample = (value: number) => JSON.stringify({
+    type: 'tagValueChanged', tag: pressureTag, value, quality: 'Good', timestamp: new Date().toISOString()
+  });
+  connections[0].send(sample(41));
+  await expect(field).toHaveText('41');
+
+  await connections[0].close({ code: 1011 });
+  await expect.poll(() => connections.length).toBe(2);
+  const originalLease = new URL(connections[0].url()).searchParams;
+  const replacementLease = new URL(connections[1].url()).searchParams;
+  expect(originalLease.get('runtimeSessionId')).toBeTruthy();
+  expect(originalLease.get('clientInstanceId')).toBeTruthy();
+  expect(replacementLease.toString()).toBe(originalLease.toString());
+  connections[1].send(sample(42));
+  await expect(field).toHaveText('42');
+  expect(session.runtimeSessionAdmissions).toBe(1);
+  expect(session.loginRequests).toBe(0);
+  expect(navigations).toBe(1);
+});
+
+test('Runtime closes the projection after lease renewal fails and can reacquire a seat', async ({ page }) => {
+  await page.clock.install();
+  await installSessionContract(page, administrator);
+  const projectionSessionIds: string[] = [];
+  await installEngineeringRuntimeProjection(page, undefined, [], undefined, headers => {
+    const sessionId = headers['x-elitescada-runtime-session'];
+    if (sessionId) projectionSessionIds.push(sessionId);
+  }, [pressureDisplay]);
+  const readLeases: (string | undefined)[] = [];
+  await page.route('**/api/tags', route => {
+    readLeases.push(route.request().headers()['x-elitescada-runtime-session']);
+    return route.fulfill({ json: [] });
+  });
+  const sockets: WebSocketRoute[] = [];
+  await page.routeWebSocket('**/ws/tags*', socket => { sockets.push(socket); });
+
+  let releaseRecovery: () => void = () => undefined;
+  const recovery = new Promise<void>(resolve => { releaseRecovery = resolve; });
+  let admissions = 0;
+  let heartbeatRequests = 0;
+  const admissionClientInstanceIds: string[] = [];
+  const sessionIds: string[] = [];
+  await page.route('**/api/runtime/sessions', async route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    admissions++;
+    const sessionId = `00000000-0000-0000-0000-${String(780 + admissions).padStart(12, '0')}`;
+    admissionClientInstanceIds.push(request.clientInstanceId);
+    sessionIds.push(sessionId);
+    if (admissions > 1) await recovery;
+    return route.fulfill({ status: 201, json: {
+      sessionId,
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.route('**/api/runtime/sessions/*/heartbeat', route => {
+    heartbeatRequests++;
+    return route.fulfill({ status: 410, json: { error: 'Runtime session lease expired.' } });
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => sockets.length).toBe(1);
+  await page.clock.fastForward(20_000);
+  try {
+    await expect.poll(() => heartbeatRequests).toBe(1);
+    await expect.poll(() => admissions).toBe(2);
+    await sockets[0].close({ code: 1011 });
+    await expect(page.locator('[data-object-id="pressure-display"]')).toHaveAttribute('title', /Disconnected/);
+    await page.clock.runFor(6000);
+    expect(sockets).toHaveLength(1);
+    expect(readLeases).toContain(sessionIds[0]);
+    expect(readLeases).not.toContain(undefined);
+  } finally {
+    releaseRecovery();
+  }
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => projectionSessionIds).toContain(sessionIds[1]);
+  await expect.poll(() => sockets.length).toBe(2);
+  expect(new URL(sockets[1].url()).searchParams.get('runtimeSessionId')).toBe(sessionIds[1]);
+  await expect(page.getByTestId('runtime-session-required')).toHaveCount(0);
+  expect(sessionIds[0]).not.toBe(sessionIds[1]);
+  expect(admissionClientInstanceIds[1]).toBe(admissionClientInstanceIds[0]);
+  expect(projectionSessionIds).toContain(sessionIds[0]);
+});
+
+test('Runtime stays closed and stops reacquiring when failover admission is denied by seat capacity', async ({ page }) => {
+  await page.clock.install();
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+  let admissions = 0;
+  let heartbeatRequests = 0;
+  const clientInstanceIds: string[] = [];
+  await page.route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    admissions++;
+    clientInstanceIds.push(request.clientInstanceId);
+    if (admissions > 1) {
+      return route.fulfill({ status: 409, json: {
+        error: 'Runtime session capacity is unavailable.',
+        capacityReasonCode: 'EligiblePoolsExhausted'
+      }});
+    }
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-000000000781',
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.route('**/api/runtime/sessions/*/heartbeat', route => {
+    heartbeatRequests++;
+    return route.fulfill({ status: 410, json: { error: 'Runtime session lease expired.' } });
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await page.clock.fastForward(20_000);
+  await expect.poll(() => heartbeatRequests).toBe(1);
+  await expect.poll(() => admissions).toBe(2);
+  await expect(page.getByTestId('runtime-session-required')).toBeVisible();
+  await expect(page.getByTestId('runtime-engineering-application')).toHaveCount(0);
+  await page.clock.fastForward(60_000);
+  expect(admissions).toBe(2);
+  expect(heartbeatRequests).toBe(1);
+  expect(clientInstanceIds[1]).toBe(clientInstanceIds[0]);
+});
+
+test('Runtime does not reacquire automatically after its authenticated lease is forbidden', async ({ page }) => {
+  await page.clock.install();
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+  let admissions = 0;
+  let heartbeatRequests = 0;
+  await page.route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    admissions++;
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-000000000782',
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: request.connectionClass,
+      admissionReasonCode: null,
+      capacityReasonCode: null
+    }});
+  });
+  await page.route('**/api/runtime/sessions/*/heartbeat', route => {
+    heartbeatRequests++;
+    return route.fulfill({ status: 403, json: { error: 'Runtime session authorization was revoked.' } });
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await page.clock.fastForward(20_000);
+  await expect.poll(() => heartbeatRequests).toBe(1);
+  await expect(page.getByTestId('runtime-session-required')).toBeVisible();
+  await expect(page.getByTestId('runtime-engineering-application')).toHaveCount(0);
+  await page.clock.fastForward(60_000);
+  expect(admissions).toBe(1);
+  expect(heartbeatRequests).toBe(1);
+});
+
+test('Runtime asks for sign-in after HA rejects the old Authority session and resumes the same window seat', async ({ page }) => {
+  await page.clock.install();
+  const admissions: RuntimeSessionObservation[] = [];
+  const contract = await installSessionContract(page, administrator, 'success', true, admission => admissions.push(admission));
+  await installEngineeringRuntimeProjection(page);
+  let heartbeatRequests = 0;
+  await page.route('**/api/runtime/sessions/*/heartbeat', route => {
+    heartbeatRequests++;
+    return route.fulfill({ status: 401, json: { error: 'local-identity-token-not-current' } });
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => contract.runtimeSessionAdmissions).toBe(1);
+  await page.clock.fastForward(20_000);
+  await expect.poll(() => heartbeatRequests).toBe(1);
+  await expect(page.getByTestId('runtime-session-reauthentication-required')).toBeVisible();
+  await expect(page.locator('input[name="username"]')).toBeVisible();
+  expect(contract.runtimeSessionAdmissions).toBe(1);
+
+  await page.locator('input[name="username"]').fill(administrator.username);
+  await page.locator('input[name="password"]').fill('AdminPass8');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await expect.poll(() => contract.runtimeSessionAdmissions).toBe(2);
+  await expect(page.getByTestId('runtime-session-reauthentication-required')).toHaveCount(0);
+  expect(admissions).toHaveLength(2);
+  expect(admissions[1].clientInstanceId).toBe(admissions[0].clientInstanceId);
+  expect(heartbeatRequests).toBe(1);
+});
+
+test('failed Runtime class replacement clears the terminated old session before showing the admission error', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+
+  let admissionRequests = 0;
+  let terminated = false;
+  await page.route('**/api/runtime/sessions', route => {
+    admissionRequests++;
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    if (admissionRequests === 1) {
+      return route.fulfill({ status: 201, json: {
+        sessionId: '00000000-0000-0000-0000-000000000456',
+        clientInstanceId: request.clientInstanceId,
+        requestedClass: request.connectionClass,
+        grantedClass: 'interactive',
+        admissionReasonCode: 'InteractiveGranted',
+        capacityReasonCode: 'InteractiveSeatReserved'
+      }});
+    }
+
+    return route.fulfill({ status: 409, json: {
+      error: 'Runtime session capacity is unavailable.',
+      capacityReasonCode: 'EligiblePoolsExhausted'
+    }});
+  });
+  await page.route('**/api/runtime/sessions/00000000-0000-0000-0000-000000000456/terminate', route => {
+    terminated = true;
+    return route.fulfill({ status: 204, body: '' });
+  });
+
+  await page.goto('/');
+  await page.getByTestId('session-menu-toggle').click();
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await page.getByTestId('runtime-session-request-viewOnly').click();
+
+  await expect.poll(() => terminated).toBe(true);
+  await expect(page.getByTestId('runtime-session-status')).toHaveCount(0);
+  await expect(page.getByTestId('runtime-session-end')).toHaveCount(0);
+  const admissionError = page.getByTestId('runtime-session-class').getByRole('alert');
+  await expect(admissionError).toContainText('EligiblePoolsExhausted');
+  await expect(admissionError).toContainText('Runtime session capacity is unavailable.');
+});
+
+test('shell keeps navigation, account and theme reachable without horizontal overflow at compact desktop widths', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+
+  for (const width of [1180, 1024, 901]) {
+    await page.setViewportSize({ width, height: 720 });
+    await page.goto('/');
+    await expect(page.getByRole('navigation', { name: 'SCADIVO' })).toBeVisible();
+    await expect(page.getByTestId('session-menu-toggle')).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Tema' })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
 });
 
 test('failed server invalidation keeps the current identity and Runtime interactive', async ({ page }) => {
   const contract = await installSessionContract(page, administrator, 'failure');
+  await installEngineeringRuntimeProjection(page);
 
   await page.goto('/');
   await expect(page.locator('.app-bar')).toBeVisible();
@@ -174,13 +1097,14 @@ test('failed server invalidation keeps the current identity and Runtime interact
   await page.getByTestId('session-menu-toggle').click();
 
   await page.getByTestId('session-switch-user').click();
-  await expect(page.getByRole('alert')).toHaveText('Não foi possível invalidar a sessão atual para trocar de usuário.');
+  const sessionMenuError = page.getByTestId('session-menu-popup').locator('.user-session-menu__error');
+  await expect(sessionMenuError).toHaveText('Não foi possível invalidar a sessão atual para trocar de usuário.');
   await expect(page.getByTestId('session-menu-toggle')).toContainText('Administrador Local');
   await expect(page.locator('.app-bar')).toBeVisible();
   await expect(page.locator('input[name="username"]')).toHaveCount(0);
 
   await page.getByTestId('session-logout').click();
-  await expect(page.getByRole('alert')).toHaveText('Não foi possível encerrar a sessão.');
+  await expect(sessionMenuError).toHaveText('Não foi possível encerrar a sessão.');
   await expect(page.getByTestId('session-menu-toggle')).toContainText('Administrador Local');
   await expect(page.locator('.app-bar')).toBeVisible();
 
@@ -213,6 +1137,8 @@ test('switch-user invalidates first, blocks the shell until login, then reloads 
 
   await expect(page.locator('.app-bar')).toBeVisible();
   await expect(page.getByTestId('session-menu-toggle')).toContainText(runtimeOperator.username);
+  await page.getByTestId('session-menu-toggle').click();
+  await expect(page.getByTestId('session-close-interface')).toHaveCount(0);
   await expect(page.locator('.app-navigation a[href="/"]')).toBeVisible();
   await expect(page.locator('.app-navigation a[href="/engineering"]')).toHaveCount(0);
   await expect(page.locator('.app-navigation a[href="/audit"]')).toHaveCount(0);
@@ -223,23 +1149,226 @@ test('switch-user invalidates first, blocks the shell until login, then reloads 
   expect(contract.runtimeCapabilityRequests).toBeGreaterThanOrEqual(2);
 });
 
-test('fullscreen Runtime keeps the system-owned session controls reachable', async ({ page }) => {
-  await installSessionContract(page, administrator);
+test('Runtime-only effective surface access does not expose a redundant fullscreen transition', async ({ page }) => {
+  await installSessionContract(page, runtimeOperator);
   await installEngineeringRuntimeProjection(page);
 
   await page.goto('/');
   const runtime = page.getByTestId('runtime-engineering-application');
   await expect(runtime).toBeVisible();
 
-  await runtime.getByRole('button', { name: 'Tela cheia' }).click();
+  const toolbar = runtime.getByRole('toolbar', { name: 'Runtime' });
+  await expect(toolbar.getByRole('button', { name: 'Visão geral' })).toBeVisible();
+  await expect(toolbar.getByRole('button', { name: 'Alarmes' })).toBeVisible();
+  await expect(toolbar.getByRole('button', { name: 'Histórico' })).toHaveCount(0);
+  await expect(toolbar.getByRole('button', { name: 'Tela cheia' })).toHaveCount(0);
+});
+
+test('fullscreen Runtime uses compact branded shell while preserving History, Alarm and session behavior', async ({ page }, testInfo) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page, {
+    mode: 'text',
+    text: 'RUNTIME BRAND',
+    subtitle: 'Operations'
+  });
+
+  await page.goto('/');
+  const runtime = page.getByTestId('runtime-engineering-application');
+  await expect(runtime).toBeVisible();
+
+  const toolbar = runtime.getByRole('toolbar', { name: 'Runtime' });
+  const overview = toolbar.getByRole('button', { name: 'Visão geral' });
+  const history = toolbar.getByRole('button', { name: 'Histórico' });
+  const alarms = toolbar.getByRole('button', { name: 'Alarmes' });
+  const fullscreen = toolbar.getByRole('button', { name: 'Tela cheia' });
+
+  await expect(overview).toHaveAttribute('aria-pressed', 'true');
+  await history.click();
+  await expect(runtime.getByTestId('runtime-history-overlay')).toBeVisible();
+  await expect(history).toHaveAttribute('aria-pressed', 'true');
+  await expect(overview).toHaveAttribute('aria-pressed', 'false');
+
+  await alarms.click();
+  await expect(runtime.getByTestId('runtime-history-overlay')).toHaveCount(0);
+  await expect(runtime.locator('.runtime-operator-overlay:not(.runtime-operator-overlay--history)')).toBeVisible();
+  await expect(alarms).toHaveAttribute('aria-pressed', 'true');
+
+  await overview.click();
+  await expect(runtime.locator('#runtime-alarm-overlay')).toBeHidden();
+  await expect(runtime.getByTestId('runtime-history-overlay')).toHaveCount(0);
+  await expect(overview).toHaveAttribute('aria-pressed', 'true');
+
+  const toolbarBox = await toolbar.boundingBox();
+  expect(toolbarBox).not.toBeNull();
+  expect(toolbarBox!.width).toBeLessThanOrEqual(150);
+
+  await fullscreen.click();
   await expect(runtime).toHaveAttribute('data-runtime-fullscreen', 'true');
+
+  const fullscreenHeader = runtime.locator('.runtime-operator-bar--fullscreen');
+  await expect(fullscreenHeader).toBeVisible();
+  const fullscreenBrand = fullscreenHeader.locator('.runtime-operator-brand .app-brand');
+  await expect(fullscreenBrand).toHaveAttribute('data-branding-mode', 'text');
+  await expect(fullscreenBrand).toContainText('RUNTIME BRAND');
+
+  const projectContext = fullscreenHeader.locator('.runtime-operator-context');
+  await expect(projectContext).toHaveText('C25 Session Runtime');
+  await expect(fullscreenHeader).not.toContainText('rev 7');
+
+  const headerBox = await fullscreenHeader.boundingBox();
+  const contextBox = await projectContext.boundingBox();
+  expect(headerBox).not.toBeNull();
+  expect(contextBox).not.toBeNull();
+  const headerCenter = headerBox!.x + headerBox!.width / 2;
+  const contextCenter = contextBox!.x + contextBox!.width / 2;
+  expect(Math.abs(contextCenter - headerCenter)).toBeLessThanOrEqual(2);
+
+  await expect(fullscreenHeader.getByRole('button', { name: 'Sair da tela cheia' })).toHaveCount(0);
 
   const runtimeSession = runtime.getByTestId('session-menu-toggle');
   await expect(runtimeSession).toBeVisible();
   await expect(runtimeSession).toContainText('Administrador Local');
+  const sessionBox = await runtimeSession.boundingBox();
+  expect(sessionBox).not.toBeNull();
+  expect(sessionBox!.height).toBeLessThanOrEqual(38);
+
   await runtimeSession.click();
   await expect(runtime.getByTestId('session-switch-user')).toBeVisible();
   await expect(runtime.getByTestId('session-logout')).toBeVisible();
+  await expect(runtime.getByTestId('runtime-session-class')).toBeVisible();
+  await expect(runtime.getByTestId('session-close-interface')).toBeVisible();
+  const exitFullscreen = runtime.getByTestId('session-exit-fullscreen');
+  await expect(exitFullscreen).toHaveText('Sair da tela cheia');
+
+  await testInfo.attach('runtime-shell-phase-b-fullscreen', {
+    body: await runtime.screenshot(),
+    contentType: 'image/png'
+  });
+
+  await exitFullscreen.click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+});
+
+test('fullscreen Runtime scales text branding with the configured header height', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page, {
+    mode: 'text',
+    text: 'RUNTIME BRAND',
+    subtitle: 'Operations'
+  }, [], { header: { height: 112 } });
+
+  await page.goto('/');
+  const runtime = page.getByTestId('runtime-engineering-application');
+  await expect(runtime).toBeVisible();
+  await runtime.getByRole('toolbar', { name: 'Runtime' }).getByRole('button', { name: 'Tela cheia' }).click();
+
+  const fullscreenHeader = runtime.locator('.runtime-operator-bar--fullscreen');
+  await expect(fullscreenHeader).toHaveAttribute('style', /min-height:\s*112px/);
+  await expect(fullscreenHeader).toHaveClass(/runtime-operator-bar--brand-expanded/);
+  await expect(fullscreenHeader).toHaveCSS('--runtime-header-brand-scale', '2');
+  const brand = fullscreenHeader.locator('.runtime-operator-brand .app-brand');
+  await expect(brand).toHaveAttribute('data-branding-mode', 'text');
+  await expect(brand.locator('.app-brand-copy strong')).toHaveCSS('font-size', '24px');
+  await expect(brand.locator('.app-brand-copy small')).toHaveCSS('font-size', '18px');
+});
+
+test('custom Runtime header controls resize to their labels and stay clear of the user menu', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  const visualAsset = {
+    id: 'header-pump-icon',
+    key: 'header-pump-icon',
+    name: 'Pump icon',
+    originalFileName: 'pump.svg',
+    mediaType: 'image/svg+xml',
+    byteLength: 68,
+    sha256: 'header-pump-icon-hash',
+    pixelWidth: 24,
+    pixelHeight: 24
+  };
+  await page.route('**/api/runtime/visual-assets/header-pump-icon/content', route => route.fulfill({
+    contentType: 'image/svg+xml',
+    body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#20cbbb"/></svg>'
+  }));
+  await installEngineeringRuntimeProjection(page, undefined, [visualAsset], {
+    header: {
+      links: [
+        { label: 'Tela 12345', screenKey: 'home' },
+        { label: 'Bomba A', screenKey: 'home', visualAssetId: visualAsset.id }
+      ]
+    }
+  });
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  const runtime = page.getByTestId('runtime-engineering-application');
+  const customButtons = runtime.getByTestId('runtime-custom-screen-link');
+  await expect(customButtons).toHaveCount(2);
+  const textButton = customButtons.nth(0);
+  await expect(textButton).toHaveText('Tela 12345');
+  const textButtonBox = await textButton.boundingBox();
+  expect(textButtonBox).not.toBeNull();
+  expect(textButtonBox!.width).toBeGreaterThan(30);
+  expect(textButtonBox!.width).toBeLessThan(160);
+  const imageButton = customButtons.nth(1);
+  await expect(imageButton.locator('img')).toBeVisible();
+  await expect(imageButton).toHaveAttribute('aria-label', 'Bomba A');
+
+  const fullscreen = runtime.getByRole('toolbar', { name: 'Runtime' }).getByRole('button', { name: 'Tela cheia' });
+  await fullscreen.click();
+  await expect(runtime).toHaveAttribute('data-runtime-fullscreen', 'true');
+  const fullscreenHeader = runtime.locator('.runtime-operator-bar--fullscreen');
+  const leftToolbar = fullscreenHeader.locator('.runtime-operator-side--left .runtime-operator-toolbar');
+  await expect(leftToolbar).toBeVisible();
+  await expect(fullscreenHeader.locator('.runtime-operator-side--right .runtime-operator-toolbar')).toHaveCount(0);
+
+  const toolbarBox = await leftToolbar.boundingBox();
+  const userBox = await runtime.getByTestId('session-menu-toggle').boundingBox();
+  expect(toolbarBox).not.toBeNull();
+  expect(userBox).not.toBeNull();
+  const overlapX = Math.max(0, Math.min(toolbarBox!.x + toolbarBox!.width, userBox!.x + userBox!.width) - Math.max(toolbarBox!.x, userBox!.x));
+  const overlapY = Math.max(0, Math.min(toolbarBox!.y + toolbarBox!.height, userBox!.y + userBox!.height) - Math.max(toolbarBox!.y, userBox!.y));
+  expect(overlapX === 0 || overlapY === 0).toBeTruthy();
+
+  await runtime.getByTestId('session-menu-toggle').click();
+  await runtime.getByTestId('session-exit-fullscreen').click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+});
+
+test.describe('mobile Runtime custom header', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test('keeps custom navigation separate from the user menu', async ({ page }) => {
+    await installSessionContract(page, administrator);
+    const visualAsset = {
+      id: 'header-pump-icon', key: 'header-pump-icon', name: 'Pump icon', originalFileName: 'pump.svg',
+      mediaType: 'image/svg+xml', byteLength: 68, sha256: 'header-pump-icon-hash', pixelWidth: 24, pixelHeight: 24
+    };
+    await page.route('**/api/runtime/visual-assets/header-pump-icon/content', route => route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#20cbbb"/></svg>'
+    }));
+    await installEngineeringRuntimeProjection(page, undefined, [visualAsset], {
+      header: { links: [
+        { label: 'Tela 12345', screenKey: 'home' },
+        { label: 'Bomba A', screenKey: 'home', visualAssetId: visualAsset.id }
+      ] }
+    });
+
+    await page.goto('/');
+    const runtime = page.getByTestId('runtime-engineering-application');
+    const compactHeader = runtime.locator('.runtime-operator-bar--fullscreen');
+    await expect(compactHeader).toBeVisible();
+    const compactToolbar = compactHeader.locator('.runtime-operator-side--left .runtime-operator-toolbar');
+    await expect(compactToolbar).toBeVisible();
+    await expect(compactToolbar.getByTestId('runtime-custom-screen-link')).toHaveCount(2);
+    const compactToolbarBox = await compactToolbar.boundingBox();
+    const compactUserBox = await runtime.getByTestId('session-menu-toggle').boundingBox();
+    expect(compactToolbarBox).not.toBeNull();
+    expect(compactUserBox).not.toBeNull();
+    const compactOverlapX = Math.max(0, Math.min(compactToolbarBox!.x + compactToolbarBox!.width, compactUserBox!.x + compactUserBox!.width) - Math.max(compactToolbarBox!.x, compactUserBox!.x));
+    const compactOverlapY = Math.max(0, Math.min(compactToolbarBox!.y + compactToolbarBox!.height, compactUserBox!.y + compactUserBox!.height) - Math.max(compactToolbarBox!.y, compactUserBox!.y));
+    expect(compactOverlapX === 0 || compactOverlapY === 0).toBeTruthy();
+  });
 });
 
 test('successful sign-out removes the current client authority only after server invalidation succeeds', async ({ page }) => {
@@ -253,4 +1382,135 @@ test('successful sign-out removes the current client authority only after server
   await expect(page.getByTestId('session-menu-toggle')).toHaveCount(0);
   await expect(page.locator('input[name="username"]')).toBeVisible();
   expect(contract.logoutRequests).toBe(1);
+});
+
+
+test('a two-screen station launches only the Active revision after save, publish and activation', async ({ page }) => {
+  test.setTimeout(120_000);
+  const admissions: RuntimeSessionObservation[] = [];
+  await installSessionContract(page, administrator, 'success', true, admission => admissions.push(admission));
+
+  const profile = {
+    id: 'dual-monitor-station',
+    name: 'Centro de operações',
+    windows: [
+      { screenKey: 'home', mode: 'navigation' },
+      { screenKey: 'pumps', mode: 'fixed' }
+    ]
+  };
+  let lifecycleStage = 0;
+  const screens = [
+    { id: 'screen-home-id', key: 'home', name: 'Visão geral', elements: [] },
+    { id: 'screen-pumps-id', key: 'pumps', name: 'Bombas da estação', elements: [] }
+  ];
+  await page.context().route('**/api/runtime/application', route => route.fulfill({ json: {
+    mode: 'engineering',
+    projectKey: 'launch-demo', projectName: 'Launch Demo',
+    revision: lifecycleStage === 3 ? 9 : 8,
+    activatedAtUtc: '2026-11-06T12:00:00Z',
+    package: {
+      schema: 'elitescada.hmi', schemaVersion: 1,
+      startupScreenId: screens[0].id,
+      screens, popups: [], dynamos: [], scripts: [],
+      scriptVisualEventReferences: [], visualAssets: [],
+      runtimePresentation: {
+        version: 1, historicalPlaybackEnabled: false,
+        stationProfiles: lifecycleStage === 3 ? [profile] : []
+      }
+    }
+  }}));
+  await page.context().route('**/api/engineering/persistence/launch-demo/save', route => {
+    lifecycleStage = 1;
+    return route.fulfill({ json: { revision: 9 } });
+  });
+  await page.context().route('**/api/engineering/persistence/launch-demo/revisions/9/publish', route => {
+    if (lifecycleStage !== 1) return route.fulfill({ status: 409, json: { error: 'Save first' } });
+    lifecycleStage = 2;
+    return route.fulfill({ json: { revision: 9 } });
+  });
+  await page.context().route('**/api/engineering/persistence/launch-demo/published/activate', route => {
+    if (lifecycleStage !== 2) return route.fulfill({ status: 409, json: { error: 'Publish first' } });
+    lifecycleStage = 3;
+    return route.fulfill({ json: { revision: 9 } });
+  });
+  const lifecycleAction = async (path: string) => {
+    await page.evaluate(async endpoint => {
+      const response = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirmed: true }) });
+      if (!response.ok) throw new Error(`Lifecycle mock returned ${response.status}`);
+    }, path);
+  };
+
+  await page.setViewportSize({ width: 1600, height: 950 });
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-engineering-application')).toHaveAttribute('data-runtime-revision', '8');
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
+  await expect(page.getByTestId('runtime-station-launcher')).toHaveCount(0);
+
+  await lifecycleAction('/api/engineering/persistence/launch-demo/save');
+  await page.reload();
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
+  await expect(page.getByTestId('runtime-station-launcher')).toHaveCount(0);
+  await lifecycleAction('/api/engineering/persistence/launch-demo/revisions/9/publish');
+  await page.reload();
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
+  await expect(page.getByTestId('runtime-station-launcher')).toHaveCount(0);
+
+  await lifecycleAction('/api/engineering/persistence/launch-demo/published/activate');
+  await page.reload();
+  const launcher = page.getByTestId('runtime-station-launcher');
+  await expect(launcher).toHaveCount(0);
+  await page.getByRole('button', { name: 'Janelas', exact: true }).click();
+  await expect(launcher).toBeVisible();
+  await expect(launcher.getByRole('combobox')).toHaveCount(0);
+  await expect(launcher).toContainText('Revisão Active 9');
+  const plan = page.getByTestId('runtime-station-plan');
+  await expect(plan).toContainText('Janela 1: Visão geral · Navegação');
+  await expect(plan).toContainText('Janela 2: Bombas da estação · Tela fixa');
+  await expect(launcher).toContainText('arraste cada uma para o monitor físico');
+
+  // Fullscreen is entered by a genuine user click; the station launcher must
+  // remain usable in desktop fullscreen, without adding OS-specific APIs.
+  await page.evaluate(() => {
+    const control = document.createElement('button');
+    control.textContent = 'Ativar tela cheia para teste';
+    control.onclick = () => {
+      const root = document.querySelector('[data-testid="runtime-engineering-application"]') as HTMLElement | null;
+      void root?.requestFullscreen();
+    };
+    document.body.append(control);
+  });
+  await page.getByRole('button', { name: 'Ativar tela cheia para teste' }).click();
+  await expect(page.getByTestId('runtime-engineering-application')).toHaveAttribute('data-runtime-fullscreen', 'true');
+  await expect(launcher).toBeVisible();
+
+  const admissionsBeforeStationLaunch = admissions.length;
+  const stationWindows: Page[] = [];
+  const opened = new Promise<void>(resolve => {
+    const onPage = (child: Page) => {
+      stationWindows.push(child);
+      if (stationWindows.length === 2) {
+        page.context().off('page', onPage);
+        resolve();
+      }
+    };
+    page.context().on('page', onPage);
+  });
+  await launcher.getByRole('button', { name: 'Iniciar estação' }).click();
+  await opened;
+  expect(stationWindows).toHaveLength(2);
+  for (const child of stationWindows) {
+    await expect(child.getByTestId('runtime-engineering-application')).toHaveAttribute('data-runtime-revision', '9');
+    const slot = new URL(child.url()).searchParams.get('slot');
+    const query = new URL(child.url()).searchParams;
+    expect(query.get('station')).toBe('dual-monitor-station');
+    expect(query.get('screen')).toBe(slot === '0' ? 'home' : 'pumps');
+    expect(query.get('stationMode')).toBe(slot === '0' ? 'navigation' : 'fixed');
+  }
+  await expect.poll(() => admissions.length).toBe(admissionsBeforeStationLaunch + 2);
+  // The launcher itself can re-admit on page reload. Check only newly opened
+  // station slots, not all historic parent admissions from the lifecycle test.
+  const stationAdmissions = admissions.slice(admissionsBeforeStationLaunch);
+  expect(new Set(stationAdmissions.map(admission => new URL(admission.url).searchParams.get('slot'))))
+    .toEqual(new Set(['0', '1']));
+  expect(new Set(stationAdmissions.map(admission => admission.clientInstanceId)).size).toBe(2);
 });

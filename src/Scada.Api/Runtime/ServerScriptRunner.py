@@ -1,12 +1,18 @@
 import ast
 import json
+import math
 import sys
+import uuid
 
 MAX_STEPS = 10000
 MAX_EVENT_CONTEXT_ENTRIES = 128
 MAX_EVENT_CONTEXT_KEY_LENGTH = 160
 MAX_EVENT_CONTEXT_VALUE_LENGTH = 4000
 MAX_EVENT_MESSAGE_LENGTH = 4000
+MAX_RICH_COMMANDS_PER_HANDLER = 16
+MAX_RICH_COMMAND_PARAMETER_COUNT = 32
+MAX_RICH_COMMAND_PARAMETER_KEY_LENGTH = 128
+MAX_RICH_COMMAND_STRING_LENGTH = 4096
 
 
 class ScriptError(Exception):
@@ -19,13 +25,17 @@ class ReturnSignal(Exception):
 
 
 class SafeInterpreter:
-    def __init__(self, source, values, event, server_memory_tag_ids):
+    def __init__(self, source, values, event, server_memory_tag_ids, rich_command_ids):
         self.tree = ast.parse(source, mode="exec")
         self._validate_module()
-        self.values = {str(key).lower(): value for key, value in values.items()}
+        self.values = {str(key): value for key, value in values.items()}
         self.server_memory_tag_ids = {
-            str(key).lower() for key in (server_memory_tag_ids or [])
+            str(key) for key in (server_memory_tag_ids or [])
         }
+        self.rich_command_ids = {
+            str(key).lower() for key in (rich_command_ids or [])
+        }
+        self.rich_command_calls = 0
         self.event = event or {}
         self.writes = []
         self.operational_events = []
@@ -224,9 +234,7 @@ class SafeInterpreter:
                 raise ScriptError(
                     "Qualified Server Memory publish requires stable TAG ID, value and canonical quality."
                 )
-            key = str(args[0]).lower()
-            if key not in self.values:
-                raise ScriptError("TAG is not an active declared dependency.")
+            key = self._require_tag_argument([args[0]], "Qualified Server Memory publish")
             self._require_server_memory_capability(key)
             quality = args[2]
             if not isinstance(quality, str):
@@ -289,6 +297,9 @@ class SafeInterpreter:
             )
             return None
 
+        if name == "invoke_rich_command":
+            return self._invoke_rich_command(args)
+
         builtins = {
             "min": min,
             "max": max,
@@ -305,20 +316,88 @@ class SafeInterpreter:
             raise ScriptError("Function call is not part of the Server Script API surface.")
         return function(*args)
 
+    def _invoke_rich_command(self, args):
+        self.tick()
+        if len(args) < 1 or len(args) > 2:
+            raise ScriptError(
+                "Rich Command invocation requires a declared command ID and optional parameter dictionary."
+            )
+        command_id = args[0]
+        if not isinstance(command_id, str):
+            raise ScriptError("Rich Command ID must be a stable GUID string.")
+        try:
+            parsed_id = uuid.UUID(command_id)
+        except (AttributeError, ValueError):
+            raise ScriptError("Rich Command ID must be a stable GUID string.")
+        canonical_id = str(parsed_id)
+        if canonical_id not in self.rich_command_ids:
+            raise ScriptError("Rich Command is not an explicitly declared dependency.")
+        if self.rich_command_calls >= MAX_RICH_COMMANDS_PER_HANDLER:
+            raise ScriptError("Server Script exceeded the Rich Command calls-per-handler limit.")
+
+        parameters = args[1] if len(args) == 2 else {}
+        if not isinstance(parameters, dict):
+            raise ScriptError("Rich Command parameters must be a dictionary.")
+        if len(parameters) > MAX_RICH_COMMAND_PARAMETER_COUNT:
+            raise ScriptError("Rich Command parameter count exceeds the supported limit.")
+
+        normalized_parameters = {}
+        for key, value in parameters.items():
+            if not isinstance(key, str) or not key or len(key) > MAX_RICH_COMMAND_PARAMETER_KEY_LENGTH:
+                raise ScriptError("Rich Command parameter keys must be bounded strings.")
+            if not isinstance(value, (bool, int, float, str)):
+                raise ScriptError("Rich Command parameters must be scalar values.")
+            if isinstance(value, int) and not isinstance(value, bool) and not -(2**63) <= value < 2**63:
+                raise ScriptError("Rich Command integer parameter is outside the Int64 range.")
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ScriptError("Rich Command numeric parameters must be finite.")
+            if isinstance(value, str) and len(value) > MAX_RICH_COMMAND_STRING_LENGTH:
+                raise ScriptError("Rich Command string parameter exceeds 4096 characters.")
+            normalized_parameters[key] = value
+
+        request_id = str(uuid.uuid4())
+        self.rich_command_calls += 1
+        sys.stdout.write(
+            json.dumps(
+                {
+                    "type": "richCommandRequest",
+                    "requestId": request_id,
+                    "commandId": canonical_id,
+                    "parameters": normalized_parameters,
+                },
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+            + "\n"
+        )
+        sys.stdout.flush()
+
+        line = sys.stdin.readline()
+        if not line:
+            raise ScriptError("Rich Command host did not return an invocation result.")
+        response = json.loads(line)
+        if (
+            not isinstance(response, dict)
+            or response.get("type") != "richCommandResponse"
+            or response.get("requestId") != request_id
+        ):
+            raise ScriptError("Rich Command host returned an invalid invocation response.")
+        if response.get("error"):
+            raise ScriptError(str(response["error"])[:240])
+        result = response.get("result")
+        if not isinstance(result, dict):
+            raise ScriptError("Rich Command host returned an invalid result.")
+        return result
+
     def _require_tag_argument(self, args, operation):
         if len(args) != 1:
-            raise ScriptError(f"{operation} requires one stable TAG ID.")
-        key = str(args[0]).lower()
-        if key not in self.values:
-            raise ScriptError("TAG is not an active declared dependency.")
-        return key
+            raise ScriptError(f"{operation} requires one declared TAG reference.")
+        return self._resolve_declared_tag_key(str(args[0]))
 
     def _require_write_arguments(self, args, operation):
         if len(args) != 2:
-            raise ScriptError(f"{operation} requires stable TAG ID and value.")
-        key = str(args[0]).lower()
-        if key not in self.values:
-            raise ScriptError("TAG is not an active declared dependency.")
+            raise ScriptError(f"{operation} requires a declared TAG reference and value.")
+        key = self._resolve_declared_tag_key(str(args[0]))
         return key, args[1]
 
     def _require_server_memory_capability(self, key):
@@ -326,6 +405,31 @@ class SafeInterpreter:
             raise ScriptError(
                 "Server Memory API requires an explicit ServerMemoryTag dependency."
             )
+
+    def _resolve_declared_tag_key(self, reference):
+        token = str(reference).strip()
+        if token in self.values:
+            return token
+
+        # A readable binding is source text, so it is exact after trim. Legacy
+        # GUID-only dependencies keep their existing case-insensitive identity
+        # syntax without becoming a readable-path comparison authority.
+        try:
+            parsed = uuid.UUID(token)
+        except (AttributeError, ValueError):
+            raise ScriptError("TAG is not an active declared dependency.")
+
+        canonical = str(parsed)
+        matches = []
+        for declared in self.values:
+            try:
+                if str(uuid.UUID(declared)) == canonical:
+                    matches.append(declared)
+            except (AttributeError, ValueError):
+                continue
+        if len(matches) != 1:
+            raise ScriptError("TAG is not an active declared dependency.")
+        return matches[0]
 
     @staticmethod
     def apply_binary(operator, left, right):
@@ -366,14 +470,44 @@ class SafeInterpreter:
         raise ScriptError("Unsupported comparison operator.")
 
 
+def _syntax_diagnostic(error):
+    line = error.lineno if isinstance(error.lineno, int) and error.lineno > 0 else 1
+    column = error.offset if isinstance(error.offset, int) and error.offset > 0 else 1
+    diagnostic = {
+        "severity": "error",
+        "code": "PY_SYNTAX",
+        "message": (error.msg or "Invalid Python syntax.")[:240],
+        "line": line,
+        "column": column,
+    }
+    if isinstance(getattr(error, "end_lineno", None), int) and error.end_lineno > 0:
+        diagnostic["endLine"] = error.end_lineno
+    if isinstance(getattr(error, "end_offset", None), int) and error.end_offset > 0:
+        diagnostic["endColumn"] = error.end_offset
+    return diagnostic
+
+
+def validate_syntax(source):
+    try:
+        ast.parse(source, mode="exec")
+        return {"diagnostics": []}
+    except SyntaxError as error:
+        return {"diagnostics": [_syntax_diagnostic(error)]}
+
+
 def main():
     try:
-        payload = json.load(sys.stdin)
+        payload = json.loads(sys.stdin.readline())
+        if payload.get("validateOnly") is True:
+            print(json.dumps(validate_syntax(payload.get("source", "")), separators=(",", ":")))
+            return
+
         interpreter = SafeInterpreter(
             payload.get("source", ""),
             payload.get("values") or {},
             payload.get("event") or {},
             payload.get("serverMemoryTagIds") or [],
+            payload.get("richCommandIds") or [],
         )
         interpreter.run(payload.get("handler", ""))
         result = {
@@ -398,7 +532,7 @@ def main():
             "writes": [],
             "operationalEvents": [],
         }
-    print(json.dumps(result, separators=(",", ":")))
+    print(json.dumps({"type": "complete", "response": result}, separators=(",", ":")))
 
 
 if __name__ == "__main__":

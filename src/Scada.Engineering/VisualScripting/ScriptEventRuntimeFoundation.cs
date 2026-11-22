@@ -1,3 +1,5 @@
+using Scada.Core.Events;
+
 namespace Scada.Engineering.VisualScripting;
 
 public sealed class ScriptEventIdentity
@@ -7,6 +9,16 @@ public sealed class ScriptEventIdentity
         string handlerName,
         string? targetReference = null,
         string? coalescingKey = null)
+        : this(eventKind, handlerName, targetReference, coalescingKey, canonicalEventOccurrence: null)
+    {
+    }
+
+    public ScriptEventIdentity(
+        PythonScriptEventKind eventKind,
+        string handlerName,
+        string? targetReference,
+        string? coalescingKey,
+        TransientEventOccurrence? canonicalEventOccurrence)
     {
         if (string.IsNullOrWhiteSpace(handlerName))
             throw new ArgumentException("Script event handler name is required.", nameof(handlerName));
@@ -14,6 +26,7 @@ public sealed class ScriptEventIdentity
         EventKind = eventKind;
         HandlerName = handlerName;
         TargetReference = string.IsNullOrWhiteSpace(targetReference) ? null : targetReference;
+        CanonicalEventOccurrence = canonicalEventOccurrence;
         CoalescingKey = string.IsNullOrWhiteSpace(coalescingKey)
             ? BuildDefaultCoalescingKey(eventKind, handlerName, TargetReference)
             : coalescingKey;
@@ -24,6 +37,8 @@ public sealed class ScriptEventIdentity
     public string HandlerName { get; }
 
     public string? TargetReference { get; }
+
+    public TransientEventOccurrence? CanonicalEventOccurrence { get; }
 
     public string CoalescingKey { get; }
 
@@ -428,13 +443,18 @@ public sealed class ScriptFailureThrottle
 {
     private readonly object _sync = new();
     private readonly ScriptExecutionPolicy _policy;
+    private readonly TimeProvider _timeProvider;
     private int _consecutiveFailures;
-    private bool _isThrottled;
+    private ScriptFailureRecoveryState _recoveryState;
+    private DateTimeOffset? _nextRecoveryProbeAt;
 
-    public ScriptFailureThrottle(ScriptExecutionPolicy policy)
+    public ScriptFailureThrottle(
+        ScriptExecutionPolicy policy,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(policy);
         _policy = policy;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public int ConsecutiveFailures
@@ -451,7 +471,50 @@ public sealed class ScriptFailureThrottle
         get
         {
             lock (_sync)
-                return _isThrottled;
+                return _recoveryState == ScriptFailureRecoveryState.CoolingDown;
+        }
+    }
+
+    public ScriptFailureRecoveryState RecoveryState
+    {
+        get
+        {
+            lock (_sync)
+                return _recoveryState;
+        }
+    }
+
+    public DateTimeOffset? NextRecoveryProbeAt
+    {
+        get
+        {
+            lock (_sync)
+                return _nextRecoveryProbeAt;
+        }
+    }
+
+    /// <summary>
+    /// Reserves the sole half-open probe after a bounded cooldown. Callers must only
+    /// reserve a slot when a queued event is actually ready to execute.
+    /// </summary>
+    public bool TryAcquireExecutionSlot()
+    {
+        lock (_sync)
+        {
+            if (_recoveryState == ScriptFailureRecoveryState.Healthy)
+                return true;
+
+            if (_recoveryState == ScriptFailureRecoveryState.ProbeExecuting)
+                return false;
+
+            if (_nextRecoveryProbeAt is { } nextProbeAt &&
+                _timeProvider.GetUtcNow() < nextProbeAt)
+            {
+                return false;
+            }
+
+            _recoveryState = ScriptFailureRecoveryState.ProbeExecuting;
+            return true;
         }
     }
 
@@ -462,15 +525,23 @@ public sealed class ScriptFailureThrottle
             if (status == ScriptExecutionStatus.Completed)
             {
                 _consecutiveFailures = 0;
+                _recoveryState = ScriptFailureRecoveryState.Healthy;
+                _nextRecoveryProbeAt = null;
                 return;
             }
 
             if (status is not (ScriptExecutionStatus.Faulted or ScriptExecutionStatus.TimedOut))
+            {
+                // A cancelled half-open execution never establishes recovery. Return it to the
+                // same bounded cooldown instead of leaving the single probe reservation stuck.
+                if (_recoveryState == ScriptFailureRecoveryState.ProbeExecuting)
+                    StartCooldown();
                 return;
+            }
 
             _consecutiveFailures++;
             if (_consecutiveFailures >= _policy.MaxConsecutiveFailuresBeforeThrottle)
-                _isThrottled = true;
+                StartCooldown();
         }
     }
 
@@ -479,9 +550,23 @@ public sealed class ScriptFailureThrottle
         lock (_sync)
         {
             _consecutiveFailures = 0;
-            _isThrottled = false;
+            _recoveryState = ScriptFailureRecoveryState.Healthy;
+            _nextRecoveryProbeAt = null;
         }
     }
+
+    private void StartCooldown()
+    {
+        _recoveryState = ScriptFailureRecoveryState.CoolingDown;
+        _nextRecoveryProbeAt = _timeProvider.GetUtcNow() + _policy.FailureRecoveryCooldown;
+    }
+}
+
+public enum ScriptFailureRecoveryState
+{
+    Healthy,
+    CoolingDown,
+    ProbeExecuting
 }
 
 public sealed record ScriptRuntimeDiagnosticsSnapshot(
@@ -501,6 +586,8 @@ public sealed record ScriptRuntimeDiagnosticsSnapshot(
     string? LastSanitizedError,
     int ConsecutiveFailures,
     bool IsThrottled,
+    ScriptFailureRecoveryState RecoveryState,
+    DateTimeOffset? NextRecoveryProbeAt,
     int ActiveSubscriptions,
     int QueuedEvents);
 
@@ -529,7 +616,8 @@ public sealed class ScriptRuntimeDiagnosticsTracker
     public ScriptRuntimeDiagnosticsTracker(
         Guid scriptId,
         string runtimeInstanceId,
-        ScriptExecutionPolicy policy)
+        ScriptExecutionPolicy policy,
+        TimeProvider? timeProvider = null)
     {
         if (scriptId == Guid.Empty)
             throw new ArgumentException("Script ID is required.", nameof(scriptId));
@@ -540,7 +628,7 @@ public sealed class ScriptRuntimeDiagnosticsTracker
 
         _scriptId = scriptId;
         _runtimeInstanceId = runtimeInstanceId;
-        _failureThrottle = new ScriptFailureThrottle(policy);
+        _failureThrottle = new ScriptFailureThrottle(policy, timeProvider);
     }
 
     public void RecordExecution(ScriptExecutionResult result)
@@ -641,10 +729,14 @@ public sealed class ScriptRuntimeDiagnosticsTracker
                 _lastSanitizedError,
                 _failureThrottle.ConsecutiveFailures,
                 _failureThrottle.IsThrottled,
+                _failureThrottle.RecoveryState,
+                _failureThrottle.NextRecoveryProbeAt,
                 activeSubscriptions,
                 queuedEvents);
         }
     }
+
+    public bool TryAcquireExecutionSlot() => _failureThrottle.TryAcquireExecutionSlot();
 
     public void ResetThrottle() => _failureThrottle.Reset();
 

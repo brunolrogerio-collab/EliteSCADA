@@ -6,6 +6,17 @@ namespace Scada.Core.Tests;
 public sealed class ProductLicenseTrustAnchorsTests
 {
     [Fact]
+    public void OnlinePublicKey_HasSeparatePinnedIdentityAndNoPrivateMaterial()
+    {
+        using var key = ProductLicenseTrustAnchors.CreateOnlineLeasePublicKey();
+        Assert.Equal("scadivo-online-lease-2026-01", ProductLicenseTrustAnchors.OnlineLeaseKeyId);
+        Assert.Equal(3072, key.KeySize);
+        Assert.Equal(ProductLicenseTrustAnchors.OnlineLeasePublicKeySha256,
+            Convert.ToHexString(SHA256.HashData(key.ExportSubjectPublicKeyInfo())).ToLowerInvariant());
+        Assert.Throws<CryptographicException>(() => key.ExportParameters(includePrivateParameters: true));
+    }
+
+    [Fact]
     public void ProductionPublicKey_HasPinnedIdentitySizeAndFingerprint()
     {
         using var key = ProductLicenseTrustAnchors.CreateProductionPublicKey();
@@ -27,6 +38,8 @@ public sealed class ProductLicenseTrustAnchorsTests
             Assert.True(keys.TryGetValue(ProductLicenseTrustAnchors.ProductionKeyId, out var key));
             Assert.NotNull(key);
             Assert.Equal(3072, key.KeySize);
+            Assert.Single(keys);
+            Assert.False(keys.ContainsKey(ProductLicenseTrustAnchors.OnlineLeaseKeyId));
         }
         finally
         {

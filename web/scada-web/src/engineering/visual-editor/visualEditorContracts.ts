@@ -6,8 +6,10 @@ import type {
   VisualBooleanConditionEngineering,
   VisualElementEngineering,
   VisualEngineeringPropertyValue,
-  VisualPropertyExpressionEngineering
+  VisualPropertyExpressionEngineering,
+  VisualPropertyMapEngineering
 } from '../types';
+import type { VisualNavigationActionEngineering } from '../../runtime/visual-navigation/runtimeVisualNavigationModel';
 
 /**
  * Shared Wave 08 integration contract between coordinator composition and visual
@@ -66,9 +68,24 @@ export type VisualEditorMutationIntent =
       initialProperties?: Readonly<Record<string, VisualEngineeringPropertyValue>>;
     }>
   | Readonly<{
+      kind: 'object.rename';
+      objectId: string;
+      key: string;
+    }>
+  | Readonly<{
       kind: 'dynamo.add';
       dynamoKey: string;
+      dynamoDefinitionId?: string | null;
       equipmentPath?: string | null;
+      at?: VisualEditorPoint | null;
+      defaultWidth?: number;
+      defaultHeight?: number;
+    }>
+  | Readonly<{
+      kind: 'equipment.add';
+      equipmentId: string;
+      equipmentPath: string;
+      equipmentName: string;
       at?: VisualEditorPoint | null;
       defaultWidth?: number;
       defaultHeight?: number;
@@ -103,6 +120,10 @@ export type VisualEditorMutationIntent =
     }>
   | Readonly<{
       kind: 'polygon.create';
+      points: readonly VisualEditorPoint[];
+    }>
+  | Readonly<{
+      kind: 'bezier.create';
       points: readonly VisualEditorPoint[];
     }>
   | Readonly<{
@@ -159,6 +180,26 @@ export type VisualEditorMutationIntent =
   | Readonly<{
       kind: 'analogFill.remove';
       objectId: string;
+    }>
+  | Readonly<{
+      kind: 'propertyMap.set';
+      objectId: string;
+      configuration: VisualPropertyMapEngineering;
+    }>
+  | Readonly<{
+      kind: 'propertyMap.remove';
+      objectId: string;
+      propertyKey: string;
+    }>
+  | Readonly<{
+      kind: 'visualAction.set';
+      objectId: string;
+      action: VisualNavigationActionEngineering;
+    }>
+  | Readonly<{
+      kind: 'visualAction.remove';
+      objectId: string;
+      eventKey: string;
     }>;
 
 export type VisualEditorBindingSelectorCapability = Readonly<{
@@ -178,6 +219,8 @@ export type VisualEditorBindingSourceCatalogItem = Readonly<{
   bindable?: boolean;
   tagReference?: TagValueReferenceEngineering | null;
   selectorCapability?: VisualEditorBindingSelectorCapability | null;
+  /** Authoring-only marker: source resolves from the enclosing Dynamo public parameter. */
+  dynamoParameterKey?: string | null;
 }>;
 
 export type VisualEditorCanvasContractProps = Readonly<{
@@ -188,6 +231,8 @@ export type VisualEditorCanvasContractProps = Readonly<{
   onMutationIntent: (intent: VisualEditorMutationIntent) => void;
   polygonToolActive?: boolean;
   onPolygonToolCancel?: () => void;
+  bezierToolActive?: boolean;
+  onBezierToolCancel?: () => void;
   logicalBoundary?: VisualEditorLogicalBoundary;
 }>;
 

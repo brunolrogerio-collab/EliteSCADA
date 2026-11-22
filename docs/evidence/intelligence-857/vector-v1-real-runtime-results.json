@@ -1,0 +1,64 @@
+{
+  "syntheticOnly": true,
+  "activeRevision": 71,
+  "generatedScreens": [
+    {
+      "kind": "profile",
+      "count": 2,
+      "ids": [
+        "9861d5f4-9a09-4557-822b-0a98320d7bd3",
+        "425eaf68-a66f-4c1f-ac69-72ab52ea74bc"
+      ]
+    },
+    {
+      "kind": "stage",
+      "count": 3,
+      "ids": [
+        "7243ab16-ef8d-40cd-b2fa-66ce90741742",
+        "9e8a453d-89da-43cd-8134-6a20a4de189a",
+        "b0c28bb9-71e3-4fb0-bf46-34082032efea"
+      ]
+    }
+  ],
+  "analyticsDuringGeneration": 0,
+  "runtimeQueries": 2,
+  "pageErrors": [],
+  "profileResult": true,
+  "stageResult": true,
+  "referenceVectors": 120,
+  "inRangeReferenceVectors": 120,
+  "evaluationVectors": 120,
+  "targets": [
+    {
+      "id": "85500000-0000-0000-0000-000000000201",
+      "unit": "W",
+      "median": 1000.407015438145,
+      "mad": 14.218210145197645
+    },
+    {
+      "id": "85500000-0000-0000-0000-000000000202",
+      "unit": "m³/s",
+      "median": 2.0003537048054314,
+      "mad": 0.07107107269795754
+    }
+  ],
+  "firstValues": [
+    {
+      "targetSignalId": "85500000-0000-0000-0000-000000000201",
+      "value": 1192.901232846963,
+      "rawDifferenceFromReferenceMedian": 192.49421740881803,
+      "robustScore": 9.131625939596386,
+      "scoreUnavailableReason": null
+    },
+    {
+      "targetSignalId": "85500000-0000-0000-0000-000000000202",
+      "value": 2.0871147401032344,
+      "rawDifferenceFromReferenceMedian": 0.08676103529780299,
+      "robustScore": 0.823393073810156,
+      "scoreUnavailableReason": null
+    }
+  ],
+  "partialMemberRetainsIndividualComparison": true,
+  "partialMemberVectorHidden": true,
+  "oldResultCleared": true
+}

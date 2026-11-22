@@ -1,0 +1,1723 @@
+{
+  "syntheticOnly": true,
+  "sharedSyntheticDataset": true,
+  "queriesDuringGeneration": 0,
+  "oldResultCleared": true,
+  "results": [
+    {
+      "contextId": "85700000-0000-0000-0000-000000000501",
+      "profileVersion": 1,
+      "revision": 49,
+      "referenceFitStatus": "available",
+      "referenceFitUnavailableReason": null,
+      "referenceCompleteCohortCount": 120,
+      "evaluationScoredCohortCount": 80,
+      "evaluationWarmupCohortCount": 40,
+      "omittedEvaluationScores": 0,
+      "scores": [
+        {
+          "sourceTimestampUtc": "2026-11-01T21:37:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1390.4260221162624,
+          "relationshipComponent": 1.7795725972941523,
+          "score": 1392.2055947135566,
+          "crossSignalInteraction": 1.7578888862492135,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1389.137981261389,
+              "marginalVariance": 0.0009235134308612988
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.2880408548737379,
+              "marginalVariance": 0.020760197614077547
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:38:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1396.0260993695417,
+          "relationshipComponent": 1.8119393051626025,
+          "score": 1397.8380386747044,
+          "crossSignalInteraction": 1.8034478294284664,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1394.9734693852106,
+              "marginalVariance": 0.007416177184821626
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.05262998433122,
+              "marginalVariance": 0.0010752985493145753
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:39:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1405.1687845738948,
+          "relationshipComponent": 1.6831568189046766,
+          "score": 1406.8519413927995,
+          "crossSignalInteraction": 1.6280854943881504,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1404.5006463191369,
+              "marginalVariance": 0.012944290989828772
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.668138254757699,
+              "marginalVariance": 0.04212703352669739
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:40:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1412.284702363846,
+          "relationshipComponent": 1.1948240050336274,
+          "score": 1413.4795263688795,
+          "crossSignalInteraction": 1.1710519485938142,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1411.9468572895523,
+              "marginalVariance": 0.000023066118833969113
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.33784507429365185,
+              "marginalVariance": 0.023748990320979213
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:41:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1412.927204673745,
+          "relationshipComponent": 0.7624407073047743,
+          "score": 1413.6896453810498,
+          "crossSignalInteraction": 0.7578583043490525,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1412.7676896097207,
+              "marginalVariance": 0.0006316989513454122
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.1595150640243583,
+              "marginalVariance": 0.003950704004376318
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:42:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1406.572875854629,
+          "relationshipComponent": 0.556654559259922,
+          "score": 1407.129530413889,
+          "crossSignalInteraction": 0.5164472789153338,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1406.4604487062713,
+              "marginalVariance": 0.008889722022130675
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.11242714835791012,
+              "marginalVariance": 0.031317558322457584
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:43:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1397.048591105687,
+          "relationshipComponent": 0.32681910568798656,
+          "score": 1397.3754102113749,
+          "crossSignalInteraction": 0.3130168182299547,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1396.8789429624578,
+              "marginalVariance": 0.011648579174460966
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.16964814322898727,
+              "marginalVariance": 0.002153708283570907
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:44:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1390.2021789181583,
+          "relationshipComponent": 0.11422103055740873,
+          "score": 1390.3163999487158,
+          "crossSignalInteraction": 0.09248740070350739,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1389.8383433522388,
+              "marginalVariance": 0.00015664064940570585
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.3638355659197526,
+              "marginalVariance": 0.021576989204495634
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:45:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1390.2918866925156,
+          "relationshipComponent": 0.022819713390947183,
+          "score": 1390.3147064059065,
+          "crossSignalInteraction": 0.00006245423798990901,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1389.581278003771,
+              "marginalVariance": 0.000359284874077645
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.7106086887446588,
+              "marginalVariance": 0.02239797427887963
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:46:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1397.3594292872212,
+          "relationshipComponent": 0.08530338947374927,
+          "score": 1397.444732676695,
+          "crossSignalInteraction": 0.07237957776992814,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1396.2621624590395,
+              "marginalVariance": 0.010354080156342593
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.0972668281817748,
+              "marginalVariance": 0.0025697315474785404
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:47:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1407.1671468248028,
+          "relationshipComponent": 0.23802328925551341,
+          "score": 1407.4051701140584,
+          "crossSignalInteraction": 0.18257471056418895,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1405.8566555584957,
+              "marginalVariance": 0.010240415940232228
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.3104912663069248,
+              "marginalVariance": 0.04520816275109224
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:48:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1413.7547005262359,
+          "relationshipComponent": 0.3440060583828969,
+          "score": 1414.0987065846189,
+          "crossSignalInteraction": 0.3256364130052198,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1412.544736897224,
+              "marginalVariance": 0.00037918705648922607
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.2099636290120415,
+              "marginalVariance": 0.017990458321187897
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:49:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1413.1029523535294,
+          "relationshipComponent": 0.6164297099400791,
+          "score": 1413.7193820634695,
+          "crossSignalInteraction": 0.6110988408842043,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1412.241319948832,
+              "marginalVariance": 0.0001424377886664191
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.861632404697817,
+              "marginalVariance": 0.005188431267208332
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:50:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1405.6077231971174,
+          "relationshipComponent": 0.9976511929355094,
+          "score": 1406.605374390053,
+          "crossSignalInteraction": 0.9671315293597117,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1405.1322290422743,
+              "marginalVariance": 0.01175531466661009
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.47549415484285945,
+              "marginalVariance": 0.018764348909187656
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:51:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1395.7767672551856,
+          "relationshipComponent": 1.111034561675,
+          "score": 1396.8878018168607,
+          "crossSignalInteraction": 1.1017028805214213,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1395.5578257604004,
+              "marginalVariance": 0.008773391103770734
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.21894149478532282,
+              "marginalVariance": 0.0005582900498079732
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:52:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1389.439037153397,
+          "relationshipComponent": 1.081765603218206,
+          "score": 1390.5208027566152,
+          "crossSignalInteraction": 1.0351103870825336,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1389.3223989911896,
+              "marginalVariance": 0.000654423387096495
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.11663816220723738,
+              "marginalVariance": 0.04600079274857588
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:53:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1390.306466021303,
+          "relationshipComponent": 1.078738417874523,
+          "score": 1391.3852044391776,
+          "crossSignalInteraction": 1.042481812558781,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1390.1803919795884,
+              "marginalVariance": 0.000017360442168905775
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.12607404171462755,
+              "marginalVariance": 0.03623924487357322
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:54:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1397.8701609555399,
+          "relationshipComponent": 1.0915061878456638,
+          "score": 1398.9616671433855,
+          "crossSignalInteraction": 1.07816894120253,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1397.6164016971345,
+              "marginalVariance": 0.013039969894266534
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.2537592584049832,
+              "marginalVariance": 0.00029727674886721386
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:55:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1407.687645920444,
+          "relationshipComponent": 0.898286526836134,
+          "score": 1408.5859324472801,
+          "crossSignalInteraction": 0.8701633301612576,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1407.1474328275933,
+              "marginalVariance": 0.007301367235246908
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.5402130928509661,
+              "marginalVariance": 0.020821829439629513
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:56:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1413.920972016063,
+          "relationshipComponent": 0.5085473270861474,
+          "score": 1414.429519343149,
+          "crossSignalInteraction": 0.5061213370080708,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1412.9854346400482,
+              "marginalVariance": 0.0009462811167500196
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.9355373760148975,
+              "marginalVariance": 0.0014797089613265146
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:57:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1412.8137803918303,
+          "relationshipComponent": 0.2859635706752428,
+          "score": 1413.0997439625055,
+          "crossSignalInteraction": 0.25879655219633785,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1411.561953830425,
+              "marginalVariance": 0.00001802972240145563
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.2518265614053947,
+              "marginalVariance": 0.02714898875650351
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:58:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1405.0414714935982,
+          "relationshipComponent": 0.18945490349217886,
+          "score": 1405.2309263970903,
+          "crossSignalInteraction": 0.13638857462251464,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1403.7486983367646,
+              "marginalVariance": 0.01415771277404304
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.2927731568337841,
+              "marginalVariance": 0.038908616095621185
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T21:59:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1395.3440509135148,
+          "relationshipComponent": 0.04240658812181164,
+          "score": 1395.3864575016366,
+          "crossSignalInteraction": 0.036490216498532076,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1394.3118024236298,
+              "marginalVariance": 0.005875876331208202
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.0322484898850612,
+              "marginalVariance": 0.00004049529207136339
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:00:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1389.6039881096774,
+          "relationshipComponent": 0.037895442812868885,
+          "score": 1389.6418835524903,
+          "crossSignalInteraction": 0.007867763742662182,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1388.965756616229,
+              "marginalVariance": 0.0012211029501574266
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.6382314934485308,
+              "marginalVariance": 0.028806576120049276
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:01:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1391.2430797447657,
+          "relationshipComponent": 0.17271078331116907,
+          "score": 1391.415790528077,
+          "crossSignalInteraction": 0.15778591894813038,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1390.9272547772593,
+              "marginalVariance": 0.00017400213565332834
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.3158249675065476,
+              "marginalVariance": 0.014750862227385364
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:02:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1399.1682437989857,
+          "relationshipComponent": 0.4199436320714972,
+          "score": 1399.5881874310571,
+          "crossSignalInteraction": 0.39803294306270565,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1399.01780923685,
+              "marginalVariance": 0.015063858183990558
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.15043456213564158,
+              "marginalVariance": 0.006846830824800976
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:03:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1408.468629336071,
+          "relationshipComponent": 0.6367908041605569,
+          "score": 1409.1054201402314,
+          "crossSignalInteraction": 0.6021403837059359,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1408.3552823040718,
+              "marginalVariance": 0.004543697931473009
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.11334703199915974,
+              "marginalVariance": 0.030106722523148
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:04:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1413.4439361188972,
+          "relationshipComponent": 0.8763409782116504,
+          "score": 1414.3202770971088,
+          "crossSignalInteraction": 0.8744528667611845,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1413.262869073277,
+              "marginalVariance": 0.0014496596067506418
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.1810670456202139,
+              "marginalVariance": 0.0004384518437152568
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:05:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1411.1270373647076,
+          "relationshipComponent": 1.3525041288330208,
+          "score": 1412.4795414935406,
+          "crossSignalInteraction": 1.318601898101825,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1410.7389578037685,
+              "marginalVariance": 0.0005084079805038957
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.3880795609390015,
+              "marginalVariance": 0.033393822750691915
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:06:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1403.068779618735,
+          "relationshipComponent": 1.7807650019403387,
+          "score": 1404.8495446206755,
+          "crossSignalInteraction": 1.7299654164535492,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1402.328782771029,
+              "marginalVariance": 0.015721637028543872
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.7399968477061483,
+              "marginalVariance": 0.03507794845824558
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:07:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1394.2710809064083,
+          "relationshipComponent": 1.821377276533231,
+          "score": 1396.0924581829415,
+          "crossSignalInteraction": 1.8179626053358482,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1393.1577457775697,
+              "marginalVariance": 0.003344746129022372
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.1133351288386806,
+              "marginalVariance": 0.0000699250683603575
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:08:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1390.0736970162736,
+          "relationshipComponent": 1.7802718539822897,
+          "score": 1391.8539688702558,
+          "crossSignalInteraction": 1.7547464093559368,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1388.773215351221,
+              "marginalVariance": 0.0016088799150225375
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.3004816650523883,
+              "marginalVariance": 0.023916564711330413
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:09:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1392.9923716421333,
+          "relationshipComponent": 1.7949975449715505,
+          "score": 1394.7873691871048,
+          "crossSignalInteraction": 1.7906246441487872,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1391.8118008295776,
+              "marginalVariance": 0.0010362480568873109
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.1805708125554406,
+              "marginalVariance": 0.0033366527658760387
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:10:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1401.27938274395,
+          "relationshipComponent": 1.7849957953328173,
+          "score": 1403.0643785392829,
+          "crossSignalInteraction": 1.7455127168339506,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1400.4473389607015,
+              "marginalVariance": 0.0161040786382817
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.8320437832486,
+              "marginalVariance": 0.023378999860584893
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:11:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1409.922560598955,
+          "relationshipComponent": 1.4203569792088029,
+          "score": 1411.3429175781637,
+          "crossSignalInteraction": 1.3756027577043053,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1409.463623280055,
+              "marginalVariance": 0.002310372923269577
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.45893731890044315,
+              "marginalVariance": 0.04244384858122813
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:12:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1413.5881681040605,
+          "relationshipComponent": 0.9104293376163973,
+          "score": 1414.498597441677,
+          "crossSignalInteraction": 0.9077314177105364,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1413.3732102887666,
+              "marginalVariance": 0.0016832045077388308
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.21495781529394425,
+              "marginalVariance": 0.0010147153981220763
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:13:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1409.9027562135032,
+          "relationshipComponent": 0.6288212718188746,
+          "score": 1410.531577485322,
+          "crossSignalInteraction": 0.6019528758913792,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1409.7836697900566,
+              "marginalVariance": 0.0017630932441691644
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.11908642344652798,
+              "marginalVariance": 0.02510530268332617
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:14:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1401.0240245017123,
+          "relationshipComponent": 0.43445663692939673,
+          "score": 1401.4584811386417,
+          "crossSignalInteraction": 0.4026760212467624,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1400.8918774282674,
+              "marginalVariance": 0.016195399926578063
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.13214707344501547,
+              "marginalVariance": 0.015585215756056259
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:15:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1392.3746710756554,
+          "relationshipComponent": 0.18597933693578256,
+          "score": 1392.5606504125913,
+          "crossSignalInteraction": 0.17839689654454963,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1392.1112630322834,
+              "marginalVariance": 0.0014621698618366707
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.2634080433719847,
+              "marginalVariance": 0.00612027052939626
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:16:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1389.2989132828714,
+          "relationshipComponent": 0.048860490379174504,
+          "score": 1389.3477737732505,
+          "crossSignalInteraction": 0.014886736668084238,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1388.747365331194,
+              "marginalVariance": 0.0016654934792652287
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.5515479516774553,
+              "marginalVariance": 0.03230826023182504
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:17:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1393.7667766236439,
+          "relationshipComponent": 0.03459901526687549,
+          "score": 1393.8013756389107,
+          "crossSignalInteraction": 0.029864174672854585,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1392.8220983988804,
+              "marginalVariance": 0.0026842680569911376
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.9446782247634583,
+              "marginalVariance": 0.0020505725370297684
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:18:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1403.1413773737065,
+          "relationshipComponent": 0.18209613182938345,
+          "score": 1403.323473505536,
+          "crossSignalInteraction": 0.13770248299762172,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1401.8855330935999,
+              "marginalVariance": 0.01599182140067129
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.2558442801068466,
+              "marginalVariance": 0.02840182743109043
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:19:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1411.7478467921765,
+          "relationshipComponent": 0.29372802322437136,
+          "score": 1412.0415748154007,
+          "crossSignalInteraction": 0.25439289961663075,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1410.457222545504,
+              "marginalVariance": 0.0008113206081884414
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.290624246672793,
+              "marginalVariance": 0.03852380299955216
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:20:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1414.339245379912,
+          "relationshipComponent": 0.4738975452072135,
+          "score": 1414.813142925119,
+          "crossSignalInteraction": 0.4722204151248875,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1413.3149347487729,
+              "marginalVariance": 0.001557441565644968
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.0243106311392007,
+              "marginalVariance": 0.00011968851668105185
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:21:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1409.3361726427356,
+          "relationshipComponent": 0.8522170660739803,
+          "score": 1410.1883897088096,
+          "crossSignalInteraction": 0.8289858382177085,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1408.7092380053984,
+              "marginalVariance": 0.003784575090828163
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.6269346373373131,
+              "marginalVariance": 0.01944665276544355
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:22:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1399.762861213267,
+          "relationshipComponent": 1.1035994748443922,
+          "score": 1400.8664606881114,
+          "crossSignalInteraction": 1.0841157745141312,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1399.4575796858028,
+              "marginalVariance": 0.015501762893453536
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.30528152746438236,
+              "marginalVariance": 0.00398193743680747
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:23:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1391.3298509832975,
+          "relationshipComponent": 1.0897268219881373,
+          "score": 1392.4195778052856,
+          "crossSignalInteraction": 1.0666963607781565,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1391.1864897243313,
+              "marginalVariance": 0.0003585257910271311
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.14336125896627364,
+              "marginalVariance": 0.022671935418953626
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:24:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1388.9984822363735,
+          "relationshipComponent": 1.0787086705603528,
+          "score": 1390.077190906934,
+          "crossSignalInteraction": 1.0231416651958014,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1388.8885542584617,
+              "marginalVariance": 0.0013694796702248824
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.10992797791180581,
+              "marginalVariance": 0.0541975256943264
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:25:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1394.1276297985005,
+          "relationshipComponent": 1.0901287218475109,
+          "score": 1395.217758520348,
+          "crossSignalInteraction": 1.0793471176151272,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1393.9445054292728,
+              "marginalVariance": 0.005038589168421398
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.18312436922779685,
+              "marginalVariance": 0.005743015063962159
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:26:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1403.7143224207684,
+          "relationshipComponent": 1.0210785196512076,
+          "score": 1404.7354009404196,
+          "crossSignalInteraction": 0.9926110606128816,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1403.3127859513095,
+              "marginalVariance": 0.01474540768922436
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.4015364694589585,
+              "marginalVariance": 0.013722051349101538
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:27:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1412.0899881180753,
+          "relationshipComponent": 0.666472685248827,
+          "score": 1412.7564608033242,
+          "crossSignalInteraction": 0.6546355684491107,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1411.3224088841393,
+              "marginalVariance": 0.0000944900658134129
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.7675792339359526,
+              "marginalVariance": 0.011742626733902833
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:28:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1414.233553615186,
+          "relationshipComponent": 0.34956100256752193,
+          "score": 1414.5831146177536,
+          "crossSignalInteraction": 0.34093488210543005,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1413.08884711531,
+              "marginalVariance": 0.0011201677541343436
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.1447064998758179,
+              "marginalVariance": 0.007505952707957536
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:29:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1408.8465143322003,
+          "relationshipComponent": 0.23314102525235525,
+          "score": 1409.0796553574526,
+          "crossSignalInteraction": 0.17999315357863505,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1407.5304348216043,
+              "marginalVariance": 0.006411519354657669
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.316079510595944,
+              "marginalVariance": 0.046736352319062535
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:30:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1399.214985777339,
+          "relationshipComponent": 0.10099106134159985,
+          "score": 1399.3159768386806,
+          "crossSignalInteraction": 0.07697173295358684,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1398.0454214408862,
+              "marginalVariance": 0.01375366025588784
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.169564336452779,
+              "marginalVariance": 0.010265668132125177
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:31:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1391.1995153169319,
+          "relationshipComponent": 0.015015816329852633,
+          "score": 1391.2145311332617,
+          "crossSignalInteraction": 0.001399224820187308,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1390.3959040124712,
+              "marginalVariance": 9.314685058025348e-7
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.8036113044605036,
+              "marginalVariance": 0.013615660041159522
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:32:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1389.6270813419576,
+          "relationshipComponent": 0.10462982084979755,
+          "score": 1389.7317111628074,
+          "crossSignalInteraction": 0.07439769033229647,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1389.194882915364,
+              "marginalVariance": 0.0008351100862408894
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.432198426593782,
+              "marginalVariance": 0.02939702043126019
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:33:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1395.364540156852,
+          "relationshipComponent": 0.30720392076921166,
+          "score": 1395.6717440776213,
+          "crossSignalInteraction": 0.2993174825200518,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1395.163848509984,
+              "marginalVariance": 0.007860605425842881
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.20069164686798005,
+              "marginalVariance": 0.00002583282331698397
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:34:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1404.8257617333559,
+          "relationshipComponent": 0.559602543339841,
+          "score": 1405.3853642766958,
+          "crossSignalInteraction": 0.5196740158658344,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1404.7096113247544,
+              "marginalVariance": 0.012566557706271686
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.11615040860153579,
+              "marginalVariance": 0.027361969767734917
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:35:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1412.1860427140482,
+          "relationshipComponent": 0.7529173063003527,
+          "score": 1412.9389600203485,
+          "crossSignalInteraction": 0.7413224193369218,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1412.0472663853384,
+              "marginalVariance": 0.00005204638578047184
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.13877632870996723,
+              "marginalVariance": 0.011542840577650482
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:36:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1412.9805076861364,
+          "relationshipComponent": 1.1308133398225892,
+          "score": 1414.1113210259591,
+          "crossSignalInteraction": 1.1178849144890024,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1412.6980687197295,
+              "marginalVariance": 0.0005454484525292333
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.28243896640709354,
+              "marginalVariance": 0.012382976881057661
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:37:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1406.8441027032413,
+          "relationshipComponent": 1.6444135370084108,
+          "score": 1408.4885162402497,
+          "crossSignalInteraction": 1.5879805365456505,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1406.2634484782361,
+              "marginalVariance": 0.009336984632910689
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.5806542250051265,
+              "marginalVariance": 0.04709601582984946
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:38:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1397.6432406353356,
+          "relationshipComponent": 1.8392070405805105,
+          "score": 1399.482447675916,
+          "crossSignalInteraction": 1.8208300604278091,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1396.674603855696,
+              "marginalVariance": 0.011231226155365287
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.9686367796398075,
+              "marginalVariance": 0.007145753997336024
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:39:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1391.007242050772,
+          "relationshipComponent": 1.789631394446507,
+          "score": 1392.7968734452186,
+          "crossSignalInteraction": 1.7754200737155383,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1389.750163479936,
+              "marginalVariance": 0.0002163410584446815
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.257078570835965,
+              "marginalVariance": 0.013994979672523888
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:40:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1390.9295054805884,
+          "relationshipComponent": 1.7818024436271234,
+          "score": 1392.7113079242156,
+          "crossSignalInteraction": 1.765460304686503,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1389.6622296811245,
+              "marginalVariance": 0.00028601105060716697
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.2672757994639825,
+              "marginalVariance": 0.01605612789001315
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:41:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1397.4560978553081,
+          "relationshipComponent": 1.8139869957469432,
+          "score": 1399.2700848510551,
+          "crossSignalInteraction": 1.7982457491891288,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1396.4636228898164,
+              "marginalVariance": 0.010787936530171627
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.9924749654915416,
+              "marginalVariance": 0.0049533100276427655
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:42:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1406.6611907299969,
+          "relationshipComponent": 1.6195959843269156,
+          "score": 1408.2807867143238,
+          "crossSignalInteraction": 1.563693112134396,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1406.0569098472167,
+              "marginalVariance": 0.009799498375258758
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.6042808827799564,
+              "marginalVariance": 0.04610337381726087
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:43:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1412.918572751403,
+          "relationshipComponent": 1.1059843010215156,
+          "score": 1414.0245570524244,
+          "crossSignalInteraction": 1.0903542595642701,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1412.6218035583493,
+              "marginalVariance": 0.0004587234229272083
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.29676919305379507,
+              "marginalVariance": 0.01517131803431826
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:44:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1412.291758416052,
+          "relationshipComponent": 0.7165170011357427,
+          "score": 1413.0082754171879,
+          "crossSignalInteraction": 0.7070494308737314,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1412.1479928602741,
+              "marginalVariance": 0.00009321340658544411
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.14376555577789318,
+              "marginalVariance": 0.009374356855425814
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:45:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1405.0401979998876,
+          "relationshipComponent": 0.5255331171838951,
+          "score": 1405.5657311170714,
+          "crossSignalInteraction": 0.48418080074863673,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1404.9256558618822,
+              "marginalVariance": 0.01215939004846428
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.11454213800536317,
+              "marginalVariance": 0.02919292638679405
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:46:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1395.5550766472588,
+          "relationshipComponent": 0.28290022935747183,
+          "score": 1395.8379768766163,
+          "crossSignalInteraction": 0.2744734232082409,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1395.3637381843741,
+              "marginalVariance": 0.008325327066753402
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.19133846288464487,
+              "marginalVariance": 0.00010147908247751594
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:47:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1389.6705564324734,
+          "relationshipComponent": 0.0919162730598877,
+          "score": 1389.7624727055334,
+          "crossSignalInteraction": 0.06394900201159573,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1389.257966293766,
+              "marginalVariance": 0.0007427379031210365
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.4125901387074687,
+              "marginalVariance": 0.027224533145170926
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:48:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1391.0624037359933,
+          "relationshipComponent": 0.01922534596104461,
+          "score": 1391.0816290819544,
+          "crossSignalInteraction": 0.0033878943330293114,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1390.284303793034,
+              "marginalVariance": 0.0000028218247839404374
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.7780999429590919,
+              "marginalVariance": 0.01583462980323136
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:49:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1398.977287777439,
+          "relationshipComponent": 0.11257925130311291,
+          "score": 1399.089867028742,
+          "crossSignalInteraction": 0.09129635085650331,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1397.8262111860179,
+              "marginalVariance": 0.013398559494898904
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.151076591421273,
+              "marginalVariance": 0.0078843409517107
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:50:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1408.6527639187673,
+          "relationshipComponent": 0.2554872255730606,
+          "score": 1408.9082511443403,
+          "crossSignalInteraction": 0.2013135654968913,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1407.3362326041813,
+              "marginalVariance": 0.006862137691251297
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.316531314585982,
+              "marginalVariance": 0.04731152238491798
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:51:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1414.201974896091,
+          "relationshipComponent": 0.37298029235528135,
+          "score": 1414.5749551884464,
+          "crossSignalInteraction": 0.361758652675491,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1413.0380955798107,
+              "marginalVariance": 0.0010328207930231786
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 1.163879316280539,
+              "marginalVariance": 0.010188818886767148
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:52:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1412.2394685402694,
+          "relationshipComponent": 0.6828255913176748,
+          "score": 1412.922294131587,
+          "crossSignalInteraction": 0.6730143142597851,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1411.4462076541804,
+              "marginalVariance": 0.00004769884034101085
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.7932608860890514,
+              "marginalVariance": 0.009763578217548696
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:53:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1403.9562304346748,
+          "relationshipComponent": 1.0414314557385416,
+          "score": 1404.9976618904134,
+          "crossSignalInteraction": 1.011733505692299,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1403.5353798068572,
+              "marginalVariance": 0.01445656607755752
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.42085062781748733,
+              "marginalVariance": 0.015241383968685185
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:54:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1394.3226472928538,
+          "relationshipComponent": 1.105637534450255,
+          "score": 1395.4282848273042,
+          "crossSignalInteraction": 1.096369709385527,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1394.1305960766015,
+              "marginalVariance": 0.005460265750039245
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.19205121625253138,
+              "marginalVariance": 0.0038075593146887077
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:55:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1389.037153447106,
+          "relationshipComponent": 1.0805768563015228,
+          "score": 1390.1177303034076,
+          "crossSignalInteraction": 1.0267458132437621,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1388.9259382645935,
+              "marginalVariance": 0.0012964551166576993
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.11121518251255266,
+              "marginalVariance": 0.05253458794110294
+            }
+          ]
+        },
+        {
+          "sourceTimestampUtc": "2026-11-01T22:56:00+00:00",
+          "status": "available",
+          "reason": null,
+          "levelComponent": 1391.190751209493,
+          "relationshipComponent": 1.0806546055985051,
+          "score": 1392.2714058150916,
+          "crossSignalInteraction": 1.054062181469597,
+          "targetContributions": [
+            {
+              "signalId": "85500000-0000-0000-0000-000000000201",
+              "level": 1391.0527267845596,
+              "marginalVariance": 0.0002556533046331119
+            },
+            {
+              "signalId": "85500000-0000-0000-0000-000000000202",
+              "level": 0.13802442493365874,
+              "marginalVariance": 0.026336770824275102
+            }
+          ]
+        }
+      ],
+      "validationStatus": "experimental_not_field_validated",
+      "classificationStatus": "none",
+      "decisionThreshold": null
+    },
+    {
+      "contextId": "85700000-0000-0000-0000-000000000502",
+      "profileVersion": 1,
+      "revision": 49,
+      "referenceFitStatus": "insufficient_data",
+      "referenceFitUnavailableReason": "reference_fit_insufficient_or_invalid",
+      "referenceCompleteCohortCount": 0,
+      "evaluationScoredCohortCount": 0,
+      "evaluationWarmupCohortCount": 0,
+      "omittedEvaluationScores": 0,
+      "scores": [],
+      "validationStatus": "experimental_not_field_validated",
+      "classificationStatus": "none",
+      "decisionThreshold": null
+    }
+  ],
+  "staleVersion": {
+    "status": 409,
+    "code": "INTELLIGENCE_OPERATING_CONTEXT_PROFILE_VERSION_STALE"
+  }
+}

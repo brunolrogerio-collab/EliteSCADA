@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { expect, test, type APIRequestContext, type Locator } from '@playwright/test';
+import { expect, test, type APIRequestContext } from '@playwright/test';
 
 const projectKey = 'e2e-wave11';
-const eventKey = 'c19.runtime.initialize';
+const eventKey = `c19.runtime.initialize.${randomUUID()}`;
 const eventName = 'C19 Runtime Initialize';
 const eventMessage = 'C19 SCRIPT EVENT';
 const eventSource = 'runtime.hmi';
@@ -58,13 +58,15 @@ test('C19 authors an Operational Event normally and Server Script Initialize emi
   await expect(editor.getByRole('heading', { name: 'Eventos Operacionais' })).toBeVisible();
 
   await editor.getByTestId('operational-event-new').click();
-  await editor.getByLabel('Nome', { exact: true }).fill(eventName);
-  await editor.getByLabel('Chave', { exact: true }).fill(eventKey);
+  await editor.getByLabel('Nome de exibição', { exact: true }).fill(eventName);
+  await editor.getByLabel('Identificador', { exact: true }).fill(eventKey);
   await editor.getByLabel('Tipo', { exact: true }).fill('state-change');
   await editor.getByLabel('Categoria', { exact: true }).fill('operation');
   await editor.getByLabel('Origem', { exact: true }).fill(eventSource);
-  await editor.getByLabel('Área', { exact: true }).fill(eventArea);
   await editor.getByLabel('Mensagem padrão', { exact: true }).fill('C19 authored default');
+  const context = editor.getByTestId('operational-event-context-disclosure');
+  await context.locator('summary').click();
+  await context.getByLabel('Área', { exact: true }).fill(eventArea);
 
   await editor.getByTestId('operational-event-preview').click();
   await expect(editor.getByText('Candidato de Engineering válido', { exact: true })).toBeVisible();
@@ -94,8 +96,7 @@ test('C19 authors an Operational Event normally and Server Script Initialize emi
   const lifecycle = page.locator('.eng-lifecycle-workspace');
   await expect(lifecycle).toBeVisible();
 
-  const actions = lifecycle.locator('.eng-lifecycle-workspace__action-buttons');
-  const saveButton = actions.getByRole('button').first();
+  const saveButton = lifecycle.getByRole('button', { name: 'Salvar revisão' });
   await expect(saveButton).toBeEnabled();
   await saveButton.click();
 
@@ -106,10 +107,9 @@ test('C19 authors an Operational Event normally and Server Script Initialize emi
 
   const revisionRow = lifecycle.locator('.eng-lifecycle-workspace__revision-row').filter({ hasText: `r${savedRevision}` }).first();
   await expect(revisionRow).toBeVisible();
-  const publishButton = revisionRow.locator('.eng-lifecycle-workspace__row-actions').getByRole('button').nth(1);
+  const publishButton = revisionRow.getByRole('button', { name: 'Publicar', exact: true });
   await expect(publishButton).toBeEnabled();
   await publishButton.click();
-  await confirmLifecycleAction(lifecycle);
 
   await expect.poll(async () => {
     const response = await request.get(`/api/engineering/persistence/${projectKey}/lifecycle`);
@@ -117,10 +117,9 @@ test('C19 authors an Operational Event normally and Server Script Initialize emi
     return (await response.json() as { publishedRevision: number | null }).publishedRevision;
   }).toBe(savedRevision);
 
-  const activateButton = actions.getByRole('button').nth(1);
+  const activateButton = lifecycle.getByTestId('engineering-lifecycle-activate');
   await expect(activateButton).toBeEnabled();
   await activateButton.click();
-  await confirmLifecycleAction(lifecycle);
 
   await expect.poll(async () => {
     const response = await request.get('/api/runtime/application');
@@ -171,7 +170,7 @@ test('C19 authors an Operational Event normally and Server Script Initialize emi
 async function installServerScript(request: APIRequestContext, eventDefinitionId: string) {
   const before = await loadWorkspace(request);
   const working = await loadWorking(request);
-  const scriptId = randomUUID();
+  const scriptId = (working.scripts ?? []).find((item: any) => item.path === scriptPath)?.id ?? randomUUID();
   const script = {
     id: scriptId,
     path: scriptPath,
@@ -202,9 +201,9 @@ async function installServerScript(request: APIRequestContext, eventDefinitionId
 
   const previewResponse = await request.post('/api/engineering/import/json/preview', { data: candidate });
   expect(previewResponse.ok(), `C19 Script preview failed: HTTP ${previewResponse.status()} ${await previewResponse.text()}`).toBeTruthy();
-  const preview = await previewResponse.json() as { canApply: boolean; errorCount: number };
-  expect(preview.canApply).toBe(true);
-  expect(preview.errorCount).toBe(0);
+  const preview = await previewResponse.json() as { canApply: boolean; errorCount: number; items?: unknown[] };
+  expect(preview.canApply, JSON.stringify(preview, null, 2)).toBe(true);
+  expect(preview.errorCount, JSON.stringify(preview, null, 2)).toBe(0);
 
   const afterPreview = await loadWorkspace(request);
   expect(afterPreview.changeVersion).toBe(before.changeVersion);
@@ -260,11 +259,6 @@ async function loadWorkspace(request: APIRequestContext): Promise<{ changeVersio
   return await response.json();
 }
 
-async function confirmLifecycleAction(lifecycle: Locator) {
-  const confirmation = lifecycle.locator('.eng-lifecycle-workspace__confirmation');
-  await expect(confirmation).toBeVisible();
-  await confirmation.locator('.eng-lifecycle-workspace__critical').click();
-}
 
 function flatten(elements: readonly any[]): any[] {
   const result: any[] = [];

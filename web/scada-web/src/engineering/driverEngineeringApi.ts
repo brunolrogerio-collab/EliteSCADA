@@ -1,3 +1,9 @@
+import type {
+  CommunicationTagBindingEngineering,
+  TagPhysicalValueTransformEngineering
+} from './TagSourceSelector.logic';
+import type { TagValueSelectorEngineering } from './types';
+
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export type DriverEngineeringIssueView = Readonly<{
@@ -16,6 +22,83 @@ export type DriverConnectionTestResultView = Readonly<{
   issues?: readonly DriverEngineeringIssueView[] | null;
 }>;
 
+export type DriverPointReadTestStatusView =
+  | 'Good'
+  | 'Bad'
+  | 'NoData'
+  | 'IntermittentOrUncertain'
+  | string
+  | number;
+
+export type DriverPointReadRawRepresentationView = Readonly<{
+  kind: string;
+  hex?: string | null;
+  elements?: readonly string[] | null;
+  metadata?: Record<string, string> | null;
+}>;
+
+export type DriverPointReadValueView = Readonly<{
+  valueType: string;
+  value: unknown;
+  engineeringUnit?: string | null;
+}>;
+
+export type DriverPointReadSampleView = Readonly<{
+  status: DriverPointReadTestStatusView;
+  observedAtUtc: string;
+  sourceTimestampUtc?: string | null;
+  latencyMilliseconds?: number | null;
+  quality: string | number;
+  raw?: DriverPointReadRawRepresentationView | null;
+  decoded?: DriverPointReadValueView | null;
+  engineering?: DriverPointReadValueView | null;
+  effectiveValueTransform?: TagPhysicalValueTransformEngineering | null;
+  issues?: readonly DriverEngineeringIssueView[] | null;
+}>;
+
+export type DriverPointReadSampleSummaryView = Readonly<{
+  requestedSamples: number;
+  completedSamples: number;
+  goodSamples: number;
+  uncertainSamples: number;
+  badSamples: number;
+  noDataSamples: number;
+  minimumLatencyMilliseconds?: number | null;
+  averageLatencyMilliseconds?: number | null;
+  maximumLatencyMilliseconds?: number | null;
+}>;
+
+export type DriverPointReadTestResultView = Readonly<{
+  status: DriverPointReadTestStatusView;
+  sanitizedEndpoint?: string | null;
+  portableAddress: string;
+  summary: DriverPointReadSampleSummaryView;
+  samples: readonly DriverPointReadSampleView[];
+  issues?: readonly DriverEngineeringIssueView[] | null;
+}>;
+
+export type DriverPointReadTestRequestView = Readonly<{
+  binding: CommunicationTagBindingEngineering;
+  dataType: string;
+  addressSelector?: TagValueSelectorEngineering | null;
+  engineeringUnit?: string | null;
+  sampleCount?: number;
+  sampleIntervalMilliseconds?: number;
+  timeoutMilliseconds?: number;
+}>;
+
+export class DriverEngineeringHttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: string,
+    readonly fieldKey?: string
+  ) {
+    super(message);
+    this.name = 'DriverEngineeringHttpError';
+  }
+}
+
 export type DriverDiscoveryCandidateView = Readonly<{
   candidateId: string;
   stableIdentity: string;
@@ -24,6 +107,58 @@ export type DriverDiscoveryCandidateView = Readonly<{
   suggestedSettings?: Record<string, string> | null;
   metadata?: Record<string, string> | null;
   issues?: readonly DriverEngineeringIssueView[] | null;
+  materialization?: DriverMaterializationCandidateView | null;
+}>;
+
+export type DriverMaterializationRoleBindingView = Readonly<{
+  role: string;
+  tagCandidateId?: string | null;
+  commandCandidateId?: string | null;
+}>;
+
+export type DriverMaterializationCapabilityCandidateView = Readonly<{
+  capabilityId: string;
+  kind: string;
+  bindings?: readonly DriverMaterializationRoleBindingView[] | null;
+  metadata?: Record<string, string> | null;
+  version: number;
+}>;
+
+export type DriverMaterializationTagCandidateView = Readonly<{
+  candidateId: string;
+  name: string;
+  path: string;
+  dataType: string | number;
+  portableAddress?: string | null;
+  readOnly: boolean;
+  engineeringUnit?: string | null;
+  metadata?: Record<string, string> | null;
+}>;
+
+export type DriverMaterializationCommandCandidateView = Readonly<{
+  candidateId: string;
+  key: string;
+  name: string;
+  value: string;
+  targetTagCandidateId?: string | null;
+  metadata?: Record<string, string> | null;
+}>;
+
+export type DriverMaterializationEquipmentCandidateView = Readonly<{
+  candidateId: string;
+  path: string;
+  name: string;
+  stableDeviceIdentity: string;
+  sourceRole?: string | null;
+  locationPlaceholder?: string | null;
+  capabilities?: readonly DriverMaterializationCapabilityCandidateView[] | null;
+  metadata?: Record<string, string> | null;
+}>;
+
+export type DriverMaterializationCandidateView = Readonly<{
+  equipment: DriverMaterializationEquipmentCandidateView;
+  tags?: readonly DriverMaterializationTagCandidateView[] | null;
+  commands?: readonly DriverMaterializationCommandCandidateView[] | null;
 }>;
 
 export type DriverBrowseNodeView = Readonly<{
@@ -69,6 +204,27 @@ export async function testEngineeringDataSourceDraftConnection(
   return await postJson<DriverConnectionTestResultView>(
     '/api/engineering/driver-tools/connection-test',
     dataSource);
+}
+
+export async function testEngineeringPointRead(
+  dataSourceId: string,
+  request: DriverPointReadTestRequestView
+): Promise<DriverPointReadTestResultView> {
+  return await postJson<DriverPointReadTestResultView>(
+    `/api/engineering/data-sources/${encodeURIComponent(dataSourceId)}/driver-tools/point-read-test`,
+    request);
+}
+
+export async function testEngineeringDraftPointRead(
+  dataSource: DriverDraftDataSourceView,
+  request: DriverPointReadTestRequestView
+): Promise<DriverPointReadTestResultView> {
+  return await postJson<DriverPointReadTestResultView>(
+    '/api/engineering/driver-tools/point-read-test',
+    {
+      dataSource,
+      ...request
+    });
 }
 
 export async function discoverEngineeringDataSource(
@@ -125,21 +281,30 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(readProblemDetail(text) || `${response.status} ${response.statusText}`);
+    const problem = readProblem(text);
+    throw new DriverEngineeringHttpError(
+      problem.detail || `${response.status} ${response.statusText}`,
+      response.status,
+      problem.code,
+      problem.fieldKey
+    );
   }
 
   return await response.json() as T;
 }
 
-function readProblemDetail(body: string): string {
-  if (!body.trim()) return '';
+function readProblem(body: string): { detail?: string; code?: string; fieldKey?: string } {
+  if (!body.trim()) return {};
   try {
-    const parsed = JSON.parse(body) as { detail?: unknown; error?: unknown; title?: unknown };
-    if (typeof parsed.detail === 'string' && parsed.detail.trim()) return parsed.detail;
-    if (typeof parsed.error === 'string' && parsed.error.trim()) return parsed.error;
-    if (typeof parsed.title === 'string' && parsed.title.trim()) return parsed.title;
+    const parsed = JSON.parse(body) as { detail?: unknown; error?: unknown; title?: unknown; code?: unknown; fieldKey?: unknown };
+    const detail = [parsed.detail, parsed.error, parsed.title].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+    return {
+      ...(detail ? { detail } : {}),
+      ...(typeof parsed.code === 'string' && parsed.code.trim() ? { code: parsed.code.trim() } : {}),
+      ...(typeof parsed.fieldKey === 'string' && parsed.fieldKey.trim() ? { fieldKey: parsed.fieldKey.trim() } : {})
+    };
   } catch {
-    // Keep server text when it is not JSON.
+    // Preserve a plain server diagnostic when the response is not JSON.
   }
-  return body;
+  return { detail: body };
 }

@@ -8,5 +8,10 @@ public enum SimulationSignalType
     Random,
     Counter,
     BooleanToggle,
-    Manual
+    Manual,
+    Square,
+    RampUp,
+    RampDown,
+    RampUpDown,
+    CurrentTime
 }

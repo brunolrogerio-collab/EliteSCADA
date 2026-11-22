@@ -25,6 +25,10 @@ export type VisualPythonPropertyWriteAcknowledgement = Readonly<{
   visualRuntimeInstanceId: string;
 }>;
 
+export type VisualPythonPropertyCapabilityProviderIdentity = Readonly<{
+  visualDefinitionId?: string | null;
+}>;
+
 /**
  * Bind the generic Client Visual Python capability dispatcher to one concrete
  * Runtime Visual Instance without exposing renderer, DOM or React authority.
@@ -36,7 +40,8 @@ export type VisualPythonPropertyWriteAcknowledgement = Readonly<{
  */
 export function createVisualPythonPropertyCapabilityProvider(
   instance: RuntimeVisualInstance,
-  tweenOptions: RuntimeVisualTweenSchedulerOptions = {}
+  tweenOptions: RuntimeVisualTweenSchedulerOptions = {},
+  identity: VisualPythonPropertyCapabilityProviderIdentity = {}
 ): VisualPythonPropertyCapabilityProvider {
   const tweenScheduler = new RuntimeVisualTweenScheduler(instance, tweenOptions);
 
@@ -46,7 +51,7 @@ export function createVisualPythonPropertyCapabilityProvider(
       propertyKey: string,
       context: ClientVisualPythonCapabilityContext
     ): RuntimeVisualPropertyState {
-      assertCurrentVisualTarget(instance, targetReference, context);
+      assertCurrentVisualTarget(instance, targetReference, context, identity.visualDefinitionId);
       return instance.readPropertyState(propertyKey);
     },
 
@@ -56,7 +61,7 @@ export function createVisualPythonPropertyCapabilityProvider(
       value: unknown,
       context: ClientVisualPythonCapabilityContext
     ): VisualPythonPropertyWriteAcknowledgement {
-      assertCurrentVisualTarget(instance, targetReference, context);
+      assertCurrentVisualTarget(instance, targetReference, context, identity.visualDefinitionId);
       instance.setScriptOverride(propertyKey, value);
       return acknowledgement(instance, propertyKey);
     },
@@ -66,7 +71,7 @@ export function createVisualPythonPropertyCapabilityProvider(
       propertyKey: string,
       context: ClientVisualPythonCapabilityContext
     ): VisualPythonPropertyWriteAcknowledgement {
-      assertCurrentVisualTarget(instance, targetReference, context);
+      assertCurrentVisualTarget(instance, targetReference, context, identity.visualDefinitionId);
       instance.clearScriptOverride(propertyKey);
       return acknowledgement(instance, propertyKey);
     },
@@ -76,8 +81,8 @@ export function createVisualPythonPropertyCapabilityProvider(
       context: ClientVisualPythonCapabilityContext
     ): VisualTweenAccepted {
       const request = requireTweenRequest(argumentsValue);
-      assertCurrentVisualTarget(instance, request.targetReference, context);
-      return tweenScheduler.start(request);
+      assertCurrentVisualTarget(instance, request.targetReference, context, identity.visualDefinitionId);
+      return tweenScheduler.start({ ...request, targetReference: instance.objectId });
     }
   });
 }
@@ -182,7 +187,8 @@ function optionalBoolean(value: Record<string, unknown>, key: string): boolean |
 function assertCurrentVisualTarget(
   instance: RuntimeVisualInstance,
   targetReference: string,
-  context: ClientVisualPythonCapabilityContext
+  context: ClientVisualPythonCapabilityContext,
+  visualDefinitionId?: string | null
 ): void {
   if (instance.isDisposed) {
     throw new RuntimeVisualInstanceError(
@@ -198,7 +204,13 @@ function assertCurrentVisualTarget(
     );
   }
 
-  if (targetReference !== instance.objectId && targetReference !== instance.objectKey) {
+  const definitionId = visualDefinitionId?.trim() || '';
+  const canonicalReference = definitionId ? `${definitionId}/${instance.objectId}` : null;
+  if (
+    targetReference !== instance.objectId &&
+    targetReference !== instance.objectKey &&
+    targetReference !== canonicalReference
+  ) {
     throw new RuntimeVisualInstanceError(
       'VISUAL_RUNTIME_TARGET_OUTSIDE_CONTEXT',
       `Visual target '${targetReference}' is outside the current Runtime Visual Instance context.`

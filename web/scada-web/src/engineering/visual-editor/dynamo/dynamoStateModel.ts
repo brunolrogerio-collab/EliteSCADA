@@ -16,6 +16,7 @@ export type DynamoStateInputs = Readonly<{
   quality?: DynamoQualityState;
   fault?: boolean;
   alarm?: boolean;
+  inhibited?: boolean;
   commandIntent?: DynamoCommandIntent;
   settledState?: DynamoSettledState;
 }>;
@@ -25,6 +26,7 @@ export type DynamoResolvedVisualStateKind =
   | 'fault'
   | 'alarm'
   | 'uncertain-quality'
+  | 'inhibited'
   | 'command-intent'
   | 'transitioning'
   | 'active'
@@ -44,6 +46,7 @@ export const DYNAMO_STATE_PRECEDENCE = Object.freeze({
   fault: 500,
   alarm: 400,
   uncertainQuality: 350,
+  inhibited: 325,
   commandIntent: 300,
   transitioning: 200,
   active: 100,
@@ -81,6 +84,10 @@ export function resolveDynamoVisualState(input: DynamoStateInputs): DynamoResolv
       commandIntent,
       settledState
     );
+  }
+
+  if (input.inhibited === true) {
+    return state('inhibited', DYNAMO_STATE_PRECEDENCE.inhibited, quality, commandIntent, settledState);
   }
 
   if (commandIntent !== null) {

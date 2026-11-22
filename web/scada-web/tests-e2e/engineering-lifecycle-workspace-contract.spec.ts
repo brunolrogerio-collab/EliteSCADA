@@ -4,7 +4,8 @@ import {
   buildLifecycleSteps,
   canActivatePublished,
   canSaveWorkspace,
-  confirmationText,
+  checkoutConfirmationText,
+  checkoutRequiresConfirmation,
   lifecycleErrorText,
   projectLifecycleName,
   runtimeLifecycleName
@@ -81,6 +82,19 @@ function state(overrides: Partial<EngineeringLifecycleState> = {}): EngineeringL
 }
 
 test.describe('Engineering Lifecycle Workspace contract', () => {
+  test('activation failure shows issues without dumping revision and lifecycle JSON', () => {
+    const error = Object.assign(new Error(JSON.stringify({
+      revision: { revision: 19, savedBy: 'internal-operator-id' },
+      runtime: { runtimeIssues: [{ code: 'RUNTIME_CANDIDATE_NOT_READY', message: 'Driver did not become ready.', isError: true }] },
+      lifecycle: { publishedRevision: 19 }
+    })), { status: 422 });
+    const text = lifecycleErrorText(error, 'pt-BR');
+    expect(text).toContain('RUNTIME_CANDIDATE_NOT_READY: Driver did not become ready.');
+    expect(text).not.toContain('savedBy');
+    expect(text).not.toContain('internal-operator-id');
+    expect(text).not.toContain('publishedRevision');
+  });
+
   test('mutation request bodies never claim trusted operator identity', () => {
     expect(engineeringLifecycleRequestBody('save', 'Demo Project')).toEqual({ projectName: 'Demo Project' });
     expect(engineeringLifecycleRequestBody('publish')).toEqual({});
@@ -113,8 +127,10 @@ test.describe('Engineering Lifecycle Workspace contract', () => {
     expect(canSaveWorkspace(state({ persistence: { enabled: false, configuredProjectKey: 'demo' } }))).toBe(false);
   });
 
-  test('activation requires a Published revision and exact configured Runtime project binding', () => {
-    expect(canActivatePublished(state())).toBe(true);
+  test('activation requires a Published revision different from Active and exact configured Runtime project binding', () => {
+    const ready = state({ lifecycle: { ...state().lifecycle!, publishedRevision: 4, activeRevision: 3 } });
+    expect(canActivatePublished(ready)).toBe(true);
+    expect(canActivatePublished(state())).toBe(false);
     expect(canActivatePublished(state({ persistence: { enabled: true, configuredProjectKey: null } }))).toBe(false);
     expect(canActivatePublished(state({ persistence: { enabled: true, configuredProjectKey: 'other' } }))).toBe(false);
     expect(canActivatePublished(state({ lifecycle: { ...state().lifecycle!, publishedRevision: null } }))).toBe(false);
@@ -132,10 +148,13 @@ test.describe('Engineering Lifecycle Workspace contract', () => {
     expect(steps.find(step => step.key === 'published')?.revision).toBe(3);
   });
 
-  test('critical lifecycle operations provide explicit localized confirmation text', () => {
-    expect(confirmationText('checkout', 'pt-BR', 4).description).toContain('4');
-    expect(confirmationText('publish', 'en', 4).description).toContain('does not activate Runtime');
-    expect(confirmationText('activate', 'es').description).toContain('Runtime Active');
+  test('only dirty checkout requires a data-loss confirmation', () => {
+    expect(checkoutRequiresConfirmation(state())).toBe(false);
+    expect(checkoutRequiresConfirmation(state({ workspace: { ...state().workspace, isDirty: true } }))).toBe(true);
+
+    expect(checkoutConfirmationText('pt-BR', 4).description).toContain('4');
+    expect(checkoutConfirmationText('en', 4).title).toContain('Discard');
+    expect(checkoutConfirmationText('es', 4).confirm).toContain('Descartar');
   });
 
   test('maps authorization, conflict, validation and unavailable statuses to understandable messages', () => {
@@ -145,5 +164,17 @@ test.describe('Engineering Lifecycle Workspace contract', () => {
     expect(lifecycleErrorText(makeError(409), 'en')).toContain('conflicts');
     expect(lifecycleErrorText(makeError(422), 'es')).toContain('validada');
     expect(lifecycleErrorText(makeError(503), 'pt-BR')).toContain('indisponível');
+
+    const partialStop = Object.assign(new Error('server unavailable'), {
+      status: 503,
+      responseBody: JSON.stringify({
+        error: 'Runtime stopped, but one Server Script did not confirm shutdown.',
+        runtimeStopped: true,
+        serverScriptsStopped: false
+      })
+    });
+    const partialStopText = lifecycleErrorText(partialStop, 'pt-BR');
+    expect(partialStopText).toContain('persistência de Engineering está indisponível');
+    expect(partialStopText).toContain('one Server Script did not confirm shutdown');
   });
 });

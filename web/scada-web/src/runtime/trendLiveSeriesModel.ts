@@ -110,6 +110,7 @@ function runtimeSample(
     timestamp,
     epochMilliseconds,
     value: numericValue,
+    ...(typeof value === 'boolean' ? { digital: true } : {}),
     quality: normalizeQuality(quality)
   });
 }

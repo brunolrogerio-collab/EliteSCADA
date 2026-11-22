@@ -1,0 +1,2563 @@
+{
+  "schema": "elitescada.asset-batch",
+  "schemaVersion": 1,
+  "defaults": {
+    "author": "EliteSCADA",
+    "styleFamily": "minimal-outline-v2",
+    "license": {
+      "identifier": "Proprietary-EliteSCADA-Original",
+      "reference": "assets/licenses/ELITESCADA-ORIGINAL-ASSET-NOTICE.md",
+      "attributionRequired": false,
+      "commercialRedistributionAllowed": true,
+      "modificationAllowed": true
+    }
+  },
+  "assets": [
+    {
+      "id": "builtin.asset.industrial.process.pumps.pump-casing.minimal",
+      "key": "industrial.process.pumps.pump-casing.minimal",
+      "displayName": "Process pump - minimal",
+      "sourceFile": "assets/sources/batch2/pump-casing-minimal.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "pump",
+        "process",
+        "rotating",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "centrifugal",
+        "equipment",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Process pump, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.process.pumps.pump-casing.detailed",
+      "key": "industrial.process.pumps.pump-casing.detailed",
+      "displayName": "Process pump - detailed",
+      "sourceFile": "assets/sources/batch2/pump-casing-detailed.svg",
+      "categoryPath": "industrial/process/pumps",
+      "tags": [
+        "pump",
+        "process",
+        "rotating",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "centrifugal",
+        "equipment",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Process pump, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.rotating.motors.motor-side.minimal",
+      "key": "industrial.rotating.motors.motor-side.minimal",
+      "displayName": "Motor side view - minimal",
+      "sourceFile": "assets/sources/batch2/motor-side-minimal.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "motor",
+        "rotating",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "industrial drive",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Motor side view, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.rotating.motors.motor-side.detailed",
+      "key": "industrial.rotating.motors.motor-side.detailed",
+      "displayName": "Motor side view - detailed",
+      "sourceFile": "assets/sources/batch2/motor-side-detailed.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "motor",
+        "rotating",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "industrial drive",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Motor side view, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.rotating.compressors.compressor-scroll.minimal",
+      "key": "industrial.rotating.compressors.compressor-scroll.minimal",
+      "displayName": "Compressor - minimal",
+      "sourceFile": "assets/sources/batch2/compressor-scroll-minimal.svg",
+      "categoryPath": "industrial/rotating/compressors",
+      "tags": [
+        "compressor",
+        "rotating",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "industrial air",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Compressor, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.rotating.compressors.compressor-scroll.detailed",
+      "key": "industrial.rotating.compressors.compressor-scroll.detailed",
+      "displayName": "Compressor - detailed",
+      "sourceFile": "assets/sources/batch2/compressor-scroll-detailed.svg",
+      "categoryPath": "industrial/rotating/compressors",
+      "tags": [
+        "compressor",
+        "rotating",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "industrial air",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Compressor, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.rotating.fans-blowers.axial-fan.minimal",
+      "key": "industrial.rotating.fans-blowers.axial-fan.minimal",
+      "displayName": "Axial fan - minimal",
+      "sourceFile": "assets/sources/batch2/axial-fan-minimal.svg",
+      "categoryPath": "industrial/rotating/fans-blowers",
+      "tags": [
+        "fan",
+        "axial",
+        "ventilation",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "rotating equipment",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Axial fan, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.rotating.fans-blowers.axial-fan.detailed",
+      "key": "industrial.rotating.fans-blowers.axial-fan.detailed",
+      "displayName": "Axial fan - detailed",
+      "sourceFile": "assets/sources/batch2/axial-fan-detailed.svg",
+      "categoryPath": "industrial/rotating/fans-blowers",
+      "tags": [
+        "fan",
+        "axial",
+        "ventilation",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "rotating equipment",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Axial fan, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.rotating.fans-blowers.centrifugal-blower.minimal",
+      "key": "industrial.rotating.fans-blowers.centrifugal-blower.minimal",
+      "displayName": "Centrifugal blower - minimal",
+      "sourceFile": "assets/sources/batch2/centrifugal-blower-minimal.svg",
+      "categoryPath": "industrial/rotating/fans-blowers",
+      "tags": [
+        "blower",
+        "fan",
+        "centrifugal",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "air handling",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Centrifugal blower, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.rotating.fans-blowers.centrifugal-blower.detailed",
+      "key": "industrial.rotating.fans-blowers.centrifugal-blower.detailed",
+      "displayName": "Centrifugal blower - detailed",
+      "sourceFile": "assets/sources/batch2/centrifugal-blower-detailed.svg",
+      "categoryPath": "industrial/rotating/fans-blowers",
+      "tags": [
+        "blower",
+        "fan",
+        "centrifugal",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "air handling",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Centrifugal blower, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.process.tanks-vessels.horizontal-tank.minimal",
+      "key": "industrial.process.tanks-vessels.horizontal-tank.minimal",
+      "displayName": "Horizontal tank - minimal",
+      "sourceFile": "assets/sources/batch2/horizontal-tank-minimal.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "tank",
+        "vessel",
+        "horizontal",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "storage",
+        "process",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Horizontal tank, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.process.tanks-vessels.horizontal-tank.detailed",
+      "key": "industrial.process.tanks-vessels.horizontal-tank.detailed",
+      "displayName": "Horizontal tank - detailed",
+      "sourceFile": "assets/sources/batch2/horizontal-tank-detailed.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "tank",
+        "vessel",
+        "horizontal",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "storage",
+        "process",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Horizontal tank, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.utilities.plate-heat-exchanger.minimal",
+      "key": "industrial.utilities.plate-heat-exchanger.minimal",
+      "displayName": "Plate heat exchanger - minimal",
+      "sourceFile": "assets/sources/batch2/plate-heat-exchanger-minimal.svg",
+      "categoryPath": "industrial/utilities",
+      "tags": [
+        "heat",
+        "exchanger",
+        "plate",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "thermal",
+        "utility",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Plate heat exchanger, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.utilities.plate-heat-exchanger.detailed",
+      "key": "industrial.utilities.plate-heat-exchanger.detailed",
+      "displayName": "Plate heat exchanger - detailed",
+      "sourceFile": "assets/sources/batch2/plate-heat-exchanger-detailed.svg",
+      "categoryPath": "industrial/utilities",
+      "tags": [
+        "heat",
+        "exchanger",
+        "plate",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "thermal",
+        "utility",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Plate heat exchanger, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.utilities.belt-conveyor.minimal",
+      "key": "industrial.utilities.belt-conveyor.minimal",
+      "displayName": "Belt conveyor - minimal",
+      "sourceFile": "assets/sources/batch2/belt-conveyor-minimal.svg",
+      "categoryPath": "industrial/utilities",
+      "tags": [
+        "conveyor",
+        "belt",
+        "material",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "material handling",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Belt conveyor, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.utilities.belt-conveyor.detailed",
+      "key": "industrial.utilities.belt-conveyor.detailed",
+      "displayName": "Belt conveyor - detailed",
+      "sourceFile": "assets/sources/batch2/belt-conveyor-detailed.svg",
+      "categoryPath": "industrial/utilities",
+      "tags": [
+        "conveyor",
+        "belt",
+        "material",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "material handling",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Belt conveyor, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.instruments.pressure-gauge.minimal",
+      "key": "pid.instruments.pressure-gauge.minimal",
+      "displayName": "Pressure gauge - minimal",
+      "sourceFile": "assets/sources/batch2/pressure-gauge-minimal.svg",
+      "categoryPath": "pid/instruments",
+      "tags": [
+        "pid",
+        "pressure",
+        "gauge",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "instrument",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Pressure gauge, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.instruments.pressure-gauge.detailed",
+      "key": "pid.instruments.pressure-gauge.detailed",
+      "displayName": "Pressure gauge - detailed",
+      "sourceFile": "assets/sources/batch2/pressure-gauge-detailed.svg",
+      "categoryPath": "pid/instruments",
+      "tags": [
+        "pid",
+        "pressure",
+        "gauge",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "instrument",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Pressure gauge, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.instruments.temperature-indicator.minimal",
+      "key": "pid.instruments.temperature-indicator.minimal",
+      "displayName": "Temperature indicator - minimal",
+      "sourceFile": "assets/sources/batch2/temperature-indicator-minimal.svg",
+      "categoryPath": "pid/instruments",
+      "tags": [
+        "pid",
+        "temperature",
+        "instrument",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "thermal",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Temperature indicator, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.instruments.temperature-indicator.detailed",
+      "key": "pid.instruments.temperature-indicator.detailed",
+      "displayName": "Temperature indicator - detailed",
+      "sourceFile": "assets/sources/batch2/temperature-indicator-detailed.svg",
+      "categoryPath": "pid/instruments",
+      "tags": [
+        "pid",
+        "temperature",
+        "instrument",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "thermal",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Temperature indicator, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.instruments.flow-indicator.minimal",
+      "key": "pid.instruments.flow-indicator.minimal",
+      "displayName": "Flow indicator - minimal",
+      "sourceFile": "assets/sources/batch2/flow-indicator-minimal.svg",
+      "categoryPath": "pid/instruments",
+      "tags": [
+        "pid",
+        "flow",
+        "instrument",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "process measurement",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Flow indicator, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.instruments.flow-indicator.detailed",
+      "key": "pid.instruments.flow-indicator.detailed",
+      "displayName": "Flow indicator - detailed",
+      "sourceFile": "assets/sources/batch2/flow-indicator-detailed.svg",
+      "categoryPath": "pid/instruments",
+      "tags": [
+        "pid",
+        "flow",
+        "instrument",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "process measurement",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Flow indicator, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.instruments.level-indicator.minimal",
+      "key": "pid.instruments.level-indicator.minimal",
+      "displayName": "Level indicator - minimal",
+      "sourceFile": "assets/sources/batch2/level-indicator-minimal.svg",
+      "categoryPath": "pid/instruments",
+      "tags": [
+        "pid",
+        "level",
+        "instrument",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "tank level",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Level indicator, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.instruments.level-indicator.detailed",
+      "key": "pid.instruments.level-indicator.detailed",
+      "displayName": "Level indicator - detailed",
+      "sourceFile": "assets/sources/batch2/level-indicator-detailed.svg",
+      "categoryPath": "pid/instruments",
+      "tags": [
+        "pid",
+        "level",
+        "instrument",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "tank level",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Level indicator, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.lines.pipe-elbow.minimal",
+      "key": "pid.lines.pipe-elbow.minimal",
+      "displayName": "Pipe elbow - minimal",
+      "sourceFile": "assets/sources/batch2/pipe-elbow-minimal.svg",
+      "categoryPath": "pid/lines",
+      "tags": [
+        "pid",
+        "pipe",
+        "elbow",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "piping",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Pipe elbow, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.lines.pipe-elbow.detailed",
+      "key": "pid.lines.pipe-elbow.detailed",
+      "displayName": "Pipe elbow - detailed",
+      "sourceFile": "assets/sources/batch2/pipe-elbow-detailed.svg",
+      "categoryPath": "pid/lines",
+      "tags": [
+        "pid",
+        "pipe",
+        "elbow",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "piping",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Pipe elbow, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.lines.pipe-tee.minimal",
+      "key": "pid.lines.pipe-tee.minimal",
+      "displayName": "Pipe tee - minimal",
+      "sourceFile": "assets/sources/batch2/pipe-tee-minimal.svg",
+      "categoryPath": "pid/lines",
+      "tags": [
+        "pid",
+        "pipe",
+        "tee",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "piping",
+        "branch",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Pipe tee, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.lines.pipe-tee.detailed",
+      "key": "pid.lines.pipe-tee.detailed",
+      "displayName": "Pipe tee - detailed",
+      "sourceFile": "assets/sources/batch2/pipe-tee-detailed.svg",
+      "categoryPath": "pid/lines",
+      "tags": [
+        "pid",
+        "pipe",
+        "tee",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "piping",
+        "branch",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Pipe tee, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.equipment.strainer-y.minimal",
+      "key": "pid.equipment.strainer-y.minimal",
+      "displayName": "Y strainer - minimal",
+      "sourceFile": "assets/sources/batch2/strainer-y-minimal.svg",
+      "categoryPath": "pid/equipment",
+      "tags": [
+        "pid",
+        "strainer",
+        "filter",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "piping",
+        "filter",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Y strainer, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.equipment.strainer-y.detailed",
+      "key": "pid.equipment.strainer-y.detailed",
+      "displayName": "Y strainer - detailed",
+      "sourceFile": "assets/sources/batch2/strainer-y-detailed.svg",
+      "categoryPath": "pid/equipment",
+      "tags": [
+        "pid",
+        "strainer",
+        "filter",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "piping",
+        "filter",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Y strainer, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.auxiliary.orifice-plate.minimal",
+      "key": "pid.auxiliary.orifice-plate.minimal",
+      "displayName": "Orifice plate - minimal",
+      "sourceFile": "assets/sources/batch2/orifice-plate-minimal.svg",
+      "categoryPath": "pid/auxiliary",
+      "tags": [
+        "pid",
+        "orifice",
+        "plate",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "flow measurement",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Orifice plate, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.auxiliary.orifice-plate.detailed",
+      "key": "pid.auxiliary.orifice-plate.detailed",
+      "displayName": "Orifice plate - detailed",
+      "sourceFile": "assets/sources/batch2/orifice-plate-detailed.svg",
+      "categoryPath": "pid/auxiliary",
+      "tags": [
+        "pid",
+        "orifice",
+        "plate",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "flow measurement",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Orifice plate, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.pumping.submersible-pump.minimal",
+      "key": "sanitation.pumping.submersible-pump.minimal",
+      "displayName": "Submersible pump - minimal",
+      "sourceFile": "assets/sources/batch2/submersible-pump-minimal.svg",
+      "categoryPath": "sanitation/pumping",
+      "tags": [
+        "sanitation",
+        "pump",
+        "submersible",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "wastewater",
+        "well",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Submersible pump, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.pumping.submersible-pump.detailed",
+      "key": "sanitation.pumping.submersible-pump.detailed",
+      "displayName": "Submersible pump - detailed",
+      "sourceFile": "assets/sources/batch2/submersible-pump-detailed.svg",
+      "categoryPath": "sanitation/pumping",
+      "tags": [
+        "sanitation",
+        "pump",
+        "submersible",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "wastewater",
+        "well",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Submersible pump, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.screening.bar-screen.minimal",
+      "key": "sanitation.screening.bar-screen.minimal",
+      "displayName": "Bar screen - minimal",
+      "sourceFile": "assets/sources/batch2/bar-screen-minimal.svg",
+      "categoryPath": "sanitation/screening",
+      "tags": [
+        "sanitation",
+        "screen",
+        "bars",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "wastewater",
+        "screening",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Bar screen, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.screening.bar-screen.detailed",
+      "key": "sanitation.screening.bar-screen.detailed",
+      "displayName": "Bar screen - detailed",
+      "sourceFile": "assets/sources/batch2/bar-screen-detailed.svg",
+      "categoryPath": "sanitation/screening",
+      "tags": [
+        "sanitation",
+        "screen",
+        "bars",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "wastewater",
+        "screening",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Bar screen, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.treatment.aeration-tank.minimal",
+      "key": "sanitation.treatment.aeration-tank.minimal",
+      "displayName": "Aeration tank - minimal",
+      "sourceFile": "assets/sources/batch2/aeration-tank-minimal.svg",
+      "categoryPath": "sanitation/treatment",
+      "tags": [
+        "sanitation",
+        "aeration",
+        "tank",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "wastewater treatment",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Aeration tank, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.treatment.aeration-tank.detailed",
+      "key": "sanitation.treatment.aeration-tank.detailed",
+      "displayName": "Aeration tank - detailed",
+      "sourceFile": "assets/sources/batch2/aeration-tank-detailed.svg",
+      "categoryPath": "sanitation/treatment",
+      "tags": [
+        "sanitation",
+        "aeration",
+        "tank",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "wastewater treatment",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Aeration tank, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.filters.sand-filter.minimal",
+      "key": "sanitation.filters.sand-filter.minimal",
+      "displayName": "Sand filter - minimal",
+      "sourceFile": "assets/sources/batch2/sand-filter-minimal.svg",
+      "categoryPath": "sanitation/filters",
+      "tags": [
+        "sanitation",
+        "filter",
+        "sand",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "water treatment",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Sand filter, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.filters.sand-filter.detailed",
+      "key": "sanitation.filters.sand-filter.detailed",
+      "displayName": "Sand filter - detailed",
+      "sourceFile": "assets/sources/batch2/sand-filter-detailed.svg",
+      "categoryPath": "sanitation/filters",
+      "tags": [
+        "sanitation",
+        "filter",
+        "sand",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "water treatment",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Sand filter, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.chemical-dosing.chlorination-skid.minimal",
+      "key": "sanitation.chemical-dosing.chlorination-skid.minimal",
+      "displayName": "Chlorination skid - minimal",
+      "sourceFile": "assets/sources/batch2/chlorination-skid-minimal.svg",
+      "categoryPath": "sanitation/chemical-dosing",
+      "tags": [
+        "sanitation",
+        "chlorination",
+        "dosing",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "chemical treatment",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Chlorination skid, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.chemical-dosing.chlorination-skid.detailed",
+      "key": "sanitation.chemical-dosing.chlorination-skid.detailed",
+      "displayName": "Chlorination skid - detailed",
+      "sourceFile": "assets/sources/batch2/chlorination-skid-detailed.svg",
+      "categoryPath": "sanitation/chemical-dosing",
+      "tags": [
+        "sanitation",
+        "chlorination",
+        "dosing",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "chemical treatment",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Chlorination skid, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.reservoirs.water-tower.minimal",
+      "key": "sanitation.reservoirs.water-tower.minimal",
+      "displayName": "Water tower - minimal",
+      "sourceFile": "assets/sources/batch2/water-tower-minimal.svg",
+      "categoryPath": "sanitation/reservoirs",
+      "tags": [
+        "sanitation",
+        "water",
+        "tower",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "reservoir",
+        "distribution",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Water tower, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.reservoirs.water-tower.detailed",
+      "key": "sanitation.reservoirs.water-tower.detailed",
+      "displayName": "Water tower - detailed",
+      "sourceFile": "assets/sources/batch2/water-tower-detailed.svg",
+      "categoryPath": "sanitation/reservoirs",
+      "tags": [
+        "sanitation",
+        "water",
+        "tower",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "reservoir",
+        "distribution",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Water tower, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.sewer-network.manhole.minimal",
+      "key": "sanitation.sewer-network.manhole.minimal",
+      "displayName": "Sewer manhole - minimal",
+      "sourceFile": "assets/sources/batch2/manhole-minimal.svg",
+      "categoryPath": "sanitation/sewer-network",
+      "tags": [
+        "sanitation",
+        "sewer",
+        "manhole",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "network",
+        "inspection",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Sewer manhole, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.sewer-network.manhole.detailed",
+      "key": "sanitation.sewer-network.manhole.detailed",
+      "displayName": "Sewer manhole - detailed",
+      "sourceFile": "assets/sources/batch2/manhole-detailed.svg",
+      "categoryPath": "sanitation/sewer-network",
+      "tags": [
+        "sanitation",
+        "sewer",
+        "manhole",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "network",
+        "inspection",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Sewer manhole, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.breakers.mccb-breaker.minimal",
+      "key": "electrical.breakers.mccb-breaker.minimal",
+      "displayName": "MCCB breaker - minimal",
+      "sourceFile": "assets/sources/batch2/mccb-breaker-minimal.svg",
+      "categoryPath": "electrical/breakers",
+      "tags": [
+        "electrical",
+        "breaker",
+        "mccb",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "switchgear",
+        "protection",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of MCCB breaker, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.breakers.mccb-breaker.detailed",
+      "key": "electrical.breakers.mccb-breaker.detailed",
+      "displayName": "MCCB breaker - detailed",
+      "sourceFile": "assets/sources/batch2/mccb-breaker-detailed.svg",
+      "categoryPath": "electrical/breakers",
+      "tags": [
+        "electrical",
+        "breaker",
+        "mccb",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "switchgear",
+        "protection",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of MCCB breaker, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.protection.fuse.minimal",
+      "key": "electrical.protection.fuse.minimal",
+      "displayName": "Fuse - minimal",
+      "sourceFile": "assets/sources/batch2/fuse-minimal.svg",
+      "categoryPath": "electrical/protection",
+      "tags": [
+        "electrical",
+        "fuse",
+        "protection",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "single line",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Fuse, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.protection.fuse.detailed",
+      "key": "electrical.protection.fuse.detailed",
+      "displayName": "Fuse - detailed",
+      "sourceFile": "assets/sources/batch2/fuse-detailed.svg",
+      "categoryPath": "electrical/protection",
+      "tags": [
+        "electrical",
+        "fuse",
+        "protection",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "single line",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Fuse, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.protection.protection-relay.minimal",
+      "key": "electrical.protection.protection-relay.minimal",
+      "displayName": "Protection relay - minimal",
+      "sourceFile": "assets/sources/batch2/protection-relay-minimal.svg",
+      "categoryPath": "electrical/protection",
+      "tags": [
+        "electrical",
+        "relay",
+        "protection",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "switchgear",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Protection relay, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.protection.protection-relay.detailed",
+      "key": "electrical.protection.protection-relay.detailed",
+      "displayName": "Protection relay - detailed",
+      "sourceFile": "assets/sources/batch2/protection-relay-detailed.svg",
+      "categoryPath": "electrical/protection",
+      "tags": [
+        "electrical",
+        "relay",
+        "protection",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "switchgear",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Protection relay, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.metering.energy-meter.minimal",
+      "key": "electrical.metering.energy-meter.minimal",
+      "displayName": "Energy meter - minimal",
+      "sourceFile": "assets/sources/batch2/energy-meter-minimal.svg",
+      "categoryPath": "electrical/metering",
+      "tags": [
+        "electrical",
+        "meter",
+        "energy",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "measurement",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Energy meter, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.metering.energy-meter.detailed",
+      "key": "electrical.metering.energy-meter.detailed",
+      "displayName": "Energy meter - detailed",
+      "sourceFile": "assets/sources/batch2/energy-meter-detailed.svg",
+      "categoryPath": "electrical/metering",
+      "tags": [
+        "electrical",
+        "meter",
+        "energy",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "measurement",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Energy meter, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.busbars.busbar-section.minimal",
+      "key": "electrical.busbars.busbar-section.minimal",
+      "displayName": "Busbar section - minimal",
+      "sourceFile": "assets/sources/batch2/busbar-section-minimal.svg",
+      "categoryPath": "electrical/busbars",
+      "tags": [
+        "electrical",
+        "busbar",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "power distribution",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Busbar section, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.busbars.busbar-section.detailed",
+      "key": "electrical.busbars.busbar-section.detailed",
+      "displayName": "Busbar section - detailed",
+      "sourceFile": "assets/sources/batch2/busbar-section-detailed.svg",
+      "categoryPath": "electrical/busbars",
+      "tags": [
+        "electrical",
+        "busbar",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "power distribution",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Busbar section, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.power-supplies.dc-power-supply.minimal",
+      "key": "electrical.power-supplies.dc-power-supply.minimal",
+      "displayName": "DC power supply - minimal",
+      "sourceFile": "assets/sources/batch2/dc-power-supply-minimal.svg",
+      "categoryPath": "electrical/power-supplies",
+      "tags": [
+        "electrical",
+        "power supply",
+        "dc",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "control power",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of DC power supply, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.power-supplies.dc-power-supply.detailed",
+      "key": "electrical.power-supplies.dc-power-supply.detailed",
+      "displayName": "DC power supply - detailed",
+      "sourceFile": "assets/sources/batch2/dc-power-supply-detailed.svg",
+      "categoryPath": "electrical/power-supplies",
+      "tags": [
+        "electrical",
+        "power supply",
+        "dc",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "control power",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of DC power supply, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.energy.generator.minimal",
+      "key": "electrical.energy.generator.minimal",
+      "displayName": "Generator - minimal",
+      "sourceFile": "assets/sources/batch2/generator-minimal.svg",
+      "categoryPath": "electrical/energy",
+      "tags": [
+        "electrical",
+        "generator",
+        "energy",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "power generation",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Generator, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.energy.generator.detailed",
+      "key": "electrical.energy.generator.detailed",
+      "displayName": "Generator - detailed",
+      "sourceFile": "assets/sources/batch2/generator-detailed.svg",
+      "categoryPath": "electrical/energy",
+      "tags": [
+        "electrical",
+        "generator",
+        "energy",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "power generation",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Generator, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.hvac.air-handling-unit.minimal",
+      "key": "building.hvac.air-handling-unit.minimal",
+      "displayName": "Air handling unit - minimal",
+      "sourceFile": "assets/sources/batch2/air-handling-unit-minimal.svg",
+      "categoryPath": "building/hvac",
+      "tags": [
+        "building",
+        "hvac",
+        "ahu",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "air handling",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Air handling unit, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.hvac.air-handling-unit.detailed",
+      "key": "building.hvac.air-handling-unit.detailed",
+      "displayName": "Air handling unit - detailed",
+      "sourceFile": "assets/sources/batch2/air-handling-unit-detailed.svg",
+      "categoryPath": "building/hvac",
+      "tags": [
+        "building",
+        "hvac",
+        "ahu",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "air handling",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Air handling unit, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.hvac.wall-thermostat.minimal",
+      "key": "building.hvac.wall-thermostat.minimal",
+      "displayName": "Wall thermostat - minimal",
+      "sourceFile": "assets/sources/batch2/wall-thermostat-minimal.svg",
+      "categoryPath": "building/hvac",
+      "tags": [
+        "building",
+        "hvac",
+        "thermostat",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "temperature control",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Wall thermostat, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.hvac.wall-thermostat.detailed",
+      "key": "building.hvac.wall-thermostat.detailed",
+      "displayName": "Wall thermostat - detailed",
+      "sourceFile": "assets/sources/batch2/wall-thermostat-detailed.svg",
+      "categoryPath": "building/hvac",
+      "tags": [
+        "building",
+        "hvac",
+        "thermostat",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "temperature control",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Wall thermostat, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.ventilation.duct-fan.minimal",
+      "key": "building.ventilation.duct-fan.minimal",
+      "displayName": "Duct fan - minimal",
+      "sourceFile": "assets/sources/batch2/duct-fan-minimal.svg",
+      "categoryPath": "building/ventilation",
+      "tags": [
+        "building",
+        "duct",
+        "fan",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "ventilation",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Duct fan, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.ventilation.duct-fan.detailed",
+      "key": "building.ventilation.duct-fan.detailed",
+      "displayName": "Duct fan - detailed",
+      "sourceFile": "assets/sources/batch2/duct-fan-detailed.svg",
+      "categoryPath": "building/ventilation",
+      "tags": [
+        "building",
+        "duct",
+        "fan",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "ventilation",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Duct fan, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.fire.fire-alarm.minimal",
+      "key": "building.fire.fire-alarm.minimal",
+      "displayName": "Fire alarm - minimal",
+      "sourceFile": "assets/sources/batch2/fire-alarm-minimal.svg",
+      "categoryPath": "building/fire",
+      "tags": [
+        "building",
+        "fire",
+        "alarm",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "safety",
+        "notification",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Fire alarm, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.fire.fire-alarm.detailed",
+      "key": "building.fire.fire-alarm.detailed",
+      "displayName": "Fire alarm - detailed",
+      "sourceFile": "assets/sources/batch2/fire-alarm-detailed.svg",
+      "categoryPath": "building/fire",
+      "tags": [
+        "building",
+        "fire",
+        "alarm",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "safety",
+        "notification",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Fire alarm, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.access.access-reader.minimal",
+      "key": "building.access.access-reader.minimal",
+      "displayName": "Access reader - minimal",
+      "sourceFile": "assets/sources/batch2/access-reader-minimal.svg",
+      "categoryPath": "building/access",
+      "tags": [
+        "building",
+        "access",
+        "reader",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "security",
+        "card",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Access reader, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.access.access-reader.detailed",
+      "key": "building.access.access-reader.detailed",
+      "displayName": "Access reader - detailed",
+      "sourceFile": "assets/sources/batch2/access-reader-detailed.svg",
+      "categoryPath": "building/access",
+      "tags": [
+        "building",
+        "access",
+        "reader",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "security",
+        "card",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Access reader, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.elevators.elevator.minimal",
+      "key": "building.elevators.elevator.minimal",
+      "displayName": "Elevator - minimal",
+      "sourceFile": "assets/sources/batch2/elevator-minimal.svg",
+      "categoryPath": "building/elevators",
+      "tags": [
+        "building",
+        "elevator",
+        "lift",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "vertical transport",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Elevator, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.elevators.elevator.detailed",
+      "key": "building.elevators.elevator.detailed",
+      "displayName": "Elevator - detailed",
+      "sourceFile": "assets/sources/batch2/elevator-detailed.svg",
+      "categoryPath": "building/elevators",
+      "tags": [
+        "building",
+        "elevator",
+        "lift",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "vertical transport",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Elevator, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.outlets.wall-outlet.minimal",
+      "key": "residential.outlets.wall-outlet.minimal",
+      "displayName": "Wall outlet - minimal",
+      "sourceFile": "assets/sources/batch2/wall-outlet-minimal.svg",
+      "categoryPath": "residential/outlets",
+      "tags": [
+        "residential",
+        "outlet",
+        "power",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "socket",
+        "home",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Wall outlet, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.outlets.wall-outlet.detailed",
+      "key": "residential.outlets.wall-outlet.detailed",
+      "displayName": "Wall outlet - detailed",
+      "sourceFile": "assets/sources/batch2/wall-outlet-detailed.svg",
+      "categoryPath": "residential/outlets",
+      "tags": [
+        "residential",
+        "outlet",
+        "power",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "socket",
+        "home",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Wall outlet, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.sensors.motion-sensor.minimal",
+      "key": "residential.sensors.motion-sensor.minimal",
+      "displayName": "Motion sensor - minimal",
+      "sourceFile": "assets/sources/batch2/motion-sensor-minimal.svg",
+      "categoryPath": "residential/sensors",
+      "tags": [
+        "residential",
+        "motion",
+        "sensor",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "presence",
+        "pir",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Motion sensor, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.sensors.motion-sensor.detailed",
+      "key": "residential.sensors.motion-sensor.detailed",
+      "displayName": "Motion sensor - detailed",
+      "sourceFile": "assets/sources/batch2/motion-sensor-detailed.svg",
+      "categoryPath": "residential/sensors",
+      "tags": [
+        "residential",
+        "motion",
+        "sensor",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "presence",
+        "pir",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Motion sensor, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.sensors.door-contact.minimal",
+      "key": "residential.sensors.door-contact.minimal",
+      "displayName": "Door contact sensor - minimal",
+      "sourceFile": "assets/sources/batch2/door-contact-minimal.svg",
+      "categoryPath": "residential/sensors",
+      "tags": [
+        "residential",
+        "door",
+        "contact",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "security",
+        "sensor",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Door contact sensor, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.sensors.door-contact.detailed",
+      "key": "residential.sensors.door-contact.detailed",
+      "displayName": "Door contact sensor - detailed",
+      "sourceFile": "assets/sources/batch2/door-contact-detailed.svg",
+      "categoryPath": "residential/sensors",
+      "tags": [
+        "residential",
+        "door",
+        "contact",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "security",
+        "sensor",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Door contact sensor, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.covers.window-blind.minimal",
+      "key": "residential.covers.window-blind.minimal",
+      "displayName": "Window blind - minimal",
+      "sourceFile": "assets/sources/batch2/window-blind-minimal.svg",
+      "categoryPath": "residential/covers",
+      "tags": [
+        "residential",
+        "blind",
+        "cover",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "shade",
+        "window",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Window blind, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.covers.window-blind.detailed",
+      "key": "residential.covers.window-blind.detailed",
+      "displayName": "Window blind - detailed",
+      "sourceFile": "assets/sources/batch2/window-blind-detailed.svg",
+      "categoryPath": "residential/covers",
+      "tags": [
+        "residential",
+        "blind",
+        "cover",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "shade",
+        "window",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Window blind, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.energy.home-energy-meter.minimal",
+      "key": "residential.energy.home-energy-meter.minimal",
+      "displayName": "Home energy meter - minimal",
+      "sourceFile": "assets/sources/batch2/home-energy-meter-minimal.svg",
+      "categoryPath": "residential/energy",
+      "tags": [
+        "residential",
+        "energy",
+        "meter",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "power",
+        "consumption",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Home energy meter, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.energy.home-energy-meter.detailed",
+      "key": "residential.energy.home-energy-meter.detailed",
+      "displayName": "Home energy meter - detailed",
+      "sourceFile": "assets/sources/batch2/home-energy-meter-detailed.svg",
+      "categoryPath": "residential/energy",
+      "tags": [
+        "residential",
+        "energy",
+        "meter",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "power",
+        "consumption",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Home energy meter, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.sensors.leak-sensor.minimal",
+      "key": "residential.sensors.leak-sensor.minimal",
+      "displayName": "Leak sensor - minimal",
+      "sourceFile": "assets/sources/batch2/leak-sensor-minimal.svg",
+      "categoryPath": "residential/sensors",
+      "tags": [
+        "residential",
+        "leak",
+        "sensor",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "water",
+        "alarm",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Leak sensor, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.sensors.leak-sensor.detailed",
+      "key": "residential.sensors.leak-sensor.detailed",
+      "displayName": "Leak sensor - detailed",
+      "sourceFile": "assets/sources/batch2/leak-sensor-detailed.svg",
+      "categoryPath": "residential/sensors",
+      "tags": [
+        "residential",
+        "leak",
+        "sensor",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "water",
+        "alarm",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Leak sensor, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.generic.layout.panel.minimal",
+      "key": "generic.layout.panel.minimal",
+      "displayName": "Panel - minimal",
+      "sourceFile": "assets/sources/batch2/panel-minimal.svg",
+      "categoryPath": "generic/layout",
+      "tags": [
+        "generic",
+        "panel",
+        "layout",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "container",
+        "dashboard",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Panel, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.generic.layout.panel.detailed",
+      "key": "generic.layout.panel.detailed",
+      "displayName": "Panel - detailed",
+      "sourceFile": "assets/sources/batch2/panel-detailed.svg",
+      "categoryPath": "generic/layout",
+      "tags": [
+        "generic",
+        "panel",
+        "layout",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "container",
+        "dashboard",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Panel, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.generic.layout.card.minimal",
+      "key": "generic.layout.card.minimal",
+      "displayName": "Card - minimal",
+      "sourceFile": "assets/sources/batch2/card-minimal.svg",
+      "categoryPath": "generic/layout",
+      "tags": [
+        "generic",
+        "card",
+        "layout",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "dashboard",
+        "container",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Card, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.generic.layout.card.detailed",
+      "key": "generic.layout.card.detailed",
+      "displayName": "Card - detailed",
+      "sourceFile": "assets/sources/batch2/card-detailed.svg",
+      "categoryPath": "generic/layout",
+      "tags": [
+        "generic",
+        "card",
+        "layout",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "dashboard",
+        "container",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Card, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.flow.annotations.callout.minimal",
+      "key": "flow.annotations.callout.minimal",
+      "displayName": "Callout - minimal",
+      "sourceFile": "assets/sources/batch2/callout-minimal.svg",
+      "categoryPath": "flow/annotations",
+      "tags": [
+        "generic",
+        "callout",
+        "annotation",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "note",
+        "label",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Callout, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.flow.annotations.callout.detailed",
+      "key": "flow.annotations.callout.detailed",
+      "displayName": "Callout - detailed",
+      "sourceFile": "assets/sources/batch2/callout-detailed.svg",
+      "categoryPath": "flow/annotations",
+      "tags": [
+        "generic",
+        "callout",
+        "annotation",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "note",
+        "label",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Callout, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.flow.annotations.bracket.minimal",
+      "key": "flow.annotations.bracket.minimal",
+      "displayName": "Bracket - minimal",
+      "sourceFile": "assets/sources/batch2/bracket-minimal.svg",
+      "categoryPath": "flow/annotations",
+      "tags": [
+        "generic",
+        "bracket",
+        "annotation",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "dimension",
+        "group",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Bracket, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.flow.annotations.bracket.detailed",
+      "key": "flow.annotations.bracket.detailed",
+      "displayName": "Bracket - detailed",
+      "sourceFile": "assets/sources/batch2/bracket-detailed.svg",
+      "categoryPath": "flow/annotations",
+      "tags": [
+        "generic",
+        "bracket",
+        "annotation",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "dimension",
+        "group",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Bracket, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicators.quality.quality-good.minimal",
+      "key": "indicators.quality.quality-good.minimal",
+      "displayName": "Quality good - minimal",
+      "sourceFile": "assets/sources/batch2/quality-good-minimal.svg",
+      "categoryPath": "indicators/quality",
+      "tags": [
+        "indicator",
+        "quality",
+        "good",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "status",
+        "signal",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Quality good, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicators.quality.quality-good.detailed",
+      "key": "indicators.quality.quality-good.detailed",
+      "displayName": "Quality good - detailed",
+      "sourceFile": "assets/sources/batch2/quality-good-detailed.svg",
+      "categoryPath": "indicators/quality",
+      "tags": [
+        "indicator",
+        "quality",
+        "good",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "status",
+        "signal",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Quality good, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicators.quality.quality-bad.minimal",
+      "key": "indicators.quality.quality-bad.minimal",
+      "displayName": "Quality bad - minimal",
+      "sourceFile": "assets/sources/batch2/quality-bad-minimal.svg",
+      "categoryPath": "indicators/quality",
+      "tags": [
+        "indicator",
+        "quality",
+        "bad",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "status",
+        "signal",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Quality bad, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicators.quality.quality-bad.detailed",
+      "key": "indicators.quality.quality-bad.detailed",
+      "displayName": "Quality bad - detailed",
+      "sourceFile": "assets/sources/batch2/quality-bad-detailed.svg",
+      "categoryPath": "indicators/quality",
+      "tags": [
+        "indicator",
+        "quality",
+        "bad",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "status",
+        "signal",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Quality bad, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicators.communication.network-node.minimal",
+      "key": "indicators.communication.network-node.minimal",
+      "displayName": "Network nodes - minimal",
+      "sourceFile": "assets/sources/batch2/network-node-minimal.svg",
+      "categoryPath": "indicators/communication",
+      "tags": [
+        "indicator",
+        "network",
+        "communication",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "topology",
+        "connected",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Network nodes, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicators.communication.network-node.detailed",
+      "key": "indicators.communication.network-node.detailed",
+      "displayName": "Network nodes - detailed",
+      "sourceFile": "assets/sources/batch2/network-node-detailed.svg",
+      "categoryPath": "indicators/communication",
+      "tags": [
+        "indicator",
+        "network",
+        "communication",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "topology",
+        "connected",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Network nodes, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicators.status.alarm-bell.minimal",
+      "key": "indicators.status.alarm-bell.minimal",
+      "displayName": "Alarm bell - minimal",
+      "sourceFile": "assets/sources/batch2/alarm-bell-minimal.svg",
+      "categoryPath": "indicators/status",
+      "tags": [
+        "indicator",
+        "alarm",
+        "bell",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "warning",
+        "notification",
+        "minimal outline"
+      ],
+      "styleFamily": "minimal-outline-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original minimal SVG variant of Alarm bell, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicators.status.alarm-bell.detailed",
+      "key": "indicators.status.alarm-bell.detailed",
+      "displayName": "Alarm bell - detailed",
+      "sourceFile": "assets/sources/batch2/alarm-bell-detailed.svg",
+      "categoryPath": "indicators/status",
+      "tags": [
+        "indicator",
+        "alarm",
+        "bell",
+        "detailed"
+      ],
+      "searchKeywords": [
+        "warning",
+        "notification",
+        "detailed technical"
+      ],
+      "styleFamily": "detailed-technical-v2",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original detailed SVG variant of Alarm bell, generated for EliteSCADA Batch 2. No vendor, third-party library, or rejected PR #451 artwork was copied. Main/Product Owner visual review required before approval."
+      }
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "syntheticOnly": true,
+  "persistedScreens": [
+    {
+      "id": "3d036c18-4d6e-46c0-84a1-daf002f932bf",
+      "key": "intelligence-bombeamento-855-3",
+      "role": "values-trend"
+    },
+    {
+      "id": "6554b831-89d4-4a3b-a546-8062425778c6",
+      "key": "intelligence-process-stage-insights-bombeamento-855-3",
+      "role": "process-stage-insights"
+    },
+    {
+      "id": "74ef0003-dcc9-46b9-846a-e8bc4b78d5c1",
+      "key": "intelligence-stage-coverage-bombeamento-855-3",
+      "role": "process-stage-coverage"
+    }
+  ],
+  "identitiesPreserved": true,
+  "blockedBeforeExplicitRearm": [
+    {
+      "scopeId": "85300000-0000-0000-0000-000000000200",
+      "status": 409,
+      "code": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"
+    },
+    {
+      "scopeId": "85500000-0000-0000-0000-000000000501",
+      "status": 409,
+      "code": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"
+    }
+  ],
+  "afterExplicitRearm": [
+    {
+      "scopeId": "85300000-0000-0000-0000-000000000200",
+      "assignmentId": "85500000-0000-0000-0000-000000000401",
+      "profileId": "85500000-0000-0000-0000-000000000301",
+      "contextId": "85700000-0000-0000-0000-000000000501",
+      "profileVersion": 1,
+      "activeRevision": 47,
+      "signalCount": 4,
+      "referenceCount": 120,
+      "comparisonCount": 120
+    },
+    {
+      "scopeId": "85500000-0000-0000-0000-000000000501",
+      "assignmentId": "85500000-0000-0000-0000-000000000403",
+      "profileId": "85500000-0000-0000-0000-000000000303",
+      "contextId": "85800000-0000-0000-0000-000000000501",
+      "profileVersion": 1,
+      "activeRevision": 47,
+      "signalCount": 2,
+      "referenceCount": 120,
+      "comparisonCount": 120
+    }
+  ]
+}

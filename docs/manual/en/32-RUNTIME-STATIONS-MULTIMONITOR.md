@@ -1,0 +1,70 @@
+# Runtime stations across monitors
+
+## Runtime stations: use windows across monitors
+
+Choose a screen for each window, then arrange the windows on an extended desktop.
+
+<!-- HELP-REVIEW-AFTER-PRODUCT-781: https://github.com/brunolrogerio-collab/EliteSCADA/issues/781; topic=runtime.station-multimonitor; fields=station.name,station.screen,station.mode,station.windows; status=WAITING_PREVIEW_ACCEPTANCE -->
+
+### What a station profile organizes
+
+A station groups one to four independent windows of the same Runtime application. For each window, the profile chooses the first screen and whether that window can navigate or stays on that screen. The profile does not select a physical monitor or save the window's position, size or scale. After opening the windows, arrange them manually with the operating system and browser. This also works when Runtime is reached over the network from a computer with several monitors.
+
+### Configure the profile
+
+1. Create and apply the screens you plan to use.
+2. Open Engineering > Stations / Monitors and choose Add station.
+3. Give the profile a name the team will recognize, such as EEE control room.
+4. For each window, choose its first screen and behavior. Use Add window to add positions, up to four; each position becomes a Runtime window.
+5. Select Validate and resolve any reported errors.
+6. When the configuration is valid, choose Apply to Working.
+7. Save and publish the revision, then activate it through the project lifecycle. The station appears in active Runtime only after activation.
+
+### Before leaving Engineering and setting up physical displays
+
+Working contains the editable draft. When edits have not yet been applied, Engineering asks for confirmation before navigating away or leaving the page. To keep the configuration, select Validate, then Apply to Working. Return to Engineering Overview, save a revision, publish and activate it. Returning to Runtime before activation still shows the previous Active revision; it does not erase the profile applied to Working.
+
+On Windows, open Settings > System > Display and select Extend these displays. On Linux, use GNOME, KDE or your desktop's Display settings to extend rather than mirror. Verify the extra display in the OS first. In Runtime, open Windows to review the station’s assigned screens. Select Start station, drag each window to the desired display, and enter fullscreen separately when supported. Window numbers never select physical monitors automatically. Popup blockers and browser restrictions can prevent automated opening and positioning. To recover, use the Reopen screen N link in the launcher or restart the station and arrange windows manually. Each window has a separately admitted Runtime connection.
+
+### Understand the fields
+
+The window number follows the order in which the windows open. It is not a monitor number. The selectors use screens already in the project; creating a station does not create or publish those screens.
+
+| Field | Purpose and how to fill it | Example | Bounds |
+| --- | --- | --- | --- |
+| Station name | Identifies the set in the Runtime selector. Choose a name your team recognizes; it does not identify a computer or physical monitor. | EEE control room | The profile needs at least one window. |
+| Screen for each window | Chooses which existing screen opens first in that window. Configure each row separately to place different information side by side. | Window 1: Overview; Window 2: Pumps | The screen must exist in the application being activated. |
+| Window behavior | Navigation allows changing screens in that window. Fixed screen keeps the selected screen and requests a View Only session; it does not change the account's permissions. | Overview: Navigation; Pumps: Fixed screen | Each authenticated window counts as a separate Runtime connection. License limits and account permissions still apply. |
+| Add window | Adds another screen to the set. Each row becomes an independent window when the station starts. | Four windows for four operating areas | A profile supports one to four windows; physical monitor placement is manual. |
+
+### Start and arrange the windows
+
+Open Runtime with its header visible. On desktop, open Windows in the header. To display the current screen in a separate window, choose Open this screen in another window. To start a station, select one if several are configured, review its screens, window roles and Active revision, then select Start station. When a station is configured, the launcher is also available in fullscreen. The browser may block new windows; if so, Runtime shows links to open them one at a time. Drag each window to the monitor you want. Resize it and, if useful, put each window in full screen. The product does not automatically detect or restore physical monitor position, orientation or scale.
+
+After starting, open Windows in the original window to check Runtime session status by screen. Each row reports whether the server admitted that window and which class it granted, or whether there was no available seat. A window rejected for license capacity was not admitted; check the connections in use and explicitly end any you no longer need from that window's account menu before trying again. Starting a station does not increase the license limit, and a rejected window also shows its own message. If a row remains unconfirmed, open the corresponding window and read its Runtime message: could not confirm does not mean the session was admitted. If the installation does not use authenticated session admission, the list says so; that message does not confirm an authenticated/licensed session.
+
+### Permissions and connections for each window
+
+A fixed window asks for View Only access; a navigation window asks for Interactive access. The server decides each authenticated window's access using the license limits and account permissions. Check the result in the account menu before sending commands. If no Interactive client is available, the window may be limited to View Only or denied access. View Only lets you follow the screen but does not allow commands. See also Runtime session: view, interact and end.
+
+### End, reopen and troubleshoot
+
+To end a session and free a license seat immediately, open the account menu in each window and choose End session before closing it. Closing a window or losing a monitor does not guarantee that the server receives the termination; the license may keep counting that connection until the session expires.
+
+If a station window closes while its launcher remains open, the row changes to “window closed” and a “Reopen screen N” link appears. Use it to open only that screen again. The new window requests its own Runtime session; check the admission result and license capacity before using it. The physical monitor position is not restored. If you also closed or reloaded the launcher window, open Runtime, start the station again and arrange the windows manually. If there is no available seat, end sessions you are not using or wait for the previous session to expire.
+
+If the station does not appear in the Windows menu, check that the header is visible and that the Active revision includes the profile. If a window opens on the wrong screen, check the screen selected on that row and activate the updated revision. A fixed window that cannot change screens is working as configured. If Interactive access is limited or denied, check how many licensed connections are in use and the account permissions.
+
+#### Visual example
+
+These captures show the real interface in Portuguese during an automated test. The application name and “Demo Overview” are sample data; in your project, choose the right screen for each window.
+
+**Before validation**
+
+![Four-window profile filled in, before validation](../assets/runtime-station-profile-before-validation.png)
+
+**After selecting Validate**
+
+![Four-window profile with a valid configuration](../assets/runtime-station-profile-validated.png)
+
+[Open this guide in installed Help](/help?topic=runtime.station-multimonitor)

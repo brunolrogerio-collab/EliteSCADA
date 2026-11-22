@@ -120,7 +120,8 @@ public sealed class EngineeringSchemaV15CommunicationBindingTests
         tags.Register(TagDefinition.Create("Legacy", "Plant.Legacy", TagDataType.Double));
         var service = new EngineeringExchangeService(tags, alarms);
         var currentCsv = service.ExportTagsCsv();
-        var legacyCsv = currentCsv.Replace(",CommunicationBindingJson", string.Empty, StringComparison.Ordinal);
+        var legacyCsv = CsvCodec.Write(CsvCodec.Read(currentCsv)
+            .Select(row => (IReadOnlyList<string?>)row[..^1]));
 
         var package = service.ParseTagsCsv(legacyCsv);
 

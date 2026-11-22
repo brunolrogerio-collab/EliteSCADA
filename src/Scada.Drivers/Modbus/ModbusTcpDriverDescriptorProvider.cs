@@ -57,12 +57,14 @@ public sealed class ModbusTcpDriverDescriptorProvider : ICommunicationDriverDesc
                 Advanced: true)
         };
 
+    internal static IReadOnlyCollection<DriverConfigurationFieldDescriptor> SharedTagBindingFields => TagBindingFields;
+
     public static CommunicationDriverTypeDescriptor SharedDescriptor { get; } = new(
         DriverType: DriverTypeId,
         DisplayName: "Modbus TCP",
         DriverContractVersion: 1,
         RuntimeCapabilities: DriverCapabilities.Read | DriverCapabilities.Write | DriverCapabilities.Diagnostics,
-        EngineeringCapabilities: DriverEngineeringCapabilities.None,
+        EngineeringCapabilities: DriverEngineeringCapabilities.PointReadTest | DriverEngineeringCapabilities.ConnectionTest,
         AcquisitionModes: new[] { DriverAcquisitionMode.Polling },
         ConfigurationSchema: new DriverConfigurationSchemaDescriptor(
             SchemaId: "modbus.tcp.engineering",
@@ -77,7 +79,10 @@ public sealed class ModbusTcpDriverDescriptorProvider : ICommunicationDriverDesc
                 new("unitId", DriverConfigurationValueKind.Integer, DisplayName: "Unit ID", Description: "Default Modbus unit identifier.", DefaultValue: "1", Minimum: 0, Maximum: 255, DisplayNameResourceKey: "driver.modbus.tcp.datasource.unitId.label", DescriptionResourceKey: "driver.modbus.tcp.datasource.unitId.description")
             },
             TagBindingFields: TagBindingFields),
-        Description: "Modbus TCP client driver using cyclic polling.");
+        Description: "Modbus TCP client driver using cyclic polling.",
+        IntegrationDomains: new[] { IntegrationDomain.Industrial },
+        ConnectionModel: DriverConnectionModel.DirectNetwork,
+        ExternalDependencies: new[] { new DriverExternalDependencyDescriptor(DriverExternalDependencyKind.BuiltIn) });
 
     public CommunicationDriverTypeDescriptor Descriptor => SharedDescriptor;
 }

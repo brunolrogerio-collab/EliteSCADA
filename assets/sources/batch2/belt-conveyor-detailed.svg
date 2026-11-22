@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="16" y="46" width="96" height="34" rx="10" fill="#E5E7EB" stroke="#374151" stroke-width="5" data-elitescada-slot="body" />
+  <circle cx="34" cy="63" r="9" fill="#9CA3AF" stroke="#374151" stroke-width="3" data-elitescada-slot="roller" />
+  <circle cx="64" cy="63" r="9" fill="#9CA3AF" stroke="#374151" stroke-width="3" data-elitescada-slot="roller" />
+  <circle cx="94" cy="63" r="9" fill="#9CA3AF" stroke="#374151" stroke-width="3" data-elitescada-slot="roller" />
+  <line x1="26" y1="80" x2="18" y2="108" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="base" />
+  <line x1="102" y1="80" x2="110" y2="108" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="base" />
+  <line x1="22" y1="42" x2="106" y2="42" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="accent" />
+</svg>

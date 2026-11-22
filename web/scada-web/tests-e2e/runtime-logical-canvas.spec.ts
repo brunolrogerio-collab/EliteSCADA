@@ -36,8 +36,14 @@ test('16:10 viewport letterboxes a 16:9 Screen without distortion', () => {
   expect(result.width / result.height).toBeCloseTo(16 / 9, 8);
 });
 
-test('logical size uses deterministic 1920x1080 fallback without undeclared Screen schema keys', () => {
+test('logical size defaults to the deterministic landscape 1920x1080 format', () => {
   expect(resolveRuntimeLogicalSize()).toEqual(DESIGN);
+});
+
+test('logical size keeps landscape default and supports portrait Screens at 1080x1920', () => {
+  expect(resolveRuntimeLogicalSize('landscape')).toEqual({ width: 1920, height: 1080 });
+  expect(resolveRuntimeLogicalSize('portrait')).toEqual({ width: 1080, height: 1920 });
+  expect(resolveRuntimeLogicalSize(null)).toEqual(DESIGN);
 });
 
 test('pointer coordinates invert the exact visual scale and letterbox offset', () => {

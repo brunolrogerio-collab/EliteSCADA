@@ -7,7 +7,8 @@ import {
 } from './tests-e2e/jwt';
 
 const developerToken = createE2eJwt('c11-eee-package-developer', ['developer'], 'C11 EEE Package Developer');
-const c11ConnectionString = 'Host=127.0.0.1;Port=5432;Database=elitescada_c11;Username=postgres;Password=postgres;Pooling=false';
+const c11ConnectionString = process.env.C11_CONNECTION_STRING ??
+  'Host=127.0.0.1;Port=5432;Database=elitescada_c11;Username=postgres;Password=postgres;Pooling=false';
 
 export default defineConfig({
   testDir: './tests-wave11',
@@ -49,10 +50,6 @@ export default defineConfig({
         Authentication__Jwt__SigningKey: E2E_AUTH_SIGNING_KEY,
         Authentication__Local__Enabled: 'true',
         Authentication__Local__SecureCookie: 'false',
-        Authentication__Local__Bootstrap__Username: 'c11-eee-package-developer',
-        Authentication__Local__Bootstrap__DisplayName: 'C11 EEE Package Developer',
-        Authentication__Local__Bootstrap__Password: 'C11-eee-package-password-123!',
-        Authentication__Local__Bootstrap__Roles__0: 'developer',
         EngineeringRuntime__ProjectKey: 'eee-demo',
         Historian__Provider: 'timescaledb',
         HistoricalQuery__Enabled: 'true',

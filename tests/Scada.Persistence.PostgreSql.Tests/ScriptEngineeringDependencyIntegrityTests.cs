@@ -95,6 +95,33 @@ public sealed class ScriptEngineeringDependencyIntegrityTests
     }
 
     [Fact]
+    public void VisualReferences_AllowSeparatePointerAndClickHandlersForOneObject()
+    {
+        var visualDefinitionId = Guid.NewGuid();
+        var visualObjectId = Guid.NewGuid();
+        var scriptId = Guid.NewGuid();
+        var visual = CreateVisualRuntimeDefinition(visualDefinitionId, visualObjectId);
+        var catalog = ScriptEngineeringReferenceCatalog.FromVisualRuntimeDefinitions([visual]);
+        var script = new ScriptEngineeringDefinition(
+            scriptId,
+            "screens/main/scripts/pointer",
+            "Pointer",
+            ScriptEngineeringScope.ClientVisual,
+            "def on_interaction():\n    pass",
+            entryPoints: [new ScriptEngineeringEntryPoint(ScriptEngineeringEventKind.ObjectInteraction, "on_interaction")]);
+        var model = new ScriptEngineeringModel(
+            [script],
+            [
+                new ScriptVisualEventReference(visualDefinitionId, visualObjectId, ScriptEngineeringEventKind.ObjectInteraction, scriptId, "on_interaction", EventKey: "click"),
+                new ScriptVisualEventReference(visualDefinitionId, visualObjectId, ScriptEngineeringEventKind.ObjectInteraction, scriptId, "on_interaction", EventKey: "pointerenter")
+            ]);
+
+        var result = new ScriptEngineeringValidator().Validate(model, catalog);
+
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Issues.Select(issue => issue.Message)));
+    }
+
+    [Fact]
     public void DisabledState_IsPreservedByRuntimeAdapter()
     {
         var script = new ScriptEngineeringDefinition(

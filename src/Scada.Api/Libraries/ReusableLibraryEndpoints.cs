@@ -1,3 +1,5 @@
+using System.IO.Compression;
+using System.Text.Json;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Engineering.ImportExport;
@@ -29,7 +31,7 @@ public static class ReusableLibraryEndpoints
             IEngineeringExchangeService exchange,
             ApiAuthorizationService security) =>
         {
-            var access = CheckAccess(context, security, exchange);
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringView);
             return access.Failure ?? Results.Ok(Catalog.Snapshot(CatalogScope(workspace)));
         });
 
@@ -40,7 +42,7 @@ public static class ReusableLibraryEndpoints
             IEngineeringExchangeService exchange,
             ApiAuthorizationService security) =>
         {
-            var access = CheckAccess(context, security, exchange);
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringView);
             if (access.Failure is not null) return access.Failure;
 
             var entry = Catalog.Find(CatalogScope(workspace), libraryId);
@@ -59,6 +61,96 @@ public static class ReusableLibraryEndpoints
             });
         });
 
+        endpoints.MapGet("/api/engineering/libraries/{libraryId:guid}/resources/{resourceId:guid}/preview", (
+            Guid libraryId,
+            Guid resourceId,
+            HttpContext context,
+            EngineeringWorkspace workspace,
+            IEngineeringExchangeService exchange,
+            ApiAuthorizationService security) =>
+        {
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringView);
+            if (access.Failure is not null) return access.Failure;
+
+            var entry = Catalog.Find(CatalogScope(workspace), libraryId);
+            if (entry is null) return Results.NotFound();
+            var resource = entry.Inspection.Manifest.Resources.SingleOrDefault(item => item.ResourceId == resourceId);
+            if (resource is null) return Results.NotFound();
+
+            try
+            {
+                using var archive = OpenCatalogArchive(entry.Content);
+                var payload = ReadJsonPayload(archive, resource.PayloadPath);
+                var dynamoIds = (resource.Dependencies ?? Array.Empty<ReusableLibraryDependency>())
+                    .Where(item => item.Kind == ReusableLibraryResourceKinds.Dynamo)
+                    .Select(item => item.ResourceId)
+                    .ToHashSet();
+                if (resource.Kind == ReusableLibraryResourceKinds.Dynamo)
+                    dynamoIds.Add(resource.ResourceId);
+
+                var dynamos = entry.Inspection.Manifest.Resources
+                    .Where(item => item.Kind == ReusableLibraryResourceKinds.Dynamo && dynamoIds.Contains(item.ResourceId))
+                    .Select(item => ReadJsonPayload(archive, item.PayloadPath))
+                    .ToArray();
+
+                return Results.Ok(new
+                {
+                    library = new ReusableLibraryCatalogDescriptor(
+                        entry.LibraryId,
+                        entry.Name,
+                        entry.Version,
+                        entry.ContentSha256,
+                        entry.ResourceCount,
+                        entry.ByteLength),
+                    resource,
+                    payload,
+                    dynamos,
+                    workingChanged = false
+                });
+            }
+            catch (InvalidDataException ex)
+            {
+                return Results.UnprocessableEntity(new { error = ex.Message, workingChanged = false });
+            }
+        });
+
+        endpoints.MapGet("/api/engineering/libraries/{libraryId:guid}/assets/{assetId:guid}/content", (
+            Guid libraryId,
+            Guid assetId,
+            HttpContext context,
+            EngineeringWorkspace workspace,
+            IEngineeringExchangeService exchange,
+            ApiAuthorizationService security) =>
+        {
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringView);
+            if (access.Failure is not null) return access.Failure;
+
+            var entry = Catalog.Find(CatalogScope(workspace), libraryId);
+            if (entry is null) return Results.NotFound();
+            var resource = entry.Inspection.Manifest.Resources.SingleOrDefault(item =>
+                item.ResourceId == assetId && item.Kind == ReusableLibraryResourceKinds.VisualAsset);
+            if (resource is null) return Results.NotFound();
+
+            try
+            {
+                using var archive = OpenCatalogArchive(entry.Content);
+                var payload = ReadJsonPayload(archive, resource.PayloadPath);
+                var sha256 = RequiredJsonString(payload, "sha256");
+                var mediaType = RequiredJsonString(payload, "mediaType");
+                var assetPath = $"assets/{sha256.ToLowerInvariant()}";
+                var manifestFile = entry.Inspection.Manifest.Files.SingleOrDefault(file => file.Path == assetPath)
+                    ?? throw new InvalidDataException($"Visual asset '{assetId:D}' content is missing from the associated library.");
+                var bytes = ReadArchiveEntry(archive, assetPath, ReusableLibraryPackageService.MaximumAssetBytes);
+                if (bytes.LongLength != manifestFile.Length)
+                    throw new InvalidDataException($"Visual asset '{assetId:D}' content length no longer matches its validated manifest.");
+                return Results.File(bytes, mediaType);
+            }
+            catch (InvalidDataException ex)
+            {
+                return Results.UnprocessableEntity(new { error = ex.Message });
+            }
+        });
+
         endpoints.MapPost(AssociateRoute, async (
             HttpRequest request,
             HttpContext context,
@@ -68,7 +160,7 @@ public static class ReusableLibraryEndpoints
             ApiAuditService audit,
             CancellationToken cancellationToken) =>
         {
-            var access = CheckAccess(context, security, exchange);
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringModify);
             if (access.Failure is not null)
             {
                 await RecordDeniedAsync(
@@ -153,7 +245,7 @@ public static class ReusableLibraryEndpoints
             ApiAuthorizationService security,
             ApiAuditService audit) =>
         {
-            var access = CheckAccess(context, security, exchange);
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringModify);
             if (access.Failure is not null)
             {
                 await RecordDeniedAsync(
@@ -187,7 +279,7 @@ public static class ReusableLibraryEndpoints
             ApiAuthorizationService security,
             ApiAuditService audit) =>
         {
-            var access = CheckAccess(context, security, exchange);
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringView);
             if (access.Failure is not null)
             {
                 await RecordDeniedAsync(
@@ -254,7 +346,7 @@ public static class ReusableLibraryEndpoints
             ApiAuditService audit,
             CancellationToken cancellationToken) =>
         {
-            var access = CheckAccess(context, security, exchange);
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringView);
             if (access.Failure is not null)
             {
                 await RecordDeniedAsync(
@@ -315,9 +407,10 @@ public static class ReusableLibraryEndpoints
     internal static ReusableLibraryAccessDecision CheckAccess(
         HttpContext context,
         ApiAuthorizationService security,
-        IEngineeringExchangeService exchange)
+        IEngineeringExchangeService exchange,
+        SecurityCapability capability = SecurityCapability.EngineeringModify)
     {
-        var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+        var authorization = security.CheckWorkspace(context, capability);
         var capabilityFailure = authorization.FailureResult();
         if (capabilityFailure is not null)
             return new ReusableLibraryAccessDecision(authorization, capabilityFailure, "capability");
@@ -378,6 +471,63 @@ public static class ReusableLibraryEndpoints
         }
 
         return output.ToArray();
+    }
+
+    private static ZipArchive OpenCatalogArchive(byte[] content)
+    {
+        try
+        {
+            return new ZipArchive(new MemoryStream(content, writable: false), ZipArchiveMode.Read, leaveOpen: false);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException)
+        {
+            throw new InvalidDataException("Associated reusable library content cannot be opened for preview.", ex);
+        }
+    }
+
+    private static JsonElement ReadJsonPayload(ZipArchive archive, string path)
+    {
+        var bytes = ReadArchiveEntry(archive, path, ReusableLibraryPackageService.MaximumResourceBytes);
+        try
+        {
+            using var document = JsonDocument.Parse(bytes);
+            return document.RootElement.Clone();
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException($"Reusable resource preview payload '{path}' is invalid JSON.", ex);
+        }
+    }
+
+    private static byte[] ReadArchiveEntry(ZipArchive archive, string path, int maximumBytes)
+    {
+        var entry = archive.GetEntry(path)
+            ?? throw new InvalidDataException($"Reusable library preview entry '{path}' is missing.");
+        if (entry.Length < 0 || entry.Length > maximumBytes)
+            throw new InvalidDataException($"Reusable library preview entry '{path}' exceeds its safety limit.");
+        using var input = entry.Open();
+        using var output = new MemoryStream();
+        var buffer = new byte[81920];
+        long total = 0;
+        int read;
+        while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            total = checked(total + read);
+            if (total > maximumBytes)
+                throw new InvalidDataException($"Reusable library preview entry '{path}' exceeds its safety limit.");
+            output.Write(buffer, 0, read);
+        }
+        return output.ToArray();
+    }
+
+    private static string RequiredJsonString(JsonElement payload, string propertyName)
+    {
+        if (payload.ValueKind != JsonValueKind.Object ||
+            !payload.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind != JsonValueKind.String ||
+            string.IsNullOrWhiteSpace(property.GetString()))
+            throw new InvalidDataException($"Reusable visual asset preview metadata '{propertyName}' is missing.");
+        return property.GetString()!;
     }
 
     private static string SafeFileName(string value)

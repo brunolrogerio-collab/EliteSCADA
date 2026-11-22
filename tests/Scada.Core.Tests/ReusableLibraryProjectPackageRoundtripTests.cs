@@ -135,7 +135,8 @@ public sealed class ReusableLibraryProjectPackageRoundtripTests
                     {
                         ["assetRef"] = JsonSerializer.SerializeToElement(new { assetId = $"asset:{assetId:D}" })
                     })
-            ]));
+            ],
+            TemplateId: templateId));
 
         var libraryPackages = new ReusableLibraryPackageService(sourceAssets, sourceVisualAssets);
         var libraryBytes = libraryPackages.Export(new ReusableLibraryExportRequest(
@@ -171,6 +172,7 @@ public sealed class ReusableLibraryProjectPackageRoundtripTests
         var restoredRoot = Assert.IsType<DynamoEngineeringDto>(restored.Assets.FindDynamo(rootId));
         Assert.Equal("library.dynamo.root", restoredRoot.Key);
         Assert.Equal("library.dynamo.template", restoredRoot.TemplateKey);
+        Assert.Equal(templateId, restoredRoot.TemplateId);
         Assert.DoesNotContain(restoredRoot.Elements ?? [], element => !string.IsNullOrWhiteSpace(element.DynamoKey));
         Assert.Equal("library.dynamo.asset", restored.VisualAssets.FindAsset(assetId)!.Key);
         Assert.True(restored.VisualAssets.FindPayload(payload.Sha256)!.Content.AsSpan().SequenceEqual(payload.Content));

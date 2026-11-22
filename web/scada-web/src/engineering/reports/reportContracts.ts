@@ -126,6 +126,8 @@ export type ReportQueryEngineeringDto = Readonly<{
   key: string;
   query: HistoricalQueryRequest;
   parameterBindings?: readonly ReportQueryParameterBindingEngineeringDto[] | null;
+  dataQueryId?: string | null;
+  dataQueryKey?: string | null;
 }>;
 
 export type ReportPageEngineeringDto = Readonly<{
@@ -204,6 +206,54 @@ export type ReportEngineeringDto = Readonly<{
   groups?: readonly ReportGroupEngineeringDto[] | null;
   aggregates?: readonly ReportAggregateEngineeringDto[] | null;
   metadata?: Record<string, string> | null;
+  variables?: readonly ReportVariableEngineeringDto[] | null;
+  timeRange?: ReportTimeRangeEngineeringDto | null;
+  resolution?: ReportDataResolutionEngineeringDto | null;
+  tableLayout?: 'long' | 'wide';
+}>;
+
+export type ReportVariableEngineeringDto = Readonly<{
+  tagId: string;
+  path: string;
+  name: string;
+  dataType: string;
+  engineeringUnit?: string | null;
+  source?: string | null;
+  displayLabel?: string | null;
+  visible?: boolean;
+  order?: number;
+  decimalPlaces?: number | null;
+  numericFormat?: string | null;
+  dateTimeFormat?: string | null;
+  booleanTrueLabel?: string | null;
+  booleanFalseLabel?: string | null;
+  unitMode?: 'automatic' | 'hidden' | 'labelOverride';
+  unitLabel?: string | null;
+}>;
+
+export type ReportTimeRangeEngineeringDto = Readonly<{
+  defaultKind?: 'absolute' | 'relative';
+  defaultRelativeDurationSeconds?: number;
+  defaultFromUtc?: string | null;
+  defaultToUtc?: string | null;
+  allowRelative?: boolean;
+  allowAbsolute?: boolean;
+}>;
+
+export type ReportDataResolutionEngineeringDto = Readonly<{
+  mode?: 'raw' | 'sampledFixedStep' | 'aggregate';
+  intervalMilliseconds?: number | null;
+  aggregateFunction?: 'count' | 'sum' | 'average' | 'minimum' | 'maximum' | 'first' | 'last' | null;
+  bucketMilliseconds?: number | null;
+  maximumGapMilliseconds?: number | null;
+  bucketAlignment?: string;
+}>;
+
+export type ReportRuntimeTimeRange = Readonly<{
+  kind: 'absolute' | 'relative';
+  durationSeconds?: number | null;
+  fromUtc?: string | null;
+  toUtc?: string | null;
 }>;
 
 export type ReportQueryExecutionResult = Readonly<{
@@ -213,6 +263,8 @@ export type ReportQueryExecutionResult = Readonly<{
   rows: readonly HistoricalQueryRow[];
   fromUtc: string;
   toUtc: string;
+  retrievalMode?: string;
+  provenance?: readonly unknown[] | null;
 }>;
 
 export type ReportExecutionResult = Readonly<{
@@ -220,9 +272,11 @@ export type ReportExecutionResult = Readonly<{
   reportKey: string;
   parameters: Readonly<Record<string, ReportParameterValue>>;
   queries: readonly ReportQueryExecutionResult[];
+  generatedAtUtc?: string | null;
 }>;
 
 export type ReportExecutionRequest = Readonly<{
   report: ReportEngineeringDto;
   parameters?: Readonly<Record<string, ReportParameterValue>> | null;
+  timeRange?: ReportRuntimeTimeRange | null;
 }>;

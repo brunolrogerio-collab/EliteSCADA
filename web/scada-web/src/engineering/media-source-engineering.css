@@ -1,0 +1,11 @@
+.media-source-workspace .eng-editor-form-panel { display: grid; align-content: start; gap: 18px; }
+.media-source-workspace fieldset { min-width: 0; margin: 0; padding: 14px; border: 1px solid var(--eng-border); border-radius: 9px; }
+.media-source-workspace legend { padding: 0 7px; color: var(--eng-text); font-size: 12px; font-weight: 750; }
+.media-source-workspace fieldset > small { display: block; margin-top: 9px; color: var(--eng-muted); font-size: 11px; line-height: 1.45; }
+.media-source-workspace fieldset > p { color: var(--eng-muted); font-size: 12px; }
+.media-source-workspace .media-source-enabled { display: flex; align-items: center; gap: 9px; color: var(--eng-muted); font-size: 11px; }
+.media-source-workspace .media-source-enabled input { accent-color: var(--eng-accent); }
+.media-source-workspace .eng-editor-form-panel > [role='status'] { margin: 0; color: var(--eng-text); font-size: 12px; }
+@media (max-width: 700px) {
+  .media-source-workspace .eng-editor-form-grid { grid-template-columns: minmax(0, 1fr); }
+}

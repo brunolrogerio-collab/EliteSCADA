@@ -26,7 +26,8 @@ public sealed class OpcUaDriverDescriptorProvider : ICommunicationDriverDescript
         EngineeringCapabilities: DriverEngineeringCapabilities.ConnectionTest |
                                  DriverEngineeringCapabilities.Discover |
                                  DriverEngineeringCapabilities.Browse |
-                                 DriverEngineeringCapabilities.Reconcile,
+                                 DriverEngineeringCapabilities.Reconcile |
+                                 DriverEngineeringCapabilities.PointReadTest,
         AcquisitionModes: [DriverAcquisitionMode.Subscription, DriverAcquisitionMode.Polling],
         ConfigurationSchema: new DriverConfigurationSchemaDescriptor(
             ConfigurationSchemaId,

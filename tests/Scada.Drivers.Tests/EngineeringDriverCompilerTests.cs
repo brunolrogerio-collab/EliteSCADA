@@ -8,6 +8,29 @@ namespace Scada.Drivers.Tests;
 
 public sealed class EngineeringDriverCompilerTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Compile_PreservesControlledUnitForPhysicalAndSimulatedTags(bool simulated)
+    {
+        var unit = new ControlledEngineeringUnitReference(2, "unit.power.watt");
+        var source = simulated
+            ? new DataSourceEngineeringDto(null, "builtin.simulation", "Simulation", "builtin.simulation")
+            : DataSource();
+        var tag = Tag("Power", "Plant.Power", TagDataType.Double, source.Key, "holding:10") with
+        {
+            EngineeringUnit = "W", ControlledEngineeringUnit = unit
+        };
+        var result = new EngineeringDriverCompiler().Compile(Package(new[] { tag }, new[] { source }));
+
+        Assert.True(result.CanActivate);
+        var active = simulated
+            ? Assert.Single(Assert.IsType<SimulationCommunicationRuntimePlan>(Assert.Single(result.CommunicationPlans)).Points).Tag
+            : Assert.Single(Assert.Single(result.ModbusTcpPlans).Points).Tag;
+        Assert.Equal(unit, active.ControlledEngineeringUnit);
+        Assert.Equal("W", active.EngineeringUnit);
+    }
+
     [Fact]
     public void Compile_ProducesExecutableModbusPlanFromEngineeringPackage()
     {
@@ -174,21 +197,28 @@ public sealed class EngineeringDriverCompilerTests
     }
 
     [Fact]
-    public void Compile_IgnoresBuiltInSimulationButRejectsUnknownEnabledDrivers()
+    public void Compile_PlansBuiltInSimulationAndRejectsUnknownEnabledDrivers()
     {
         var simulation = new DataSourceEngineeringDto(null, "builtin.simulation", "Simulation", "builtin.simulation");
+        var simulatedTag = new TagEngineeringDto(Guid.NewGuid(), "Clock", "Demo.Clock", TagDataType.DateTime,
+            Source: "builtin.simulation", Metadata: new Dictionary<string, string> { ["simulation.signalType"] = "CurrentTime" });
         var unsupported = new DataSourceEngineeringDto(null, "opc.legacy", "Legacy OPC", "opc.da");
 
         var result = new EngineeringDriverCompiler().Compile(Package(
-            Array.Empty<TagEngineeringDto>(),
+            new[] { simulatedTag },
             new[] { simulation, unsupported }));
 
         Assert.False(result.CanActivate);
         Assert.Empty(result.ModbusTcpPlans);
-        var issue = Assert.Single(result.Issues);
+        var issue = Assert.Single(result.Issues, x => x.IsError);
         Assert.Equal("DRIVER_UNSUPPORTED", issue.Code);
         Assert.Equal("opc.legacy", issue.DataSourceKey);
+        var plan = Assert.IsType<SimulationCommunicationRuntimePlan>(Assert.Single(result.CommunicationPlans));
+        Assert.Equal("builtin.simulation", plan.DataSourceKey);
+        Assert.Equal(SCADA_DATE_TIME, Assert.Single(plan.Points).Tag.DataType);
     }
+
+    private const TagDataType SCADA_DATE_TIME = TagDataType.DateTime;
 
     private static DataSourceEngineeringDto DataSource() => new(
         Id: null,

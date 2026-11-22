@@ -1,0 +1,17 @@
+name: elitescada-media-lab
+services:
+  camera:
+    image: bluenviron/mediamtx:1.21.1@sha256:dc22a8b09668e7f5b493cfa848c395349ad16fd47fef1cc7b7eb5b87a1186232
+    volumes: [./docker/media-lab/camera.yml:/mediamtx.yml:ro]
+    read_only: true
+    mem_limit: 128m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  gateway:
+    image: bluenviron/mediamtx:1.21.1@sha256:dc22a8b09668e7f5b493cfa848c395349ad16fd47fef1cc7b7eb5b87a1186232
+    volumes: [./docker/stable/mediamtx.yml:/mediamtx.yml:ro]
+    ports: ["127.0.0.1:19997:9997", "127.0.0.1:19888:8888"]
+    read_only: true
+    mem_limit: 256m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]

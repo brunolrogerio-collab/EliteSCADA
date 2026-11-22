@@ -1,0 +1,37 @@
+# Intelligence Stage 3 — finite acceptance matrix
+
+Main final re-audit, updated 2026-10-16. Parent [#588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588). This matrix maps the existing Stage 3 promise to code/evidence and a finite remaining scope; it closes Stage 3 only, not Intelligence #588, Stage 4/5/6, or Wave 15.
+
+Current integrated product checkpoint: `b58fd4857ee2c6ed84e40405148294cb910fddbd`, PR #628 (tests-only S3-07 follow-up) merged on top of #626 and #627. PERFORMANCE-V1A #621/PR #622 remains verified at prerequisite `257a4ab3`; V1B implementation remains #626 at `ab38bfe` with its original T1/T2 green.
+
+- Corrective candidate T1 [#38963151780 attempt 2](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38963151780/attempts/2) passed at tested PR head `791fbf9117fef3474ffcb2f2e2c08a95b99df6ed`; classifier, common sanity, focused .NET and final gate passed. Focused .NET: 1,577 passed, 0 failed, 1 skipped.
+- Exact post-merge T2 [#38964817316 attempt 2](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38964817316/attempts/2) passed at `b58fd4857ee2c6ed84e40405148294cb910fddbd`. Backend: Core 674, PostgreSQL 127, Historian 41, Drivers 1,578 passed / 1 skipped / 0 failed, Security 42; total 2,462 passed / 1 skipped / 0 failed. Backend build, tests and runtime smoke passed; Web build passed; Chromium merge integration smoke 13/13 passed. Full-browser E2E was skipped by workflow conditions and is not claimed.
+- T2 attempt 1 failed only in an unrelated HA-D2 separate-database initial-policy-sync test; the one failed-backend-job retry passed. The #628 diff changed only `tests/Scada.Drivers.Tests/AssetProcessIntelligenceAnalyticsTests.cs`; no product or HA code changed.
+- Main re-audited S3-01–S3-08 on the exact corrected composition. All Stage 3 rows are accepted; Stage 3 is **COMPLETE / VERIFIED**. #588 remains open for later Intelligence stages; this does not close Wave 15 or assert FND/FC0 completion.
+
+| ID | Acceptance outcome | Evidence/current implementation | Remaining disposition |
+| --- | --- | --- | --- |
+| S3-01 | Discoverable versioned rules identify formula, units, direct/derived meaning, TAGs, windows and provenance | `AssetProcessIntelligenceKpiCatalogV1`, analytics response/provenance, `AssetProcessIntelligenceNetObservedRateV1Catalog`, and `AssetProcessIntelligencePerformanceV1BCatalog`; #605/#617/#626 | Delivered on current composition; V1B provenance is bounded to recorded qualified tuples |
+| S3-02 | Bounded aggregations, descriptive trends and net observed variation | `AssetProcessIntelligenceKpiV1.Calculate`, `net-observed-rate.v1`, and V1B pointwise sample summaries | Delivered for stated observed-data semantics; arithmetic means are not time weighted and a mean of ratios is not a ratio of means |
+| S3-03 | Profile signal/quality coverage and truthful unknowns | `ExecuteProfileCoverageAsync`, controlled v1 semantics/units, Historian v2/ADR-014 | Delivered within their bounds; capture settings never prove expected cadence/completeness or physical simultaneity |
+| S3-04 | Compare readings under an explicit recorded operating condition | #619 / ADR-015, local 78/78, exact candidate T1 and merge CI passed | DELIVERED: current under a measured-frequency range, exact raw-unambiguous source-time pairing and canonical A/Hz; global regime equivalence remains unverified |
+| S3-05 | Equivalent-regime claims have explicit sufficient evidence, not an implicit label | ADR-015 and ADR-016 plus V1B's exact synchronized recorded-time tuples and explicit provenance | Accepted only for declared recorded-data formulas: physical co-acquisition, clock accuracy, cadence/completeness and globally equivalent regimes remain unavailable/unverified; no global equivalence claim is made. Learned regimes are Stage 4 |
+| S3-06 | Useful physical performance indicators when the required data actually exists | V1B catalog/calculator: specific active energy at net production rate, direct pressure-power, pressure-power/input-power ratio; executable positive/refusal tests; A #621 verified at `257a4ab3` | Implemented and T1/T2 green on PR #626; preserve limitations (no whole-window integral, total-efficiency or unsupported-only completion) |
+| S3-07 | Every new KPI preserves entitlement, active scope, every TAG permission, revision/permit cancellation and bounded/no-partial reads | Existing page guards plus #628 matrix in `AssetProcessIntelligenceAnalyticsTests.cs`: each TAG in both 2-input rules and the 3-input rule is revoked while a different input page is held; permit, workspace, revision, entitlement and scope invalidations are gated deterministically | **DELIVERED / VERIFIED** by local 59/59 focused and 138/138 full Analytics class, exact-head T1 #38963151780 attempt 2, and exact-merge T2 #38964817316 attempt 2; no partial output or unauthorized next read |
+| S3-08 | Reviewed candidates integrated with exact local/T1/post-merge evidence and clear limitations | #626 candidate T1 #38956508442 and exact merge `ab38bfe`; #628 correction head `791fbf9` and merge `b58fd48`; backend, Web and Chromium integration gate green, full-browser E2E skipped | **DELIVERED / VERIFIED** on exact corrected composition `b58fd4857ee2c6ed84e40405148294cb910fddbd`; all S3-01–S3-08 accepted, Stage 3 complete |
+
+## Remaining work sequence
+
+1. #619 is INTEGRATED / VERIFIED under [ADR-015](ADR-015-INTELLIGENCE-CURRENT-FREQUENCY-COMPARISON.md); do not reopen its contract or CI.
+2. PERFORMANCE-V1A #621 is integrated/verified after PR #625 T1/T2 evidence; preserve the v1/v2, schema27 and loss-safe round-trip contracts. Do not reopen A or the frozen #619 semantics.
+3. V1B #623 is implemented and merged by PR #626 at `ab38bfe`; its three fixed formulas and ADR-016 limitations remain frozen. Do not reopen #619/A semantics, add statistics or infer whole-window consumption/total pump efficiency.
+4. The authorized test-only #623 follow-up is complete: PR #628 merged at `b58fd4857ee2c6ed84e40405148294cb910fddbd`; exact candidate T1 #38963151780 attempt 2 and exact post-merge T2 #38964817316 attempt 2 passed.
+5. Main re-audited S3-01–S3-08 on the exact corrected composition: all rows are accepted and Stage 3 is complete. #588/Wave 15 remain open; only a separate bounded Stage 4 order may begin learned-baseline/deviation work. Stage 5/6 remain later and outside this order.
+
+Sensors may be absent in a plant: the module must explain unavailable metrics while still offering supported descriptive analyses. This is different from omitting a required V1 formula's implementation. Do not mark S3-06 complete solely because the engine can return unsupported for every input.
+
+Stage 3 cannot close while a required row remains open. A genuine scope reduction/deferral must be recorded by its decision authority, not inferred from a green CI or from absent plant sensors. #588 and Wave 15 remain open after an individual slice passes.
+
+## Explicitly later work
+
+Learned baselines, drift/anomaly detection and inferred regimes are Stage 4. Guided screens, six gauge layouts/themes and new editor/runtime visuals are Stage 5; A's existing metadata selectors are only a prerequisite for usable inputs. Representative performance/platform qualification and broad hardening are Stage 6. The owner's HA local Preview/regression concern remains separate; Intelligence execution does not reopen HA development.

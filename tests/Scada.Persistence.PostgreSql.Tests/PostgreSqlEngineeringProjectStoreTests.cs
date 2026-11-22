@@ -1,9 +1,43 @@
+using System.Text.Json;
 using Scada.Persistence.PostgreSql;
+using Scada.Security.Authorization;
 
 namespace Scada.Persistence.PostgreSql.Tests;
 
 public sealed class PostgreSqlEngineeringProjectStoreTests
 {
+    [Fact]
+    public async Task Activation_BindsToLockedDemoAnchorAndOldActiveCannotMatchReplacement()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var engineering = new PostgreSqlEngineeringProjectStore(connectionString);
+        await engineering.InitializeAsync();
+        var authority = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await authority.InitializeAsync();
+
+        var projectKey = $"demo-session-binding-{Guid.NewGuid():N}";
+        const string json = """
+            {"schema":"scada.engineering","schemaVersion":5,"exportedAt":"2026-08-26T00:00:00Z","tags":[],"alarms":[]}
+            """;
+        var revision = await engineering.SaveAsync(projectKey, "Demo Binding", "scada.engineering", 5, json);
+        await engineering.PublishRevisionAsync(projectKey, revision.Revision);
+
+        var existing = (await authority.GetAuthorityStateAsync()).DemoStartedAtUtc;
+        var first = await authority.EstablishDemoSessionAnchorAsync(DateTimeOffset.UtcNow, existing);
+        var activated = await engineering.RecordActivationAsync(projectKey, revision.Revision);
+        Assert.Equal(first.DemoStartedAtUtc, activated!.DemoStartedAtUtc);
+
+        var replacement = await authority.EstablishDemoSessionAnchorAsync(
+            first.DemoStartedAtUtc.AddHours(6), first.DemoStartedAtUtc);
+        var stale = await engineering.GetActivationAsync(projectKey);
+        Assert.NotEqual(replacement.DemoStartedAtUtc, stale!.DemoStartedAtUtc);
+
+        var rebound = await engineering.RecordActivationAsync(projectKey, revision.Revision);
+        Assert.Equal(replacement.DemoStartedAtUtc, rebound!.DemoStartedAtUtc);
+    }
+
     [Fact]
     public async Task Store_InitializesSavesLoadsAndListsImmutableRevisions()
     {
@@ -11,6 +45,8 @@ public sealed class PostgreSqlEngineeringProjectStoreTests
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         await using var store = new PostgreSqlEngineeringProjectStore(connectionString);
+        await using var binding = new PostgreSqlEngineeringInstallationBindingStore(connectionString);
+        await binding.InitializeAsync();
         await store.InitializeAsync();
         await store.InitializeAsync();
 
@@ -62,6 +98,52 @@ public sealed class PostgreSqlEngineeringProjectStoreTests
         Assert.Equal(first.Revision, explicitFirst.Revision);
         Assert.Equal("integration-test", latest.SavedBy);
         Assert.Equal(new[] { second.Revision, first.Revision }, revisions.Select(x => x.Revision).ToArray());
+    }
+
+    [Fact]
+    public async Task Store_PersistsHomeBuildingCanonicalReferencesAcrossRevisionLoad()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var store = new PostgreSqlEngineeringProjectStore(connectionString);
+        await using var binding = new PostgreSqlEngineeringInstallationBindingStore(connectionString);
+        await binding.InitializeAsync();
+        await store.InitializeAsync();
+
+        var projectKey = $"home-building-{Guid.NewGuid():N}";
+        var dataSourceId = Guid.NewGuid();
+        var tagId = Guid.NewGuid();
+        var equipmentId = Guid.NewGuid();
+        var locationId = Guid.NewGuid();
+        var json = $$"""
+            {
+              "schema": "scada.engineering",
+              "schemaVersion": 23,
+              "exportedAt": "2026-10-13T00:00:00Z",
+              "tags": [{ "id": "{{tagId:D}}", "name": "Occupancy", "path": "Home.Room.Occupancy", "dataType": "boolean", "readOnly": true, "dataSourceId": "{{dataSourceId:D}}", "source": "ha-main", "address": "entity:binary_sensor.room_motion:state" }],
+              "alarms": [],
+              "dataSources": [{ "id": "{{dataSourceId:D}}", "key": "ha-main", "name": "Home Assistant", "driver": "home-assistant", "enabled": true, "settings": {} }],
+              "equipment": [{ "id": "{{equipmentId:D}}", "path": "Home.Room.Motion", "name": "Motion sensor", "locationId": "{{locationId:D}}", "sourceBindings": [{ "dataSourceId": "{{dataSourceId:D}}", "stableDeviceIdentity": "ha-device-42", "role": "primary" }], "capabilities": [{ "id": "occupancy", "kind": "Occupancy", "version": 1, "bindings": [{ "role": "state", "tagId": "{{tagId:D}}" }] }] }],
+              "locations": [{ "id": "{{locationId:D}}", "name": "Apartment", "kind": "Building" }]
+            }
+            """;
+
+        var saved = await store.SaveAsync(projectKey, "Home Building", "scada.engineering", 23, json, "e2e-home-building");
+        var loaded = await store.LoadRevisionAsync(projectKey, saved.Revision);
+
+        Assert.NotNull(loaded);
+        Assert.Equal(23, loaded!.EngineeringSchemaVersion);
+        using var document = JsonDocument.Parse(loaded.EngineeringJson);
+        var root = document.RootElement;
+        var equipment = Assert.Single(root.GetProperty("equipment").EnumerateArray().ToArray());
+        Assert.Equal(equipmentId, equipment.GetProperty("id").GetGuid());
+        Assert.Equal(locationId, equipment.GetProperty("locationId").GetGuid());
+        Assert.Equal(dataSourceId, equipment.GetProperty("sourceBindings")[0].GetProperty("dataSourceId").GetGuid());
+        Assert.Equal("ha-device-42", equipment.GetProperty("sourceBindings")[0].GetProperty("stableDeviceIdentity").GetString());
+        Assert.Equal(tagId, equipment.GetProperty("capabilities")[0].GetProperty("bindings")[0].GetProperty("tagId").GetGuid());
+        Assert.Equal(locationId, root.GetProperty("locations")[0].GetProperty("id").GetGuid());
+        Assert.Equal("Home.Room.Occupancy", root.GetProperty("tags")[0].GetProperty("path").GetString());
     }
 
     [Fact]
@@ -144,12 +226,38 @@ public sealed class PostgreSqlEngineeringProjectStoreTests
         Assert.Equal(first.Revision, stillActiveFirst!.ActiveRevision);
         Assert.Null(await store.RecordActivationAsync(projectKey, first.Revision, "operator-stale"));
 
+        var takeoverFirst = await store.RecordActivationForHaTakeoverAsync(
+            projectKey,
+            first.Revision,
+            "ha-takeover");
+        Assert.NotNull(takeoverFirst);
+        Assert.Equal(first.Revision, takeoverFirst!.ActiveRevision);
+        Assert.Equal("ha-takeover", takeoverFirst.ActivatedBy);
+
         var activatedSecond = await store.RecordActivationAsync(projectKey, second.Revision, "operator-b");
         var storedSecond = await store.GetActivationAsync(projectKey);
 
         Assert.NotNull(activatedSecond);
         Assert.Equal(second.Revision, storedSecond!.ActiveRevision);
         Assert.Equal("operator-b", storedSecond.ActivatedBy);
+
+        var stopped = await store.SetRuntimeStatusAsync(
+            projectKey,
+            second.Revision,
+            Scada.Engineering.Persistence.EngineeringRuntimeStatus.OperatorStopped,
+            "operator-stop");
+        Assert.NotNull(stopped);
+        Assert.Equal(Scada.Engineering.Persistence.EngineeringRuntimeStatus.OperatorStopped, stopped!.RuntimeStatus);
+        Assert.Equal("operator-stop", stopped.RuntimeStoppedBy);
+
+        var resumed = await store.ResumeRuntimeAsync(projectKey, second.Revision);
+        Assert.NotNull(resumed);
+        Assert.Equal(Scada.Engineering.Persistence.EngineeringRuntimeStatus.Active, resumed!.RuntimeStatus);
+        Assert.Equal(stopped.ActivatedAtUtc, resumed.ActivatedAtUtc);
+        Assert.Equal(stopped.DemoStartedAtUtc, resumed.DemoStartedAtUtc);
+        Assert.Null(resumed.RuntimeStoppedAtUtc);
+        Assert.Null(resumed.RuntimeStoppedBy);
+        Assert.Null(await store.ResumeRuntimeAsync(projectKey, first.Revision));
     }
 
     [Fact]

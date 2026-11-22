@@ -1,0 +1,17 @@
+# Opt-in host-managed IPC for the stable Docker install. Never mount docker.sock.
+services:
+  api:
+    environment:
+      InstallationNetwork__HostExecutorSocket: /run/scadivo-network/network.sock
+      InstallationNetwork__HostExecutorTokenFile: /run/scadivo-network-secrets/token
+    group_add:
+      - "${SCADIVO_NETWORK_API_GROUP_GID:?Set installation-specific API IPC group GID}"
+    volumes:
+      - type: bind
+        source: ${SCADIVO_NETWORK_SOCKET_DIRECTORY:?Set dedicated host executor socket directory}
+        target: /run/scadivo-network
+        read_only: true
+      - type: bind
+        source: ${SCADIVO_NETWORK_API_SECRET_DIRECTORY:?Set restricted API token directory}
+        target: /run/scadivo-network-secrets
+        read_only: true

@@ -1,14 +1,32 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   applyEngineeringPackage,
   loadEngineeringWorkspace,
   previewEngineeringPackage
 } from './api';
 import { editorTranslator } from './editorI18n';
-import type { EngineeringLocale } from './i18n';
+import { backendReferenceFromName } from './backendReferenceFromName';
+import { productTerm, type EngineeringLocale } from './i18n';
 import { TagAddressEditor } from './TagAddressEditor';
+import { TagCommissioningPanel } from './TagCommissioningPanel';
 import { TagSourceSelector } from './TagSourceSelector';
+import { TagDuplicationPanel, type TagDuplicationPanelHandle } from './TagDuplicationPanel';
+import { loadEngineeringSemanticCatalog, type EngineeringControlledUnit } from './semanticCatalogApi';
+import { EngineeringResourceOrganizer, engineeringCopyName } from './EngineeringResourceOrganizer';
+import { EngineeringEntityActions } from './EngineeringEntityActions';
+import { WorkflowFormDisclosure, WorkflowFormSection } from './StructuredFormPrimitives';
+import { ALARM_SOUND_PROFILES, alarmSoundProfileLabel, isAlarmSoundProfile, playAlarmSoundProfile } from '../runtime/alarmSounds';
 import { assignTagDataSource, type TagSourceAwareEngineering } from './TagSourceSelector.logic';
+import {
+  SIMULATION_DRIVER_TYPE,
+  normalizeSimulationProfile,
+  simulationFieldVisibility,
+  simulationSignalForTag,
+  simulationSignalOptions,
+  updateSimulationDataType,
+  updateSimulationMetadataNumber,
+  updateSimulationSignal
+} from './SimulationTagEditor.logic';
 import type {
   AlarmEngineering,
   DataSourceEngineering,
@@ -19,6 +37,14 @@ import type {
 import './structured-editors.css';
 
 const tagDataTypes = ['boolean', 'int16', 'int32', 'int64', 'float', 'double', 'string', 'dateTime', 'enum'];
+type ControlledUnitOption = EngineeringControlledUnit & { catalogVersion: number };
+const legacyControlledUnits: ControlledUnitOption[] = [
+  { code: 'unit.ratio.percent', dimension: 'ratio', canonicalUnit: '1', scaleToCanonical: 0.01, catalogVersion: 1 },
+  { code: 'unit.electric_current.ampere', dimension: 'electric_current', canonicalUnit: 'A', scaleToCanonical: 1, catalogVersion: 1 },
+  { code: 'unit.frequency.hertz', dimension: 'frequency', canonicalUnit: 'Hz', scaleToCanonical: 1, catalogVersion: 1 },
+  { code: 'unit.pressure.bar', dimension: 'pressure', canonicalUnit: 'Pa', scaleToCanonical: 100000, catalogVersion: 1 },
+  { code: 'unit.volumetric_flow.cubic_metre_per_hour', dimension: 'volumetric_flow', canonicalUnit: 'm³/s', scaleToCanonical: 1 / 3600, catalogVersion: 1 }
+];
 const alarmTypes = ['digital', 'high', 'highHigh', 'low', 'lowLow', 'communication', 'system'];
 const alarmPriorities = ['low', 'medium', 'high', 'critical'];
 const analogAlarmTypes = new Set(['high', 'highHigh', 'low', 'lowLow']);
@@ -29,6 +55,7 @@ const NEW_ALARM_IDENTITY = 'draft:new-alarm';
 type EditorProps = {
   model: EngineeringPackageView;
   locale: EngineeringLocale;
+  projectKey?: string;
 };
 
 type MutationState = {
@@ -42,17 +69,38 @@ type MutationState = {
   invalidate: () => void;
 };
 
-export function TagEditor({ model, locale }: EditorProps) {
+export function TagEditor({ model, locale, projectKey = 'workspace' }: EditorProps) {
   const text = useMemo(() => editorTranslator(locale), [locale]);
   const mutation = useSecuredMutation(model, locale);
+  const simulationCopy = useMemo(() => simulationText(locale), [locale]);
   const tags = model.tags;
   const [query, setQuery] = useState('');
+  const duplicationRef = useRef<TagDuplicationPanelHandle>(null);
+  const [tagClipboardCount, setTagClipboardCount] = useState(0);
+  const [controlledUnits, setControlledUnits] = useState<readonly ControlledUnitOption[]>(legacyControlledUnits);
+  useEffect(() => {
+    let mounted = true;
+    void loadEngineeringSemanticCatalog().then(catalog => {
+      if (mounted) setControlledUnits(catalog.controlledEngineeringUnitCatalogs.flatMap(item =>
+        item.units.map(unit => ({ ...unit, catalogVersion: item.catalogVersion }))));
+    }).catch(() => { /* Keep the known v1 selector; unknown saved values remain visible in SelectField. */ });
+    return () => { mounted = false; };
+  }, []);
+  const controlledUnitByOption = new Map(controlledUnits.map(unit => [controlledUnitOptionValue(unit.catalogVersion, unit.code), unit]));
+  const controlledUnitOptions = [
+    { value: '', label: '' },
+    ...controlledUnits.map(unit => ({ value: controlledUnitOptionValue(unit.catalogVersion, unit.code), label: unit.code }))
+  ];
+  useEffect(() => setTagClipboardCount(0), [projectKey]);
+  const [duplicationSelectionMode, setDuplicationSelectionMode] = useState(false);
+  const [duplicationSelection, setDuplicationSelection] = useState<Set<string>>(() => new Set());
   const [selectedIdentity, setSelectedIdentity] = useState<string | null>(() => tags[0] ? tagIdentity(tags[0]) : null);
   const isNew = selectedIdentity === NEW_TAG_IDENTITY;
   const selected = !isNew && selectedIdentity
     ? tags.find(tag => tagIdentity(tag) === selectedIdentity) ?? null
     : null;
   const [draft, setDraft] = useState<TagEngineering | null>(() => selected ? clone(selected) : null);
+  const simulationSource = draft ? (model.dataSources ?? []).find(source => source.key === draft.source)?.driver.trim().toLowerCase() === SIMULATION_DRIVER_TYPE : false;
 
   useEffect(() => {
     if (selectedIdentity === NEW_TAG_IDENTITY) {
@@ -71,6 +119,17 @@ export function TagEditor({ model, locale }: EditorProps) {
   }, [selectedIdentity, tags]);
 
   useEffect(() => mutation.invalidate(), [draft]);
+
+  useEffect(() => {
+    if (!draft || !simulationSource) return;
+    const normalized = normalizeSimulationProfile(draft as TagSourceAwareEngineering);
+    if (JSON.stringify(normalized) !== JSON.stringify(draft)) setDraft(normalized);
+  }, [simulationSource, draft?.dataType, draft?.metadata]);
+
+  useEffect(() => {
+    const available = new Set(tags.map(tagIdentity));
+    setDuplicationSelection(current => new Set([...current].filter(identity => available.has(identity))));
+  }, [tags]);
 
   const changed = draft
     ? isNew
@@ -91,6 +150,32 @@ export function TagEditor({ model, locale }: EditorProps) {
     mutation.invalidate();
   };
 
+  const toggleDuplicationSelectionMode = () => {
+    setDuplicationSelectionMode(current => {
+      if (current) {
+        setDuplicationSelection(new Set());
+        return false;
+      }
+      setDuplicationSelection(selected ? new Set([tagIdentity(selected)]) : new Set());
+      return true;
+    });
+  };
+
+  const toggleDuplicationSelection = (identity: string) => {
+    setDuplicationSelection(current => {
+      const next = new Set(current);
+      if (next.has(identity)) next.delete(identity);
+      else next.add(identity);
+      return next;
+    });
+  };
+
+  const selectedDuplicationTags = duplicationSelectionMode
+    ? tags.filter(tag => duplicationSelection.has(tagIdentity(tag))) as TagSourceAwareEngineering[]
+    : selected
+      ? [selected as TagSourceAwareEngineering]
+      : [];
+
   const preview = async () => {
     if (!draft || (!isNew && !selected)) return;
     const candidate = clone(model);
@@ -106,6 +191,8 @@ export function TagEditor({ model, locale }: EditorProps) {
     `${tag.path} ${tag.name} ${tag.source ?? ''} ${tag.address ?? ''}`
       .toLowerCase()
       .includes(query.trim().toLowerCase()));
+  const simulationSignal = draft ? simulationSignalForTag(draft as TagSourceAwareEngineering) : 'Sine';
+  const simulationFields = simulationFieldVisibility(simulationSignal);
 
   return (
     <EditorShell title={text('editor.tagsTitle')} description={text('editor.tagsDescription')} locale={locale}>
@@ -120,24 +207,55 @@ export function TagEditor({ model, locale }: EditorProps) {
           actionActive={isNew}
           onAction={() => chooseIdentity(NEW_TAG_IDENTITY)}
         >
-          {filtered.map(tag => {
-            const identity = tagIdentity(tag);
-            return (
-              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} key={identity} onClick={() => chooseIdentity(identity)}>
-                <strong>{tag.name}</strong><code>{tag.path}</code><span>{tag.dataType} · {tag.source ?? '—'}</span>
-              </button>
-            );
-          })}
+          <EngineeringResourceOrganizer
+            projectKey={projectKey}
+            kind="tags"
+            locale={locale}
+            label="TAGs"
+            resources={filtered.map(tag => ({ identity: tagIdentity(tag), name: tag.name, accessibilityLabel: `${tag.name} (${tag.path})`, details: `${tag.dataType} · ${tag.source ?? '—'}`, value: tag }))}
+            selectedIdentity={duplicationSelectionMode ? null : selectedIdentity}
+            selectedIdentities={duplicationSelectionMode ? duplicationSelection : undefined}
+            onSelect={identity => duplicationSelectionMode ? toggleDuplicationSelection(identity) : chooseIdentity(identity)}
+            onPaste={tag => duplicationRef.current?.pasteCopied([tag as TagSourceAwareEngineering])}
+            onCopySelection={() => duplicationRef.current?.copySelected()}
+            clipboardActions={{
+              canPaste: tagClipboardCount > 0,
+              copyResource: tag => duplicationRef.current?.copyResources([tag as TagSourceAwareEngineering]),
+              copySelection: () => duplicationRef.current?.copySelected(),
+              paste: () => duplicationRef.current?.paste(),
+              duplicateSelection: () => duplicationRef.current?.duplicateSelected()
+            }}
+            emptyLabel={text('editor.noResults')}
+          />
         </EntityPicker>
 
         <section className="eng-editor-form-panel">
           {!draft || (!isNew && !selected) ? <div className="eng-editor-empty">{text('editor.noSelection')}</div> : (
             <>
               <EditorStatus original={selected} draft={draft} changed={changed} isNew={isNew} locale={locale} />
+              <TagDuplicationPanel
+                key={projectKey}
+                ref={duplicationRef}
+                model={model}
+                locale={locale}
+                primaryTag={selected as TagSourceAwareEngineering | null}
+                selectedTags={selectedDuplicationTags}
+                selectionMode={duplicationSelectionMode}
+                onToggleSelectionMode={toggleDuplicationSelectionMode}
+                onClipboardChange={setTagClipboardCount}
+              />
+              <WorkflowFormSection title={workflowText(locale).identity} description={workflowText(locale).tagIdentityHint}>
               <div className="eng-editor-form-grid">
-                <TextField label={text('editor.field.name')} value={draft.name} onChange={value => updateTag(setDraft, tag => ({ ...tag, name: value }))} />
-                <TextField label={text('editor.field.path')} value={draft.path} mono onChange={value => updateTag(setDraft, tag => ({ ...tag, path: value }))} />
-                <SelectField label={text('editor.field.type')} value={draft.dataType} options={tagDataTypes} onChange={value => updateTag(setDraft, tag => ({ ...tag, dataType: value }))} />
+                <TextField label={text('editor.field.tagName')} hint={text('editor.field.tagNameHint')} value={draft.name} onChange={value => updateTag(setDraft, tag => ({ ...tag, name: value, ...(isNew ? { path: backendReferenceFromName(value) } : {}) }))} />
+                <SelectField
+                  label={text('editor.field.type')}
+                  value={draft.dataType}
+                  options={tagDataTypes}
+                  testId="tag-data-type"
+                  onChange={value => updateTag(setDraft, tag => simulationSource
+                    ? updateSimulationDataType(tag as TagSourceAwareEngineering, value)
+                    : { ...tag, dataType: value })}
+                />
                 <TagSourceSelector
                   tag={draft as TagSourceAwareEngineering}
                   sources={model.dataSources ?? []}
@@ -150,19 +268,68 @@ export function TagEditor({ model, locale }: EditorProps) {
                   locale={locale}
                   onChange={next => setDraft(next)}
                 />
+                <TagCommissioningPanel
+                  tag={draft as TagSourceAwareEngineering}
+                  sources={model.dataSources ?? []}
+                  locale={locale}
+                  persisted={!isNew}
+                  onChange={next => setDraft(next)}
+                />
                 <TextField label={text('editor.field.unit')} value={draft.engineeringUnit ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, engineeringUnit: emptyToNull(value) }))} />
+                <SelectField
+                  label={text('editor.field.controlledUnit')}
+                  value={draft.controlledEngineeringUnit
+                    ? controlledUnitOptionValue(draft.controlledEngineeringUnit.catalogVersion, draft.controlledEngineeringUnit.code)
+                    : ''}
+                  options={controlledUnitOptions}
+                  testId="tag-controlled-unit"
+                  onChange={value => updateTag(setDraft, tag => {
+                    const unit = controlledUnitByOption.get(value);
+                    return {
+                      ...tag,
+                      controlledEngineeringUnit: unit
+                        ? { catalogVersion: unit.catalogVersion, code: unit.code }
+                        : null
+                    };
+                  })}
+                />
                 <NumberField label={text('editor.field.scaleMinimum')} value={draft.scaleMinimum} onChange={value => updateTag(setDraft, tag => ({ ...tag, scaleMinimum: value }))} />
                 <NumberField label={text('editor.field.scaleMaximum')} value={draft.scaleMaximum} onChange={value => updateTag(setDraft, tag => ({ ...tag, scaleMaximum: value }))} />
                 <BooleanField label={text('editor.field.readOnly')} checked={draft.readOnly} onChange={value => updateTag(setDraft, tag => ({ ...tag, readOnly: value }))} />
-                <BooleanField label={text('editor.field.historian')} checked={draft.historian?.enabled === true} onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), enabled: value } }))} />
-                <TextField label={text('editor.field.strategy')} value={draft.historian?.strategy ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), strategy: value } }))} />
-                <NumberField label={text('editor.field.deadband')} value={draft.historian?.deadband} onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), deadband: value } }))} />
-                <NumberField label={text('editor.field.period')} value={draft.historian?.periodMilliseconds} integer onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), periodMilliseconds: value } }))} />
-                <NumberField label={text('editor.field.maximumPeriod')} value={draft.historian?.maximumPeriodMilliseconds} integer onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), maximumPeriodMilliseconds: value } }))} />
                 <TextAreaField label={text('editor.field.description')} value={draft.description ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, description: emptyToNull(value) }))} />
               </div>
+              </WorkflowFormSection>
+              {simulationSource ? <WorkflowFormDisclosure title={simulationCopy.title} description={simulationCopy.description} testId="tag-simulation-disclosure">
+                <div className="eng-editor-form-grid">
+                  <SelectField
+                    label={simulationCopy.behavior}
+                    value={simulationSignal}
+                    options={simulationSignalOptions(draft.dataType)}
+                    testId="simulation-signal-type"
+                    onChange={value => updateTag(setDraft, tag => updateSimulationSignal(tag as TagSourceAwareEngineering, value))}
+                  />
+                  {simulationFields.minimum && <NumberField testId="simulation-minimum" label={simulationCopy.minimum} value={metadataNumber(draft, 'simulation.minimum', 0)} onChange={value => updateTag(setDraft, tag => updateSimulationMetadataNumber(tag as TagSourceAwareEngineering, 'simulation.minimum', value))} />}
+                  {simulationFields.maximum && <NumberField testId="simulation-maximum" label={simulationCopy.maximum} value={metadataNumber(draft, 'simulation.maximum', 100)} onChange={value => updateTag(setDraft, tag => updateSimulationMetadataNumber(tag as TagSourceAwareEngineering, 'simulation.maximum', value))} />}
+                  {simulationFields.periodSeconds && <NumberField testId="simulation-period" label={simulationCopy.period} value={metadataNumber(draft, 'simulation.periodSeconds', 10)} onChange={value => updateTag(setDraft, tag => updateSimulationMetadataNumber(tag as TagSourceAwareEngineering, 'simulation.periodSeconds', value))} />}
+                  {simulationFields.constantValue && <NumberField testId="simulation-constant-value" label={simulationCopy.constantValue} value={metadataNumber(draft, 'simulation.constantValue', 0)} onChange={value => updateTag(setDraft, tag => updateSimulationMetadataNumber(tag as TagSourceAwareEngineering, 'simulation.constantValue', value))} />}
+                  {simulationFields.step && <NumberField testId="simulation-step" label={simulationCopy.step} value={metadataNumber(draft, 'simulation.step', 1)} onChange={value => updateTag(setDraft, tag => updateSimulationMetadataNumber(tag as TagSourceAwareEngineering, 'simulation.step', value))} />}
+                  {draft.dataType === 'dateTime' && <p className="eng-editor-hint">{simulationCopy.currentTimeHint}</p>}
+                </div>
+              </WorkflowFormDisclosure> : null}
+              <WorkflowFormDisclosure title={workflowText(locale).historian} description={workflowText(locale).historianHint} testId="tag-historian-disclosure">
+                <div className="eng-editor-form-grid">
+                  <BooleanField label={text('editor.field.historian')} checked={draft.historian?.enabled === true} onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), enabled: value } }))} />
+                  {draft.historian?.enabled === true && <>
+                    <TextField label={text('editor.field.strategy')} value={draft.historian?.strategy ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), strategy: value } }))} />
+                    <NumberField label={text('editor.field.deadband')} value={draft.historian?.deadband} onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), deadband: value } }))} />
+                    <NumberField label={text('editor.field.period')} value={draft.historian?.periodMilliseconds} integer onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), periodMilliseconds: value } }))} />
+                    <NumberField label={text('editor.field.maximumPeriod')} value={draft.historian?.maximumPeriodMilliseconds} integer onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), maximumPeriodMilliseconds: value } }))} />
+                  </>}
+                </div>
+              </WorkflowFormDisclosure>
               <MutationActions changed={changed} mutation={mutation} onReset={reset} onPreview={() => void preview()} locale={locale} />
               <PreviewPanel mutation={mutation} locale={locale} />
+              <EngineeringEntityActions kind="tag" model={model} locale={locale} selectedEntity={selected?.id ? { id: selected.id, label: selected.path, detail: `${selected.name} · ${selected.dataType}` } : null} />
             </>
           )}
         </section>
@@ -236,7 +403,7 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
     <EditorShell title={text('editor.dataSourcesTitle')} description={text('editor.dataSourcesDescription')} locale={locale}>
       <div className="eng-editor-layout">
         <EntityPicker
-          label="Data Sources"
+          label={productTerm(locale, 'dataSource')}
           query={query}
           onQuery={setQuery}
           searchLabel={text('editor.search')}
@@ -248,8 +415,8 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
           {filtered.map(source => {
             const identity = dataSourceIdentity(source);
             return (
-              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} key={identity} onClick={() => chooseIdentity(identity)}>
-                <strong>{source.name}</strong><code>{source.key}</code><span>{source.driver}</span>
+              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} aria-label={`${source.name || source.key} (${source.key})`} aria-current={identity === selectedIdentity ? 'true' : undefined} key={identity} onClick={() => chooseIdentity(identity)}>
+                <strong>{source.name || source.key}</strong><span>{source.driver}</span>
               </button>
             );
           })}
@@ -259,12 +426,14 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
           {!draft || (!isNew && !selected) ? <div className="eng-editor-empty">{text('editor.noSelection')}</div> : (
             <>
               <EditorStatus original={selected} draft={draft} changed={changed} isNew={isNew} locale={locale} />
+              <WorkflowFormSection title={workflowText(locale).identity} description={workflowText(locale).dataSourceIdentityHint}>
               <div className="eng-editor-form-grid">
-                <TextField label={text('editor.field.name')} value={draft.name} onChange={value => updateDataSource(setDraft, source => ({ ...source, name: value }))} />
-                <TextField label={text('editor.field.key')} value={draft.key} mono onChange={value => updateDataSource(setDraft, source => ({ ...source, key: value }))} />
+                <TextField label={text('editor.field.dataSourceName')} hint={text('editor.field.dataSourceNameHint')} value={draft.name} onChange={value => updateDataSource(setDraft, source => ({ ...source, name: value, ...(isNew ? { key: backendReferenceFromName(value) } : {}) }))} />
                 <TextField label={text('editor.field.driver')} value={draft.driver} mono onChange={value => updateDataSource(setDraft, source => ({ ...source, driver: value }))} />
                 <BooleanField label={text('editor.field.enabled')} checked={draft.enabled !== false} onChange={value => updateDataSource(setDraft, source => ({ ...source, enabled: value }))} />
               </div>
+              </WorkflowFormSection>
+              <WorkflowFormDisclosure title={workflowText(locale).advancedSettings} description={workflowText(locale).advancedSettingsHint}>
               <DictionaryEditor
                 title={text('editor.settings')}
                 hint={text('editor.settingsHint')}
@@ -276,8 +445,10 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
                 onChange={settings => updateDataSource(setDraft, source => ({ ...source, settings }))}
               />
               <ReadOnlyDictionary title={text('editor.secretReferences')} hint={text('editor.secretReferencesHint')} value={draft.secretReferences ?? {}} />
+              </WorkflowFormDisclosure>
               <MutationActions changed={changed} mutation={mutation} onReset={reset} onPreview={() => void preview()} locale={locale} />
               <PreviewPanel mutation={mutation} locale={locale} />
+              <EngineeringEntityActions kind="data-source" model={model} locale={locale} selectedEntity={selected?.id ? { id: selected.id, label: selected.key, detail: `${selected.name} · ${selected.driver}` } : null} />
             </>
           )}
         </section>
@@ -286,19 +457,23 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
   );
 }
 
-export function AlarmEditor({ model, locale }: EditorProps) {
+export function AlarmEditor({ model, locale, projectKey = 'workspace' }: EditorProps) {
   const text = useMemo(() => editorTranslator(locale), [locale]);
   const mutation = useSecuredMutation(model, locale);
   const alarms = model.alarms;
   const [query, setQuery] = useState('');
   const [selectedIdentity, setSelectedIdentity] = useState<string | null>(() => alarms[0] ? alarmIdentity(alarms[0]) : null);
+  const [soundPreviewError, setSoundPreviewError] = useState<string | null>(null);
+  const pendingAlarmPaste = useRef<AlarmEngineering | null>(null);
+  const soundText = alarmSoundEditorText(locale);
   const isNew = selectedIdentity === NEW_ALARM_IDENTITY;
   const selected = !isNew && selectedIdentity ? alarms.find(alarm => alarmIdentity(alarm) === selectedIdentity) ?? null : null;
   const [draft, setDraft] = useState<AlarmEngineering | null>(() => selected ? clone(selected) : null);
 
   useEffect(() => {
     if (selectedIdentity === NEW_ALARM_IDENTITY) {
-      setDraft(newAlarmDraft());
+      setDraft(pendingAlarmPaste.current ?? newAlarmDraft());
+      pendingAlarmPaste.current = null;
       mutation.invalidate();
       return;
     }
@@ -351,6 +526,29 @@ export function AlarmEditor({ model, locale }: EditorProps) {
     digitalActiveValue: type === 'digital' ? (alarm.digitalActiveValue ?? true) : alarm.digitalActiveValue
   }));
 
+  const scopeNoneLabel = locale === 'en' ? 'Not linked' : locale === 'es' ? 'Sin vínculo' : 'Sem vínculo';
+  const equipmentScopeLabel = locale === 'en' ? 'Equipment scope' : locale === 'es' ? 'Alcance del equipo' : 'Vínculo com equipamento';
+  const locationScopeLabel = locale === 'en' ? 'Area or subarea scope' : locale === 'es' ? 'Alcance de área o subárea' : 'Área ou subárea operacional';
+  const equipmentLocationHint = locale === 'en'
+    ? 'The Runtime follows the equipment’s current area.'
+    : locale === 'es'
+      ? 'Runtime sigue el área actual del equipo.'
+      : 'O Runtime acompanha a área atual do equipamento.';
+  const equipmentScopeOptions = [
+    { value: '', label: scopeNoneLabel },
+    ...(model.equipment ?? []).filter(item => item.id).map(item => ({
+      value: item.id!,
+      label: `${item.name || item.path}${item.locationId ? ` · ${locationPathLabel(item.locationId, model.locations ?? [])}` : ''}`
+    }))
+  ];
+  const locationScopeOptions = [
+    { value: '', label: scopeNoneLabel },
+    ...(model.locations ?? []).filter(item => item.id).map(item => ({
+      value: item.id!,
+      label: locationPathLabel(item.id!, model.locations ?? [])
+    }))
+  ];
+
   const filtered = alarms.filter(alarm =>
     `${alarm.name} ${alarm.tagPath ?? alarm.tagId ?? ''} ${alarm.type} ${alarm.priority} ${alarm.area ?? ''} ${alarm.alarmClass ?? ''}`
       .toLowerCase()
@@ -369,20 +567,34 @@ export function AlarmEditor({ model, locale }: EditorProps) {
           actionActive={isNew}
           onAction={() => chooseIdentity(NEW_ALARM_IDENTITY)}
         >
-          {filtered.map(alarm => {
-            const identity = alarmIdentity(alarm);
-            return (
-              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} key={identity} onClick={() => chooseIdentity(identity)}>
-                <strong>{alarm.name}</strong><code>{alarm.tagPath ?? alarm.tagId ?? '—'}</code><span>{alarm.type} · {alarm.priority}</span>
-              </button>
-            );
-          })}
+          <EngineeringResourceOrganizer
+            projectKey={projectKey}
+            kind="alarms"
+            locale={locale}
+            label={locale === 'en' ? 'Alarms' : locale === 'es' ? 'Alarmas' : 'Alarmes'}
+            resources={filtered.map(alarm => ({ identity: alarmIdentity(alarm), name: alarm.name, details: `${alarm.tagPath ?? alarm.tagId ?? '—'} · ${alarm.type} · ${alarm.priority}`, value: alarm }))}
+            selectedIdentity={selectedIdentity}
+            onSelect={chooseIdentity}
+            onPaste={source => {
+              if (changed && !window.confirm(text('editor.discardConfirm'))) return;
+              const copy = clone(source);
+              delete copy.id;
+              copy.name = engineeringCopyName(source.name || 'Alarm', locale);
+              if (selectedIdentity === NEW_ALARM_IDENTITY) setDraft(copy);
+              else {
+                pendingAlarmPaste.current = copy;
+                setSelectedIdentity(NEW_ALARM_IDENTITY);
+              }
+            }}
+            emptyLabel={text('editor.noResults')}
+          />
         </EntityPicker>
 
         <section className="eng-editor-form-panel">
           {!draft || (!isNew && !selected) ? <div className="eng-editor-empty">{text('editor.noSelection')}</div> : (
             <>
               <EditorStatus original={selected} draft={draft} changed={changed} isNew={isNew} locale={locale} />
+              <WorkflowFormSection title={workflowText(locale).alarmCondition} description={workflowText(locale).alarmConditionHint}>
               <div className="eng-editor-form-grid">
                 <TextField label={text('editor.field.name')} value={draft.name} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, name: value }))} />
                 <TextField label={text('editor.field.tagPath')} value={draft.tagPath ?? ''} mono onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, tagId: null, tagPath: emptyToNull(value) }))} />
@@ -392,14 +604,32 @@ export function AlarmEditor({ model, locale }: EditorProps) {
                 {draft.type === 'digital' && <BooleanField label={text('editor.field.digitalActiveValue')} checked={draft.digitalActiveValue !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, digitalActiveValue: value }))} />}
                 <TextField label={text('editor.field.alarmClass')} value={draft.alarmClass ?? ''} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, alarmClass: emptyToNull(value) }))} />
                 <TextField label={text('editor.field.area')} value={draft.area ?? ''} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, area: emptyToNull(value) }))} />
-                <NumberField label={text('editor.field.activationDelay')} value={draft.activationDelayMilliseconds} integer onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, activationDelayMilliseconds: value }))} />
-                <BooleanField label={text('editor.field.enabled')} checked={draft.enabled !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, enabled: value }))} />
-                <BooleanField label={text('editor.field.requiresAcknowledgement')} checked={draft.requiresAcknowledgement !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, requiresAcknowledgement: value }))} />
-                <BooleanField label={text('editor.field.shelvingAllowed')} checked={draft.shelvingAllowed !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, shelvingAllowed: value }))} />
+                <SelectField label={equipmentScopeLabel} hint={equipmentLocationHint} value={draft.equipmentId ?? ''} options={equipmentScopeOptions} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, equipmentId: emptyToNull(value), locationId: null }))} />
+                <SelectField label={locationScopeLabel} hint={draft.equipmentId ? equipmentLocationHint : undefined} disabled={Boolean(draft.equipmentId)} value={draft.equipmentId ? '' : draft.locationId ?? ''} options={locationScopeOptions} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, equipmentId: null, locationId: emptyToNull(value) }))} />
                 <TextAreaField label={text('editor.field.message')} value={draft.message ?? ''} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, message: emptyToNull(value) }))} />
               </div>
+              </WorkflowFormSection>
+              <WorkflowFormDisclosure title={workflowText(locale).alarmBehavior} description={workflowText(locale).alarmBehaviorHint} testId="alarm-behavior-disclosure">
+                <div className="eng-editor-form-grid">
+                  <NumberField label={text('editor.field.activationDelay')} value={draft.activationDelayMilliseconds} integer onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, activationDelayMilliseconds: value }))} />
+                  <BooleanField label={text('editor.field.enabled')} checked={draft.enabled !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, enabled: value }))} />
+                  <BooleanField label={text('editor.field.requiresAcknowledgement')} checked={draft.requiresAcknowledgement !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, requiresAcknowledgement: value }))} />
+                  <BooleanField label={text('editor.field.shelvingAllowed')} checked={draft.shelvingAllowed !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, shelvingAllowed: value }))} />
+                  <label className="eng-editor-field"><span>{soundText.label}</span><select data-testid="alarm-sound-profile" value={isAlarmSoundProfile(draft.soundProfile) ? draft.soundProfile : 'none'} onChange={event => updateAlarm(setDraft, alarm => ({ ...alarm, soundProfile: event.currentTarget.value === 'none' ? null : event.currentTarget.value }))}>
+                    <option value="none">{soundText.none}</option>
+                    {ALARM_SOUND_PROFILES.map(profile => <option key={profile} value={profile}>{alarmSoundProfileLabel(profile, locale)}</option>)}
+                  </select></label>
+                  <div className="eng-editor-actions alarm-sound-preview-actions"><button type="button" className="secondary" data-testid="alarm-sound-preview" disabled={!isAlarmSoundProfile(draft.soundProfile)} onClick={() => {
+                    if (!isAlarmSoundProfile(draft.soundProfile)) return;
+                    setSoundPreviewError(null);
+                    void playAlarmSoundProfile(draft.soundProfile).catch(() => setSoundPreviewError(soundText.previewUnavailable));
+                  }}>{soundText.preview}</button></div>
+                </div>
+                {soundPreviewError && <p role="status">{soundPreviewError}</p>}
+              </WorkflowFormDisclosure>
               <MutationActions changed={changed} mutation={mutation} onReset={reset} onPreview={() => void preview()} locale={locale} />
               <PreviewPanel mutation={mutation} locale={locale} />
+              <EngineeringEntityActions kind="alarm" model={model} locale={locale} selectedEntity={selected?.id ? { id: selected.id, label: selected.name, detail: `${selected.tagPath ?? selected.tagId ?? '—'} · ${selected.priority}` } : null} />
             </>
           )}
         </section>
@@ -554,8 +784,8 @@ function EditorShell({ title, description, locale, children }: { title: string; 
   return (
     <div className="eng-section eng-editor-section">
       <header className="eng-editor-header">
-        <div><span className="eng-editor-eyebrow">{extra.editing}</span><h1>{title}</h1><p>{description}</p></div>
-        <div className="eng-editor-safety-note"><strong>{extra.previewGate}</strong><span>{extra.previewGateHint}</span></div>
+        <div className="eng-editor-heading-group"><span className="eng-editor-eyebrow">{extra.editing}</span><h1>{title}</h1></div>
+        <details className="eng-editor-help"><summary>{extra.guidance}</summary><p>{description}</p><div className="eng-editor-safety-note"><strong>{extra.previewGate}</strong><span>{extra.previewGateHint}</span></div></details>
       </header>
       {children}
     </div>
@@ -632,21 +862,30 @@ function ReadOnlyDictionary({ title, hint, value }: { title: string; hint: strin
   );
 }
 
-function TextField({ label, value, onChange, mono = false }: { label: string; value: string; onChange: (value: string) => void; mono?: boolean }) {
-  return <label className="eng-editor-field"><span>{label}</span><input className={mono ? 'mono' : ''} value={value} onChange={event => onChange(event.target.value)} /></label>;
+function TextField({ label, value, onChange, mono = false, hint }: { label: string; value: string; onChange: (value: string) => void; mono?: boolean; hint?: string }) {
+  return <label className="eng-editor-field"><span>{label}</span><input aria-description={hint} className={mono ? 'mono' : ''} value={value} onChange={event => onChange(event.target.value)} />{hint && <small aria-hidden="true">{hint}</small>}</label>;
 }
 
 function TextAreaField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return <label className="eng-editor-field eng-editor-field-wide"><span>{label}</span><textarea rows={3} value={value} onChange={event => onChange(event.target.value)} /></label>;
 }
 
-function SelectField({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
-  const effective = options.includes(value) ? options : [value, ...options];
-  return <label className="eng-editor-field"><span>{label}</span><select value={value} onChange={event => onChange(event.target.value)}>{effective.map(option => <option key={option} value={option}>{option}</option>)}</select></label>;
+type SelectFieldOption = string | Readonly<{ value: string; label: string }>;
+
+function SelectField({ label, value, options, onChange, testId, disabled = false, hint }: { label: string; value: string; options: SelectFieldOption[]; onChange: (value: string) => void; testId?: string; disabled?: boolean; hint?: string }) {
+  const normalized = options.map(option => typeof option === 'string' ? { value: option, label: option } : option);
+  const effective = normalized.some(option => option.value === value)
+    ? normalized
+    : [{ value, label: value }, ...normalized];
+  return <label className="eng-editor-field"><span>{label}</span><select data-testid={testId} disabled={disabled} value={value} onChange={event => onChange(event.target.value)}>{effective.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{hint && <small aria-hidden="true">{hint}</small>}</label>;
 }
 
-function NumberField({ label, value, onChange, integer = false }: { label: string; value?: number | null; onChange: (value: number | null) => void; integer?: boolean }) {
-  return <label className="eng-editor-field"><span>{label}</span><input type="number" step={integer ? 1 : 'any'} value={value ?? ''} onChange={event => onChange(parseNullableNumber(event.target.value, integer))} /></label>;
+function controlledUnitOptionValue(catalogVersion: number, code: string): string {
+  return `${catalogVersion}:${code}`;
+}
+
+function NumberField({ label, value, onChange, integer = false, testId }: { label: string; value?: number | null; onChange: (value: number | null) => void; integer?: boolean; testId?: string }) {
+  return <label className="eng-editor-field"><span>{label}</span><input data-testid={testId} type="number" step={integer ? 1 : 'any'} value={value ?? ''} onChange={event => onChange(parseNullableNumber(event.target.value, integer))} /></label>;
 }
 
 function BooleanField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
@@ -673,14 +912,28 @@ function newDataSourceDraft(): DataSourceEngineering {
 function newAlarmDraft(): AlarmEngineering {
   return {
     name: '', tagPath: '', type: 'high', priority: 'medium', setpoint: null,
+    locationId: null, equipmentId: null,
     digitalActiveValue: true, activationDelayMilliseconds: null,
-    requiresAcknowledgement: true, shelvingAllowed: true, enabled: true
+    requiresAcknowledgement: true, shelvingAllowed: true, enabled: true, soundProfile: null
   };
+}
+
+function alarmSoundEditorText(locale: EngineeringLocale) {
+  if (locale === 'en') return { label: 'Alarm sound', none: 'No sound (default)', preview: 'Preview sound', previewUnavailable: 'Preview could not start. Check the browser audio permission.' };
+  if (locale === 'es') return { label: 'Sonido de alarma', none: 'Sin sonido (predeterminado)', preview: 'Probar sonido', previewUnavailable: 'No se pudo reproducir. Revise el permiso de audio del navegador.' };
+  return { label: 'Som do alarme', none: 'Sem som (padrão)', preview: 'Ouvir amostra', previewUnavailable: 'Não foi possível reproduzir. Verifique a permissão de áudio do navegador.' };
 }
 
 function updateTag(setter: React.Dispatch<React.SetStateAction<TagEngineering | null>>, update: (current: TagEngineering) => TagEngineering) {
   setter(current => current ? update(current) : current);
 }
+
+function metadataNumber(tag: TagEngineering, key: string, fallback: number): number {
+  const raw = tag.metadata?.[key];
+  const value = raw === undefined ? fallback : Number(raw);
+  return Number.isFinite(value) ? value : fallback;
+}
+
 function updateDataSource(setter: React.Dispatch<React.SetStateAction<DataSourceEngineering | null>>, update: (current: DataSourceEngineering) => DataSourceEngineering) {
   setter(current => current ? update(current) : current);
 }
@@ -691,6 +944,20 @@ function updateAlarm(setter: React.Dispatch<React.SetStateAction<AlarmEngineerin
 function tagIdentity(tag: TagEngineering) { return tag.id ? `id:${tag.id}` : `path:${tag.path}`; }
 function dataSourceIdentity(source: DataSourceEngineering) { return source.id ? `id:${source.id}` : `key:${source.key}`; }
 function alarmIdentity(alarm: AlarmEngineering) { return alarm.id ? `id:${alarm.id}` : `key:${alarm.name}:${alarm.tagPath ?? alarm.tagId ?? ''}`; }
+function locationPathLabel(locationId: string, locations: NonNullable<EngineeringPackageView['locations']>): string {
+  const byId = new Map(locations.filter(location => location.id).map(location => [location.id!, location]));
+  const names: string[] = [];
+  const visited = new Set<string>();
+  let current: string | null | undefined = locationId;
+  while (current && !visited.has(current)) {
+    visited.add(current);
+    const location = byId.get(current);
+    if (!location) break;
+    names.unshift(location.name);
+    current = location.parentLocationId;
+  }
+  return names.length ? names.join(' / ') : locationId;
+}
 function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 function emptyToNull(value: string): string | null { return value.trim().length === 0 ? null : value; }
 function parseNullableNumber(value: string, integer: boolean): number | null {
@@ -710,24 +977,107 @@ function isRecord(value: unknown): value is Record<string, unknown> { return typ
 
 function mutationText(locale: EngineeringLocale) {
   if (locale === 'en') return {
+    guidance: 'Help',
     editing: 'Secured Engineering editing',
-    previewGate: 'Preview required before Apply',
-    previewGateHint: 'Apply uses the public Engineering import pipeline and is available only after a valid preview. A changed Workspace invalidates the candidate.',
+    previewGate: 'How changes reach Runtime',
+    previewGateHint: 'Preview checks only. Apply updates the Workspace; save or publish from Overview to update Runtime.',
     apply: 'Apply to Workspace', applying: 'Applying...',
     workspaceChanged: 'The Engineering Workspace changed while this draft was being validated. Reload and validate again.'
   };
   if (locale === 'es') return {
+    guidance: 'Ayuda',
     editing: 'Edición segura de Ingeniería',
-    previewGate: 'Preview obligatorio antes de Aplicar',
-    previewGateHint: 'Aplicar usa el pipeline público de Engineering y solo se habilita después de un preview válido. Un cambio del Workspace invalida el candidato.',
+    previewGate: 'Cómo llegan los cambios al Runtime',
+    previewGateHint: 'La vista previa solo verifica. Aplicar actualiza el Workspace; guarde o publique desde Overview para actualizar Runtime.',
     apply: 'Aplicar al Workspace', applying: 'Aplicando...',
     workspaceChanged: 'El Engineering Workspace cambió durante la validación. Recargue y valide nuevamente.'
   };
   return {
+    guidance: 'Ajuda',
     editing: 'Edição segura de Engenharia',
-    previewGate: 'Preview obrigatório antes do Apply',
-    previewGateHint: 'O Apply usa o pipeline público de Engineering e só é habilitado após preview válido. Qualquer mudança no Workspace invalida o candidato.',
+    previewGate: 'Como as alterações chegam ao Runtime',
+    previewGateHint: 'A prévia só verifica. Aplicar atualiza o Workspace; salve ou publique em Visão geral para atualizar o Runtime.',
     apply: 'Aplicar ao Workspace', applying: 'Aplicando...',
     workspaceChanged: 'O Engineering Workspace mudou durante a validação deste rascunho. Recarregue e valide novamente.'
+  };
+}
+
+
+
+function simulationText(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    title: 'TAG simulation',
+    description: 'Choose how this Simulation TAG publishes values at Runtime.',
+    behavior: 'Behavior',
+    minimum: 'Minimum',
+    maximum: 'Maximum',
+    period: 'Period (seconds)',
+    constantValue: 'Constant / initial value',
+    step: 'Counter step',
+    currentTimeHint: 'CurrentTime publishes the current UTC date and time as a DateTime value.'
+  };
+  if (locale === 'es') return {
+    title: 'Simulación del TAG',
+    description: 'Defina cómo este TAG de Simulación publica valores durante el Runtime.',
+    behavior: 'Comportamiento',
+    minimum: 'Mínimo',
+    maximum: 'Máximo',
+    period: 'Período (segundos)',
+    constantValue: 'Valor constante / inicial',
+    step: 'Paso del contador',
+    currentTimeHint: 'CurrentTime publica la fecha y hora UTC actual como valor DateTime.'
+  };
+  return {
+    title: 'Simulação do TAG',
+    description: 'Defina como esta TAG de Simulação publica valores durante o Runtime.',
+    behavior: 'Comportamento',
+    minimum: 'Mínimo',
+    maximum: 'Máximo',
+    period: 'Período (segundos)',
+    constantValue: 'Valor constante / inicial',
+    step: 'Passo do contador',
+    currentTimeHint: 'CurrentTime publica a data e hora UTC atual como valor DateTime.'
+  };
+}
+
+function workflowText(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    identity: 'Identity and connection',
+    tagIdentityHint: 'Define what this TAG is and where its live value comes from.',
+    dataSourceIdentityHint: 'Define the source identity first; protocol-specific options remain secondary.',
+    historian: 'Historian capture',
+    historianHint: 'Enable and tune capture only when this TAG needs historical sampling.',
+    advancedSettings: 'Advanced source settings',
+    advancedSettingsHint: 'Low-frequency technical settings and secret references stay out of the primary setup task.',
+    alarmCondition: 'Alarm condition',
+    alarmConditionHint: 'Define the TAG, condition, priority and context first. Area is used for access policy; the equipment or location link defines operational scope.',
+    alarmBehavior: 'Alarm behavior',
+    alarmBehaviorHint: 'Timing and acknowledgement are separate from operator suppression. Allow operational suppression only for alarms that may be silenced while remaining visible.',
+  };
+  if (locale === 'es') return {
+    identity: 'Identidad y conexión',
+    tagIdentityHint: 'Defina qué es este TAG y de dónde proviene su valor en vivo.',
+    dataSourceIdentityHint: 'Defina primero la identidad de la fuente; las opciones específicas del protocolo son secundarias.',
+    historian: 'Captura del historiador',
+    historianHint: 'Habilite y ajuste la captura solo cuando este TAG necesite muestreo histórico.',
+    advancedSettings: 'Opciones avanzadas de la fuente',
+    advancedSettingsHint: 'Opciones técnicas poco frecuentes y referencias secretas quedan fuera de la tarea principal.',
+    alarmCondition: 'Condición de alarma',
+    alarmConditionHint: 'Defina primero el TAG, la condición, la prioridad y el contexto. Área se usa para permisos; el vínculo con equipo o ubicación define el alcance operativo.',
+    alarmBehavior: 'Comportamiento de la alarma',
+    alarmBehaviorHint: 'Temporización y reconocimiento son independientes de la supresión del operador. Permítala solo en alarmas que puedan silenciarse y seguir visibles.',
+  };
+  return {
+    identity: 'Identidade e conexão',
+    tagIdentityHint: 'Defina o que este TAG representa e de onde vem seu valor ao vivo.',
+    dataSourceIdentityHint: 'Defina primeiro a identidade da fonte; opções específicas do protocolo ficam em segundo plano.',
+    historian: 'Captura do historiador',
+    historianHint: 'Habilite e ajuste a captura apenas quando este TAG precisar de histórico.',
+    advancedSettings: 'Configurações avançadas da fonte',
+    advancedSettingsHint: 'Opções técnicas pouco frequentes e referências secretas ficam fora da tarefa principal.',
+    alarmCondition: 'Condição do alarme',
+    alarmConditionHint: 'Defina TAG, condição, prioridade e contexto. Área define a política de acesso; o vínculo com equipamento ou localização define o alcance operacional.',
+    alarmBehavior: 'Comportamento do alarme',
+    alarmBehaviorHint: 'Temporização e reconhecimento são diferentes da supressão pelo operador. Permita-a somente nos alarmes que possam ser silenciados e continuar visíveis.'
   };
 }

@@ -1,0 +1,116 @@
+{
+  "schema": "elitescada.w15.intelligence.synthetic-bench-manifest.v1",
+  "protocol": "protocol-v3.md",
+  "protocolVersion": "v3",
+  "supersedesProtocol": "protocol-v2.md",
+  "supersedesProtocolSha256": "FABACE0AA305888E36BA5DBC0B4C04E1ABF3F5752428D087BD6A4D9BFA195288",
+  "protocolSha256": "2457E2E685287E19E35CAA7CCBE88B01F02DE3374565EBC6C85CDB73555F3DE4",
+  "protocolState": "pre-fit-frozen-before-any-outcomes",
+  "experimentIdentity": "W15-INTEL-4F-SYNTH-BENCH-2026-10-20-01",
+  "finalHoldoutIdentity": "W15-INTEL-4F-SYNTH-BENCH-HOLDOUT-2026-10-20-01",
+  "repository": "brunolrogerio-collab/EliteSCADA",
+  "baseBranch": "wave15/corrections-integration",
+  "baseCommit": "26ecd07f06dfe48d286ce77704fa79ac4d92bd92",
+  "acceptedProductCheckpoint": "793b8303547491e02b98bf73732d3ab5ab76567a",
+  "assignedBranch": "work/w15-intelligence-stage4f-synthetic-bench",
+  "writeAllowlist": [
+    "docs/research/intelligence-stage4f-synthetic-bench/"
+  ],
+  "platforms": {
+    "windowsRuntime": "CPython 3.14.6 (tags/v3.14.6:c63aec6, Jun 10 2026, 10:26:10), Windows 11 x64",
+    "fitCalibration": [
+      "Windows CPython 3.14.6",
+      "isolated Linux CPython 3.14.6"
+    ],
+    "finalHoldout": "Windows CPython 3.14.6",
+    "linuxImage": "python:3.14.6-slim-bookworm@sha256:ff83a535339812dd72e69c93b3c48ddf7c85a324d6330af5797c82a255dbeef4",
+    "linuxPlatform": "linux/amd64"
+  },
+  "signals": [
+    {"id": "motor_current", "unit": "A", "innovationSd": 0.70},
+    {"id": "flow", "unit": "m3/h", "innovationSd": 1.00},
+    {"id": "discharge_pressure", "unit": "bar", "innovationSd": 0.10}
+  ],
+  "context": ["running", "speed_rpm", "load_fraction"],
+  "time": {
+    "cadenceSeconds": 10,
+    "samplesPerRun": 120,
+    "runDurationMinutes": 20,
+    "eventStartIndex": 12,
+    "strongEventSamples": 108,
+    "strongEventExposureMinutes": 18,
+    "runRelativeOnly": true
+  },
+  "grouping": {
+    "independentSourceGroups": 600,
+    "partition": {
+      "fit": [0, 359],
+      "calibration": [360, 479],
+      "holdout": [480, 599]
+    },
+    "split": "contiguous chronological whole-run 60/20/20; no shuffle",
+    "injectedCounterpartsStayWithSourceGroup": true,
+    "holdoutGroupsPerStrongClass": 120
+  },
+  "generator": {
+    "prng": "SplitMix64 plus sum-of-12-uniform Irwin-Hall normal approximation",
+    "seedNamespace": "ELITESCADA-W15-4F-SYNTHETIC-BENCH-v1",
+    "ar1Phi": 0.65,
+    "baselineCorrelation": [[1.0, 0.65, 0.25], [0.65, 1.0, 0.2], [0.25, 0.2, 1.0]],
+    "relationshipCorrelation": [[1.0, -0.65, 0.25], [-0.65, 1.0, 0.2], [0.25, 0.2, 1.0]],
+    "scenarioIds": [
+      "nonfault-context",
+      "single-current-strong",
+      "multi-target-strong",
+      "relationship-strong",
+      "single-current-1scale",
+      "single-current-2scale",
+      "single-current-ramp"
+    ],
+    "strongShiftScaleUnits": 3.5,
+    "rampDurationMinutes": 10,
+    "sourceTimeVerified": true,
+    "sourceTimeSynchronized": true
+  },
+  "evaluator": {
+    "targets": ["motor_current", "flow", "discharge_pressure"],
+    "contextRegression": "fit-only OLS [intercept, load_fraction, speed_delta/20]",
+    "robustScale": "fit-only median and 1.4826*MAD",
+    "candidate": "squared Mahalanobis distance on fit-only robust residual transform",
+    "control": "independent max absolute robust residual",
+    "shrinkageGrid": [0.05, 0.1, 0.25, 0.5],
+    "calibrationQuantile": 0.99,
+    "quantileRule": "nearest rank, sorted index ceil(q*n)-1",
+    "conditionNumberMaximum": 1000000,
+    "episodes": {"confirmAbove": 3, "ofEligible": 5, "terminateBelow": 5, "maxWindowMinutes": 5}
+  },
+  "uncertainty": {
+    "method": "whole-source-group nonparametric bootstrap; counterparts remain clustered",
+    "replicates": 2000,
+    "interval": "percentile 95%",
+    "falseEpisodeZeroGuard": "also report Wilson 95% interval for normal groups with one or more episodes"
+  },
+  "resourceCeiling": {
+    "workers": 1,
+    "peakRssMiB": 512,
+    "wallMinutesPerRun": 15,
+    "maxFitCalibrationVectorSamplesPerPlatform": 144000,
+    "maxHoldoutVectorSamples": 100800,
+    "maxFullExperimentVectorSamples": 244800,
+    "maxCommittedDirectoryBytes": 1048576,
+    "sleepForSimulatedTime": false,
+    "thirdPartyNumericalDependencies": false
+  },
+  "crossPlatformTolerance": {
+    "fitCoefficientsScalesCovarianceFactorsAbsolute": 1e-10,
+    "frozenThresholdsAndAggregateMetricsRelative": 1e-8,
+    "countsLabelsPartitionsAndIdentities": "exact"
+  },
+  "forbiddenInputsAndSideEffects": [
+    "owner plant data",
+    "UCI/public archives or consumed prior holdout",
+    "product API/database/Preview/service/network reads or writes",
+    "product code, schema, UI, runtime, HA, driver, licensing changes",
+    "raw per-sample traces or scores in Git"
+  ]
+}

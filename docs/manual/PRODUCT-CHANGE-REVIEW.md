@@ -1,0 +1,24 @@
+# Revisões da Ajuda após mudanças do produto
+
+Pedido do proprietário em 25/10/2026: marcar os trechos que precisarão de revisão quando uma funcionalidade pendente for implementada. O marcador não declara a funcionalidade entregue nem retira a limitação atual.
+
+O inventário é [PRODUCT-CHANGE-REVIEW-MARKERS.json](PRODUCT-CHANGE-REVIEW-MARKERS.json). Cada entrada identifica issue, tópico, campos, condição de retomada e conferência exigida. O gerador insere comentários HTML `HELP-REVIEW-AFTER-PRODUCT-*` nos capítulos correspondentes em pt-BR/en/es. Esses comentários são pesquisáveis na auditoria e não aparecem como instruções ao usuário. A Ajuda instalada mantém explicações legíveis do comportamento atual.
+
+| Mudança de produto | Rever no Help/manual | Critério para atualizar |
+| --- | --- | --- |
+| [#751 — atraso de ativação](https://github.com/brunolrogerio-collab/EliteSCADA/issues/751) | Campo de atraso e exemplo de configuração, capítulo 17 | Temporização implementada e validada; explicar início, cancelamento e qualidade conforme o comportamento aceito |
+| [#753 — dispensar ACK](https://github.com/brunolrogerio-collab/EliteSCADA/issues/753) | Campo Requer reconhecimento e regras de estado/lista/sons, capítulo 17 | Testar opções com/sem ACK, retorno e novo ciclo antes de mudar as afirmações |
+| [#779 — armazenamento/arquivo](https://github.com/brunolrogerio-collab/EliteSCADA/issues/779) | Banco de Dados, Historian e indicadores de Audit, capítulos 14/07/18 | Controles realmente entregues, com procedimento de dimensionamento/arquivamento/restauração e limites verificados |
+| [#781 — estações Runtime em vários monitores](https://github.com/brunolrogerio-collab/EliteSCADA/issues/781) | Perfil, início de janelas, assentos por janela e organização manual, capítulo 32 | Capturas reais dos estados de configuração foram adicionadas; comparar a interface e o fluxo com a Preview aceita e revisar o posicionamento físico antes de fechar a issue |
+
+A revisão da [#792](https://github.com/brunolrogerio-collab/EliteSCADA/issues/792) foi concluída na PR #851 e registrada no ADR Matter. O artefato exato e o subconjunto atual foram revalidados sem mudança visível na interface ou nos contratos; por isso, a revisão não alterou o texto de uso e removeu o marcador ativo do capítulo 26. O rótulo “Versão em teste” e os limites de disponibilidade continuam. Uma eventual troca pelo release estável após a Wave 16 exigirá revisão própria.
+
+Na auditoria posterior, pesquisar `HELP-REVIEW-AFTER-PRODUCT-`, conferir a versão aceita e suas evidências, corrigir a fonte canônica `system-guides.json`, gerar os capítulos e verificar os três idiomas, entradas contextuais, exemplos e imagens afetadas. Fechar uma issue, por si só, não valida a documentação. Ao resolver a revisão, retirar a entrada ativa e registrar o commit/evidência no controle de entrega existente. Novas dependências de funcionalidades futuras devem receber o mesmo marcador quando forem encontradas.
+
+O guia da #781 descreve somente os controles já implementados para perfis de 1–4 janelas, seleção da tela inicial, modo Navegação/Tela fixa e abertura manual. O capítulo inclui capturas reais da interface em um teste E2E; confirme que elas correspondem à Preview aceita e substitua-as se houver diferença visual. A issue continua aberta para aceite de posicionamento e recuperação em monitores físicos. Posição por monitor, orientação e restauração automática não são oferecidas pelo perfil atual. Não ensinar automação de monitores como disponível. As demais frentes #780 e #782 seguem sujeitas aos seus próprios critérios; não criar instruções de uso para interfaces que ainda não existem.
+
+## Programa de correções pós-licenciamento
+
+O [plano #788](https://github.com/brunolrogerio-collab/EliteSCADA/issues/788) e o [registro no repositório](../WAVE15-POST-LICENSING-CORRECTIONS-PLAN-2026-10-26.md) incluem #789 supressão por alarme/área/subárea, #790 CheckBox/ComboBox, #791 auditoria funcional de Intelligence e #792 revalidação Matter. São tarefas autorizadas na fila; não são instruções de funcionalidades já disponíveis.
+
+Cada entrega identifica os tópicos/campos existentes afetados ou cria os guias dos novos controles, com exemplos, procedimentos e capturas reais. Os marcadores detalhados entram junto dos alvos válidos; não inserir referências a tópicos inexistentes só para preencher a fila. Para Intelligence, o resultado da auditoria determina quais campos e percursos precisam de correção. Para Matter, uma correção upstream declarada não basta para remover a indicação experimental do produto. Help/manual devem acompanhar o candidato aceito, mantendo a distinção entre futuro, implementado e validado.

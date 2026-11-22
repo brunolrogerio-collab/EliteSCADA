@@ -1,6 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { EngineeringLocale } from './i18n';
-import type { EngineeringSnapshot } from './types';
+import type { EngineeringSnapshot, VisualAssetEngineering } from './types';
+import { CanonicalVisualPreview } from './visual-editor/CanonicalVisualPreview';
+import { listUserVisualAssets } from './visualAssetCatalogModel';
+import { LibraryCatalogBrowser } from './LibraryCatalogBrowser';
+import { buildLibraryCatalogEntries, type LibraryCatalogEntry } from './libraryCatalogModel';
+import { importStaticArtwork, useStaticArtwork } from './staticArtworkApi';
 import {
   associateReusableLibrary,
   disassociateReusableLibrary,
@@ -8,9 +13,12 @@ import {
   incorporateReusableLibraryResource,
   loadReusableLibraries,
   loadReusableLibraryResources,
+  loadReusableLibraryResourcePreview,
+  reusableLibraryAssetContentUrl,
   triggerReusableLibraryDownload,
   type ReusableLibraryDescriptor,
-  type ReusableLibraryResource
+  type ReusableLibraryResource,
+  type ReusableLibraryResourcePreview
 } from './reusableLibraryApi';
 import './reusable-library-workspace.css';
 
@@ -36,19 +44,35 @@ export function ReusableLibraryWorkspace({
   onReload: () => Promise<void>;
 }) {
   const copy = useMemo(() => libraryCopy(locale), [locale]);
+  const artwork = useStaticArtwork();
   const [libraries, setLibraries] = useState<ReusableLibraryDescriptor[]>([]);
   const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
   const [resources, setResources] = useState<ReusableLibraryResource[]>([]);
+  const [resourcesByLibrary, setResourcesByLibrary] = useState<Record<string, ReusableLibraryResource[]>>({});
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [exportName, setExportName] = useState('EliteSCADA Library');
+  const [exportName, setExportName] = useState('SCADIVO Library');
   const [exportVersion, setExportVersion] = useState('1.0.0');
   const [selectedExport, setSelectedExport] = useState<Set<string>>(() => new Set());
+  const [selectedPreview, setSelectedPreview] = useState<ReusableLibraryResourcePreview | null>(null);
+  const [previewBusy, setPreviewBusy] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const exportCandidates = useMemo(() => collectExportCandidates(snapshot), [snapshot]);
+  const associatedCatalogSources = useMemo(
+    () => libraries.map(library => ({
+      library,
+      resources: resourcesByLibrary[library.libraryId] ?? []
+    })),
+    [libraries, resourcesByLibrary]
+  );
+  const catalogEntries = useMemo(
+    () => buildLibraryCatalogEntries(snapshot, associatedCatalogSources, artwork.entries),
+    [snapshot, associatedCatalogSources, artwork.entries]
+  );
   const provenance = useMemo(
     () => exportCandidates.filter(candidate => candidate.metadata?.[`${ORIGIN_PREFIX}libraryId`]),
     [exportCandidates]
@@ -59,16 +83,19 @@ export function ReusableLibraryWorkspace({
     setError(null);
     try {
       const next = await loadReusableLibraries();
+      const catalogs = await Promise.all(next.map(async library => {
+        const catalog = await loadReusableLibraryResources(library.libraryId);
+        return [library.libraryId, catalog.resources ?? []] as const;
+      }));
+      const nextResourcesByLibrary = Object.fromEntries(catalogs) as Record<string, ReusableLibraryResource[]>;
       setLibraries(next);
+      setResourcesByLibrary(nextResourcesByLibrary);
       const requested = preferredLibraryId ?? selectedLibraryId;
       const selected = next.find(item => item.libraryId === requested)?.libraryId ?? next[0]?.libraryId ?? null;
       setSelectedLibraryId(selected);
-      if (!selected) {
-        setResources([]);
-      } else {
-        const catalog = await loadReusableLibraryResources(selected);
-        setResources(catalog.resources ?? []);
-      }
+      setSelectedPreview(null);
+      setPreviewError(null);
+      setResources(selected ? (nextResourcesByLibrary[selected] ?? []) : []);
     } catch (cause) {
       setError(errorText(cause));
     } finally {
@@ -80,12 +107,21 @@ export function ReusableLibraryWorkspace({
 
   async function selectLibrary(libraryId: string) {
     setSelectedLibraryId(libraryId);
+    setSelectedPreview(null);
+    setPreviewError(null);
     setBusy('select');
     setError(null);
     setNotice(null);
     try {
-      const catalog = await loadReusableLibraryResources(libraryId);
-      setResources(catalog.resources ?? []);
+      const cached = resourcesByLibrary[libraryId];
+      if (cached) {
+        setResources(cached);
+      } else {
+        const catalog = await loadReusableLibraryResources(libraryId);
+        const nextResources = catalog.resources ?? [];
+        setResources(nextResources);
+        setResourcesByLibrary(previous => ({ ...previous, [libraryId]: nextResources }));
+      }
     } catch (cause) {
       setError(errorText(cause));
       setResources([]);
@@ -113,11 +149,29 @@ export function ReusableLibraryWorkspace({
     });
   }
 
-  async function useResource(resource: ReusableLibraryResource) {
-    if (!selectedLibraryId) return;
+  async function previewResource(resource: ReusableLibraryResource, libraryId = selectedLibraryId) {
+    if (!libraryId || !isVisualResource(resource)) return;
+    setPreviewBusy(resource.resourceId);
+    setPreviewError(null);
+    try {
+      const result = await loadReusableLibraryResourcePreview(libraryId, resource.resourceId);
+      if (result.workingChanged) throw new Error(copy.previewMutationError);
+      if (result.resource.resourceId !== resource.resourceId || result.resource.kind !== resource.kind)
+        throw new Error(copy.previewIdentityError);
+      setSelectedPreview(result);
+    } catch (cause) {
+      setSelectedPreview(null);
+      setPreviewError(errorText(cause));
+    } finally {
+      setPreviewBusy(null);
+    }
+  }
+
+  async function useResource(resource: ReusableLibraryResource, libraryId = selectedLibraryId) {
+    if (!libraryId) return;
     await perform(`use:${resource.kind}:${resource.resourceId}`, async () => {
       const result = await incorporateReusableLibraryResource(
-        selectedLibraryId,
+        libraryId,
         resource,
         snapshot.workspace.changeVersion
       );
@@ -169,6 +223,7 @@ export function ReusableLibraryWorkspace({
           <span className="eng-eyebrow">{copy.eyebrow}</span>
           <h1>{copy.title}</h1>
           <p>{copy.description}</p>
+          <a href="/help?topic=libraries.associate-incorporate">{locale === 'pt-BR' ? 'Como associar e incorporar recursos' : locale === 'es' ? 'Cómo asociar e incorporar recursos' : 'How to associate and incorporate resources'}</a>
         </div>
         <div className="eng-section-meta">
           <strong>{libraries.length} {copy.libraries}</strong>
@@ -178,11 +233,36 @@ export function ReusableLibraryWorkspace({
 
       {error && <p className="reusable-library-workspace__error" role="alert">{error}</p>}
       {notice && <p className="reusable-library-workspace__notice" role="status">{notice}</p>}
+      {artwork.error && <p role="alert">{artwork.error}</p>}
 
       <section className="eng-panel reusable-library-workspace__boundary" data-testid="reusable-library-boundary">
         <strong>{copy.boundaryTitle}</strong>
         <p>{copy.boundaryText}</p>
       </section>
+
+      <LibraryCatalogBrowser
+        locale={locale}
+        entries={catalogEntries}
+        associatedPreview={selectedPreview}
+        previewBusy={previewBusy}
+        actionBusy={busy}
+        onUseStaticArtwork={entry => {
+          if (!entry.staticArtwork) return;
+          void perform(`artwork:${entry.staticArtwork.id}`, async () => {
+            await importStaticArtwork(entry.staticArtwork!.id, snapshot.workspace.changeVersion);
+            await onReload();
+            setNotice(locale === 'en' ? 'SVG copied. Insert it from Library in the visual editor.' : locale === 'es' ? 'SVG copiado. Insértelo desde Biblioteca en el editor.' : 'SVG copiado. Insira pela aba Biblioteca ou Assets no editor de telas.');
+          });
+        }}
+        onPreviewAssociated={(entry: LibraryCatalogEntry) => {
+          if (!entry.library || !entry.associatedResource) return;
+          void previewResource(entry.associatedResource, entry.library.libraryId);
+        }}
+        onUseAssociated={(entry: LibraryCatalogEntry) => {
+          if (!entry.library || !entry.associatedResource) return;
+          void useResource(entry.associatedResource, entry.library.libraryId);
+        }}
+      />
 
       <div className="reusable-library-workspace__grid">
         <section className="eng-panel reusable-library-workspace__catalog">
@@ -250,7 +330,7 @@ export function ReusableLibraryWorkspace({
                   <div>
                     <span className="reusable-library-workspace__kind">{kindLabel(resource.kind, locale)}</span>
                     <strong>{resource.displayName}</strong>
-                    <code>{resource.sourceKey}</code>
+                    {resource.kind === 'visual-asset' ? null : <code>{resource.sourceKey}</code>}
                   </div>
                   <div className="reusable-library-workspace__dependencies">
                     <span>{copy.dependencies}: {resource.dependencies.length}</span>
@@ -258,6 +338,20 @@ export function ReusableLibraryWorkspace({
                       <small key={`${dependency.kind}:${dependency.resourceId}`}>{kindLabel(dependency.kind, locale)} · {dependency.resourceId}</small>
                     ))}
                   </div>
+                  <details className="reusable-library-workspace__inspection" data-testid="reusable-library-resource-inspection">
+                    <summary>{copy.inspect}</summary>
+                    <dl>
+                      {resource.kind !== 'visual-asset' ? <><dt>{copy.resourceId}</dt><dd><code>{resource.resourceId}</code></dd></> : null}
+                      <dt>{copy.payload}</dt><dd><code>{resource.payloadPath}</code></dd>
+                      <dt>{copy.preview}</dt><dd>{isVisualResource(resource) ? copy.canonicalPreview : copy.metadataPreview}</dd>
+                    </dl>
+                  </details>
+                  {isVisualResource(resource) ? <button
+                    data-testid="reusable-library-preview"
+                    type="button"
+                    disabled={Boolean(busy) || Boolean(previewBusy)}
+                    onClick={() => void previewResource(resource)}
+                  >{previewBusy === resource.resourceId ? copy.previewing : copy.preview}</button> : null}
                   <button
                     data-testid="reusable-library-use"
                     type="button"
@@ -268,6 +362,38 @@ export function ReusableLibraryWorkspace({
               );
             })}
           </div>
+          {previewError ? <p className="reusable-library-workspace__error" role="alert">{previewError}</p> : null}
+          {selectedPreview ? <section className="reusable-library-workspace__visual-preview" data-testid="reusable-library-visual-preview">
+            <header>
+              <div>
+                <span className="reusable-library-workspace__kind">{kindLabel(selectedPreview.resource.kind, locale)}</span>
+                <strong>{selectedPreview.resource.displayName}</strong>
+                <code>{selectedPreview.resource.sourceKey}</code>
+              </div>
+              <small>{selectedPreview.library.name} · v{selectedPreview.library.version}</small>
+            </header>
+            <CanonicalVisualPreview
+              elements={selectedPreview.payload.elements}
+              dynamoDefinitions={selectedPreview.dynamos}
+              locale={locale}
+              emptyLabel={copy.previewUnavailable}
+              visualAssetUrl={assetId => reusableLibraryAssetContentUrl(selectedPreview.library.libraryId, assetId)}
+              variant="detail"
+              testId="reusable-library-canonical-preview"
+            />
+            <dl className="reusable-library-workspace__preview-metadata">
+              <div><dt>{copy.resourceId}</dt><dd><code>{selectedPreview.resource.resourceId}</code></dd></div>
+              <div><dt>{copy.version}</dt><dd>{selectedPreview.library.version}</dd></div>
+              <div><dt>{copy.dependencies}</dt><dd>{selectedPreview.resource.dependencies.length}</dd></div>
+              <div><dt>{copy.publicInterface}</dt><dd>{selectedPreview.payload.parameters?.length ?? 0}</dd></div>
+            </dl>
+            {(selectedPreview.payload.parameters?.length ?? 0) > 0 ? <div className="reusable-library-workspace__preview-parameters">
+              {selectedPreview.payload.parameters?.map(parameter => <code key={parameter.key}>
+                {parameter.key} · {parameter.kind}{parameter.required ? ' · ' + copy.required : ''}
+              </code>)}
+            </div> : null}
+            <small>{copy.previewClean}</small>
+          </section> : null}
         </section>
       </div>
 
@@ -345,7 +471,8 @@ function collectExportCandidates(snapshot: EngineeringSnapshot): ExportCandidate
   add('screen', model.screens, 'key');
   add('popup', model.popups, 'key');
   add('script', model.scripts, 'path');
-  add('visual-asset', model.visualAssets, 'key');
+  const visualAssets = Array.isArray(model.visualAssets) ? model.visualAssets as VisualAssetEngineering[] : [];
+  add('visual-asset', listUserVisualAssets(visualAssets), 'key');
   return result.sort((left, right) => left.kind.localeCompare(right.kind) || left.name.localeCompare(right.name));
 }
 
@@ -369,18 +496,22 @@ function kindLabel(kind: string, locale: EngineeringLocale) {
   return labels[kind]?.[locale] ?? kind;
 }
 
+function isVisualResource(resource: Pick<ReusableLibraryResource, 'kind'>) {
+  return resource.kind === 'screen' || resource.kind === 'popup' || resource.kind === 'dynamo';
+}
+
 function errorText(cause: unknown) {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
 function libraryCopy(locale: EngineeringLocale) {
   if (locale === 'en') return {
-    eyebrow: 'Engineering reuse', title: 'Reusable Libraries', description: 'Associate .escadalib catalogs without importing them. Only resources explicitly used in this project are incorporated into Working.', libraries: 'libraries', resources: 'resources', working: 'Working', boundaryTitle: 'Association is not import', boundaryText: 'Associated libraries are Engineering-time catalogs only. Incorporated resources become project-owned canonical content; Runtime never resolves the library.', catalog: 'Associated libraries', catalogHint: 'The catalog belongs to the backend Engineering session/project scope and can disappear without breaking incorporated content.', refresh: 'Refresh', associate: 'Associate .escadalib', loading: 'Loading libraries…', noLibraries: 'No reusable library is associated.', disassociate: 'Disassociate', associated: 'Library associated without changing Working.', alreadyAssociated: 'This exact library is already associated.', disassociated: 'Library disassociated. Project-owned resources remain unchanged.', associationMutationError: 'Library association unexpectedly reported a Working mutation.', availableResources: 'Library resources', useHint: 'Use copies only the selected resource and its validated dependency closure into canonical Working.', search: 'Search resources', selectLibrary: 'Select an associated library.', noResources: 'No resources match this search.', dependencies: 'Dependencies', use: 'Use', using: 'Using…', incorporated: (count: number) => `Resource incorporated with ${count} item(s) in its validated closure.`, deduplicated: (count: number) => `The ${count} closure item(s) are already identical project-owned content; Working was not mutated.`, createLibrary: 'Create reusable library', createHint: 'Select canonical project resources. The backend validates portability and automatically includes supported transitive dependencies.', name: 'Library name', version: 'Version', export: 'Export .escadalib', exported: (count: number) => `.escadalib exported from ${count} selected canonical resource(s).`, provenance: 'Project provenance', provenanceHint: 'Origin is informational only. It never becomes a Runtime or external file dependency.', noProvenance: 'No current project resource carries reusable-library origin metadata.', informationalOnly: 'informational origin only'
+    eyebrow: 'Engineering reuse', title: 'Reusable Libraries', description: 'Browse a .escadalib library and choose which resources to add to the project.', libraries: 'libraries', resources: 'resources', working: 'Working draft', boundaryTitle: 'Association is not import', boundaryText: 'Resources added to the project remain available when the library is disconnected.', catalog: 'Associated libraries', catalogHint: 'The catalog is available for this project during the Engineering session.', refresh: 'Refresh', associate: 'Associate .escadalib', loading: 'Loading libraries…', noLibraries: 'No reusable library is associated.', disassociate: 'Disassociate', associated: 'Library associated. You can now browse its resources.', alreadyAssociated: 'This exact library is already associated.', disassociated: 'Library disassociated. Project-owned resources remain unchanged.', associationMutationError: 'The project changed unexpectedly while associating the library.', availableResources: 'Library resources', useHint: 'Review the resource and its dependencies. Select Use to copy them into the project.', search: 'Search resources', selectLibrary: 'Select an associated library.', noResources: 'No resources match this search.', dependencies: 'Dependencies', inspect: 'Inspect before Use', resourceId: 'Resource ID', payload: 'Package contents', preview: 'Preview', previewing: 'Loading preview…', canonicalPreview: 'Preview of the selected resource.', metadataPreview: 'Resource details are available below.', previewUnavailable: 'No visual geometry is available.', publicInterface: 'Public interface', required: 'required', previewClean: 'Read-only preview.', previewMutationError: 'The project changed unexpectedly during preview.', previewIdentityError: 'Preview identity does not match the selected reusable resource.', use: 'Use', using: 'Using…', incorporated: (count: number) => `Resource incorporated with ${count} item(s) in its validated closure.`, deduplicated: (count: number) => `The ${count} closure item(s) are already identical project-owned content; Working was not mutated.`, createLibrary: 'Create reusable library', createHint: 'Select project resources. Required supported dependencies are included automatically.', name: 'Library name', version: 'Version', export: 'Export .escadalib', exported: (count: number) => `.escadalib exported from ${count} selected canonical resource(s).`, provenance: 'Project provenance', provenanceHint: 'Origin is informational only. It never becomes a Runtime or external file dependency.', noProvenance: 'No current project resource carries reusable-library origin metadata.', informationalOnly: 'informational origin only'
   };
   if (locale === 'es') return {
-    eyebrow: 'Reutilización de Ingeniería', title: 'Bibliotecas reutilizables', description: 'Asocie catálogos .escadalib sin importarlos. Solo los recursos usados explícitamente se incorporan al Working.', libraries: 'bibliotecas', resources: 'recursos', working: 'Working', boundaryTitle: 'Asociar no es importar', boundaryText: 'Las bibliotecas asociadas son catálogos de Ingeniería. Los recursos incorporados pasan a ser contenido canónico del proyecto; Runtime nunca resuelve la biblioteca.', catalog: 'Bibliotecas asociadas', catalogHint: 'El catálogo pertenece al scope de proyecto/sesión del backend y puede desaparecer sin romper contenido incorporado.', refresh: 'Actualizar', associate: 'Asociar .escadalib', loading: 'Cargando bibliotecas…', noLibraries: 'No hay bibliotecas reutilizables asociadas.', disassociate: 'Desasociar', associated: 'Biblioteca asociada sin cambiar Working.', alreadyAssociated: 'Esta biblioteca exacta ya está asociada.', disassociated: 'Biblioteca desasociada. Los recursos del proyecto permanecen sin cambios.', associationMutationError: 'La asociación informó inesperadamente una mutación de Working.', availableResources: 'Recursos de la biblioteca', useHint: 'Usar copia solamente el recurso seleccionado y su cierre de dependencias validado al Working canónico.', search: 'Buscar recursos', selectLibrary: 'Seleccione una biblioteca asociada.', noResources: 'Ningún recurso coincide con la búsqueda.', dependencies: 'Dependencias', use: 'Usar', using: 'Usando…', incorporated: (count: number) => `Recurso incorporado con ${count} elemento(s) en su cierre validado.`, deduplicated: (count: number) => `Los ${count} elemento(s) ya son contenido idéntico del proyecto; Working no cambió.`, createLibrary: 'Crear biblioteca reutilizable', createHint: 'Seleccione recursos canónicos. El backend valida portabilidad e incluye dependencias transitivas soportadas.', name: 'Nombre de la biblioteca', version: 'Versión', export: 'Exportar .escadalib', exported: (count: number) => `.escadalib exportado desde ${count} recurso(s) canónico(s) seleccionado(s).`, provenance: 'Procedencia del proyecto', provenanceHint: 'El origen es solo informativo. Nunca es dependencia de Runtime ni de archivo externo.', noProvenance: 'Ningún recurso actual tiene metadatos de origen de biblioteca reutilizable.', informationalOnly: 'origen solamente informativo'
+    eyebrow: 'Reutilización de Ingeniería', title: 'Bibliotecas reutilizables', description: 'Explore una biblioteca .escadalib y elija los recursos que desea añadir al proyecto.', libraries: 'bibliotecas', resources: 'recursos', working: 'En edición', boundaryTitle: 'Asociar no es importar', boundaryText: 'Los recursos añadidos al proyecto siguen disponibles al desconectar la biblioteca.', catalog: 'Bibliotecas asociadas', catalogHint: 'El catálogo está disponible para este proyecto durante la sesión de Ingeniería.', refresh: 'Actualizar', associate: 'Asociar .escadalib', loading: 'Cargando bibliotecas…', noLibraries: 'No hay bibliotecas reutilizables asociadas.', disassociate: 'Desasociar', associated: 'Biblioteca asociada. Ya puede explorar sus recursos.', alreadyAssociated: 'Esta biblioteca exacta ya está asociada.', disassociated: 'Biblioteca desasociada. Los recursos del proyecto permanecen sin cambios.', associationMutationError: 'El proyecto cambió inesperadamente al asociar la biblioteca.', availableResources: 'Recursos de la biblioteca', useHint: 'Revise el recurso y sus dependencias. Seleccione Usar para copiarlos al proyecto.', search: 'Buscar recursos', selectLibrary: 'Seleccione una biblioteca asociada.', noResources: 'Ningún recurso coincide con la búsqueda.', dependencies: 'Dependencias', inspect: 'Inspeccionar antes de usar', resourceId: 'ID de recurso', payload: 'Contenido del paquete', preview: 'Vista previa', previewing: 'Cargando vista previa…', canonicalPreview: 'Vista previa del recurso seleccionado.', metadataPreview: 'Los detalles del recurso están disponibles a continuación.', previewUnavailable: 'No hay geometría visual disponible.', publicInterface: 'Interfaz pública', required: 'obligatorio', previewClean: 'Vista previa de solo lectura.', previewMutationError: 'El proyecto cambió inesperadamente durante la vista previa.', previewIdentityError: 'La identidad de la vista previa no coincide con el recurso reutilizable seleccionado.', use: 'Usar', using: 'Usando…', incorporated: (count: number) => `Recurso incorporado con ${count} elemento(s) en su cierre validado.`, deduplicated: (count: number) => `Los ${count} elemento(s) ya son contenido idéntico del proyecto; Working no cambió.`, createLibrary: 'Crear biblioteca reutilizable', createHint: 'Seleccione los recursos del proyecto. Las dependencias necesarias y compatibles se incluyen automáticamente.', name: 'Nombre de la biblioteca', version: 'Versión', export: 'Exportar .escadalib', exported: (count: number) => `.escadalib exportado desde ${count} recurso(s) canónico(s) seleccionado(s).`, provenance: 'Procedencia del proyecto', provenanceHint: 'El origen es solo informativo. Nunca es dependencia de Runtime ni de archivo externo.', noProvenance: 'Ningún recurso actual tiene metadatos de origen de biblioteca reutilizable.', informationalOnly: 'origen solamente informativo'
   };
   return {
-    eyebrow: 'Reuso de Engenharia', title: 'Bibliotecas reutilizáveis', description: 'Associe catálogos .escadalib sem importá-los. Somente os recursos usados explicitamente são incorporados ao Working.', libraries: 'bibliotecas', resources: 'recursos', working: 'Working', boundaryTitle: 'Associar não é importar', boundaryText: 'Bibliotecas associadas são apenas catálogos de Engenharia. Recursos incorporados tornam-se conteúdo canônico do projeto; o Runtime nunca resolve a biblioteca.', catalog: 'Bibliotecas associadas', catalogHint: 'O catálogo pertence ao escopo de projeto/sessão do backend e pode desaparecer sem quebrar conteúdo já incorporado.', refresh: 'Atualizar', associate: 'Associar .escadalib', loading: 'Carregando bibliotecas…', noLibraries: 'Nenhuma biblioteca reutilizável está associada.', disassociate: 'Desassociar', associated: 'Biblioteca associada sem alterar o Working.', alreadyAssociated: 'Esta biblioteca exata já está associada.', disassociated: 'Biblioteca desassociada. Os recursos pertencentes ao projeto permanecem inalterados.', associationMutationError: 'A associação informou inesperadamente uma mutação do Working.', availableResources: 'Recursos da biblioteca', useHint: 'Usar copia somente o recurso selecionado e seu closure de dependências validado para o Working canônico.', search: 'Buscar recursos', selectLibrary: 'Selecione uma biblioteca associada.', noResources: 'Nenhum recurso corresponde à busca.', dependencies: 'Dependências', use: 'Usar', using: 'Usando…', incorporated: (count: number) => `Recurso incorporado com ${count} item(ns) no closure validado.`, deduplicated: (count: number) => `Os ${count} item(ns) do closure já são conteúdo idêntico do projeto; o Working não foi alterado.`, createLibrary: 'Criar biblioteca reutilizável', createHint: 'Selecione recursos canônicos do projeto. O backend valida portabilidade e inclui automaticamente dependências transitivas suportadas.', name: 'Nome da biblioteca', version: 'Versão', export: 'Exportar .escadalib', exported: (count: number) => `.escadalib exportada a partir de ${count} recurso(s) canônico(s) selecionado(s).`, provenance: 'Proveniência no projeto', provenanceHint: 'A origem é apenas informativa. Nunca se torna dependência de Runtime ou de arquivo externo.', noProvenance: 'Nenhum recurso atual possui metadados de origem de biblioteca reutilizável.', informationalOnly: 'origem apenas informativa'
+    eyebrow: 'Reuso de Engenharia', title: 'Bibliotecas reutilizáveis', description: 'Explore uma biblioteca .escadalib e escolha os recursos que deseja adicionar ao projeto.', libraries: 'bibliotecas', resources: 'recursos', working: 'Em edição', boundaryTitle: 'Associar não é importar', boundaryText: 'Os recursos adicionados ao projeto continuam disponíveis ao desconectar a biblioteca.', catalog: 'Bibliotecas associadas', catalogHint: 'O catálogo fica disponível para este projeto durante a sessão de Engenharia.', refresh: 'Atualizar', associate: 'Associar .escadalib', loading: 'Carregando bibliotecas…', noLibraries: 'Nenhuma biblioteca reutilizável está associada.', disassociate: 'Desassociar', associated: 'Biblioteca associada. Você já pode explorar os recursos.', alreadyAssociated: 'Esta biblioteca exata já está associada.', disassociated: 'Biblioteca desassociada. Os recursos pertencentes ao projeto permanecem inalterados.', associationMutationError: 'O projeto mudou inesperadamente ao associar a biblioteca.', availableResources: 'Recursos da biblioteca', useHint: 'Confira o recurso e suas dependências. Selecione Usar para copiá-los para o projeto.', search: 'Buscar recursos', selectLibrary: 'Selecione uma biblioteca associada.', noResources: 'Nenhum recurso corresponde à busca.', dependencies: 'Dependências', inspect: 'Inspecionar antes de usar', resourceId: 'ID do recurso', payload: 'Conteúdo do pacote', preview: 'Prévia', previewing: 'Carregando prévia…', canonicalPreview: 'Pré-visualização do recurso selecionado.', metadataPreview: 'Os detalhes do recurso estão disponíveis abaixo.', previewUnavailable: 'Nenhuma geometria visual disponível.', publicInterface: 'Interface pública', required: 'obrigatório', previewClean: 'Pré-visualização somente para leitura.', previewMutationError: 'O projeto mudou inesperadamente durante a pré-visualização.', previewIdentityError: 'A identidade da prévia não corresponde ao recurso reutilizável selecionado.', use: 'Usar', using: 'Usando…', incorporated: (count: number) => `Recurso incorporado com ${count} item(ns) no closure validado.`, deduplicated: (count: number) => `Os ${count} item(ns) do closure já são conteúdo idêntico do projeto; o Working não foi alterado.`, createLibrary: 'Criar biblioteca reutilizável', createHint: 'Selecione os recursos do projeto. As dependências necessárias e compatíveis são incluídas automaticamente.', name: 'Nome da biblioteca', version: 'Versão', export: 'Exportar .escadalib', exported: (count: number) => `.escadalib exportada a partir de ${count} recurso(s) canônico(s) selecionado(s).`, provenance: 'Proveniência no projeto', provenanceHint: 'A origem é apenas informativa. Nunca se torna dependência de Runtime ou de arquivo externo.', noProvenance: 'Nenhum recurso atual possui metadados de origem de biblioteca reutilizável.', informationalOnly: 'origem apenas informativa'
   };
 }

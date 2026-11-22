@@ -1,9 +1,15 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Scada.Core.Persistence;
 using Scada.Api.Engineering;
+using Scada.Api.Licensing;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
+using Scada.Core.Abstractions;
+using Scada.DriverHost.Runtime;
+using Scada.Engineering.Branding;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Gateways;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Reports;
 using Scada.Engineering.VisualAssets;
@@ -17,47 +23,128 @@ public static class EngineeringPersistenceApi
 {
     private static readonly SemaphoreSlim FirstProjectGate = new(1, 1);
 
-    public static void AddOptionalEngineeringPersistence(this WebApplicationBuilder builder)
+    public static void AddOptionalEngineeringPersistence(this WebApplicationBuilder builder, DatabaseRuntimeConnectionSet? database = null)
     {
         builder.AddEngineeringDriverCatalog();
 
         builder.Services.TryAddSingleton<IVisualAssetEngineeringRegistry>(sp =>
             sp.GetRequiredService<EngineeringWorkspace>().VisualAssets);
+        builder.Services.TryAddSingleton<IApplicationBrandingEngineeringRegistry>(sp =>
+            sp.GetRequiredService<EngineeringWorkspace>().Branding);
         builder.Services.TryAddSingleton<IReportEngineeringRegistry>(sp =>
             new InMemoryReportEngineeringRegistry(
                 sp.GetRequiredService<EngineeringWorkspace>().MarkDirty));
 
-        var connectionString = builder.Configuration.GetConnectionString("EliteScada");
+        var connectionString = database?.PrimaryConnectionString ?? builder.Configuration.GetConnectionString("EliteScada");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
-        builder.Services.TryAddSingleton<IEngineeringProjectStore>(_ =>
-            new PostgreSqlEngineeringProjectStore(connectionString));
+        builder.Services.TryAddSingleton<IEngineeringProjectStore>(sp =>
+            new PostgreSqlEngineeringProjectStore(
+                connectionString,
+                sp.GetService<IDurableWriteAdmission>()));
         builder.Services.TryAddSingleton<IEngineeringProjectCatalog>(_ =>
             new PostgreSqlEngineeringProjectCatalog(connectionString));
+        builder.Services.TryAddSingleton<IEngineeringInstallationBindingStore>(sp =>
+            new PostgreSqlEngineeringInstallationBindingStore(
+                connectionString,
+                sp.GetService<IDurableWriteAdmission>()));
         builder.Services.TryAddSingleton<IEngineeringProjectPersistenceService, EngineeringProjectPersistenceService>();
         builder.Services.TryAddSingleton<IEngineeringWorkspaceCheckoutService, EngineeringWorkspaceCheckoutService>();
+        builder.Services.TryAddSingleton<IEngineeringWorkingBootstrapService, EngineeringWorkingBootstrapService>();
         builder.Services.TryAddSingleton<IPublishedRuntimeActivationService, PublishedRuntimeActivationService>();
         builder.Services.TryAddSingleton<IPersistedRuntimeRecoveryService, PersistedRuntimeRecoveryService>();
+    }
+
+    public static async Task InitializeEngineeringPersistenceStorageAsync(
+        this WebApplication app,
+        CancellationToken cancellationToken = default)
+    {
+        var persistence = app.Services.GetService<IEngineeringProjectPersistenceService>();
+        if (persistence is null) return;
+
+        // Storage/schema initialization is an explicit startup phase and must complete
+        // before canonical Authority hydration and before any persisted Working apply.
+        await persistence.InitializeAsync(cancellationToken);
+        var bindingStore = app.Services.GetService<IEngineeringInstallationBindingStore>();
+        if (bindingStore is not null)
+            await bindingStore.InitializeAsync(cancellationToken);
     }
 
     public static async Task InitializeEngineeringPersistenceAsync(
         this WebApplication app,
         CancellationToken cancellationToken = default)
     {
-        var configuredProjectKey = app.Configuration["EngineeringRuntime:ProjectKey"];
+        var configuredRuntimeProjectKey = app.Configuration["EngineeringRuntime:ProjectKey"];
+        var configuredWorkingProjectKey = app.Configuration["EngineeringWorking:ProjectKey"];
+        var configuredWorkingRevisionValue = app.Configuration["EngineeringWorking:Revision"];
         var persistence = app.Services.GetService<IEngineeringProjectPersistenceService>();
         if (persistence is null)
         {
-            if (!string.IsNullOrWhiteSpace(configuredProjectKey))
+            if (!string.IsNullOrWhiteSpace(configuredRuntimeProjectKey) ||
+                !string.IsNullOrWhiteSpace(configuredWorkingProjectKey) ||
+                !string.IsNullOrWhiteSpace(configuredWorkingRevisionValue))
             {
                 throw new InvalidOperationException(
-                    "EngineeringRuntime:ProjectKey is configured, but engineering persistence is unavailable. Configure ConnectionStrings:EliteScada before starting a persisted runtime.");
+                    "Engineering Working/Runtime persistence is configured, but engineering persistence is unavailable. Configure ConnectionStrings:EliteScada before selecting a persisted project.");
             }
 
             return;
         }
 
-        await persistence.InitializeAsync(cancellationToken);
+        long? configuredWorkingRevision = null;
+        if (!string.IsNullOrWhiteSpace(configuredWorkingRevisionValue))
+        {
+            if (!long.TryParse(configuredWorkingRevisionValue, out var revision) || revision < 1)
+                throw new InvalidOperationException("EngineeringWorking:Revision must be a positive integer.");
+            configuredWorkingRevision = revision;
+        }
+
+        var bindingStore = app.Services.GetService<IEngineeringInstallationBindingStore>();
+        if (bindingStore is null)
+        {
+            // Compatibility for focused/unit hosts that inject persistence directly instead
+            // of using AddOptionalEngineeringPersistence. Production PostgreSQL wiring always
+            // registers the durable FND-07 binding store.
+            var legacyBootstrap = app.Services.GetRequiredService<IEngineeringWorkingBootstrapService>();
+            await legacyBootstrap.BootstrapAsync(
+                configuredWorkingProjectKey,
+                configuredWorkingRevision,
+                configuredRuntimeProjectKey,
+                cancellationToken);
+            await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
+            return;
+        }
+
+        var binding = await bindingStore.GetAsync(cancellationToken);
+        if (binding.State == EngineeringInstallationBindingState.Legacy)
+        {
+            var catalog = app.Services.GetRequiredService<IEngineeringProjectCatalog>();
+            var projects = await catalog.ListAsync(cancellationToken);
+            string? adopted = null;
+            if (!string.IsNullOrWhiteSpace(configuredRuntimeProjectKey) &&
+                projects.Any(project => project.ProjectKey.Equals(configuredRuntimeProjectKey, StringComparison.OrdinalIgnoreCase)))
+                adopted = configuredRuntimeProjectKey.Trim();
+            else if (projects.Count == 1)
+                adopted = projects.Single().ProjectKey;
+            else if (projects.Count > 1)
+                throw new InvalidOperationException(
+                    "FND-07 cannot infer the attached Application from multiple persisted projects. Configure EngineeringRuntime:ProjectKey.");
+            binding = await bindingStore.AdoptLegacyAsync(adopted, cancellationToken);
+        }
+
+        if (binding.State is EngineeringInstallationBindingState.Neutral or
+            EngineeringInstallationBindingState.DetachInProgress)
+        {
+            app.Services.GetRequiredService<EngineeringWorkspace>().ResetToNeutral();
+            return;
+        }
+
+        var bootstrap = app.Services.GetRequiredService<IEngineeringWorkingBootstrapService>();
+        await bootstrap.BootstrapAsync(
+            configuredWorkingProjectKey,
+            configuredWorkingRevision,
+            binding.ProjectKey ?? configuredRuntimeProjectKey,
+            cancellationToken);
         await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
     }
 
@@ -65,7 +152,15 @@ public static class EngineeringPersistenceApi
         this WebApplication app,
         CancellationToken cancellationToken = default)
     {
-        var projectKey = app.Configuration["EngineeringRuntime:ProjectKey"];
+        var binding = app.Services.GetService<IEngineeringInstallationBindingStore>() is { } bindingStore
+            ? await bindingStore.GetAsync(cancellationToken)
+            : null;
+        if (binding?.State is EngineeringInstallationBindingState.Neutral or
+            EngineeringInstallationBindingState.DetachInProgress or
+            EngineeringInstallationBindingState.AttachInProgress)
+            return null;
+
+        var projectKey = binding?.ProjectKey ?? app.Configuration["EngineeringRuntime:ProjectKey"];
         if (string.IsNullOrWhiteSpace(projectKey)) return null;
 
         var recovery = app.Services.GetService<IPersistedRuntimeRecoveryService>();
@@ -75,8 +170,39 @@ public static class EngineeringPersistenceApi
                 "Engineering runtime recovery is unavailable although a runtime project is configured.");
         }
 
+        // Restore the externally fenced HA authority before persisted Runtime recovery.
+        // After a restart, the local in-memory topology starts at its initial epoch/active
+        // node; reconciling the durable reference first lets the prior active resume while
+        // a standby remains fenced and available for peer materialization.
+        var highAvailabilityProtection = app.Services.GetService<RuntimeHaProtectionCoordinator>();
+        if (highAvailabilityProtection is not null)
+            await highAvailabilityProtection.RefreshAsync(cancellationToken);
+
         var result = await recovery.RecoverAsync(projectKey, cancellationToken);
-        if (result.PersistedActiveRevision.HasValue && !result.Recovered)
+        if (result.IsExpectedAuthorityDenial && highAvailabilityProtection is not null)
+        {
+            // The first recovery attempt can precede the local database-health
+            // confirmation after a process restart. Retry only while the live,
+            // externally fenced HA reference still names this unambiguous local node
+            // as Active; a Standby or a changed authority never recovers locally.
+            for (var attempt = 0; attempt < 40 && !result.Recovered; attempt++)
+            {
+                if (!result.IsExpectedAuthorityDenial ||
+                    !CanRetryLocalActiveRuntimeRecovery(highAvailabilityProtection))
+                    break;
+
+                await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+                await highAvailabilityProtection.RefreshAsync(cancellationToken);
+                if (!CanRetryLocalActiveRuntimeRecovery(highAvailabilityProtection))
+                    break;
+
+                result = await recovery.RecoverAsync(projectKey, cancellationToken);
+            }
+        }
+
+        if (result.PersistedActiveRevision.HasValue &&
+            !result.Recovered &&
+            !result.IsExpectedAuthorityDenial)
         {
             var issues = result.Runtime is null
                 ? "The persisted active engineering snapshot could not be loaded."
@@ -92,12 +218,50 @@ public static class EngineeringPersistenceApi
                 $"Persisted active revision {result.PersistedActiveRevision} for project '{projectKey}' could not be recovered. {issues}");
         }
 
+        if (!result.Recovered)
+        {
+            var recoveryIssues = result.Runtime is null
+                ? "none"
+                : string.Join("; ", result.Runtime.RuntimeIssues
+                    .Where(issue => issue.IsError)
+                    .Select(issue => $"{issue.Code}: {issue.Message}"));
+            app.Logger.LogWarning(
+                "Persisted Runtime startup recovery did not activate project {ProjectKey}; found={Found}, activeRevision={ActiveRevision}, expectedDenial={ExpectedDenial}, issues={Issues}.",
+                projectKey,
+                result.Found,
+                result.PersistedActiveRevision,
+                result.IsExpectedAuthorityDenial,
+                recoveryIssues);
+        }
+
         return result;
+    }
+
+    private static bool CanRetryLocalActiveRuntimeRecovery(
+        RuntimeHaProtectionCoordinator protection)
+    {
+        var state = protection.Diagnostics();
+        var topology = state.Topology;
+        var reference = state.Reference;
+        var localNodeId = topology.LocalNodeId;
+        return state.Enabled &&
+            localNodeId is not null &&
+            reference is not null &&
+            reference.IsLiveAt(DateTimeOffset.UtcNow) &&
+            reference.PreviousAuthorityFenced &&
+            reference.ActiveNodeId?.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) == true &&
+            reference.ClusterId.Equals(topology.ClusterId, StringComparison.OrdinalIgnoreCase) &&
+            reference.TopologyVersion == topology.TopologyVersion &&
+            reference.Epoch == topology.AuthorityEpoch &&
+            topology.EffectiveActiveNodeId?.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) == true &&
+            !topology.AmbiguousAuthority &&
+            topology.PendingTransfer is null;
     }
 
     public static void MapEngineeringPersistenceEndpoints(this WebApplication app)
     {
         app.MapEngineeringDriverCatalogEndpoints();
+        app.MapNetworkReachabilityDiagnostics();
 
         var group = app.MapGroup("/api/engineering/persistence");
 
@@ -105,11 +269,14 @@ public static class EngineeringPersistenceApi
         {
             var persistence = Resolve(context);
             var catalog = ResolveCatalog(context);
+            var authority = await ResolveApplicationAuthorityAsync(context, cancellationToken);
             return Results.Ok(new
             {
                 enabled = persistence is not null,
                 provider = persistence is null ? null : "postgresql",
-                configuredProjectKey = ResolveConfiguredProjectKey(context),
+                configuredProjectKey = authority.ProjectKey,
+                applicationBindingState = authority.BindingState?.ToString(),
+                applicationBindingUsesLegacyConfiguration = authority.UsesLegacyConfiguration,
                 hasProjects = catalog is null ? (bool?)null : await catalog.HasAnyAsync(cancellationToken)
             });
         });
@@ -151,6 +318,17 @@ public static class EngineeringPersistenceApi
             await FirstProjectGate.WaitAsync(cancellationToken);
             try
             {
+                var bindingStore = context.RequestServices.GetService<IEngineeringInstallationBindingStore>();
+                EngineeringInstallationBindingSnapshot? attaching = null;
+                if (bindingStore is not null)
+                {
+                    var currentBinding = await bindingStore.GetAsync(cancellationToken);
+                    if (currentBinding.State == EngineeringInstallationBindingState.Neutral)
+                        attaching = await bindingStore.BeginAttachAsync(projectKey, cancellationToken);
+                    else if (currentBinding.State != EngineeringInstallationBindingState.Legacy)
+                        return Results.Conflict(new { error = "Another Application is already attached to this installation." });
+                }
+
                 if (await catalog.HasAnyAsync(cancellationToken))
                 {
                     return Results.Conflict(new
@@ -160,14 +338,36 @@ public static class EngineeringPersistenceApi
                 }
 
                 var savedBy = authorization.Principal.DisplayName ?? authorization.Principal.SubjectId;
-                var snapshot = await SaveFirstProjectAsync(
-                    projectKey,
-                    new EngineeringSaveRequest(projectName, savedBy),
-                    persistence,
-                    workspace,
-                    gateways,
-                    reports,
-                    cancellationToken);
+                EngineeringProjectSnapshot snapshot;
+                try
+                {
+                    snapshot = await SaveFirstProjectAsync(
+                        projectKey,
+                        new EngineeringSaveRequest(projectName, savedBy),
+                        persistence,
+                        workspace,
+                        gateways,
+                        reports,
+                        cancellationToken);
+                }
+                catch
+                {
+                    if (bindingStore is not null)
+                    {
+                        var currentBinding = await bindingStore.GetAsync(CancellationToken.None);
+                        if (currentBinding.State == EngineeringInstallationBindingState.AttachInProgress &&
+                            string.Equals(currentBinding.ProjectKey, projectKey, StringComparison.OrdinalIgnoreCase))
+                            await bindingStore.AbortAttachAsync(projectKey, CancellationToken.None);
+                    }
+                    throw;
+                }
+
+                if (bindingStore is not null)
+                {
+                    var currentBinding = await bindingStore.GetAsync(cancellationToken);
+                    if (currentBinding.State == EngineeringInstallationBindingState.AttachInProgress)
+                        await bindingStore.CompleteAttachAsync(projectKey, cancellationToken);
+                }
 
                 await audit.RecordAsync(
                     context,
@@ -240,16 +440,33 @@ public static class EngineeringPersistenceApi
 
             var lifecycle = await persistence.GetLifecycleAsync(projectKey, cancellationToken);
             var live = runtime.Describe();
+            var authority = await ResolveApplicationAuthorityAsync(context, cancellationToken);
             var consistent = lifecycle.ActiveRevision.HasValue
                 ? live.ProjectKey?.Equals(projectKey, StringComparison.OrdinalIgnoreCase) == true &&
                   live.Revision == lifecycle.ActiveRevision
                 : live.Revision is null;
+            var productRuntime = context.RequestServices.GetService<IProductRuntimeStatusProvider>()?.GetProductRuntimeStatus();
+            var operatorState = lifecycle.RuntimeStatus switch
+            {
+                EngineeringRuntimeStatus.OperatorStopped => "stopped",
+                EngineeringRuntimeStatus.StopFailed => "stopFailed",
+                _ when productRuntime?.State == ProductRuntimeLifecycleState.Running && consistent => "running",
+                _ => "notRunning"
+            };
+            var clusterHaEnabled = context.RequestServices.GetService<RuntimeHighAvailabilityService>()?.Enabled == true;
 
             return Results.Ok(new
             {
                 projectKey,
-                configuredProjectKey = ResolveConfiguredProjectKey(context),
+                configuredProjectKey = authority.ProjectKey,
+                applicationBindingState = authority.BindingState?.ToString(),
                 consistent,
+                operatorState,
+                runtimeControlAvailable = !clusterHaEnabled,
+                runtimeControlUnavailableReason = clusterHaEnabled
+                    ? "A local command cannot stop or start the whole HA cluster."
+                    : null,
+                runtimeDiagnostic = productRuntime?.LastDiagnostic,
                 durable = lifecycle,
                 live
             });
@@ -261,46 +478,228 @@ public static class EngineeringPersistenceApi
             HttpContext context,
             CancellationToken cancellationToken) =>
         {
+            var authority = await ResolveApplicationAuthorityAsync(context, cancellationToken);
+            return await ActivatePublishedAsync(
+                projectKey,
+                request,
+                authority,
+                ResolveActivation(context),
+                cancellationToken);
+        });
+
+        group.MapPost("/{projectKey}/runtime/stop", async (
+            string projectKey,
+            EngineeringRuntimeControlRequest request,
+            HttpContext context,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            CancellationToken cancellationToken) =>
+        {
+            var persistence = Resolve(context);
+            if (persistence is null) return Disabled();
+            var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+            var denied = authorization.FailureResult();
+            if (denied is not null)
+            {
+                await audit.RecordAuthorizationDeniedAsync(context, authorization,
+                    "engineering.runtime.stop", "engineering-runtime", projectKey);
+                return denied;
+            }
+            async Task<IResult> RejectStopAsync(string result, string error)
+            {
+                await audit.RecordAsync(context, authorization.Principal, "engineering.runtime.stop",
+                    AuditOutcome.Failed, "engineering-runtime", projectKey,
+                    new Dictionary<string, string> { ["result"] = result });
+                return Results.Conflict(new { error });
+            }
+            if (!request.Confirmed)
+                return Results.BadRequest(new { error = "Explicit confirmation is required to stop the Runtime." });
+
+            var authority = await ResolveApplicationAuthorityAsync(context, cancellationToken);
+            if (!authority.Matches(projectKey))
+                return await RejectStopAsync("application-binding-mismatch", "Runtime controls are allowed only for the Application attached to this installation.");
+
+            if (context.RequestServices.GetService<RuntimeHighAvailabilityService>()?.Enabled == true)
+                return await RejectStopAsync("ha-cluster-control-required", "Runtime High Availability is enabled. A local stop would not stop the cluster; use cluster-wide maintenance control.");
+
+            var lifecycle = await persistence.GetLifecycleAsync(projectKey, cancellationToken);
+            var revision = lifecycle.ActiveRevision;
+            if (!revision.HasValue)
+                return await RejectStopAsync("active-revision-missing", "There is no Active revision to stop.");
+
+            var runtime = context.RequestServices.GetRequiredService<IEngineeringRuntimeCoordinator>();
+            if (runtime is not IProductRuntimeOperatorControl runtimeControl)
+            {
+                await audit.RecordAsync(context, authorization.Principal, "engineering.runtime.stop",
+                    AuditOutcome.Failed, "engineering-runtime", projectKey,
+                    new Dictionary<string, string> { ["result"] = "operator-control-unavailable" });
+                return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+            }
+
+            var actor = authorization.Principal.DisplayName ?? authorization.Principal.SubjectId;
+            async Task PersistStop(CancellationToken ct)
+            {
+                var stopped = await persistence.SetRuntimeStatusAsync(
+                    projectKey, revision.Value, EngineeringRuntimeStatus.OperatorStopped, actor, ct);
+                if (stopped is null)
+                    throw new InvalidOperationException("Active revision changed before the Runtime stop was recorded.");
+            }
+
+            ProductRuntimeOperatorStopResult stop;
+            var eventBus = context.RequestServices.GetService<IScadaEventBus>();
+            var configuration = context.RequestServices.GetService<IConfiguration>();
+            ServerScriptRuntimeStopOutcome? scriptStop = null;
+            try
+            {
+                if (eventBus is not null && configuration is not null)
+                {
+                    var scripts = ServerScriptRuntimeManager.GetShared(runtime, eventBus, configuration,
+                        context.RequestServices.GetService<ActiveDriverInteractionRuntimeCatalog>());
+                    scriptStop = await scripts.StopForOperatorAsync(
+                        ct => runtimeControl.StopForOperatorAsync(projectKey, revision.Value, PersistStop, ct),
+                        cancellationToken);
+                    stop = scriptStop.Runtime;
+                }
+                else
+                {
+                    stop = await runtimeControl.StopForOperatorAsync(projectKey, revision.Value, PersistStop, cancellationToken);
+                }
+            }
+            catch (Exception exception)
+            {
+                await audit.RecordAsync(context, authorization.Principal, "engineering.runtime.stop",
+                    AuditOutcome.Failed, "engineering-runtime", projectKey,
+                    new Dictionary<string, string> { ["revision"] = revision.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+                return Results.Json(new { error = exception.Message }, statusCode: StatusCodes.Status500InternalServerError);
+            }
+
+            if (!stop.Stopped)
+                return await RejectStopAsync("runtime-state-changed", stop.Diagnostic ?? "Runtime state changed before it could be stopped.");
+
+            var scriptsStopped = scriptStop?.ServerScriptsStopped ?? true;
+            var complete = stop.Complete && scriptsStopped;
+            if (!complete)
+            {
+                await persistence.SetRuntimeStatusAsync(projectKey, revision.Value,
+                    EngineeringRuntimeStatus.StopFailed, actor, cancellationToken);
+                await audit.RecordAsync(context, authorization.Principal, "engineering.runtime.stop",
+                    AuditOutcome.Failed, "engineering-runtime", projectKey,
+                    new Dictionary<string, string>
+                    {
+                        ["revision"] = revision.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["runtimeStopped"] = stop.Stopped.ToString(),
+                        ["serverScriptsStopped"] = scriptsStopped.ToString()
+                    });
+                return Results.Json(new
+                {
+                    stopped = true,
+                    complete = false,
+                    runtimeStopped = stop.Stopped,
+                    serverScriptsStopped = scriptsStopped,
+                    error = string.Join(" ", new[] { stop.Diagnostic, scriptStop?.ScriptDiagnostic }.Where(value => !string.IsNullOrWhiteSpace(value)))
+                }, statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+
+            await audit.RecordAsync(context, authorization.Principal, "engineering.runtime.stop",
+                AuditOutcome.Succeeded, "engineering-runtime", projectKey,
+                new Dictionary<string, string>
+                {
+                    ["revision"] = revision.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["runtimeStopped"] = "true",
+                    ["serverScriptsStopped"] = scriptsStopped.ToString()
+                });
+            return Results.Ok(new
+            {
+                stopped = true,
+                complete = true,
+                runtimeStopped = true,
+                serverScriptsStopped = scriptsStopped,
+                lifecycle = await persistence.GetLifecycleAsync(projectKey, cancellationToken)
+            });
+        });
+
+        group.MapPost("/{projectKey}/runtime/start", async (
+            string projectKey,
+            EngineeringRuntimeControlRequest request,
+            HttpContext context,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            CancellationToken cancellationToken) =>
+        {
+            var persistence = Resolve(context);
+            if (persistence is null) return Disabled();
+            var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+            var denied = authorization.FailureResult();
+            if (denied is not null)
+            {
+                await audit.RecordAuthorizationDeniedAsync(context, authorization,
+                    "engineering.runtime.start", "engineering-runtime", projectKey);
+                return denied;
+            }
+            async Task<IResult> RejectStartAsync(string result, string error)
+            {
+                await audit.RecordAsync(context, authorization.Principal, "engineering.runtime.start",
+                    AuditOutcome.Failed, "engineering-runtime", projectKey,
+                    new Dictionary<string, string> { ["result"] = result });
+                return Results.Conflict(new { error });
+            }
+            if (!request.Confirmed)
+                return Results.BadRequest(new { error = "Explicit confirmation is required to start the Runtime." });
+
+            var authority = await ResolveApplicationAuthorityAsync(context, cancellationToken);
+            if (!authority.Matches(projectKey))
+                return await RejectStartAsync("application-binding-mismatch", "Runtime controls are allowed only for the Application attached to this installation.");
+
+            var lifecycle = await persistence.GetLifecycleAsync(projectKey, cancellationToken);
+            if (!lifecycle.ActiveRevision.HasValue)
+                return await RejectStartAsync("active-revision-missing", "There is no Active revision to start.");
+            if (lifecycle.RuntimeStatus == EngineeringRuntimeStatus.StopFailed)
+                return await RejectStartAsync("previous-stop-incomplete", "The previous stop was incomplete. Review the affected components before starting Runtime.");
+            if (lifecycle.RuntimeStatus != EngineeringRuntimeStatus.OperatorStopped)
+                return await RejectStartAsync("runtime-not-operator-stopped", "Runtime is not in the operator-stopped state.");
+
+            var liveRuntime = context.RequestServices.GetService<IProductRuntimeStatusProvider>()?.GetProductRuntimeStatus();
+            if (liveRuntime?.State == ProductRuntimeLifecycleState.StopFailed)
+                return await RejectStartAsync("live-stop-incomplete", "The in-memory Runtime reports an incomplete stop. Review components before starting Runtime.");
+
             var activationService = ResolveActivation(context);
             if (activationService is null) return Disabled();
-
-            var configuredProjectKey = ResolveConfiguredProjectKey(context);
-            if (string.IsNullOrWhiteSpace(configuredProjectKey))
+            try
             {
-                return Results.Conflict(new
+                var outcome = await activationService.ActivateActiveRevisionAsync(
+                    projectKey,
+                    authorization.Principal.DisplayName ?? authorization.Principal.SubjectId,
+                    cancellationToken);
+                var success = outcome.Activated;
+                await audit.RecordAsync(context, authorization.Principal, "engineering.runtime.start",
+                    success ? AuditOutcome.Succeeded : AuditOutcome.Failed,
+                    "engineering-runtime", projectKey,
+                    new Dictionary<string, string>
+                    {
+                        ["revision"] = lifecycle.ActiveRevision.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["activated"] = success.ToString()
+                    });
+                var response = new
                 {
-                    error = "EngineeringRuntime:ProjectKey must be configured before activating a persisted runtime."
-                });
+                    started = success,
+                    revision = outcome.Snapshot is null ? null : ToMetadata(outcome.Snapshot),
+                    runtime = outcome.Runtime,
+                    lifecycle = outcome.Lifecycle
+                };
+                return success
+                    ? Results.Ok(response)
+                    : Results.Json(response, statusCode: StatusCodes.Status422UnprocessableEntity);
             }
-
-            if (!configuredProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase))
+            catch (Exception exception)
             {
-                return Results.Conflict(new
-                {
-                    error = $"This runtime instance is bound to project '{configuredProjectKey}', not '{projectKey}'."
-                });
+                await audit.RecordAsync(context, authorization.Principal, "engineering.runtime.start",
+                    AuditOutcome.Failed, "engineering-runtime", projectKey,
+                    new Dictionary<string, string>
+                    {
+                        ["revision"] = lifecycle.ActiveRevision.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
+                return Results.Json(new { error = exception.Message }, statusCode: StatusCodes.Status500InternalServerError);
             }
-
-            var outcome = await activationService.ActivateAsync(
-                projectKey,
-                request.ActivatedBy,
-                cancellationToken);
-
-            if (!outcome.Found || outcome.Snapshot is null)
-                return Results.NotFound(new { error = "Project has no published revision." });
-
-            var response = new
-            {
-                revision = ToMetadata(outcome.Snapshot),
-                activated = outcome.Activated,
-                runtime = outcome.Runtime,
-                activation = outcome.Activation,
-                lifecycle = outcome.Lifecycle
-            };
-
-            return outcome.Activated
-                ? Results.Ok(response)
-                : Results.Json(response, statusCode: StatusCodes.Status422UnprocessableEntity);
         });
 
         group.MapGet("/{projectKey}/revisions", async (
@@ -521,9 +920,14 @@ public static class EngineeringPersistenceApi
         workspace.Clear();
         gateways.Clear();
         reports.Clear();
-        foreach (var dynamo in BuiltinDynamoLibrary.Create())
+        foreach (var (asset, payload) in BuiltinDynamoCatalogV1.CreateArtworkAssets())
+        {
+            workspace.VisualAssets.UpsertAsset(asset);
+            workspace.VisualAssets.PutPayload(payload);
+        }
+        foreach (var dynamo in BuiltinDynamoCatalogV1.Create())
             workspace.Assets.UpsertDynamo(dynamo);
-        workspace.SecurityPolicies.UpsertRole(CreateInitialDeveloperRole());
+        workspace.SecurityPolicies.UpsertRole(BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole());
 
         var saveVersion = workspace.CaptureChangeVersion();
         var snapshot = await persistence.SaveCurrentDerivedAsync(
@@ -542,23 +946,76 @@ public static class EngineeringPersistenceApi
         return snapshot;
     }
 
-    private static SecurityRoleEngineeringDto CreateInitialDeveloperRole() => new(
-        Id: Guid.Parse("46000000-0000-0000-0000-000000000002"),
-        Key: "developer",
-        Name: "Developer",
-        Description: "Engineering/development role with all currently defined capabilities granted explicitly.",
-        Grants: Enum.GetValues<SecurityCapability>()
-            .Select(capability => new CapabilityGrantEngineeringDto(capability))
-            .ToArray());
-
     private static IEngineeringWorkspaceCheckoutService? ResolveCheckout(HttpContext context) =>
         context.RequestServices.GetService<IEngineeringWorkspaceCheckoutService>();
 
     private static IPublishedRuntimeActivationService? ResolveActivation(HttpContext context) =>
         context.RequestServices.GetService<IPublishedRuntimeActivationService>();
 
-    private static string? ResolveConfiguredProjectKey(HttpContext context) =>
-        context.RequestServices.GetRequiredService<IConfiguration>()["EngineeringRuntime:ProjectKey"];
+    internal static async Task<IResult> ActivatePublishedAsync(
+        string projectKey,
+        EngineeringActivateRequest request,
+        EngineeringInstallationApplicationAuthority authority,
+        IPublishedRuntimeActivationService? activationService,
+        CancellationToken cancellationToken = default)
+    {
+        if (activationService is null) return Disabled();
+
+        if (string.IsNullOrWhiteSpace(authority.ProjectKey))
+        {
+            if (authority.UsesLegacyConfiguration)
+            {
+                return Results.Conflict(new
+                {
+                    error = "EngineeringRuntime:ProjectKey must be configured before activating a persisted runtime."
+                });
+            }
+
+            return Results.Conflict(new
+            {
+                error = $"Installation Application binding state '{authority.BindingState}' does not permit persisted Runtime activation.",
+                applicationBindingState = authority.BindingState?.ToString()
+            });
+        }
+
+        if (!authority.Matches(projectKey))
+        {
+            return Results.Conflict(new
+            {
+                error = $"This installation is bound to project '{authority.ProjectKey}', not '{projectKey}'.",
+                applicationBindingState = authority.BindingState?.ToString()
+            });
+        }
+
+        var outcome = await activationService.ActivateAsync(
+            projectKey,
+            request.ActivatedBy,
+            cancellationToken);
+
+        if (!outcome.Found || outcome.Snapshot is null)
+            return Results.NotFound(new { error = "Project has no published revision." });
+
+        var response = new
+        {
+            revision = ToMetadata(outcome.Snapshot),
+            activated = outcome.Activated,
+            runtime = outcome.Runtime,
+            activation = outcome.Activation,
+            lifecycle = outcome.Lifecycle
+        };
+
+        return outcome.Activated
+            ? Results.Ok(response)
+            : Results.Json(response, statusCode: StatusCodes.Status422UnprocessableEntity);
+    }
+
+    private static Task<EngineeringInstallationApplicationAuthority> ResolveApplicationAuthorityAsync(
+        HttpContext context,
+        CancellationToken cancellationToken) =>
+        EngineeringInstallationApplicationAuthorityResolver.ResolveAsync(
+            context.RequestServices.GetService<IEngineeringInstallationBindingStore>(),
+            context.RequestServices.GetRequiredService<IConfiguration>(),
+            cancellationToken);
 
     private static IResult Disabled() => Results.Json(
         new
@@ -589,4 +1046,5 @@ public static class EngineeringPersistenceApi
 public sealed record EngineeringSaveRequest(string ProjectName, string? SavedBy = null);
 public sealed record EngineeringPublishRequest(string? PublishedBy = null);
 public sealed record EngineeringActivateRequest(string? ActivatedBy = null);
+public sealed record EngineeringRuntimeControlRequest(bool Confirmed);
 public sealed record EngineeringFirstProjectRequest(string ProjectKey, string ProjectName);

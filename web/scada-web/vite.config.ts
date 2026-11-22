@@ -1,7 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { Agent } from 'node:http';
 
 const backend = process.env.SCADA_API_PROXY ?? 'http://127.0.0.1:5080';
+const apiProxyAgent = new Agent({ keepAlive: false });
 
 export default defineConfig({
   plugins: [react()],
@@ -14,7 +16,7 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'require-corp'
     },
     proxy: {
-      '/api': { target: backend, changeOrigin: true },
+      '/api': { target: backend, changeOrigin: true, agent: apiProxyAgent },
       '/health': { target: backend, changeOrigin: true },
       '/openapi': { target: backend, changeOrigin: true },
       '/ws': { target: backend, changeOrigin: true, ws: true }

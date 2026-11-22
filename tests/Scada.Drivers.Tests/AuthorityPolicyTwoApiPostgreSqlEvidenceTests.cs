@@ -1,0 +1,2932 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
+using System.Net.WebSockets;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Npgsql;
+using NpgsqlTypes;
+using Scada.Core.Product.Licensing;
+using Scada.Core.Tags;
+
+namespace Scada.Drivers.Tests;
+
+/// <summary>
+/// Process-level Stage 1 HA evidence. The API instances are independent child processes;
+/// only the reference authority file is shared, as in the supported deployment topology.
+/// The separate-database mode creates two database names on the same disposable PostgreSQL
+/// server; it does not simulate loss of an independent PostgreSQL server. All files/databases
+/// created by this test are disposable.
+/// </summary>
+[Collection(Wave15PostgreSqlHaEvidenceCollection.Name)]
+public sealed class AuthorityPolicyTwoApiPostgreSqlEvidenceTests
+{
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StandaloneRealApiRestartRecoversExplicitlyActivatedScope(bool twoScopes)
+    {
+        var seed = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(seed)) return;
+        var root = FindRepositoryRoot();
+        var apiDll = Path.Combine(AppContext.BaseDirectory, "Scada.Api.dll");
+        var suffix = Guid.NewGuid().ToString("N")[..10];
+        var database = "w15_recovery_" + suffix;
+        var admin = new NpgsqlConnectionStringBuilder(seed) { Database = "postgres", Pooling = false };
+        var connection = new NpgsqlConnectionStringBuilder(seed) { Database = database };
+        var directory = Path.Combine(Path.GetTempPath(), "scadivo-recovery-" + suffix);
+        Directory.CreateDirectory(directory);
+        ApiProcess? node = null;
+        await CreateDatabaseAsync(admin.ConnectionString, database, connection.Username!);
+        try
+        {
+            var license = CreateLicense(directory);
+            var url = $"http://127.0.0.1:{ReserveLoopbackPort()}";
+            var reference = Path.Combine(directory, "unused-reference.json");
+            ApiProcess Start() => ApiProcess.Start("node-a", url, url, ProjectKey, reference,
+                directory, connection.ConnectionString, license, apiDll, root, suffix, standalone: true);
+            node = Start();
+            await node.WaitForHealthAsync();
+            await node.BootstrapAsync();
+            await PrepareProjectAsync(node, activate: true, twoScopes);
+            await ConfigureAndActivateIntelligenceAsync(node, twoScopes);
+            if (twoScopes)
+                await node.SendAsync(HttpMethod.Post,
+                    "/api/engineering/asset-process-intelligence/scopes/equipment/b3100000-0000-0000-0000-000000000211/activate", new JsonObject());
+            await node.DisposeAsync();
+            node = null;
+            node = Start();
+            await node.WaitForHealthAsync();
+            await node.LoginAsync();
+            await WaitUntilAsync(async () =>
+            {
+                var current = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+                return current["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() == true &&
+                    (!twoScopes || current["configuration"]!["scopes"]!.AsArray().All(item =>
+                        item!["executionArmed"]!.GetValue<bool>()));
+            }, TimeSpan.FromSeconds(30), "A standalone restart did not finish the exact Intelligence receipt recovery.");
+            var status = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+            Assert.True(status["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>(), status.ToJsonString());
+            if (twoScopes)
+                Assert.All(status["configuration"]!["scopes"]!.AsArray(), item =>
+                    Assert.True(item!["executionArmed"]!.GetValue<bool>(), status.ToJsonString()));
+            await node.SendAsync(HttpMethod.Post,
+                "/api/engineering/asset-process-intelligence/scopes/equipment/b3100000-0000-0000-0000-000000000201/pause", new JsonObject());
+            await node.DisposeAsync();
+            node = null;
+            node = Start();
+            await node.WaitForHealthAsync();
+            await node.LoginAsync();
+            var paused = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+            Assert.False(paused["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() ?? true, paused.ToJsonString());
+            if (twoScopes)
+                Assert.True(paused["configuration"]!["scopes"]![1]!["executionArmed"]!.GetValue<bool>(),
+                    "Pausing first scope must preserve the second scope: " + paused.ToJsonString());
+            await node.SendAsync(HttpMethod.Post,
+                "/api/engineering/asset-process-intelligence/scopes/equipment/b3100000-0000-0000-0000-000000000201/activate", new JsonObject());
+            await node.DisposeAsync();
+            node = null;
+            await using (var policy = new Scada.Persistence.PostgreSql.PostgreSqlAuthorityPolicyStore(connection.ConnectionString))
+            {
+                await policy.InitializeAsync();
+                var original = policy.Snapshot();
+                var revokedRoles = original.Roles.Select(role => role with
+                {
+                    Grants = (role.Grants ?? []).Where(grant =>
+                        grant.Capability != Scada.Security.Authorization.SecurityCapability.SystemAdmin &&
+                        grant.Capability != Scada.Security.Authorization.SecurityCapability.AssetProcessIntelligenceManage).ToArray()
+                }).ToArray();
+                var revoked = await policy.TryReplaceAsync(original.Version, revokedRoles, original.Scopes);
+                Assert.True(revoked.Applied, revoked.Error);
+                var restored = await policy.TryReplaceAsync(revoked.Snapshot.Version, original.Roles, original.Scopes);
+                Assert.True(restored.Applied, restored.Error);
+            }
+            node = Start();
+            await node.WaitForHealthAsync();
+            await node.LoginAsync();
+            var restoredStatus = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+            Assert.False(restoredStatus["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() ?? true,
+                restoredStatus.ToJsonString());
+        }
+        finally
+        {
+            if (node is not null) await node.DisposeAsync();
+            await DropDatabaseAsync(admin.ConnectionString, database);
+        }
+    }
+    private const string AdminUsername = "w15-stage1-admin";
+    private const string AdminPassword = "w15-stage1-disposable-admin-password";
+    private const string ProjectKey = "w15-stage1-process-evidence";
+    private const string JwtKey = "w15-stage1-integration-jwt-signing-key-only";
+    private const string PeerSecret = "w15-stage1-integration-peer-secret-32-bytes";
+    private static readonly Guid HaEffectsMemorySourceId = Guid.Parse("b3110000-0000-0000-0000-000000000200");
+    private static readonly Guid HaEffectsCounterTagId = Guid.Parse("b3110000-0000-0000-0000-000000000201");
+    private static readonly Guid HaEffectsAlarmId = Guid.Parse("b3110000-0000-0000-0000-000000000202");
+    private static readonly Guid HaEffectsScriptId = Guid.Parse("b3110000-0000-0000-0000-000000000203");
+    private static readonly Guid HaEffectsOperationalEventId = Guid.Parse("b3110000-0000-0000-0000-000000000204");
+    private static readonly Guid HaEffectsAlarmTagId = Guid.Parse("b3110000-0000-0000-0000-000000000205");
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public Task RealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(bool sharedDatabase) =>
+        RunRealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(sharedDatabase, stopAfterNormalRestart: false);
+
+    [Fact]
+    public Task RealApiProcesses_HaNormalRestartRecoversIntelligenceReceipt() =>
+        RunRealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(sharedDatabase: true, stopAfterNormalRestart: true);
+
+    private async Task RunRealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(
+        bool sharedDatabase,
+        bool stopAfterNormalRestart)
+    {
+        var seed = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(seed)) return;
+
+        var root = FindRepositoryRoot();
+        var apiDll = Path.Combine(AppContext.BaseDirectory, "Scada.Api.dll");
+        if (!File.Exists(apiDll))
+            apiDll = Path.Combine(root, "src", "Scada.Api", "bin", "Release", "net10.0", "Scada.Api.dll");
+        Assert.True(File.Exists(apiDll), $"Scada.Api child process binary was not found: {apiDll}");
+
+        var suffix = Guid.NewGuid().ToString("N")[..10];
+        var databaseA = "w15_int_a_" + suffix;
+        var databaseB = sharedDatabase ? databaseA : "w15_int_b_" + suffix;
+        var role = "w15_int_" + suffix;
+        var password = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
+        var adminConnection = new NpgsqlConnectionStringBuilder(seed)
+        {
+            Database = "postgres",
+            Pooling = false
+        };
+        var appConnectionA = new NpgsqlConnectionStringBuilder(seed)
+        {
+            Database = databaseA,
+            Username = role,
+            Password = password,
+            Pooling = true,
+            ApplicationName = "w15-stage1-node-a-" + suffix,
+            MaxPoolSize = 32
+        };
+        var appConnectionB = new NpgsqlConnectionStringBuilder(seed)
+        {
+            Database = databaseB,
+            Username = role,
+            Password = password,
+            Pooling = true,
+            ApplicationName = "w15-stage1-node-b-" + suffix,
+            MaxPoolSize = 32
+        };
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-w15-two-api-" + suffix);
+        Directory.CreateDirectory(directory);
+
+        ApiProcess? nodeA = null;
+        ApiProcess? nodeB = null;
+        var databasesCreated = new List<string>();
+        var roleCreated = false;
+        try
+        {
+            await CreateRoleAsync(adminConnection.ConnectionString, role, password);
+            roleCreated = true;
+            await CreateDatabaseAsync(adminConnection.ConnectionString, databaseA, role);
+            databasesCreated.Add(databaseA);
+            if (!sharedDatabase)
+            {
+                await CreateDatabaseAsync(adminConnection.ConnectionString, databaseB, role);
+                databasesCreated.Add(databaseB);
+            }
+            await InstallTimescaleExtensionAsync(adminConnection.ConnectionString, databaseA);
+            if (!sharedDatabase)
+                await InstallTimescaleExtensionAsync(adminConnection.ConnectionString, databaseB);
+
+            var license = CreateLicense(directory);
+            var portA = ReserveLoopbackPort();
+            var portB = ReserveLoopbackPort();
+            Assert.NotEqual(portA, portB);
+            var urlA = $"http://127.0.0.1:{portA}";
+            var urlB = $"http://127.0.0.1:{portB}";
+            var referencePath = Path.Combine(directory, "ha-reference.json");
+
+            nodeA = ApiProcess.Start(
+                "node-a", urlA, urlB, ProjectKey, referencePath, directory,
+                appConnectionA.ConnectionString, license, apiDll, root, suffix);
+            await nodeA.WaitForHealthAsync();
+            await nodeA.BootstrapAsync();
+
+            if (!sharedDatabase)
+            {
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
+                await nodeB.BootstrapAsync();
+            }
+
+            await PrepareProjectAsync(nodeA, activate: true);
+            if (sharedDatabase)
+            {
+                // Start the shared-database standby only after the active
+                // project's published runtime exists, so startup can materialize
+                // it directly without restarting a live peer endpoint.
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB!.WaitForHealthAsync();
+                await nodeB.LoginAsync();
+            }
+            else
+            {
+                await PrepareProjectAsync(nodeB!, activate: false);
+                // A fresh neutral installation starts with process effects fenced.
+                // Once the standby's first Application is attached and published,
+                // restart it so startup recovers that binding before HA passive
+                // Runtime projection begins. Do not locally activate the standby.
+                await nodeB!.DisposeAsync();
+                nodeB = null;
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
+                await nodeB.LoginAsync();
+            }
+            // Do not enter the initial policy fence until the shared-database
+            // standby's passive Runtime is observably ready.
+            if (sharedDatabase)
+            {
+                await WaitForHaTopologyAsync(
+                    nodeA,
+                    topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
+                    TimeSpan.FromSeconds(75),
+                    "the shared-database standby never materialized the published runtime before initial policy fencing");
+            }
+            await WaitForInitialPolicyCommitAsync(
+                nodeA,
+                nodeB,
+                referencePath,
+                sharedDatabase ? null : TimeSpan.FromSeconds(90));
+            var grantedPolicy = await GrantIntelligenceManageAsync(nodeA, nodeB);
+            await ConfigureAndActivateIntelligenceAsync(nodeA);
+            await nodeA.DisposeAsync();
+            nodeA = null;
+            nodeA = ApiProcess.Start("node-a", urlA, urlB, ProjectKey, referencePath, directory,
+                appConnectionA.ConnectionString, license, apiDll, root, suffix);
+            await nodeA.WaitForHealthAsync();
+            await nodeA.LoginAsync();
+            await WaitUntilAsync(async () =>
+            {
+                var current = await nodeA.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+                return current["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() == true;
+            }, TimeSpan.FromSeconds(45), "Normal HA active restart did not finish exact Intelligence receipt recovery.");
+            var normalRestartStatus = await nodeA.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+            Assert.True(normalRestartStatus["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>(),
+                "Normal HA active restart must recover only the unchanged receipt: " + normalRestartStatus.ToJsonString());
+            if (stopAfterNormalRestart) return;
+            if (!sharedDatabase)
+                await MirrorProjectToStandbyAsync(nodeA, nodeB);
+            await SeedSlowHistorianAsync(appConnectionA.ConnectionString);
+
+            await nodeB.StopAsync();
+            var pendingRequest = nodeA.PostRawAsync(
+                "/api/engineering/asset-process-intelligence/analytics/query",
+                AnalyticsRequest());
+            try
+            {
+                await WaitForHistorianReadAsync(
+                    adminConnection.ConnectionString,
+                    databaseA,
+                    TimeSpan.FromSeconds(15),
+                    "w15-stage1-page-2");
+            }
+            catch (TimeoutException exception)
+            {
+                if (pendingRequest.IsCompleted)
+                {
+                    var response = await pendingRequest;
+                    throw new InvalidOperationException(
+                        $"Historian query did not remain in flight. API returned {(int)response.StatusCode}: {response.RawBody}",
+                        exception);
+                }
+                throw;
+            }
+
+            var committedPolicy = await nodeA.GetAsync("/api/auth/authority-policy");
+            var revokedRoles = RemoveTrendUse(committedPolicy["roles"]!.DeepClone().AsArray());
+            var revoke = await nodeA.SendAsync(
+                HttpMethod.Put,
+                "/api/auth/authority-policy",
+                new JsonObject
+                {
+                    ["schema"] = "elitescada.authority-policy",
+                    ["schemaVersion"] = 1,
+                    ["expectedVersion"] = committedPolicy["version"]!.GetValue<long>(),
+                    ["roles"] = revokedRoles,
+                    ["scopes"] = committedPolicy["scopes"]!.DeepClone()
+                },
+                expectedStatus: HttpStatusCode.ServiceUnavailable);
+            Assert.Equal("AUTHORITY_POLICY_HA_REPLICATION_PENDING", revoke["error"]!.GetValue<string>());
+
+            var cancelled = await pendingRequest.WaitAsync(TimeSpan.FromSeconds(15));
+            Assert.Equal(HttpStatusCode.Conflict, cancelled.StatusCode);
+            Assert.Contains(
+                cancelled.Body?["code"]?.GetValue<string>(),
+                new[] { "INTELLIGENCE_EXECUTION_PERMIT_CANCELLED", "AUTHORITY_POLICY_UPDATE_PENDING" });
+            Assert.Null(cancelled.Body?["period"]);
+            Assert.Equal(0, await ReadPageThreeObservationCountAsync(appConnectionA.ConnectionString));
+
+            await RemoveSlowHistorianPolicyAsync(appConnectionA.ConnectionString);
+            await nodeB.DisposeAsync();
+            nodeB = null;
+            nodeB = ApiProcess.Start(
+                "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                appConnectionB.ConnectionString, license, apiDll, root, suffix);
+            await nodeB.WaitForHealthAsync();
+            if (sharedDatabase)
+                await nodeB.LoginAsync();
+            else
+                await nodeB.LoginAsync();
+
+            var revokedVersion = committedPolicy["version"]!.GetValue<long>() + 1;
+            await WaitForRejoinAndPolicyCommitAsync(nodeA, nodeB, referencePath, revokedVersion);
+            var restore = await nodeA.SendAsync(
+                HttpMethod.Put,
+                "/api/auth/authority-policy",
+                new JsonObject
+                {
+                    ["schema"] = "elitescada.authority-policy",
+                    ["schemaVersion"] = 1,
+                    ["expectedVersion"] = revokedVersion,
+                    ["roles"] = grantedPolicy["roles"]!.DeepClone(),
+                    ["scopes"] = grantedPolicy["scopes"]!.DeepClone()
+                });
+            var restoredVersion = revokedVersion + 1;
+            Assert.Equal(restoredVersion, restore["version"]!.GetValue<long>());
+            await WaitForPolicyVersionAsync(nodeB, restoredVersion);
+
+            var scopeId = Guid.Parse("b3100000-0000-0000-0000-000000000201");
+            var beforeExplicitActivation = await nodeA.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+            Assert.True(beforeExplicitActivation["authorityFence"]?["allowed"]?.GetValue<bool>());
+            Assert.Equal(
+                restoredVersion,
+                beforeExplicitActivation["authorityFence"]?["policyVersion"]?.GetValue<long>());
+            Assert.True(
+                beforeExplicitActivation["configuration"]?["scopes"]?[0]?["active"]?.GetValue<bool>(),
+                beforeExplicitActivation.ToJsonString());
+            Assert.False(
+                beforeExplicitActivation["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>() ?? false,
+                beforeExplicitActivation.ToJsonString());
+
+            var deniedBeforeExplicitActivation = await nodeA.SendAsync(
+                HttpMethod.Post,
+                "/api/engineering/asset-process-intelligence/analytics/query",
+                AnalyticsRequest(),
+                expectedStatus: HttpStatusCode.Conflict);
+            Assert.Equal(
+                "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED",
+                deniedBeforeExplicitActivation["code"]!.GetValue<string>());
+            Assert.Null(deniedBeforeExplicitActivation["period"]);
+
+            var reactivated = await nodeA.SendAsync(
+                HttpMethod.Post,
+                $"/api/engineering/asset-process-intelligence/scopes/equipment/{scopeId:D}/activate",
+                new JsonObject());
+            Assert.True(reactivated["active"]!.GetValue<bool>());
+
+            var recoveredQuery = await nodeA.SendAsync(
+                HttpMethod.Post,
+                "/api/engineering/asset-process-intelligence/analytics/query",
+                AnalyticsRequest());
+            Assert.Equal(1, recoveredQuery["contractVersion"]!.GetValue<int>());
+            Assert.True(recoveredQuery["period"]?["summary"]?["rawObservationCount"]?.GetValue<int>() > 0);
+            Assert.Equal(restoredVersion, (await nodeA.GetAsync("/api/auth/authority-policy"))["version"]!.GetValue<long>());
+            Assert.Equal(restoredVersion, (await nodeB.GetAsync("/api/auth/authority-policy"))["version"]!.GetValue<long>());
+        }
+        finally
+        {
+            if (nodeB is not null) await nodeB.DisposeAsync();
+            if (nodeA is not null) await nodeA.DisposeAsync();
+            foreach (var database in databasesCreated.AsEnumerable().Reverse())
+                await DropDatabaseAsync(adminConnection.ConnectionString, database);
+            if (roleCreated)
+                await DropRoleAsync(adminConnection.ConnectionString, role);
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public Task RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack()
+        => RunHaD2AuthorityLifecycleAsync(sharedDatabase: true);
+
+    [Fact]
+    public Task RealApiProcesses_HaD2SeparateDatabasesPromotesAndFailsBack()
+        => RunHaD2AuthorityLifecycleAsync(sharedDatabase: false);
+
+    [Fact]
+    public Task RealApiProcesses_HaD2IndependentPostgreSqlServersPromotesAndFailsBack()
+        => RunHaD2AuthorityLifecycleAsync(
+            sharedDatabase: false,
+            independentPostgreSqlServers: true,
+            verifyRuntimeSessionContinuity: true);
+
+    [Fact]
+    public Task RealApiProcesses_HaD2RestartDuringFailback()
+        => RunHaD2AuthorityLifecycleAsync(false, true, true, restartDuringFailback: true);
+
+    private async Task RunHaD2AuthorityLifecycleAsync(
+        bool sharedDatabase,
+        bool independentPostgreSqlServers = false,
+        bool verifyRuntimeSessionContinuity = false,
+        bool restartDuringFailback = false)
+    {
+        var seedA = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(seedA))
+        {
+            if (string.Equals(
+                    Environment.GetEnvironmentVariable("ELITESCADA_REQUIRE_HA_D2_POSTGRES"),
+                    "true",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "HA-D2 acceptance requires ELITESCADA_TEST_POSTGRES; the evidence test must not silently pass without PostgreSQL.");
+            }
+
+            return;
+        }
+
+        var seedB = independentPostgreSqlServers
+            ? Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES_B")
+            : seedA;
+        if (independentPostgreSqlServers && string.IsNullOrWhiteSpace(seedB))
+        {
+            if (string.Equals(
+                    Environment.GetEnvironmentVariable("ELITESCADA_REQUIRE_HA_D2_INDEPENDENT_POSTGRES"),
+                    "true",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Independent HA-D2 acceptance requires ELITESCADA_TEST_POSTGRES_B; the evidence test must not silently pass without a second PostgreSQL server.");
+            }
+
+            return;
+        }
+
+        var root = FindRepositoryRoot();
+        var apiDll = Path.Combine(AppContext.BaseDirectory, "Scada.Api.dll");
+        if (!File.Exists(apiDll))
+            apiDll = Path.Combine(root, "src", "Scada.Api", "bin", "Release", "net10.0", "Scada.Api.dll");
+        Assert.True(File.Exists(apiDll), $"Scada.Api child process binary was not found: {apiDll}");
+
+        // These variants distinguish a shared database, separate database names on one
+        // PostgreSQL server, and independent PostgreSQL servers. They do not simulate
+        // network-separated API hosts or prove database durability.
+        var suffix = Guid.NewGuid().ToString("N")[..10];
+        var databaseA = "w15_ha_d2_a_" + suffix;
+        var databaseB = sharedDatabase ? databaseA : "w15_ha_d2_b_" + suffix;
+        var role = "w15_ha_d2_" + suffix;
+        var password = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
+        var adminConnectionA = new NpgsqlConnectionStringBuilder(seedA)
+        {
+            Database = "postgres",
+            Pooling = false
+        };
+        var adminConnectionB = new NpgsqlConnectionStringBuilder(seedB!)
+        {
+            Database = "postgres",
+            Pooling = false
+        };
+        var appConnectionA = new NpgsqlConnectionStringBuilder(seedA)
+        {
+            Database = databaseA,
+            Username = role,
+            Password = password,
+            Pooling = true,
+            ApplicationName = "w15-ha-d2-node-a-" + suffix,
+            MaxPoolSize = 32
+        };
+        var appConnectionB = new NpgsqlConnectionStringBuilder(seedB!)
+        {
+            Database = databaseB,
+            Username = role,
+            Password = password,
+            Pooling = true,
+            ApplicationName = "w15-ha-d2-node-b-" + suffix,
+            MaxPoolSize = 32
+        };
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-w15-ha-d2-" + suffix);
+        Directory.CreateDirectory(directory);
+
+        ApiProcess? nodeA = null;
+        ApiProcess? nodeB = null;
+        TcpClusterIngress? clusterIngress = null;
+        ClusterBrowser? clusterBrowser = null;
+        ClusterBrowser? staleClusterBrowser = null;
+        var databasesCreated = new List<(string AdminConnectionString, string Name)>();
+        var rolesCreated = new List<(string AdminConnectionString, string Name)>();
+        try
+        {
+            if (independentPostgreSqlServers)
+            {
+                var serverA = await GetPostgreSqlSystemIdentifierAsync(adminConnectionA.ConnectionString);
+                var serverB = await GetPostgreSqlSystemIdentifierAsync(adminConnectionB.ConnectionString);
+                Assert.NotEqual(serverA, serverB);
+            }
+
+            await CreateRoleAsync(adminConnectionA.ConnectionString, role, password);
+            rolesCreated.Add((adminConnectionA.ConnectionString, role));
+            if (independentPostgreSqlServers)
+            {
+                await CreateRoleAsync(adminConnectionB.ConnectionString, role, password);
+                rolesCreated.Add((adminConnectionB.ConnectionString, role));
+            }
+
+            var databases = new List<(string AdminConnectionString, string Name)>
+            {
+                (adminConnectionA.ConnectionString, databaseA)
+            };
+            if (!sharedDatabase)
+                databases.Add((adminConnectionB.ConnectionString, databaseB));
+
+            foreach (var database in databases)
+            {
+                await CreateDatabaseAsync(database.AdminConnectionString, database.Name, role);
+                databasesCreated.Add(database);
+                await InstallTimescaleExtensionAsync(database.AdminConnectionString, database.Name);
+            }
+
+            var license = CreateLicense(directory);
+            var portA = ReserveLoopbackPort();
+            var portB = ReserveLoopbackPort();
+            Assert.NotEqual(portA, portB);
+            var urlA = $"http://127.0.0.1:{portA}";
+            var urlB = $"http://127.0.0.1:{portB}";
+            var referencePath = Path.Combine(directory, "ha-reference.json");
+
+            nodeA = ApiProcess.Start(
+                "node-a", urlA, urlB, ProjectKey, referencePath, directory,
+                appConnectionA.ConnectionString, license, apiDll, root, suffix);
+            await nodeA.WaitForHealthAsync();
+            await nodeA.BootstrapAsync();
+
+            if (!sharedDatabase)
+            {
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
+                await nodeB.BootstrapAsync();
+            }
+
+            await PrepareProjectAsync(
+                nodeA,
+                activate: true,
+                writableEvidenceTag: verifyRuntimeSessionContinuity,
+                simulationScanIntervalMilliseconds: verifyRuntimeSessionContinuity ? 2_000 : 100,
+                includeHaEffects: verifyRuntimeSessionContinuity);
+            if (sharedDatabase)
+            {
+                // Start the shared-database standby only after the published project
+                // exists, so its first runtime load is materialized. Do not restart a
+                // live peer endpoint while Node A's HA synchronizer may have a pooled
+                // connection to it.
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
+                await nodeB.LoginAsync();
+            }
+            else
+            {
+                await PrepareProjectAsync(
+                    nodeB!,
+                    activate: false,
+                    writableEvidenceTag: verifyRuntimeSessionContinuity,
+                    simulationScanIntervalMilliseconds: verifyRuntimeSessionContinuity ? 2_000 : 100,
+                    includeHaEffects: verifyRuntimeSessionContinuity);
+                // In the separate-database case, publish its local copy without
+                // activating it, then restart so D2 begins from a loaded standby.
+                await nodeB!.DisposeAsync();
+                nodeB = null;
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
+                await nodeB.LoginAsync();
+            }
+            // A fresh shared-database standby can be healthy before its passive
+            // runtime has materialized. Require the same observable ReadyStandby
+            // precondition that the D2 lifecycle needs before waiting on the policy
+            // fence; keep the fence's commit/mirror predicate unchanged.
+            if (sharedDatabase)
+            {
+                await WaitForHaTopologyAsync(
+                    nodeA,
+                    topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
+                    TimeSpan.FromSeconds(75),
+                    "the shared-database standby never materialized the published runtime before policy fencing");
+            }
+            // Separate-database D2 restarts the standby before policy replication.
+            // Allow cold standby startup plus peer sync to finish under the broad T2
+            // suite; the commit predicate remains unchanged.
+            await WaitForInitialPolicyCommitAsync(
+                nodeA,
+                nodeB!,
+                referencePath,
+                sharedDatabase ? null : TimeSpan.FromSeconds(90));
+            if (!sharedDatabase)
+            {
+                await MirrorProjectToStandbyAsync(nodeA, nodeB!);
+            }
+
+            if (verifyRuntimeSessionContinuity)
+            {
+                clusterIngress = TcpClusterIngress.Start(urlA, urlB);
+                clusterBrowser = new ClusterBrowser(clusterIngress.Address);
+            }
+
+            var initialA = await WaitForHaTopologyAsync(
+                nodeA,
+                topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
+                TimeSpan.FromSeconds(75),
+                "the licensed standby never became Ready before the active process stopped");
+            var initialB = await WaitForHaTopologyAsync(
+                nodeB,
+                topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
+                TimeSpan.FromSeconds(20),
+                "the standby process did not observe the initial single authority");
+            AssertOneActive(initialA, "node-a");
+            AssertOneActive(initialB, "node-a");
+            var initialEpoch = initialA["authorityEpoch"]!.GetValue<long>();
+            HaEffectCounts? effectsBeforeFailoverA = null;
+            HaEffectCounts? effectsBeforeFailoverB = null;
+            if (verifyRuntimeSessionContinuity)
+            {
+                await WaitUntilAsync(async () =>
+                {
+                    effectsBeforeFailoverA = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                    return effectsBeforeFailoverA.HistorianSamples >= 2 &&
+                        effectsBeforeFailoverA.OperationalEvents >= 2;
+                }, TimeSpan.FromSeconds(30), "the initial Active did not produce durable script, event, and Historian evidence");
+                effectsBeforeFailoverB = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                Assert.Equal(0, effectsBeforeFailoverB.HistorianSamples);
+                Assert.Equal(0, effectsBeforeFailoverB.AlarmTransitions);
+                Assert.Equal(0, effectsBeforeFailoverB.OperationalEvents);
+            }
+
+            Guid? runtimeSessionId = null;
+            string? runtimeSessionClientInstanceId = null;
+            string? runtimeSessionSubjectId = null;
+            RuntimeSessionLeaseEvidence? standbySession = null;
+            RuntimeSessionLeaseEvidence? promotedSession = null;
+            RuntimeSessionLeaseEvidence? failedBackSession = null;
+            int[]? initialOriginIngressPorts = null;
+            var reauthenticationRequiredAfterPromotion = false;
+            if (verifyRuntimeSessionContinuity)
+            {
+                // Independent databases need the same canonical local identity on both
+                // APIs before a browser session can be resumed with the same subject.
+                // Use the supported encrypted Authority backup contract; never fabricate
+                // matching user IDs inside the test database.
+                var authorityBackup = await nodeA.SendAsync(
+                    HttpMethod.Post,
+                    "/api/auth/authority-backup/export",
+                    new JsonObject { ["password"] = AdminPassword });
+                var backupPayload = authorityBackup["backup"]?.GetValue<string>();
+                Assert.False(string.IsNullOrWhiteSpace(backupPayload));
+
+                var backupRequest = new JsonObject
+                {
+                    ["backup"] = backupPayload,
+                    ["password"] = AdminPassword
+                };
+                var backupPreview = await nodeB!.SendAsync(
+                    HttpMethod.Post,
+                    "/api/auth/authority-backup/preview",
+                    backupRequest);
+                Assert.Equal(1, backupPreview["userCount"]!.GetValue<int>());
+                Assert.True(backupPreview["policyIncluded"]!.GetValue<bool>());
+
+                var openedBackup = new Scada.Security.Authentication.AuthorityBackupService()
+                    .Open(backupPayload!, AdminPassword);
+                _ = Scada.Api.Security.AuthoritySwitchService.PrepareTarget(
+                    openedBackup,
+                    Array.Empty<Scada.Security.Authentication.LocalUserAccount>());
+
+                var backupApplied = await nodeB.SendAsync(
+                    HttpMethod.Post,
+                    "/api/auth/authority-backup/apply",
+                    backupRequest);
+                Assert.True(backupApplied["applied"]!.GetValue<bool>());
+                var ingress = clusterIngress ?? throw new InvalidOperationException("The process test TCP ingress was not started.");
+                var browser = clusterBrowser ?? throw new InvalidOperationException("The stable-origin browser client was not started.");
+
+                // Repeated connections through one local TCP ingress alternate between
+                // the two real API processes. Both must serve the same Runtime while
+                // preserving this external origin.
+                ingress.SetBackends(urlB);
+                await browser.LoginAsync();
+                ingress.SetBackends(urlA, urlB);
+                ingress.ResetSelectedBackendHistory();
+                for (var request = 0; request < 4; request++)
+                {
+                    var application = await browser.GetAsync("/api/runtime/application");
+                    Assert.Equal(ProjectKey, application["projectKey"]?.GetValue<string>());
+                }
+                initialOriginIngressPorts = ingress.SelectedBackendPorts;
+                Assert.Equal(
+                    new[] { new Uri(urlA).Port, new Uri(urlB).Port, new Uri(urlA).Port, new Uri(urlB).Port },
+                    initialOriginIngressPorts);
+
+                // Pin the ingress to the Ready Standby. Login must reach the current
+                // Active through its gateway and set the cookie on the shared origin.
+                ingress.SetBackends(urlB);
+                await browser.LoginAsync();
+                await WaitForRuntimeViewCapabilityAsync(browser, TimeSpan.FromSeconds(20));
+                staleClusterBrowser = browser.Clone();
+
+                runtimeSessionClientInstanceId = "w15-ha-d2-client-" + suffix;
+                var admitted = await browser.SendAsync(
+                    HttpMethod.Post,
+                    "/api/runtime/sessions",
+                    new JsonObject
+                    {
+                        ["clientInstanceId"] = runtimeSessionClientInstanceId,
+                        ["connectionClass"] = "interactive"
+                    },
+                    expectedStatus: HttpStatusCode.Created);
+                runtimeSessionId = admitted["sessionId"]!.GetValue<Guid>();
+                runtimeSessionSubjectId = admitted["userId"]!.GetValue<string>();
+                Assert.Equal(runtimeSessionClientInstanceId, admitted["clientInstanceId"]!.GetValue<string>());
+                Assert.Equal("interactive", admitted["grantedClass"]!.GetValue<string>());
+
+                runtimeSessionId = admitted["sessionId"]!.GetValue<Guid>();
+                await AssertSingleClusterWriteAndRealtimeEventAsync(
+                    browser,
+                    Guid.Parse("b3100000-0000-0000-0000-000000000202"),
+                    runtimeSessionId.Value,
+                    runtimeSessionClientInstanceId,
+                    137.25d);
+                await WriteClusterTagValueAsync(
+                    browser,
+                    HaEffectsAlarmTagId,
+                    runtimeSessionId.Value,
+                    runtimeSessionClientInstanceId,
+                    137.25d);
+
+                standbySession = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionB.ConnectionString,
+                    runtimeSessionId.Value,
+                    runtimeSessionSubjectId,
+                    runtimeSessionClientInstanceId,
+                    expectedServerNode: "node-a",
+                    minimumGeneration: 1,
+                    TimeSpan.FromSeconds(30));
+                Assert.Equal(1, standbySession.ActiveLogicalLeaseCount);
+            }
+
+            // OS-process loss: the standby must use the fresh pre-failure witness and
+            // reference fence to claim a strictly newer authority epoch.
+            await nodeA.DisposeAsync();
+            nodeA = null;
+            var effectsAfterActiveProcessStopA = verifyRuntimeSessionContinuity
+                ? await ReadHaEffectCountsAsync(appConnectionA.ConnectionString)
+                : null;
+            if (verifyRuntimeSessionContinuity)
+            {
+                // Keep the direct node-local admin session for topology probes; the
+                // separate stable-origin browser retains its node-a cookie for the
+                // stale-cookie check below.
+                clusterIngress!.SetBackends(urlB);
+                await nodeB.LoginAsync();
+            }
+            var promoted = await WaitForHaTopologyAsync(
+                nodeB,
+                topology => IsEffectiveActive(topology, "node-b") &&
+                    topology["authorityEpoch"]!.GetValue<long>() > initialEpoch,
+                TimeSpan.FromSeconds(90),
+                "a Ready standby did not automatically claim authority after active-process loss");
+            AssertOneActive(promoted, "node-b");
+            var promotedEpoch = promoted["authorityEpoch"]!.GetValue<long>();
+
+            if (verifyRuntimeSessionContinuity)
+            {
+                // The external ingress now targets the promoted process. Its independent
+                // Authority must reject the browser's old node-a cookie; explicit login
+                // is required before a fresh Runtime lease can be admitted.
+                var browser = clusterBrowser!;
+                var staleBrowser = staleClusterBrowser!;
+                var staleAdmission = await staleBrowser.PostRawAsync(
+                    "/api/runtime/sessions",
+                    new JsonObject
+                    {
+                        ["clientInstanceId"] = runtimeSessionClientInstanceId,
+                        ["connectionClass"] = "interactive"
+                    });
+                Assert.Equal(HttpStatusCode.Unauthorized, staleAdmission.StatusCode);
+                reauthenticationRequiredAfterPromotion = true;
+
+                await browser.LoginAsync();
+                await WaitForRuntimeViewCapabilityAsync(browser, TimeSpan.FromSeconds(20));
+                var promotedThroughIngress = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    browser,
+                    runtimeSessionClientInstanceId!,
+                    expectedActiveNode: "node-b",
+                    TimeSpan.FromSeconds(20));
+                Assert.Equal(runtimeSessionSubjectId, promotedThroughIngress["userId"]!.GetValue<string>());
+                Assert.Equal(runtimeSessionClientInstanceId, promotedThroughIngress["clientInstanceId"]!.GetValue<string>());
+                runtimeSessionId = promotedThroughIngress["sessionId"]!.GetValue<Guid>();
+                promotedSession = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionB.ConnectionString,
+                    runtimeSessionId.Value,
+                    runtimeSessionSubjectId!,
+                    runtimeSessionClientInstanceId!,
+                    expectedServerNode: "node-b",
+                    minimumGeneration: 1,
+                    TimeSpan.FromSeconds(20));
+                Assert.Equal(1, promotedSession.ActiveLogicalLeaseCount);
+                await AssertSingleClusterWriteAndRealtimeEventAsync(
+                    browser,
+                    Guid.Parse("b3100000-0000-0000-0000-000000000202"),
+                    runtimeSessionId.Value,
+                    runtimeSessionClientInstanceId!,
+                    248.5d);
+                await WriteClusterTagValueAsync(
+                    browser,
+                    HaEffectsAlarmTagId,
+                    runtimeSessionId.Value,
+                    runtimeSessionClientInstanceId!,
+                    248.5d);
+                HaEffectCounts? latestPromotedEffects = null;
+                try
+                {
+                    await WaitUntilAsync(async () =>
+                    {
+                        latestPromotedEffects = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                        return latestPromotedEffects.HistorianSamples > 0 &&
+                            latestPromotedEffects.OperationalEvents > 0 &&
+                            latestPromotedEffects.AlarmTransitions == 1;
+                    }, TimeSpan.FromSeconds(20), "the promoted Active did not produce exactly one alarm transition and durable script/history evidence");
+                }
+                catch (TimeoutException exception)
+                {
+                    var observedA = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                    var observedB = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                    var alarmDefinitions = await browser.GetAsync("/api/alarms/definitions");
+                    var activeAlarms = await browser.GetAsync("/api/alarms?activeOnly=true");
+                    var alarmTag = await browser.GetAsync("/api/tags/by-path/System.HA.AlarmInput");
+                    throw new TimeoutException(
+                        $"{exception.Message}; last promoted counts={latestPromotedEffects}; database A={observedA}; database B={observedB}; alarm definitions={alarmDefinitions.ToJsonString()}; active alarms={activeAlarms.ToJsonString()}; alarm input={alarmTag.ToJsonString()}; API B output: {nodeB.LastOutput()}",
+                        exception);
+                }
+            }
+
+            // Rejoin the old node with the same NodeId. It must reconcile the newer
+            // persisted epoch as Standby; restart alone must not restore its authority.
+            nodeA = ApiProcess.Start(
+                "node-a", urlA, urlB, ProjectKey, referencePath, directory,
+                appConnectionA.ConnectionString, license, apiDll, root, suffix);
+            await nodeA.WaitForHealthAsync();
+            await nodeA.LoginAsync();
+            var rejoinedA = await WaitForHaTopologyAsync(
+                nodeA,
+                topology => IsEffectiveActive(topology, "node-b") &&
+                    IsReadyStandby(topology, "node-a") &&
+                    !IsActive(topology, "node-a"),
+                TimeSpan.FromSeconds(60),
+                "the restarted old active did not rejoin as a fresh Ready, fenced Standby");
+            var rejoinedB = await WaitForHaTopologyAsync(
+                nodeB,
+                topology => IsEffectiveActive(topology, "node-b") &&
+                    IsReadyStandby(topology, "node-a"),
+                TimeSpan.FromSeconds(20),
+                "the active process did not observe the restarted peer as a fresh Ready Standby");
+            AssertOneActive(rejoinedA, "node-b");
+            AssertOneActive(rejoinedB, "node-b");
+            Assert.Equal(promotedEpoch, rejoinedA["authorityEpoch"]!.GetValue<long>());
+
+            if (verifyRuntimeSessionContinuity)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(1_500));
+                var effectsWhileRestartedStandbyA = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                var effectsWhilePromotedB = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                Assert.Equal(effectsAfterActiveProcessStopA, effectsWhileRestartedStandbyA);
+                Assert.True(effectsWhilePromotedB.OperationalEvents > effectsBeforeFailoverB!.OperationalEvents);
+                Assert.True(effectsWhilePromotedB.HistorianSamples > effectsBeforeFailoverB.HistorianSamples);
+
+                // Force the actual TCP ingress to select the restarted Standby. It must
+                // forward the old browser cookie to the promoted Active, which rejects it.
+                clusterIngress!.SetBackends(urlA);
+                var staleClusterRequest = await staleClusterBrowser!.PostRawAsync(
+                    "/api/runtime/sessions",
+                    new JsonObject
+                    {
+                        ["clientInstanceId"] = runtimeSessionClientInstanceId,
+                        ["connectionClass"] = "interactive"
+                    });
+                Assert.Equal(HttpStatusCode.Unauthorized, staleClusterRequest.StatusCode);
+
+                await clusterBrowser!.LoginAsync();
+                await WaitForRuntimeViewCapabilityAsync(clusterBrowser, TimeSpan.FromSeconds(20));
+                var applicationThroughStandby = await clusterBrowser.GetAsync("/api/runtime/application");
+                Assert.Equal(ProjectKey, applicationThroughStandby["projectKey"]?.GetValue<string>());
+
+                // Reauthentication and admission through the real TCP ingress and
+                // restarted Standby recover one logical seat on the promoted Active.
+                var promotedThroughCluster = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    clusterBrowser,
+                    runtimeSessionClientInstanceId!,
+                    expectedActiveNode: "node-b",
+                    TimeSpan.FromSeconds(20));
+                Assert.Equal(runtimeSessionSubjectId, promotedThroughCluster["userId"]!.GetValue<string>());
+                Assert.Equal(runtimeSessionClientInstanceId, promotedThroughCluster["clientInstanceId"]!.GetValue<string>());
+                var promotedSessionId = promotedThroughCluster["sessionId"]!.GetValue<Guid>();
+                promotedSession = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionB.ConnectionString,
+                    promotedSessionId,
+                    runtimeSessionSubjectId!,
+                    runtimeSessionClientInstanceId!,
+                    expectedServerNode: "node-b",
+                    minimumGeneration: 1,
+                    TimeSpan.FromSeconds(20));
+                Assert.Equal(1, promotedSession.ActiveLogicalLeaseCount);
+                runtimeSessionId = promotedSessionId;
+                await AssertSingleClusterWriteAndRealtimeEventAsync(
+                    clusterBrowser,
+                    Guid.Parse("b3100000-0000-0000-0000-000000000202"),
+                    runtimeSessionId.Value,
+                    runtimeSessionClientInstanceId!,
+                    359.75d);
+            }
+
+            var effectsBeforeFailbackA = verifyRuntimeSessionContinuity
+                ? await ReadHaEffectCountsAsync(appConnectionA.ConnectionString)
+                : null;
+            var effectsBeforeFailbackB = verifyRuntimeSessionContinuity
+                ? await ReadHaEffectCountsAsync(appConnectionB.ConnectionString)
+                : null;
+
+            // This request traverses the authenticated API endpoint with the temporary
+            // V3 HaRuntime license installed in both real processes; no security/license
+            // bypass is used for the controlled failback.
+            if (restartDuringFailback)
+            {
+                // Start with the promoted lease already mirrored before injecting the interruption.
+                await WaitForRuntimeSessionLeaseAsync(appConnectionA.ConnectionString,
+                    runtimeSessionId!.Value, runtimeSessionSubjectId!, runtimeSessionClientInstanceId!,
+                    "node-b", 1, TimeSpan.FromSeconds(30));
+                Console.WriteLine("MID423 baseline: same active logical lease present in both databases");
+                await using var barrier = new NpgsqlConnection(appConnectionB.ConnectionString);
+                await barrier.OpenAsync();
+                await using var tx = await barrier.BeginTransactionAsync();
+                await using var hold = new NpgsqlCommand("select singleton_id from elitescada.runtime_session_authority_state for update", barrier, tx);
+                await hold.ExecuteScalarAsync();
+                var pending = nodeB.PostRawAsync("/api/runtime/ha/actions/failback",
+                    new JsonObject { ["targetNodeId"] = "node-a" });
+                await WaitUntilAsync(async () =>
+                {
+                    var r = JsonNode.Parse(await File.ReadAllTextAsync(referencePath))!;
+                    return r["reasonCode"]?.GetValue<string>() == "explicit-failback-break"
+                        && r["activeNodeId"] is null && r["previousAuthorityFenced"]!.GetValue<bool>();
+                }, TimeSpan.FromSeconds(5), "the durable reference never reached the controlled break");
+                Assert.False(pending.IsCompleted);
+                Console.WriteLine($"MID423 observed fenced/no owner with failback still pending; epoch before={promotedEpoch}");
+                await nodeB.DisposeAsync();
+                nodeB = null;
+                await tx.RollbackAsync();
+                try { await pending; } catch (HttpRequestException) { } catch (OperationCanceledException) { }
+                nodeB = ApiProcess.Start("node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
+                Console.WriteLine("MID423 original source process restarted; health OK");
+                var heldA = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                var heldB = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                for (var sample = 0; sample < 12; sample++)
+                {
+                    var refNow = JsonNode.Parse(await File.ReadAllTextAsync(referencePath))!;
+                    var leases = new List<string>();
+                    foreach (var db in new[] { appConnectionA.ConnectionString, appConnectionB.ConnectionString })
+                    {
+                        await using var connection = new NpgsqlConnection(db);
+                        await connection.OpenAsync();
+                        await using var cmd = new NpgsqlCommand("select session_id::text from elitescada.runtime_session_leases where client_instance_id=@client and is_active and expires_at_utc>clock_timestamp()", connection);
+                        cmd.Parameters.AddWithValue("client", runtimeSessionClientInstanceId!);
+                        await using var reader = await cmd.ExecuteReaderAsync();
+                        var rows = 0;
+                        while (await reader.ReadAsync()) { rows++; leases.Add(reader.GetString(0)); }
+                        Assert.InRange(rows, 0, 1);
+                    }
+                    Console.WriteLine($"MID423 sample={sample} epoch={refNow["epoch"]} owner={refNow["activeNodeId"]} leaseCopies={leases.Count} distinct={leases.Distinct().Count()}");
+                    Assert.InRange(leases.Distinct().Count(), 0, 1);
+                    await Task.Delay(250);
+                }
+                var currentRef = JsonNode.Parse(await File.ReadAllTextAsync(referencePath))!;
+                if (currentRef["activeNodeId"] is null)
+                {
+                    Assert.Equal(heldA, await ReadHaEffectCountsAsync(appConnectionA.ConnectionString));
+                    Assert.Equal(heldB, await ReadHaEffectCountsAsync(appConnectionB.ConnectionString));
+                    Console.WriteLine($"MID423 no effects progressed on either server during fenced interval; A={heldA} B={heldB}");
+                    var recovery = await nodeA.PostRawAsync("/api/runtime/ha/actions/recovery", new JsonObject { ["targetNodeId"] = "node-a" });
+                    Console.WriteLine($"MID423 explicit recovery HTTP={(int)recovery.StatusCode} reason={recovery.Body?["reasonCode"]} code={recovery.Body?["code"]}");
+                    Assert.Equal(HttpStatusCode.Accepted, recovery.StatusCode);
+                }
+                effectsBeforeFailbackB = heldB;
+            }
+            else
+            {
+                var failback = await nodeB.PostRawAsync(
+                    "/api/runtime/ha/actions/failback",
+                    new JsonObject { ["targetNodeId"] = "node-a" });
+                Assert.True(
+                    failback.StatusCode == HttpStatusCode.Accepted,
+                    $"Expected authenticated licensed failback to be accepted, got {(int)failback.StatusCode}: {failback.Body?.ToJsonString() ?? failback.RawBody}");
+                Assert.Equal("explicit-failback", failback.Body?["kind"]?.GetValue<string>());
+                Assert.Equal("completed", failback.Body?["state"]?.GetValue<string>());
+            }
+
+            var failedBackA = await WaitForHaTopologyAsync(
+                nodeA,
+                topology => IsEffectiveActive(topology, "node-a") &&
+                    topology["authorityEpoch"]!.GetValue<long>() > promotedEpoch,
+                TimeSpan.FromSeconds(60),
+                "the authenticated, licensed failback did not return authority to the preferred node");
+            if (restartDuringFailback)
+            {
+                var login = new JsonObject { ["username"] = AdminUsername, ["password"] = AdminPassword };
+                await WaitUntilAsync(async () =>
+                {
+                    var response = await nodeB.PostRawAsync("/api/auth/login", login);
+                    if (response.StatusCode == HttpStatusCode.ServiceUnavailable &&
+                        response.Body?["reasonCode"]?.GetValue<string>() == "active-not-established") return false;
+                    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                    return true;
+                }, TimeSpan.FromSeconds(20), "B did not restore its authenticated route after A recovered");
+            }
+            var failedBackB = await WaitForHaTopologyAsync(
+                nodeB,
+                topology => IsEffectiveActive(topology, "node-a"),
+                TimeSpan.FromSeconds(20),
+                "the former active did not observe the completed failback");
+            AssertOneActive(failedBackA, "node-a");
+            AssertOneActive(failedBackB, "node-a");
+
+            if (verifyRuntimeSessionContinuity)
+            {
+                // Keep the same external origin after explicit failback; pin the test
+                // ingress to node-b Standby and verify HTTP plus WebSocket reach node-a.
+                clusterIngress!.SetBackends(urlB);
+                await clusterBrowser!.LoginAsync();
+                await WaitForRuntimeViewCapabilityAsync(clusterBrowser, TimeSpan.FromSeconds(20));
+                var resumedAfterFailback = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    clusterBrowser,
+                    runtimeSessionClientInstanceId!,
+                    expectedActiveNode: "node-a",
+                    TimeSpan.FromSeconds(20));
+                Assert.Equal(runtimeSessionSubjectId, resumedAfterFailback["userId"]!.GetValue<string>());
+                Assert.Equal(runtimeSessionClientInstanceId, resumedAfterFailback["clientInstanceId"]!.GetValue<string>());
+                var failedBackSessionId = resumedAfterFailback["sessionId"]!.GetValue<Guid>();
+                failedBackSession = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString,
+                    failedBackSessionId,
+                    runtimeSessionSubjectId!,
+                    runtimeSessionClientInstanceId!,
+                    expectedServerNode: "node-a",
+                    minimumGeneration: 1,
+                    TimeSpan.FromSeconds(20));
+                Assert.Equal(1, failedBackSession.ActiveLogicalLeaseCount);
+                if (restartDuringFailback)
+                {
+                    var replica = await WaitForRuntimeSessionLeaseAsync(appConnectionB.ConnectionString,
+                        failedBackSessionId, runtimeSessionSubjectId!, runtimeSessionClientInstanceId!, "node-a", 1, TimeSpan.FromSeconds(20));
+                    Assert.Equal(1, replica.ActiveLogicalLeaseCount);
+                    Console.WriteLine($"MID423 recovered A active, mirrored logical seat count A={failedBackSession.ActiveLogicalLeaseCount} B={replica.ActiveLogicalLeaseCount}, same id");
+                }
+                runtimeSessionId = failedBackSessionId;
+                await AssertSingleClusterWriteAndRealtimeEventAsync(
+                    clusterBrowser,
+                    Guid.Parse("b3100000-0000-0000-0000-000000000202"),
+                    failedBackSessionId,
+                    runtimeSessionClientInstanceId!,
+                    461.125d);
+                await WaitUntilAsync(async () =>
+                {
+                    var effects = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                    return effects.OperationalEvents > effectsBeforeFailbackA!.OperationalEvents &&
+                        effects.HistorianSamples > effectsBeforeFailbackA.HistorianSamples;
+                }, TimeSpan.FromSeconds(20), "the explicitly failed-back Active did not resume its durable script/history effects");
+                await Task.Delay(TimeSpan.FromMilliseconds(1_500));
+                var effectsAfterFailbackA = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                var effectsAfterFailbackB = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                Assert.Equal(effectsBeforeFailbackB, effectsAfterFailbackB);
+                var alarmTagAfterFailback = await nodeA.GetAsync("/api/tags/by-path/System.HA.AlarmInput");
+                var alarmRowsA = await ReadHaAlarmRowsAsync(appConnectionA.ConnectionString);
+                var alarmRowsB = await ReadHaAlarmRowsAsync(appConnectionB.ConnectionString);
+                var activeAlarmsAfterFailback = await nodeA.GetAsync("/api/alarms?activeOnly=true");
+                var activeAlarmAfterFailback = activeAlarmsAfterFailback.AsArray()
+                    .SingleOrDefault(item => item?["definitionId"]?.GetValue<Guid>() == HaEffectsAlarmId);
+                Assert.True(
+                    effectsAfterFailbackA.AlarmTransitions + effectsAfterFailbackB.AlarmTransitions == 1,
+                    $"Expected one unique alarm transition across independent databases. " +
+                    $"A before={effectsBeforeFailbackA}, after={effectsAfterFailbackA}; " +
+                    $"B before={effectsBeforeFailbackB}, after={effectsAfterFailbackB}; " +
+                    $"A alarm input after failback={alarmTagAfterFailback.ToJsonString()}; " +
+                    $"A alarm rows={alarmRowsA}; B alarm rows={alarmRowsB}; " +
+                    $"A active alarms={activeAlarmsAfterFailback.ToJsonString()}");
+                if (restartDuringFailback)
+                    Console.WriteLine($"MID423 effects before A={effectsBeforeFailbackA} B={effectsBeforeFailbackB}; after A={effectsAfterFailbackA} B={effectsAfterFailbackB}");
+                Assert.NotNull(activeAlarmAfterFailback);
+                Assert.Equal(1, activeAlarmAfterFailback!["state"]!.GetValue<int>());
+                Assert.Equal(248.5d, activeAlarmAfterFailback["lastValue"]!.GetValue<double>(), precision: 6);
+
+                // Repeat after failback: loss of B lets A advance its local session
+                // revision while B is offline. Logical seats still have to mirror on rejoin.
+                var repeatedSwitch = await nodeA.PostRawAsync(
+                    "/api/runtime/ha/actions/switchover",
+                    new JsonObject { ["targetNodeId"] = "node-b" });
+                Assert.Equal(HttpStatusCode.Accepted, repeatedSwitch.StatusCode);
+                var beforeSecondLoss = await WaitForHaTopologyAsync(
+                    nodeB, topology => IsEffectiveActive(topology, "node-b") && IsReadyStandby(topology, "node-a"),
+                    TimeSpan.FromSeconds(30), "A did not become Ready Standby before the second Active loss");
+                clusterIngress.SetBackends(urlB);
+                await clusterBrowser.LoginAsync();
+                var repeatedClient = "w15-ha-d2-repeat-" + suffix;
+                var repeatedSeat = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    clusterBrowser, repeatedClient, "node-b", TimeSpan.FromSeconds(20));
+                var repeatedSubject = repeatedSeat["userId"]!.GetValue<string>();
+                var repeatedSessionId = repeatedSeat["sessionId"]!.GetValue<Guid>();
+                var mirroredBeforeRenewal = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString, repeatedSessionId,
+                    repeatedSubject, repeatedClient, "node-b", 1, TimeSpan.FromSeconds(20));
+
+                // PostgreSQL reloads the lease at microsecond precision during a heartbeat.
+                // Its renewal must update the same logical lease on A before B is lost.
+                var heartbeat = await clusterBrowser.PostRawAsync(
+                    $"/api/runtime/sessions/{repeatedSessionId:D}/heartbeat",
+                    new JsonObject { ["clientInstanceId"] = repeatedClient });
+                Assert.Equal(HttpStatusCode.OK, heartbeat.StatusCode);
+                var renewedOnActive = await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionB.ConnectionString, repeatedSessionId,
+                    repeatedSubject, repeatedClient, "node-b", mirroredBeforeRenewal.Generation + 1,
+                    TimeSpan.FromSeconds(10));
+                await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString, repeatedSessionId,
+                    repeatedSubject, repeatedClient, "node-b", renewedOnActive.Generation,
+                    TimeSpan.FromSeconds(10));
+                using var secondStaleBrowser = clusterBrowser.Clone();
+                await nodeB.DisposeAsync();
+                nodeB = null;
+
+                var secondPromotion = await WaitForHaTopologyAsync(
+                    nodeA, topology => IsEffectiveActive(topology, "node-a") &&
+                        topology["authorityEpoch"]!.GetValue<long>() >
+                        beforeSecondLoss["authorityEpoch"]!.GetValue<long>(),
+                    TimeSpan.FromSeconds(90), "A did not promote after B was stopped");
+                AssertOneActive(secondPromotion, "node-a");
+                clusterIngress.SetBackends(urlA);
+                await clusterBrowser.LoginAsync();
+                var secondReadmission = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    clusterBrowser, repeatedClient, "node-a", TimeSpan.FromSeconds(20));
+                // Verify stale authentication after the Runtime opens, so a pre-admission
+                // HA conflict cannot be mistaken for rejection of an obsolete cookie.
+                var secondStaleAdmission = await secondStaleBrowser.PostRawAsync(
+                    "/api/runtime/sessions",
+                    new JsonObject { ["clientInstanceId"] = repeatedClient, ["connectionClass"] = "interactive" });
+                Assert.True(secondStaleAdmission.StatusCode == HttpStatusCode.Unauthorized,
+                    $"The old login was not rejected after the second promotion: HTTP {(int)secondStaleAdmission.StatusCode}.");
+                Assert.Equal(repeatedSubject, secondReadmission["userId"]!.GetValue<string>());
+                await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString, secondReadmission["sessionId"]!.GetValue<Guid>(),
+                    repeatedSubject, repeatedClient, "node-a", 1, TimeSpan.FromSeconds(20));
+
+                nodeB = ApiProcess.Start(
+                    "node-b", urlB, urlA, ProjectKey, referencePath, directory,
+                    appConnectionB.ConnectionString, license, apiDll, root, suffix);
+                await nodeB.WaitForHealthAsync();
+                await nodeB.LoginAsync();
+                await WaitForHaTopologyAsync(
+                    nodeB, topology => IsEffectiveActive(topology, "node-a") && IsReadyStandby(topology, "node-b"),
+                    TimeSpan.FromSeconds(60), "B did not rejoin as a standby after the second promotion");
+
+                // Returning B must also reject the exact cookie it issued before the loss.
+                clusterIngress.SetBackends(urlB);
+                var oldCookieOnRejoinedStandby = await secondStaleBrowser.PostRawAsync(
+                    "/api/runtime/sessions",
+                    new JsonObject { ["clientInstanceId"] = repeatedClient, ["connectionClass"] = "interactive" });
+                Assert.Equal(HttpStatusCode.Unauthorized, oldCookieOnRejoinedStandby.StatusCode);
+                clusterIngress.SetBackends(urlA);
+
+                var afterRejoinClient = "w15-ha-d2-rejoin-" + suffix;
+                var afterRejoin = await AdmitRuntimeSessionAfterHaActivationAsync(
+                    clusterBrowser, afterRejoinClient, "node-a", TimeSpan.FromSeconds(20));
+                var afterRejoinSession = afterRejoin["sessionId"]!.GetValue<Guid>();
+                await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionA.ConnectionString, afterRejoinSession, repeatedSubject,
+                    afterRejoinClient, "node-a", 1, TimeSpan.FromSeconds(20));
+                await WaitForRuntimeSessionLeaseAsync(
+                    appConnectionB.ConnectionString, afterRejoinSession, repeatedSubject,
+                    afterRejoinClient, "node-a", 1, TimeSpan.FromSeconds(20));
+                var finalEffectsA = await ReadHaEffectCountsAsync(appConnectionA.ConnectionString);
+                var finalEffectsB = await ReadHaEffectCountsAsync(appConnectionB.ConnectionString);
+                Assert.Equal(1, finalEffectsA.AlarmTransitions + finalEffectsB.AlarmTransitions);
+            }
+
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                evidence = "HA-D2 two-process authority lifecycle",
+                initialActive = "node-a",
+                automaticFailoverActive = "node-b",
+                explicitFailbackActive = "node-a",
+                initialEpoch,
+                promotedEpoch,
+                failedBackEpoch = failedBackA["authorityEpoch"]!.GetValue<long>(),
+                databaseTopology = independentPostgreSqlServers
+                    ? "each API process used its own disposable database on a distinct PostgreSQL system identifier"
+                    : sharedDatabase
+                        ? "both API processes used one disposable shared database name"
+                        : "each API process used its own disposable database name on the same PostgreSQL server",
+                restartRecovery = "same-NodeId rejoined Ready Standby at the newer persisted epoch",
+                clusterIngress = verifyRuntimeSessionContinuity
+                    ? new
+                    {
+                        topology = "one local TCP ingress alternated real HTTP requests across both API processes while preserving one browser origin",
+                        initialOriginIngressPorts,
+                        initialStandbyToActive = "login, one Runtime session, one TAG write, and TAG WebSocket through node-b Standby reached effective Active node-a",
+                        afterPromotion = "old cookie rejected; reauthentication, TAG write, and TAG WebSocket reached effective Active node-b",
+                        afterRejoin = "old cookie rejected through restarted node-a Standby; reauthentication, Runtime read, TAG write, and TAG WebSocket reached node-b Active",
+                        afterFailback = "reauthentication, TAG write, and TAG WebSocket through node-b Standby reached node-a Active",
+                        writeRealtimeEvents = "four distinct Runtime writes each produced exactly one matching realtime TAG event",
+                        durableNoDuplicateEffects = new
+                        {
+                            initialActive = effectsBeforeFailoverA,
+                            standbyBeforePromotion = effectsBeforeFailoverB,
+                            activeAfterPromotion = effectsBeforeFailbackB,
+                            activeAfterFailback = effectsBeforeFailbackA,
+                        coverage = "Server Script timer, Operational Event persistence, TAG Historian persistence, and one alarm transition across Active/Standby/failover/rejoin/failback"
+                        }
+                    }
+                    : null,
+                runtimeSessionContinuity = verifyRuntimeSessionContinuity
+                    ? new
+                    {
+                        sessionIdAfterFailback = runtimeSessionId,
+                        reauthenticationRequiredAfterPromotion,
+                        sessionIdAtStandby = standbySession?.SessionId,
+                        sessionIdAfterPromotion = promotedSession?.SessionId,
+                        sessionIdRotatedDuringFailover = standbySession?.SessionId != promotedSession?.SessionId,
+                        sessionIdRotatedDuringFailback = promotedSession?.SessionId != failedBackSession?.SessionId,
+                        subjectId = runtimeSessionSubjectId,
+                        clientInstanceId = runtimeSessionClientInstanceId,
+                        activeLeaseCountAtStandby = standbySession?.ActiveLogicalLeaseCount,
+                        nodeAtStandby = standbySession?.ServerNode,
+                        nodeAfterPromotion = promotedSession?.ServerNode,
+                        activeLeaseCountAfterPromotion = promotedSession?.ActiveLogicalLeaseCount,
+                        nodeAfterFailback = failedBackSession?.ServerNode,
+                        activeLeaseCountAfterFailback = failedBackSession?.ActiveLogicalLeaseCount
+                    }
+                    : null,
+                runtimeSessionLeaseEvidence = new[]
+                {
+                    "RuntimeHighAvailabilityTests.RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission",
+                    "RuntimeHighAvailabilityPeerBoundaryTests.SessionContinuityImport_PreservesOneLogicalLeaseAndRejectsStaleOrResurrectedState"
+                }
+            }, Json));
+        }
+        finally
+        {
+            clusterBrowser?.Dispose();
+            staleClusterBrowser?.Dispose();
+            if (clusterIngress is not null) await clusterIngress.DisposeAsync();
+            if (nodeB is not null) await nodeB.DisposeAsync();
+            if (nodeA is not null) await nodeA.DisposeAsync();
+            foreach (var database in databasesCreated.AsEnumerable().Reverse())
+                await DropDatabaseAsync(database.AdminConnectionString, database.Name);
+            foreach (var createdRole in rolesCreated.AsEnumerable().Reverse())
+                await DropRoleAsync(createdRole.AdminConnectionString, createdRole.Name);
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static async Task<JsonObject> WaitForHaTopologyAsync(
+        ApiProcess node,
+        Func<JsonObject, bool> predicate,
+        TimeSpan timeout,
+        string failure)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        JsonObject? last = null;
+        Exception? lastException = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                last = (await node.GetAsync("/api/runtime/ha/topology")).AsObject();
+                if (predicate(last)) return last;
+            }
+            catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException or JsonException)
+            {
+                lastException = exception;
+            }
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+        }
+
+        throw new TimeoutException(
+            $"{failure}. Last topology: {last?.ToJsonString() ?? "<unavailable>"}. " +
+            $"Last error: {lastException?.Message ?? "<none>"}");
+    }
+
+    private static async Task<JsonObject> AdmitRuntimeSessionAfterHaActivationAsync(
+        ApiProcess node,
+        string clientInstanceId,
+        string expectedActiveNode,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        JsonNode? lastResponse = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var requestBody = new JsonObject
+            {
+                ["clientInstanceId"] = clientInstanceId,
+                ["connectionClass"] = "interactive"
+            };
+            var response = await node.PostRawAsync("/api/runtime/sessions", requestBody);
+            if (response.StatusCode == HttpStatusCode.Created)
+                return response.Body as JsonObject
+                    ?? throw new InvalidOperationException("Runtime session admission returned an empty response.");
+
+            lastResponse = response.Body;
+            var authorityTransitionPending = response.StatusCode == HttpStatusCode.Conflict &&
+                string.Equals(
+                    response.Body?["capacityReasonCode"]?.GetValue<string>(),
+                    "AuthorityTransitionPending",
+                    StringComparison.Ordinal);
+            var activeAuthorityNotReady = response.StatusCode == HttpStatusCode.Conflict &&
+                string.Equals(
+                    response.Body?["code"]?.GetValue<string>(),
+                    "ha-effective-active-required",
+                    StringComparison.Ordinal);
+            if (!authorityTransitionPending && !activeAuthorityNotReady)
+            {
+                throw new InvalidOperationException(
+                    $"Runtime session admission after HA activation returned unexpected " +
+                    $"HTTP {(int)response.StatusCode}: {response.RawBody}");
+            }
+
+            var effectiveActiveNode = response.Body?["effectiveActiveNodeId"]?.GetValue<string>();
+            if (activeAuthorityNotReady &&
+                !string.Equals(effectiveActiveNode, expectedActiveNode, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Runtime session admission stayed fenced because effective Active is " +
+                    $"'{effectiveActiveNode ?? "<none>"}', expected '{expectedActiveNode}'.");
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(200));
+        }
+
+        throw new TimeoutException(
+            $"Runtime session admission did not open on {expectedActiveNode} after HA activation. " +
+            $"Last response: {lastResponse?.ToJsonString() ?? "<none>"}.");
+    }
+
+    private static async Task WaitForRuntimeViewCapabilityAsync(
+        ApiProcess node,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        JsonObject? lastCapabilities = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastCapabilities = await node.GetAsync("/api/auth/effective-capabilities") as JsonObject;
+            if (lastCapabilities?["runtime"] is JsonArray runtimeCapabilities &&
+                runtimeCapabilities.Any(value => string.Equals(
+                    value?.GetValue<string>(),
+                    "View",
+                    StringComparison.Ordinal)))
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+        }
+
+        throw new TimeoutException(
+            $"Runtime View capability did not become resolvable on {node.NodeId} after HA activation. " +
+            $"Last effective-capabilities response: {lastCapabilities?.ToJsonString() ?? "<unavailable>"}.");
+    }
+
+    private static async Task<JsonObject> AdmitRuntimeSessionAfterHaActivationAsync(
+        ClusterBrowser browser,
+        string clientInstanceId,
+        string expectedActiveNode,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        JsonNode? lastResponse = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var response = await browser.PostRawAsync(
+                "/api/runtime/sessions",
+                new JsonObject
+                {
+                    ["clientInstanceId"] = clientInstanceId,
+                    ["connectionClass"] = "interactive"
+                });
+            if (response.StatusCode == HttpStatusCode.Created)
+                return response.Body as JsonObject
+                    ?? throw new InvalidOperationException("Runtime session admission returned an empty response.");
+
+            lastResponse = response.Body;
+            var authorityTransitionPending = response.StatusCode == HttpStatusCode.Conflict &&
+                string.Equals(response.Body?["capacityReasonCode"]?.GetValue<string>(), "AuthorityTransitionPending", StringComparison.Ordinal);
+            var activeAuthorityNotReady = response.StatusCode == HttpStatusCode.Conflict &&
+                string.Equals(response.Body?["code"]?.GetValue<string>(), "ha-effective-active-required", StringComparison.Ordinal);
+            if (!authorityTransitionPending && !activeAuthorityNotReady)
+                throw new InvalidOperationException(
+                    $"Cluster ingress Runtime session admission returned unexpected HTTP {(int)response.StatusCode}: {response.RawBody}");
+
+            var effectiveActiveNode = response.Body?["effectiveActiveNodeId"]?.GetValue<string>();
+            if (activeAuthorityNotReady && !string.Equals(effectiveActiveNode, expectedActiveNode, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    $"Runtime session admission stayed fenced because effective Active is '{effectiveActiveNode ?? "<none>"}', expected '{expectedActiveNode}'.");
+
+            await Task.Delay(TimeSpan.FromMilliseconds(200));
+        }
+
+        throw new TimeoutException(
+            $"Runtime session admission through the stable origin did not open on {expectedActiveNode}. " +
+            $"Last response: {lastResponse?.ToJsonString() ?? "<none>"}.");
+    }
+
+    private static async Task WaitForRuntimeViewCapabilityAsync(ClusterBrowser browser, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        JsonObject? lastCapabilities = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastCapabilities = (await browser.GetAsync("/api/auth/effective-capabilities")) as JsonObject;
+            if (lastCapabilities?["runtime"] is JsonArray runtimeCapabilities &&
+                runtimeCapabilities.Any(value => string.Equals(value?.GetValue<string>(), "View", StringComparison.Ordinal)))
+                return;
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+        }
+
+        throw new TimeoutException(
+            $"Runtime View capability did not become resolvable through the stable origin. " +
+            $"Last response: {lastCapabilities?.ToJsonString() ?? "<unavailable>"}.");
+    }
+
+    private static async Task AssertSingleClusterWriteAndRealtimeEventAsync(
+        ClusterBrowser browser,
+        Guid tagId,
+        Guid sessionId,
+        string clientInstanceId,
+        double value)
+    {
+        using var socket = await browser.ConnectTagsAsync(sessionId, clientInstanceId);
+
+        using (var baselineTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(8)))
+        {
+            while (true)
+            {
+                using var baseline = await ReceiveWebSocketMessageAsync(socket, baselineTimeout.Token);
+                if (IsTagValueEvent(baseline, tagId)) break;
+            }
+        }
+
+        var write = await browser.PostRuntimeRawAsync(
+            $"/api/tags/{tagId:D}/write",
+            new JsonObject { ["value"] = value },
+            sessionId,
+            clientInstanceId);
+        Assert.True(
+            write.StatusCode == HttpStatusCode.Accepted,
+            $"Runtime TAG write expected HTTP {(int)HttpStatusCode.Accepted}, got {(int)write.StatusCode}: {write.RawBody}");
+
+        var matchingEvents = 0;
+        using (var firstEventTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(8)))
+        {
+            while (matchingEvents == 0)
+            {
+                using var message = await ReceiveWebSocketMessageAsync(socket, firstEventTimeout.Token);
+                if (!IsMatchingTagValueEvent(message, tagId, value)) continue;
+                matchingEvents++;
+            }
+        }
+
+        using (var quietWindow = new CancellationTokenSource(TimeSpan.FromMilliseconds(400)))
+        {
+            try
+            {
+                while (true)
+                {
+                    using var message = await ReceiveWebSocketMessageAsync(socket, quietWindow.Token);
+                    if (IsTagValueEvent(message, tagId)) matchingEvents++;
+                }
+            }
+            catch (OperationCanceledException) when (quietWindow.IsCancellationRequested)
+            {
+                // No second matching event arrived during the observation window.
+            }
+        }
+
+        Assert.Equal(1, matchingEvents);
+    }
+
+    private static async Task WriteClusterTagValueAsync(
+        ClusterBrowser browser,
+        Guid tagId,
+        Guid sessionId,
+        string clientInstanceId,
+        double value)
+    {
+        var response = await browser.PostRuntimeRawAsync(
+            $"/api/tags/{tagId:D}/write",
+            new JsonObject { ["value"] = value },
+            sessionId,
+            clientInstanceId);
+        Assert.True(
+            response.StatusCode == HttpStatusCode.Accepted,
+            $"Runtime TAG write expected HTTP {(int)HttpStatusCode.Accepted}, got {(int)response.StatusCode}: {response.RawBody}");
+    }
+
+    private static async Task<JsonDocument> ReceiveWebSocketMessageAsync(ClientWebSocket socket, CancellationToken cancellationToken)
+    {
+        using var message = new MemoryStream();
+        var buffer = new byte[4096];
+        ValueWebSocketReceiveResult result;
+        do
+        {
+            result = await socket.ReceiveAsync(buffer.AsMemory(), cancellationToken);
+            if (result.MessageType == WebSocketMessageType.Close)
+                throw new WebSocketException($"Runtime TAG WebSocket closed unexpectedly: {socket.CloseStatus} {socket.CloseStatusDescription}");
+            if (result.MessageType != WebSocketMessageType.Text)
+                throw new WebSocketException($"Runtime TAG WebSocket returned unexpected message type {result.MessageType}.");
+            message.Write(buffer, 0, result.Count);
+        }
+        while (!result.EndOfMessage);
+
+        message.Position = 0;
+        return await JsonDocument.ParseAsync(message, cancellationToken: cancellationToken);
+    }
+
+    private static bool IsMatchingTagValueEvent(JsonDocument message, Guid tagId, double expectedValue)
+    {
+        var root = message.RootElement;
+        if (!IsTagValueEvent(message, tagId) ||
+            !root.TryGetProperty("value", out var actualValue) ||
+            !actualValue.TryGetDouble(out var numericValue))
+            return false;
+
+        Assert.Equal(expectedValue, numericValue, precision: 6);
+        return true;
+    }
+
+    private static bool IsTagValueEvent(JsonDocument message, Guid tagId)
+    {
+        var root = message.RootElement;
+        return root.TryGetProperty("type", out var type) &&
+               string.Equals(type.GetString(), "tagValueChanged", StringComparison.Ordinal) &&
+               root.TryGetProperty("tag", out var tag) &&
+               tag.TryGetProperty("id", out var id) &&
+               Guid.TryParse(id.GetString(), out var actualId) && actualId == tagId;
+    }
+
+    private static async Task<RuntimeSessionLeaseEvidence> WaitForRuntimeSessionLeaseAsync(
+        string connectionString,
+        Guid sessionId,
+        string subjectId,
+        string clientInstanceId,
+        string expectedServerNode,
+        long minimumGeneration,
+        TimeSpan timeout)
+    {
+        const string sql = """
+            SELECT
+                count(*) FILTER (
+                    WHERE is_active AND expires_at_utc > clock_timestamp())::int,
+                max(session_id::text) FILTER (
+                    WHERE is_active AND expires_at_utc > clock_timestamp()),
+                max(server_node) FILTER (
+                    WHERE is_active AND expires_at_utc > clock_timestamp()),
+                max(generation) FILTER (
+                    WHERE is_active AND expires_at_utc > clock_timestamp())
+            FROM elitescada.runtime_session_leases
+            WHERE subject_id = @subject_id
+              AND client_instance_id = @client_instance_id;
+            """;
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            await using var command = new NpgsqlCommand(sql, connection);
+            command.Parameters.AddWithValue("subject_id", subjectId);
+            command.Parameters.AddWithValue("client_instance_id", clientInstanceId);
+            await using var reader = await command.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                var activeCount = reader.GetInt32(0);
+                var activeSessionId = reader.IsDBNull(1) ? (Guid?)null : Guid.Parse(reader.GetString(1));
+                var activeServerNode = reader.IsDBNull(2) ? null : reader.GetString(2);
+                var activeGeneration = reader.IsDBNull(3) ? 0 : reader.GetInt64(3);
+                if (activeCount == 1 && activeSessionId == sessionId &&
+                    string.Equals(activeServerNode, expectedServerNode, StringComparison.OrdinalIgnoreCase) &&
+                    activeGeneration >= minimumGeneration)
+                {
+                    return new RuntimeSessionLeaseEvidence(
+                        activeSessionId.Value,
+                        activeCount,
+                        activeServerNode,
+                        activeGeneration);
+                }
+            }
+            await reader.DisposeAsync();
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+        }
+
+        throw new TimeoutException(
+            $"Runtime session lease {sessionId:D} for the logical client was not observed as one active row " +
+            $"on {expectedServerNode} at generation >= {minimumGeneration} within {timeout}.");
+    }
+
+    private sealed record RuntimeSessionLeaseEvidence(
+        Guid SessionId,
+        int ActiveLogicalLeaseCount,
+        string? ServerNode,
+        long Generation);
+
+    private static bool IsEffectiveActive(JsonObject topology, string nodeId) =>
+        string.Equals(topology["effectiveActiveNodeId"]?.GetValue<string>(), nodeId, StringComparison.OrdinalIgnoreCase);
+
+    private static JsonObject HaNode(JsonObject topology, string nodeId) =>
+        topology["nodes"]!.AsArray()
+            .Select(entry => entry!.AsObject())
+            .Single(entry => string.Equals(entry["nodeId"]?.GetValue<string>(), nodeId, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsReady(JsonObject topology, string nodeId) =>
+        HaNode(topology, nodeId)["ready"]?.GetValue<bool>() == true;
+
+    private static bool IsFresh(JsonObject topology, string nodeId) =>
+        HaNode(topology, nodeId)["fresh"]?.GetValue<bool>() == true;
+
+    private static bool IsActive(JsonObject topology, string nodeId) =>
+        IsInState(HaNode(topology, nodeId), Scada.Api.Runtime.RuntimeHaState.Active);
+
+    private static bool IsReadyStandby(JsonObject topology, string nodeId)
+    {
+        var node = HaNode(topology, nodeId);
+        return IsReady(topology, nodeId) && IsFresh(topology, nodeId) &&
+            IsInState(node, Scada.Api.Runtime.RuntimeHaState.ReadyStandby);
+    }
+
+    private static bool IsInState(JsonObject node, Scada.Api.Runtime.RuntimeHaState expected)
+    {
+        var state = node["state"];
+        if (state is null) return false;
+        if (state.GetValueKind() == JsonValueKind.String)
+        {
+            return Enum.TryParse<Scada.Api.Runtime.RuntimeHaState>(state.GetValue<string>(), true, out var parsed) &&
+                parsed == expected;
+        }
+
+        return state.GetValueKind() == JsonValueKind.Number &&
+            state.GetValue<int>() == (int)expected;
+    }
+
+    private static void AssertOneActive(JsonObject topology, string expectedNodeId)
+    {
+        Assert.True(IsEffectiveActive(topology, expectedNodeId), topology.ToJsonString());
+        var activeNodes = topology["nodes"]!.AsArray()
+            .Count(entry => entry is JsonObject node &&
+                IsInState(node, Scada.Api.Runtime.RuntimeHaState.Active));
+        Assert.Equal(1, activeNodes);
+    }
+
+    private static LicenseFiles CreateLicense(string directory)
+    {
+        using var key = RSA.Create(2048);
+        var keyId = "w15-process-test-" + Guid.NewGuid().ToString("N");
+        var publicKeyPath = Path.Combine(directory, "license-public.pem");
+        File.WriteAllText(publicKeyPath, key.ExportSubjectPublicKeyInfoPem(), Encoding.ASCII);
+        var machine = new DefaultMachineIdentityProvider().GetMachineFingerprint();
+        var license = EliteScadaLicenseCodec.CreateSignedLicenseV3(
+            new EliteScadaLicenseV3Payload(
+                EliteScadaLicenseCodec.LicenseV3SchemaVersion,
+                Guid.NewGuid().ToString("D"),
+                machine,
+                LicenseTier.Tags5000,
+                DateTimeOffset.UtcNow,
+                null,
+                keyId,
+                ViewOnlySeats: 2,
+                InteractiveSeats: 2,
+                HaRuntime: true,
+                AssetProcessIntelligence: true),
+            key);
+        var licensePath = Path.Combine(directory, "test-license.license");
+        File.WriteAllText(licensePath, license, Encoding.UTF8);
+        return new LicenseFiles(licensePath, publicKeyPath, keyId);
+    }
+
+    private static async Task PrepareProjectAsync(
+        ApiProcess node,
+        bool activate,
+        bool twoScopes = false,
+        bool writableEvidenceTag = false,
+        int simulationScanIntervalMilliseconds = 100,
+        bool includeHaEffects = false)
+    {
+        var first = await node.SendAsync(
+            HttpMethod.Post,
+            "/api/engineering/persistence/projects/first",
+            new JsonObject { ["projectKey"] = ProjectKey, ["projectName"] = "W15 Stage 1 process evidence" },
+            expectedStatus: HttpStatusCode.Created);
+
+        var package = await node.GetAsync("/api/engineering/export/json");
+        const string simulationSourceKey = "w15-stage1-simulation";
+        var simulationSource = new JsonObject
+        {
+            ["id"] = "b3100000-0000-0000-0000-000000000200",
+            ["key"] = simulationSourceKey,
+            ["name"] = "Stage 1 evidence simulation",
+            ["driver"] = "builtin.simulation",
+            ["enabled"] = true,
+            ["settings"] = new JsonObject
+            {
+                ["scanIntervalMilliseconds"] = simulationScanIntervalMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            }
+        };
+        if (package["dataSources"] is JsonArray dataSources)
+            dataSources.Add(simulationSource);
+        else
+            package["dataSources"] = new JsonArray(simulationSource);
+        var tags = package["tags"]!.AsArray();
+        tags.Add(new JsonObject
+        {
+            ["id"] = "b3100000-0000-0000-0000-000000000202",
+            ["name"] = "Pressure",
+            ["path"] = "Plant.Pump.Pressure",
+            ["dataType"] = "double",
+            ["source"] = simulationSourceKey,
+            ["dataSourceId"] = "b3100000-0000-0000-0000-000000000200",
+            ["engineeringUnit"] = "bar",
+            ["readOnly"] = !writableEvidenceTag
+        });
+        package["equipment"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "b3100000-0000-0000-0000-000000000201",
+            ["path"] = "Plant.Pump",
+            ["name"] = "Evidence Pump"
+        });
+        if (twoScopes)
+            package["equipment"]!.AsArray().Add(new JsonObject
+            {
+                ["id"] = "b3100000-0000-0000-0000-000000000211",
+                ["path"] = "Plant.Pump02", ["name"] = "Second evidence pump"
+            });
+        if (includeHaEffects)
+            AddHaEffectsFixture(package.AsObject());
+        await node.SendAsync(
+            HttpMethod.Post,
+            "/api/engineering/import/json/apply",
+            package);
+
+        var saved = await node.SendAsync(
+            HttpMethod.Post,
+            $"/api/engineering/persistence/{ProjectKey}/save",
+            new JsonObject { ["projectName"] = "W15 Stage 1 process evidence", ["savedBy"] = "process-evidence" });
+        var revision = saved["revision"]!.GetValue<long>();
+        await node.SendAsync(
+            HttpMethod.Post,
+            $"/api/engineering/persistence/{ProjectKey}/revisions/{revision}/publish",
+            new JsonObject { ["publishedBy"] = "process-evidence" });
+
+        if (activate)
+        {
+            var result = await node.SendAsync(
+                HttpMethod.Post,
+                $"/api/engineering/persistence/{ProjectKey}/published/activate",
+                new JsonObject { ["activatedBy"] = "process-evidence" });
+            Assert.True(result["activated"]!.GetValue<bool>(), result.ToJsonString());
+
+            var runtimeTag = await node.GetAsync("/api/tags/by-path/Plant.Pump.Pressure");
+            Assert.Equal(
+                Guid.Parse("b3100000-0000-0000-0000-000000000202"),
+                runtimeTag["tag"]!["id"]!.GetValue<Guid>());
+        }
+        else
+        {
+            Assert.True(first["revision"]?["revision"]!.GetValue<long>() > 0);
+        }
+    }
+
+    private static void AddHaEffectsFixture(JsonObject package)
+    {
+        var dataSources = package["dataSources"]!.AsArray();
+        dataSources.Add(new JsonObject
+        {
+            ["id"] = HaEffectsMemorySourceId.ToString("D"),
+            ["key"] = "memory.server",
+            ["name"] = "HA effects test memory",
+            ["driver"] = "builtin.memory.server",
+            ["enabled"] = true,
+            ["settings"] = new JsonObject()
+        });
+
+        package["tags"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = HaEffectsCounterTagId.ToString("D"),
+            ["name"] = "HA effects counter",
+            ["path"] = "System.HA.EffectsCounter",
+            ["dataType"] = "int32",
+            ["source"] = "memory.server",
+            ["dataSourceId"] = HaEffectsMemorySourceId.ToString("D"),
+            ["readOnly"] = false,
+            ["historian"] = new JsonObject { ["enabled"] = true, ["strategy"] = "on-change" },
+            ["initialValue"] = new JsonObject { ["dataType"] = "int32", ["value"] = 0 }
+        });
+
+        package["tags"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = HaEffectsAlarmTagId.ToString("D"),
+            ["name"] = "HA effects alarm input",
+            ["path"] = "System.HA.AlarmInput",
+            ["dataType"] = "double",
+            ["source"] = "memory.server",
+            ["dataSourceId"] = HaEffectsMemorySourceId.ToString("D"),
+            ["readOnly"] = false,
+            ["initialValue"] = new JsonObject { ["dataType"] = "double", ["value"] = 0 }
+        });
+
+        package["alarms"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = HaEffectsAlarmId.ToString("D"),
+            ["name"] = "HA independent process alarm",
+            ["tagId"] = HaEffectsAlarmTagId.ToString("D"),
+            ["tagPath"] = "System.HA.AlarmInput",
+            ["type"] = "high",
+            ["priority"] = "high",
+            ["setpoint"] = 200,
+            ["activationDelayMilliseconds"] = 0,
+            ["enabled"] = true
+        });
+
+        package["operationalEvents"] = new JsonArray(new JsonObject
+        {
+            ["id"] = HaEffectsOperationalEventId.ToString("D"),
+            ["key"] = "ha.independent.effects.tick",
+            ["name"] = "HA independent effects tick",
+            ["type"] = "state-change",
+            ["category"] = "process",
+            ["source"] = "runtime.server-script",
+            ["enabled"] = true
+        });
+
+        var scriptSource = string.Join('\n',
+            "def tick(event):",
+            $"    current = read_server_memory(\"{HaEffectsCounterTagId:D}\")",
+            "    next_value = current + 1",
+            $"    write_server_memory(\"{HaEffectsCounterTagId:D}\", next_value)",
+            $"    emit_operational_event(\"{HaEffectsOperationalEventId:D}\", \"HA effects tick \" + str(next_value))");
+        package["scripts"] = new JsonArray(new JsonObject
+        {
+            ["id"] = HaEffectsScriptId.ToString("D"),
+            ["path"] = "Scripts.HAIndependentEffects",
+            ["name"] = "HA independent effects witness",
+            ["scope"] = "server",
+            ["source"] = scriptSource,
+            ["enabled"] = true,
+            ["language"] = "python",
+            ["languageVersion"] = "3",
+            ["entryPoints"] = new JsonArray(new JsonObject
+            {
+                ["eventKind"] = "timer",
+                ["handlerName"] = "tick",
+                ["timerIntervalMs"] = 3_000
+            }),
+            ["dependencies"] = new JsonArray(new JsonObject
+            {
+                ["kind"] = "serverMemoryTag",
+                ["stableReference"] = HaEffectsCounterTagId.ToString("D")
+            })
+        });
+    }
+
+    private sealed record HaEffectCounts(long HistorianSamples, long AlarmTransitions, long OperationalEvents);
+
+    private static async Task<HaEffectCounts> ReadHaEffectCountsAsync(string connectionString)
+    {
+        const string sql = """
+            SELECT
+                (SELECT count(*) FROM elitescada.tag_history WHERE tag_id = @counter_tag_id),
+                (SELECT count(*) FROM elitescada.alarm_history WHERE alarm_id = @alarm_id),
+                (SELECT count(*) FROM elitescada.operational_event_history WHERE definition_id = @event_id);
+            """;
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("counter_tag_id", HaEffectsCounterTagId);
+        command.Parameters.AddWithValue("alarm_id", HaEffectsAlarmId);
+        command.Parameters.AddWithValue("event_id", HaEffectsOperationalEventId);
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        return new HaEffectCounts(reader.GetInt64(0), reader.GetInt64(1), reader.GetInt64(2));
+    }
+
+    private static async Task<string> ReadHaAlarmRowsAsync(string connectionString)
+    {
+        const string sql = """
+            SELECT previous_state, state, tag_path, timestamp_utc
+            FROM elitescada.alarm_history
+            WHERE alarm_id = @alarm_id
+            ORDER BY timestamp_utc;
+            """;
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("alarm_id", HaEffectsAlarmId);
+        await using var reader = await command.ExecuteReaderAsync();
+        var rows = new List<string>();
+        while (await reader.ReadAsync())
+            rows.Add($"{reader.GetInt16(0)}->{reader.GetInt16(1)} {reader.GetString(2)} @ {reader.GetDateTime(3):O}");
+        return string.Join(" | ", rows);
+    }
+
+    private static async Task ConfigureAndActivateIntelligenceAsync(ApiProcess node, bool twoScopes = false)
+    {
+        var tagId = Guid.Parse("b3100000-0000-0000-0000-000000000202");
+        var equipmentId = Guid.Parse("b3100000-0000-0000-0000-000000000201");
+        var profileId = Guid.Parse("b3100000-0000-0000-0000-000000000203");
+        var assignmentId = Guid.Parse("b3100000-0000-0000-0000-000000000204");
+        var signalId = Guid.Parse("b3100000-0000-0000-0000-000000000205");
+        var scopeId = equipmentId;
+
+        await node.SendAsync(
+            HttpMethod.Put,
+            "/api/engineering/asset-process-intelligence/scopes",
+            new JsonObject
+            {
+                ["scopes"] = twoScopes
+                    ? new JsonArray(new JsonObject { ["kind"] = 0, ["scopeId"] = scopeId.ToString("D") },
+                        new JsonObject { ["kind"] = 0, ["scopeId"] = "b3100000-0000-0000-0000-000000000211" })
+                    : new JsonArray(new JsonObject { ["kind"] = 0, ["scopeId"] = scopeId.ToString("D") })
+            });
+        await node.SendAsync(
+            HttpMethod.Put,
+            "/api/engineering/asset-process-intelligence/configuration",
+            new JsonObject
+            {
+                ["profiles"] = new JsonArray(new JsonObject
+                {
+                    ["id"] = profileId.ToString("D"),
+                    ["key"] = "w15.evidence.pressure",
+                    ["name"] = "Pressure evidence profile",
+                    ["signals"] = new JsonArray(new JsonObject
+                    {
+                        ["id"] = signalId.ToString("D"),
+                        ["key"] = "pressure",
+                        ["signalRole"] = "pressure",
+                        ["tagId"] = tagId.ToString("D"),
+                        ["required"] = true
+                    })
+                }),
+                ["assignments"] = new JsonArray(new JsonObject
+                {
+                    ["id"] = assignmentId.ToString("D"),
+                    ["equipmentId"] = equipmentId.ToString("D"),
+                    ["profileId"] = profileId.ToString("D")
+                }),
+                ["processStages"] = new JsonArray()
+            });
+
+        // Configure endpoints mark the Engineering workspace dirty. The activation
+        // contract requires the current runtime to be the published active revision,
+        // so persist, publish, and activate this derived revision before activating
+        // the intelligence scope itself.
+        var saved = await node.SendAsync(
+            HttpMethod.Post,
+            $"/api/engineering/persistence/{ProjectKey}/save",
+            new JsonObject { ["projectName"] = "W15 Stage 1 process evidence", ["savedBy"] = "process-evidence" });
+        var revision = saved["revision"]!.GetValue<long>();
+        await node.SendAsync(
+            HttpMethod.Post,
+            $"/api/engineering/persistence/{ProjectKey}/revisions/{revision}/publish",
+            new JsonObject { ["publishedBy"] = "process-evidence" });
+        var runtimeActivation = await node.SendAsync(
+            HttpMethod.Post,
+            $"/api/engineering/persistence/{ProjectKey}/published/activate",
+            new JsonObject { ["activatedBy"] = "process-evidence" });
+        Assert.True(runtimeActivation["activated"]!.GetValue<bool>(), runtimeActivation.ToJsonString());
+
+        var activated = await node.SendAsync(
+            HttpMethod.Post,
+            $"/api/engineering/asset-process-intelligence/scopes/equipment/{scopeId:D}/activate",
+            new JsonObject());
+        Assert.True(activated["active"]!.GetValue<bool>(), activated.ToJsonString());
+        var executionStatus = await node.GetAsync("/api/engineering/asset-process-intelligence/scopes");
+        Assert.True(
+            executionStatus["configuration"]?["scopes"]?[0]?["executionArmed"]?.GetValue<bool>(),
+            executionStatus.ToJsonString());
+    }
+
+    private static async Task MirrorProjectToStandbyAsync(ApiProcess active, ApiProcess standby)
+    {
+        var application = await active.GetAsync("/api/engineering/export/json");
+        var imported = await standby.SendAsync(
+            HttpMethod.Post,
+            "/api/engineering/import/json/apply",
+            application);
+        Assert.Empty(imported["issues"]?.AsArray() ?? []);
+
+        var saved = await standby.SendAsync(
+            HttpMethod.Post,
+            $"/api/engineering/persistence/{ProjectKey}/save",
+            new JsonObject { ["projectName"] = "W15 Stage 1 process evidence", ["savedBy"] = "process-evidence-standby-mirror" });
+        var revision = saved["revision"]!.GetValue<long>();
+        await standby.SendAsync(
+            HttpMethod.Post,
+            $"/api/engineering/persistence/{ProjectKey}/revisions/{revision}/publish",
+            new JsonObject { ["publishedBy"] = "process-evidence-standby-mirror" });
+    }
+
+    private static async Task<JsonObject> GrantIntelligenceManageAsync(ApiProcess a, ApiProcess b)
+    {
+        var policy = (await a.GetAsync("/api/auth/authority-policy")).AsObject();
+        var equipmentId = Guid.Parse("b3100000-0000-0000-0000-000000000201");
+        var roles = policy["roles"]!.DeepClone().AsArray();
+        var developer = roles.Select(role => role!.AsObject())
+            .Single(role => string.Equals(role["key"]?.GetValue<string>(), "developer", StringComparison.OrdinalIgnoreCase));
+        developer["grants"]!.AsArray().Add(new JsonObject
+        {
+            ["capability"] = "assetProcessIntelligenceManage",
+            ["scope"] = new JsonObject
+            {
+                ["scopeNodeId"] = equipmentId.ToString("D"),
+                ["includeDescendants"] = false
+            }
+        });
+
+        var scopes = policy["scopes"]!.DeepClone().AsArray();
+        scopes.Add(new JsonObject
+        {
+            ["id"] = equipmentId.ToString("D"),
+            ["key"] = "equipment.plant.pump",
+            ["name"] = "Plant.Pump",
+            // This API's HttpJsonOptions serialize enums numerically; only the HA
+            // replication wire applies the lower-camel string enum converter.
+            ["kind"] = 2,
+            ["resourceId"] = equipmentId.ToString("D")
+        });
+
+        var updated = await a.SendAsync(
+            HttpMethod.Put,
+            "/api/auth/authority-policy",
+            new JsonObject
+            {
+                ["schema"] = "elitescada.authority-policy",
+                ["schemaVersion"] = 1,
+                ["expectedVersion"] = policy["version"]!.GetValue<long>(),
+                ["roles"] = roles,
+                ["scopes"] = scopes
+            });
+        Assert.Equal(policy["version"]!.GetValue<long>() + 1, updated["version"]!.GetValue<long>());
+        await WaitForPolicyVersionAsync(b, updated["version"]!.GetValue<long>());
+        return updated.AsObject();
+    }
+
+    private static async Task WaitForInitialPolicyCommitAsync(
+        ApiProcess a,
+        ApiProcess b,
+        string referencePath,
+        TimeSpan? timeout = null)
+    {
+        var deadline = DateTimeOffset.UtcNow + (timeout ?? TimeSpan.FromSeconds(30));
+        var lastState = "No policy status collected.";
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                var documentA = await a.GetAsync("/api/auth/authority-policy");
+                var documentB = await b.GetAsync("/api/auth/authority-policy");
+                var reference = JsonNode.Parse(await File.ReadAllTextAsync(referencePath));
+                var policy = reference?["authorityPolicy"];
+                lastState = $"A={documentA.ToJsonString()}; B={documentB.ToJsonString()}; reference={policy?.ToJsonString() ?? "<missing>"}";
+                if (documentA["version"]?.GetValue<long>() == documentB["version"]?.GetValue<long>() &&
+                    policy?["committedVersion"]?.GetValue<long>() == documentA["version"]!.GetValue<long>() &&
+                    policy?["pendingVersion"] is null)
+                    return;
+            }
+            catch (Exception exception) when (exception is IOException or HttpRequestException or JsonException)
+            {
+                lastState = exception.Message;
+            }
+            await Task.Delay(150);
+        }
+
+        throw new TimeoutException(
+            $"Initial policy was not committed and mirrored through the two API processes. Last observed state: {lastState}. " +
+            $"A log: {a.LastOutput()}{Environment.NewLine}B log: {b.LastOutput()}");
+    }
+
+    private static async Task WaitForRejoinAndPolicyCommitAsync(ApiProcess a, ApiProcess b, string referencePath, long revokedVersion)
+    {
+        await WaitUntilAsync(async () =>
+        {
+            try
+            {
+                var documentA = await a.GetAsync("/api/auth/authority-policy");
+                var documentB = await b.GetAsync("/api/auth/authority-policy");
+                var reference = JsonNode.Parse(await File.ReadAllTextAsync(referencePath));
+                var policy = reference?["authorityPolicy"];
+                return documentA["version"]?.GetValue<long>() == revokedVersion &&
+                    documentB["version"]?.GetValue<long>() == revokedVersion &&
+                    policy?["committedVersion"]?.GetValue<long>() == revokedVersion &&
+                    policy?["pendingVersion"] is null;
+            }
+            catch (Exception exception) when (exception is IOException or HttpRequestException or JsonException)
+            {
+                return false;
+            }
+        }, TimeSpan.FromSeconds(40), "Restarted standby did not rejoin and acknowledge the pending revoked policy.");
+    }
+
+    private static async Task WaitForPolicyVersionAsync(ApiProcess node, long version) =>
+        await WaitUntilAsync(async () =>
+        {
+            try { return (await node.GetAsync("/api/auth/authority-policy"))["version"]?.GetValue<long>() == version; }
+            catch (HttpRequestException) { return false; }
+        }, TimeSpan.FromSeconds(20), $"Node {node.NodeId} did not reach policy version {version}.");
+
+    private static JsonArray RemoveTrendUse(JsonArray roles)
+    {
+        var developer = roles.Select(role => role!.AsObject())
+            .Single(role => string.Equals(role["key"]?.GetValue<string>(), "developer", StringComparison.OrdinalIgnoreCase));
+        var grants = developer["grants"]!.AsArray();
+        for (var index = grants.Count - 1; index >= 0; index--)
+        {
+            if (string.Equals(grants[index]?["capability"]?.GetValue<string>(), "trendUse", StringComparison.OrdinalIgnoreCase))
+                grants.RemoveAt(index);
+        }
+        Assert.DoesNotContain(grants, grant => string.Equals(
+            grant?["capability"]?.GetValue<string>(), "trendUse", StringComparison.OrdinalIgnoreCase));
+        return roles;
+    }
+
+    private static JsonObject AnalyticsRequest() => new()
+    {
+        ["scopeKind"] = 0,
+        ["scopeId"] = "b3100000-0000-0000-0000-000000000201",
+        ["tagId"] = "b3100000-0000-0000-0000-000000000202",
+        ["window"] = new JsonObject
+        {
+            ["fromUtc"] = DateTimeOffset.UtcNow.AddHours(-1).ToString("O"),
+            ["toUtc"] = DateTimeOffset.UtcNow.ToString("O")
+        },
+        ["bucketSeconds"] = 900
+    };
+
+    private static async Task SeedSlowHistorianAsync(string appConnectionString)
+    {
+        await using var connection = new NpgsqlConnection(appConnectionString);
+        await connection.OpenAsync();
+        var start = DateTimeOffset.UtcNow.AddMinutes(-5);
+        await using var transaction = await connection.BeginTransactionAsync();
+        await using var insert = new NpgsqlCommand(
+            "INSERT INTO elitescada.tag_history(tag_id, ts, quality, source, value, data_type) VALUES (@tag, @ts, @quality, 'w15-stage1-process-evidence', @value, @data_type)",
+            connection,
+            transaction);
+        insert.Parameters.Add("tag", NpgsqlDbType.Uuid).Value = Guid.Parse("b3100000-0000-0000-0000-000000000202");
+        insert.Parameters.Add("ts", NpgsqlDbType.TimestampTz);
+        insert.Parameters.Add("quality", NpgsqlDbType.Integer).Value = (int)TagQuality.Good;
+        insert.Parameters.Add("value", NpgsqlDbType.Jsonb).Value = "12.5";
+        insert.Parameters.Add("data_type", NpgsqlDbType.Smallint).Value = (short)TagDataType.Double;
+        for (var index = 0; index < 402; index++)
+        {
+            insert.Parameters["ts"].Value = start.AddMilliseconds(index * 100);
+            await insert.ExecuteNonQueryAsync();
+        }
+        await transaction.CommitAsync();
+
+        // Finish the provider's lazy sample_id bootstrap before installing the
+        // delayed RLS policy. Otherwise its infrastructure UPDATE is the first
+        // active tag_history statement and can be mistaken for the analytics page.
+        await using (var providerBootstrap = new NpgsqlCommand(
+            """
+            CREATE SEQUENCE IF NOT EXISTS elitescada.tag_history_sample_id_seq;
+            ALTER TABLE elitescada.tag_history ADD COLUMN IF NOT EXISTS sample_id bigint NULL;
+            ALTER TABLE elitescada.tag_history ALTER COLUMN sample_id SET DEFAULT nextval('elitescada.tag_history_sample_id_seq');
+            UPDATE elitescada.tag_history SET sample_id = nextval('elitescada.tag_history_sample_id_seq') WHERE sample_id IS NULL;
+            ALTER TABLE elitescada.tag_history ALTER COLUMN sample_id SET NOT NULL;
+            ALTER SEQUENCE elitescada.tag_history_sample_id_seq OWNED BY elitescada.tag_history.sample_id;
+            CREATE INDEX IF NOT EXISTS ix_tag_history_time_sample_id_desc ON elitescada.tag_history (ts DESC, sample_id DESC);
+            """,
+            connection))
+            await providerBootstrap.ExecuteNonQueryAsync();
+
+        // Seed before FORCE ROW LEVEL SECURITY. Delay page 2 so the test can revoke
+        // during real pagination, and record any row from page 3 as a forbidden read.
+        await using (var markers = new NpgsqlCommand(
+            "CREATE TABLE elitescada.w15_evidence_page_bounds (page_two_from timestamptz NOT NULL, page_three_from timestamptz NOT NULL); " +
+            "INSERT INTO elitescada.w15_evidence_page_bounds VALUES (@page_two, @page_three); " +
+            "CREATE TABLE elitescada.w15_evidence_page_three_reads (read_count integer NOT NULL); " +
+            "INSERT INTO elitescada.w15_evidence_page_three_reads VALUES (0)",
+            connection))
+        {
+            markers.Parameters.AddWithValue("page_two", NpgsqlDbType.TimestampTz, start.AddMilliseconds(20_000));
+            markers.Parameters.AddWithValue("page_three", NpgsqlDbType.TimestampTz, start.AddMilliseconds(40_050));
+            await markers.ExecuteNonQueryAsync();
+        }
+        await using (var function = new NpgsqlCommand(
+            """
+            CREATE OR REPLACE FUNCTION elitescada.w15_evidence_delay(sample_timestamp timestamptz)
+            RETURNS boolean LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+            SET search_path = elitescada, pg_temp
+            AS $$
+            DECLARE page_two_from timestamptz; page_three_from timestamptz;
+            BEGIN
+                SELECT bounds.page_two_from, bounds.page_three_from
+                  INTO page_two_from, page_three_from
+                  FROM w15_evidence_page_bounds AS bounds LIMIT 1;
+                IF sample_timestamp > page_three_from THEN
+                    UPDATE w15_evidence_page_three_reads SET read_count = read_count + 1;
+                    PERFORM pg_sleep(0.04);
+                ELSIF sample_timestamp >= page_two_from THEN
+                    PERFORM set_config('application_name', 'w15-stage1-page-2', false);
+                    PERFORM pg_sleep(0.04);
+                END IF;
+                RETURN TRUE;
+            END
+            $$
+            """,
+            connection))
+            await function.ExecuteNonQueryAsync();
+        await using (var enable = new NpgsqlCommand("ALTER TABLE elitescada.tag_history ENABLE ROW LEVEL SECURITY", connection))
+            await enable.ExecuteNonQueryAsync();
+        await using (var force = new NpgsqlCommand("ALTER TABLE elitescada.tag_history FORCE ROW LEVEL SECURITY", connection))
+            await force.ExecuteNonQueryAsync();
+        await using (var updatePolicy = new NpgsqlCommand(
+            "CREATE POLICY w15_evidence_initialize ON elitescada.tag_history FOR UPDATE USING (true) WITH CHECK (true)",
+            connection))
+            await updatePolicy.ExecuteNonQueryAsync();
+        await using (var policy = new NpgsqlCommand(
+            "CREATE POLICY w15_evidence_delay ON elitescada.tag_history FOR SELECT USING (elitescada.w15_evidence_delay(ts))",
+            connection))
+            await policy.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<int> ReadPageThreeObservationCountAsync(string appConnectionString)
+    {
+        await using var connection = new NpgsqlConnection(appConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            "SELECT read_count FROM elitescada.w15_evidence_page_three_reads",
+            connection);
+        return (int)(await command.ExecuteScalarAsync() ?? 0);
+    }
+
+    private static async Task RemoveSlowHistorianPolicyAsync(string appConnectionString)
+    {
+        await using var connection = new NpgsqlConnection(appConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            "DROP POLICY IF EXISTS w15_evidence_delay ON elitescada.tag_history; " +
+            "DROP POLICY IF EXISTS w15_evidence_initialize ON elitescada.tag_history; " +
+            "DROP FUNCTION IF EXISTS elitescada.w15_evidence_delay(timestamptz); " +
+            "DROP TABLE IF EXISTS elitescada.w15_evidence_page_three_reads; " +
+            "DROP TABLE IF EXISTS elitescada.w15_evidence_page_bounds",
+            connection);
+        await command.ExecuteNonQueryAsync();
+        await using var clear = new NpgsqlCommand("ALTER TABLE elitescada.tag_history NO FORCE ROW LEVEL SECURITY; ALTER TABLE elitescada.tag_history DISABLE ROW LEVEL SECURITY", connection);
+        await clear.ExecuteNonQueryAsync();
+    }
+
+    private static async Task WaitForHistorianReadAsync(
+        string adminConnectionString,
+        string database,
+        TimeSpan timeout,
+        string? applicationName = null)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            await using var connection = new NpgsqlConnection(new NpgsqlConnectionStringBuilder(adminConnectionString)
+            {
+                Database = database,
+                ApplicationName = "w15-stage1-observer",
+                Pooling = false
+            }.ConnectionString);
+            await connection.OpenAsync();
+            await using var command = new NpgsqlCommand(
+                "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname = @database AND application_name <> 'w15-stage1-observer' AND state = 'active' AND query ILIKE '%FROM elitescada.tag_history%' AND (@application_name IS NULL OR application_name = @application_name))",
+                connection);
+            command.Parameters.AddWithValue("database", database);
+            command.Parameters.AddWithValue("application_name", (object?)applicationName ?? DBNull.Value);
+            if ((bool)(await command.ExecuteScalarAsync() ?? false)) return;
+            await Task.Delay(50);
+        }
+        await using var diagnosticConnection = new NpgsqlConnection(new NpgsqlConnectionStringBuilder(adminConnectionString)
+        {
+            Database = database,
+            Pooling = false
+        }.ConnectionString);
+        await diagnosticConnection.OpenAsync();
+        await using var diagnostic = new NpgsqlCommand(
+            "SELECT COALESCE(string_agg(application_name || ' [' || state || '] ' || left(query, 220), E'\\n'), '<none>') FROM pg_stat_activity WHERE datname = @database AND query ILIKE '%tag_history%'",
+            diagnosticConnection);
+        diagnostic.Parameters.AddWithValue("database", database);
+        var activity = (string?)await diagnostic.ExecuteScalarAsync();
+        throw new TimeoutException($"The real API process never entered the delayed Historian SELECT for application '{applicationName}'. Active matching sessions: {activity}");
+    }
+
+    private static async Task WaitUntilAsync(Func<Task<bool>> predicate, TimeSpan timeout, string message)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (await predicate()) return;
+            await Task.Delay(150);
+        }
+        throw new TimeoutException(message);
+    }
+
+    private static async Task<string> GetPostgreSqlSystemIdentifierAsync(string connectionString)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            "SELECT system_identifier::text FROM pg_control_system()",
+            connection);
+        return await command.ExecuteScalarAsync() as string ??
+            throw new InvalidOperationException("PostgreSQL did not return its system identifier.");
+    }
+
+    private static async Task CreateRoleAsync(string connectionString, string role, string password)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand($"CREATE ROLE {role} LOGIN PASSWORD '{password}'", connection);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task CreateDatabaseAsync(string connectionString, string database, string owner)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand($"CREATE DATABASE {database} OWNER {owner}", connection);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task InstallTimescaleExtensionAsync(string connectionString, string database)
+    {
+        await using var connection = new NpgsqlConnection(new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            Database = database,
+            Pooling = false
+        }.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("CREATE EXTENSION IF NOT EXISTS timescaledb", connection);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task DropDatabaseAsync(string connectionString, string database)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using (var terminate = new NpgsqlCommand(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = @database AND pid <> pg_backend_pid()",
+            connection))
+        {
+            terminate.Parameters.AddWithValue("database", database);
+            await terminate.ExecuteNonQueryAsync();
+        }
+        await using var drop = new NpgsqlCommand($"DROP DATABASE IF EXISTS {database}", connection);
+        await drop.ExecuteNonQueryAsync();
+    }
+
+    private static async Task DropRoleAsync(string connectionString, string role)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand($"DROP ROLE IF EXISTS {role}", connection);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static int ReserveLoopbackPort()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        return ((IPEndPoint)listener.LocalEndpoint).Port;
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        for (var directory = new DirectoryInfo(Directory.GetCurrentDirectory()); directory is not null; directory = directory.Parent)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "src", "Scada.Api", "Scada.Api.csproj")))
+                return directory.FullName;
+        }
+        throw new DirectoryNotFoundException("Could not find the EliteSCADA repository root from the test process.");
+    }
+
+    private sealed record LicenseFiles(string LicensePath, string PublicKeyPath, string KeyId);
+
+    private sealed record ApiResponse(HttpStatusCode StatusCode, JsonNode? Body, string RawBody);
+
+    private sealed class TcpClusterIngress : IAsyncDisposable
+    {
+        private readonly TcpListener _listener;
+        private readonly CancellationTokenSource _shutdown = new();
+        private readonly ConcurrentDictionary<int, Task> _connections = new();
+        private readonly ConcurrentQueue<int> _selectedBackendPorts = new();
+        private readonly object _backendsLock = new();
+        private Uri[] _backends;
+        private readonly Task _acceptLoop;
+        private int _nextBackend = -1;
+        private int _connectionId;
+
+        private TcpClusterIngress(TcpListener listener, Uri[] backends)
+        {
+            _listener = listener;
+            _backends = backends;
+            Address = "http://127.0.0.1:" + ((IPEndPoint)listener.LocalEndpoint).Port;
+            _acceptLoop = AcceptLoopAsync();
+        }
+
+        public string Address { get; }
+
+        public int[] SelectedBackendPorts => _selectedBackendPorts.ToArray();
+
+        public void ResetSelectedBackendHistory()
+        {
+            while (_selectedBackendPorts.TryDequeue(out _)) { }
+        }
+
+        public static TcpClusterIngress Start(params string[] backends)
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            try
+            {
+                return new TcpClusterIngress(listener, ParseBackends(backends));
+            }
+            catch
+            {
+                listener.Stop();
+                throw;
+            }
+        }
+
+        public void SetBackends(params string[] backends)
+        {
+            var parsed = ParseBackends(backends);
+            lock (_backendsLock) _backends = parsed;
+            Interlocked.Exchange(ref _nextBackend, -1);
+        }
+
+        private static Uri[] ParseBackends(string[] backends)
+        {
+            if (backends.Length == 0) throw new ArgumentException("At least one TCP ingress backend is required.", nameof(backends));
+            var parsed = backends.Select(value => new Uri(value, UriKind.Absolute)).ToArray();
+            if (parsed.Any(uri => uri.Scheme != Uri.UriSchemeHttp || uri.Host != "127.0.0.1"))
+                throw new ArgumentException("The test ingress accepts only local plain-HTTP API backends.", nameof(backends));
+            return parsed;
+        }
+
+        private async Task AcceptLoopAsync()
+        {
+            while (!_shutdown.IsCancellationRequested)
+            {
+                TcpClient client;
+                try
+                {
+                    client = await _listener.AcceptTcpClientAsync(_shutdown.Token);
+                }
+                catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException) when (_shutdown.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (SocketException) when (_shutdown.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var id = Interlocked.Increment(ref _connectionId);
+                var connection = ForwardAsync(client, SelectBackend());
+                _connections[id] = connection;
+                _ = ForgetConnectionAsync(id, connection);
+            }
+        }
+
+        private Uri SelectBackend()
+        {
+            Uri[] backends;
+            lock (_backendsLock) backends = _backends;
+            var index = (uint)Interlocked.Increment(ref _nextBackend);
+            var backend = backends[index % (uint)backends.Length];
+            _selectedBackendPorts.Enqueue(backend.Port);
+            return backend;
+        }
+
+        private async Task ForgetConnectionAsync(int id, Task connection)
+        {
+            try { await connection; }
+            catch (Exception exception) when (exception is IOException or SocketException or OperationCanceledException or ObjectDisposedException) { }
+            finally { _connections.TryRemove(id, out _); }
+        }
+
+        private async Task ForwardAsync(TcpClient client, Uri backend)
+        {
+            using (client)
+            using (var target = new TcpClient())
+            {
+                try
+                {
+                    await target.ConnectAsync(backend.Host, backend.Port, _shutdown.Token);
+                    using var connectionCancellation = CancellationTokenSource.CreateLinkedTokenSource(_shutdown.Token);
+                    var clientToTarget = client.GetStream().CopyToAsync(target.GetStream(), connectionCancellation.Token);
+                    var targetToClient = target.GetStream().CopyToAsync(client.GetStream(), connectionCancellation.Token);
+                    var finished = await Task.WhenAny(clientToTarget, targetToClient);
+                    if (finished == clientToTarget && finished.IsCompletedSuccessfully)
+                    {
+                        target.Client.Shutdown(SocketShutdown.Send);
+                        await targetToClient;
+                    }
+                    connectionCancellation.Cancel();
+                    client.Close();
+                    target.Close();
+                    await Task.WhenAll(clientToTarget, targetToClient);
+                }
+                catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { }
+                catch (IOException) { }
+                catch (SocketException) { }
+                catch (ObjectDisposedException) { }
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            _shutdown.Cancel();
+            _listener.Stop();
+            try { await _acceptLoop; }
+            catch (OperationCanceledException) { }
+
+            var activeConnections = _connections.Values.ToArray();
+            try { await Task.WhenAll(activeConnections).WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (Exception exception) when (exception is OperationCanceledException or IOException or SocketException or ObjectDisposedException or TimeoutException) { }
+
+            _shutdown.Dispose();
+        }
+    }
+
+    private sealed class ClusterBrowser : IDisposable
+    {
+        private readonly CookieContainer _cookies;
+        private readonly HttpClient _client;
+
+        public ClusterBrowser(string address)
+        {
+            Address = new Uri(address, UriKind.Absolute);
+            _cookies = new CookieContainer();
+            _client = new HttpClient(new HttpClientHandler
+            {
+                CookieContainer = _cookies,
+                UseCookies = true
+            })
+            {
+                BaseAddress = Address,
+                Timeout = TimeSpan.FromSeconds(60)
+            };
+        }
+
+        private ClusterBrowser(Uri address, IEnumerable<Cookie> cookies)
+            : this(address.AbsoluteUri)
+        {
+            foreach (var cookie in cookies)
+            {
+                var copy = new Cookie(cookie.Name, cookie.Value, cookie.Path, Address.Host)
+                {
+                    HttpOnly = cookie.HttpOnly,
+                    Secure = cookie.Secure,
+                    Expires = cookie.Expires,
+                    Discard = cookie.Discard
+                };
+                _cookies.Add(Address, copy);
+            }
+        }
+
+        public Uri Address { get; }
+
+        public ClusterBrowser Clone() => new(Address, _cookies.GetCookies(Address).Cast<Cookie>().ToArray());
+
+        public async Task LoginAsync()
+        {
+            _ = await SendAsync(HttpMethod.Post, "/api/auth/login", new JsonObject
+            {
+                ["username"] = AdminUsername,
+                ["password"] = AdminPassword
+            });
+        }
+
+        public async Task<JsonNode> GetAsync(string path) => await SendAsync(HttpMethod.Get, path, null);
+
+        public async Task<JsonNode> SendAsync(
+            HttpMethod method,
+            string path,
+            JsonNode? body,
+            HttpStatusCode expectedStatus = HttpStatusCode.OK)
+        {
+            var response = await SendRawAsync(method, path, body);
+            if (response.StatusCode != expectedStatus)
+                throw new InvalidOperationException(
+                    $"Stable-origin client {method} {path}: expected {(int)expectedStatus}, got {(int)response.StatusCode}; " +
+                    $"body={(string.IsNullOrWhiteSpace(response.RawBody) ? "<empty>" : response.RawBody)}.");
+            return response.Body ?? new JsonObject();
+        }
+
+        public async Task<ApiResponse> PostRawAsync(string path, JsonNode body) =>
+            await SendRawAsync(HttpMethod.Post, path, body);
+
+        public async Task<ApiResponse> PostRuntimeRawAsync(string path, JsonNode body, Guid sessionId, string clientInstanceId) =>
+            await SendRawAsync(HttpMethod.Post, path, body, sessionId, clientInstanceId);
+
+        private async Task<ApiResponse> SendRawAsync(
+            HttpMethod method,
+            string path,
+            JsonNode? body,
+            Guid? sessionId = null,
+            string? clientInstanceId = null)
+        {
+            using var request = new HttpRequestMessage(method, path);
+            request.Headers.ConnectionClose = true;
+            if (sessionId.HasValue)
+            {
+                request.Headers.TryAddWithoutValidation("X-EliteSCADA-Runtime-Session", sessionId.Value.ToString("D"));
+                request.Headers.TryAddWithoutValidation("X-EliteSCADA-Runtime-Client-Instance", clientInstanceId);
+            }
+            if (body is not null)
+                request.Content = new StringContent(body.ToJsonString(Json), Encoding.UTF8, "application/json");
+
+            using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            var text = await response.Content.ReadAsStringAsync();
+            JsonNode? payload = null;
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                try { payload = JsonNode.Parse(text); }
+                catch (JsonException) { payload = JsonValue.Create(text); }
+            }
+            return new ApiResponse(response.StatusCode, payload, text);
+        }
+
+        public async Task<ClientWebSocket> ConnectTagsAsync(Guid sessionId, string clientInstanceId)
+        {
+            var socket = new ClientWebSocket();
+            var cookieHeader = _cookies.GetCookieHeader(Address);
+            if (!string.IsNullOrWhiteSpace(cookieHeader))
+                socket.Options.SetRequestHeader("Cookie", cookieHeader);
+
+            var scheme = Address.Scheme == Uri.UriSchemeHttps ? "wss" : "ws";
+            var endpoint = new UriBuilder(Address)
+            {
+                Scheme = scheme,
+                Path = "/ws/tags",
+                Query = "runtimeSessionId=" + Uri.EscapeDataString(sessionId.ToString("D")) +
+                        "&clientInstanceId=" + Uri.EscapeDataString(clientInstanceId)
+            }.Uri;
+
+            try
+            {
+                await socket.ConnectAsync(endpoint, CancellationToken.None);
+                return socket;
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
+
+        public void Dispose() => _client.Dispose();
+    }
+
+    private sealed class ApiProcess : IAsyncDisposable
+    {
+        private readonly Process _process;
+        private readonly HttpClient _client;
+        private readonly ConcurrentQueue<string> _output = new();
+        private readonly string _logPath;
+
+        private ApiProcess(string nodeId, Process process, HttpClient client, string logPath)
+        {
+            NodeId = nodeId;
+            _process = process;
+            _client = client;
+            if (client.BaseAddress is null)
+                throw new InvalidOperationException("API process requires a base address.");
+            _logPath = logPath;
+            _process.OutputDataReceived += (_, eventArgs) => { if (eventArgs.Data is not null) _output.Enqueue(eventArgs.Data); };
+            _process.ErrorDataReceived += (_, eventArgs) => { if (eventArgs.Data is not null) _output.Enqueue(eventArgs.Data); };
+            _process.BeginOutputReadLine();
+            _process.BeginErrorReadLine();
+        }
+
+        public string NodeId { get; }
+
+        public string LastOutput() => string.Join(Environment.NewLine, _output.TakeLast(30));
+
+        public static ApiProcess Start(
+            string nodeId,
+            string url,
+            string peerUrl,
+            string projectKey,
+            string referencePath,
+            string directory,
+            string connectionString,
+            LicenseFiles license,
+            string apiDll,
+            string repositoryRoot,
+            string suffix, bool standalone = false)
+        {
+            var port = new Uri(url).Port;
+            var statePath = Path.Combine(directory, nodeId + "-peer-state.json");
+            var nodeDirectory = Path.Combine(directory, nodeId);
+            Directory.CreateDirectory(nodeDirectory);
+            var endpointA = nodeId == "node-a" ? url : peerUrl;
+            var endpointB = nodeId == "node-b" ? url : peerUrl;
+            var start = new ProcessStartInfo("dotnet")
+            {
+                WorkingDirectory = repositoryRoot,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+            start.ArgumentList.Add(apiDll);
+            Set("ASPNETCORE_URLS", url);
+            Set("ASPNETCORE_ENVIRONMENT", "Production");
+            Set("Authentication__Enabled", "true");
+            Set("Authentication__Local__Enabled", "true");
+            Set("Authentication__Local__SecureCookie", "false");
+            Set("Authentication__Jwt__Issuer", "w15-stage1-process-test");
+            Set("Authentication__Jwt__Audience", "w15-stage1-process-test");
+            Set("Authentication__Jwt__SigningKey", JwtKey);
+            Set("ConnectionStrings__EliteScada", connectionString);
+            Set("ConnectionStrings__Historian", connectionString);
+            Set("DatabaseTopology__RequireDurable", "true");
+            Set("DatabaseTopology__StateFile", Path.Combine(nodeDirectory, "database-topology.json"));
+            Set("DatabaseTopology__Secrets__StoreFile", Path.Combine(nodeDirectory, "database-secrets.json"));
+            Set("DatabaseTopology__Secrets__MasterKeyBase64", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+            Set("Historian__Provider", "timescaledb");
+            Set("HistoricalQuery__Enabled", "true");
+            // Leave time for the evidence script and its PostgreSQL effects on loaded hosts.
+            Set("ServerScripts__HandlerTimeoutMs", "2000");
+            Set("HistoricalQuery__CursorKeyBase64", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+            Set("Licensing__LicenseFile", license.LicensePath);
+            Set("Licensing__VerificationKeys__" + license.KeyId, license.PublicKeyPath);
+            Set("HighAvailability__Enabled", "true");
+            Set("HighAvailability__ClusterId", "w15-stage1-process-" + suffix);
+            Set("HighAvailability__NodeId", nodeId);
+            Set("HighAvailability__InitialActiveNodeId", "node-a");
+            Set("HighAvailability__TopologyVersion", "1");
+            Set("HighAvailability__FreshnessSeconds", "20");
+            Set("HighAvailability__Nodes__0__NodeId", "node-a");
+            Set("HighAvailability__Nodes__0__LocalEndpoint", endpointA);
+            Set("HighAvailability__Nodes__0__RemoteEndpoint", endpointA);
+            Set("HighAvailability__Nodes__1__NodeId", "node-b");
+            Set("HighAvailability__Nodes__1__LocalEndpoint", endpointB);
+            Set("HighAvailability__Nodes__1__RemoteEndpoint", endpointB);
+            Set("HighAvailability__PeerTransport__Enabled", "true");
+            Set("HighAvailability__PeerTransport__PeerEndpoint", peerUrl + "/api/runtime/ha/peer/replicate");
+            Set("HighAvailability__PeerTransport__SharedSecret", PeerSecret);
+            Set("HighAvailability__PeerTransport__StatePath", statePath);
+            Set("HighAvailability__PeerTransport__PollMilliseconds", "500");
+            // Match the production default instead of imposing a stricter
+            // test-only peer request deadline.
+            Set("HighAvailability__PeerTransport__RequestTimeoutSeconds", "5");
+            Set("HighAvailability__PeerTransport__MaximumRetrySeconds", "2");
+            Set("HighAvailability__PeerTransport__AuthenticationFreshnessSeconds", "30");
+            Set("HighAvailability__Protection__Enabled", "true");
+            Set("HighAvailability__Protection__AutomaticFailoverEnabled", "true");
+            Set("HighAvailability__Protection__ReferencePath", referencePath);
+            Set("HighAvailability__Protection__LeaseSeconds", "20");
+            Set("HighAvailability__Protection__PollMilliseconds", "250");
+            Set("HighAvailability__Protection__ReadyWitnessMaximumAgeSeconds", "60");
+            Set("HighAvailability__Protection__OperationHistoryPath", Path.Combine(nodeDirectory, "operations.json"));
+            Set("HighAvailability__Administration__ConfigurationPath", Path.Combine(nodeDirectory, "host-configuration.json"));
+            if (standalone)
+            {
+                Set("HighAvailability__Enabled", "false");
+                Set("HighAvailability__Protection__Enabled", "false");
+                Set("Historian__Provider", "memory");
+                Set("HistoricalQuery__Enabled", "false");
+            }
+            Set("Logging__LogLevel__Default", "Warning");
+
+            var process = Process.Start(start) ?? throw new InvalidOperationException("Could not start Scada.Api process " + nodeId);
+            var cookies = new CookieContainer();
+            var client = new HttpClient(new HttpClientHandler
+            {
+                CookieContainer = cookies,
+                UseCookies = true
+            })
+            {
+                BaseAddress = new Uri(url),
+                Timeout = TimeSpan.FromSeconds(60)
+            };
+            return new ApiProcess(nodeId, process, client, Path.Combine(directory, nodeId + ".log"));
+
+            void Set(string name, string value) => start.Environment[name] = value;
+        }
+
+        public async Task WaitForHealthAsync()
+        {
+            var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(60);
+            while (DateTimeOffset.UtcNow < deadline)
+            {
+                if (_process.HasExited)
+                    throw new InvalidOperationException($"Scada.Api {NodeId} exited with {_process.ExitCode}. {_logPath}: {LastOutput()}");
+                try
+                {
+                    using var response = await _client.GetAsync("/health");
+                    if (response.StatusCode == HttpStatusCode.OK) return;
+                }
+                catch (HttpRequestException) { }
+                await Task.Delay(200);
+            }
+            throw new TimeoutException($"Scada.Api {NodeId} health did not become ready. {_logPath}: {LastOutput()}");
+        }
+
+        public async Task BootstrapAsync() =>
+            _ = await SendAsync(HttpMethod.Post, "/api/auth/bootstrap", new JsonObject
+            {
+                ["username"] = AdminUsername,
+                ["displayName"] = "W15 Stage 1 evidence administrator",
+                ["password"] = AdminPassword
+            });
+
+        public async Task LoginAsync() =>
+            _ = await SendAsync(HttpMethod.Post, "/api/auth/login", new JsonObject
+            {
+                ["username"] = AdminUsername,
+                ["password"] = AdminPassword
+            });
+
+        public async Task<JsonNode> GetAsync(string path) =>
+            await SendAsync(HttpMethod.Get, path, null);
+
+        public async Task<JsonNode> SendAsync(
+            HttpMethod method,
+            string path,
+            JsonNode? body,
+            HttpStatusCode expectedStatus = HttpStatusCode.OK)
+        {
+            var response = await SendRawAsync(method, path, body);
+            if (response.StatusCode != expectedStatus)
+                throw new InvalidOperationException(
+                    $"Scada.Api {NodeId} {method} {path}: expected {(int)expectedStatus}, got {(int)response.StatusCode}; body={(string.IsNullOrWhiteSpace(response.RawBody) ? "<empty>" : response.RawBody)}. {_logPath}: {LastOutput()}");
+            return response.Body ?? new JsonObject();
+        }
+
+        public async Task<ApiResponse> PostRawAsync(string path, JsonNode body) =>
+            await SendRawAsync(HttpMethod.Post, path, body);
+
+        private async Task<ApiResponse> SendRawAsync(HttpMethod method, string path, JsonNode? body)
+        {
+            using var request = new HttpRequestMessage(method, path);
+            if (body is not null)
+                request.Content = new StringContent(body.ToJsonString(Json), Encoding.UTF8, "application/json");
+            using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            var text = await response.Content.ReadAsStringAsync();
+            JsonNode? payload = null;
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                try { payload = JsonNode.Parse(text); }
+                catch (JsonException) { payload = JsonValue.Create(text); }
+            }
+            return new ApiResponse(response.StatusCode, payload, text);
+        }
+
+        public async Task StopAsync()
+        {
+            _client.Dispose();
+            if (!_process.HasExited)
+            {
+                _process.Kill(entireProcessTree: true);
+                await _process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await StopAsync();
+            _process.Dispose();
+        }
+    }
+}

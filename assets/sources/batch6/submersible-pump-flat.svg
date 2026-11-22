@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="46" y="24" width="36" height="60" rx="9" fill="#E5E7EB" stroke="#374151" stroke-width="5" data-elitescada-slot="body" />
+  <polygon points="46,84 82,84 96,102 32,102" fill="#9CA3AF" stroke="#374151" stroke-width="4" stroke-linejoin="round" data-elitescada-slot="base" />
+  <line x1="82" y1="54" x2="108" y2="54" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round" data-elitescada-slot="pipe" />
+</svg>

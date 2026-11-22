@@ -89,7 +89,7 @@ test('C04 Source and Address surfaces switch pt-BR, en and es without changing c
   await page.getByRole('button', { name: /Plant\.Level/ }).first().click();
 
   const sourceSearch = page.getByTestId('tag-source-search');
-  await expect(sourceSearch).toHaveAttribute('aria-label', 'Pesquisar Data Sources configurados');
+  await expect(sourceSearch).toHaveAttribute('aria-label', 'Pesquisar Fontes de dados configuradas');
   await expect(page.getByLabel('Endereço')).toHaveValue('A1');
 
   await page.getByLabel('Idioma').selectOption('en');
@@ -97,7 +97,7 @@ test('C04 Source and Address surfaces switch pt-BR, en and es without changing c
   await expect(page.getByLabel('Address')).toHaveValue('A1');
 
   await page.getByLabel('Language').selectOption('es');
-  await expect(sourceSearch).toHaveAttribute('aria-label', 'Buscar Data Sources configurados');
+  await expect(sourceSearch).toHaveAttribute('aria-label', 'Buscar Fuentes de datos configuradas');
   await expect(page.getByLabel('Dirección')).toHaveValue('A1');
 
   await expect(page.getByTestId('tag-source-select')).toHaveValue(`id:${sourceId}`);
@@ -106,7 +106,7 @@ test('C04 Source and Address surfaces switch pt-BR, en and es without changing c
 test('backend Driver resource keys localize Data Source fields without changing canonical setting values', async ({ page }) => {
   await mockModbusCatalogProject(page);
   await page.goto('/engineering');
-  await page.getByRole('button', { name: /Data Sources/ }).click();
+  await page.getByRole('button', { name: /Fontes de dados/ }).click();
 
   const setting = page.getByTestId('data-source-setting-scanIntervalMilliseconds');
   await expect(page.getByText('Intervalo de varredura (ms)', { exact: true })).toBeVisible();

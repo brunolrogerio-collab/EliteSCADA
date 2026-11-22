@@ -24,6 +24,15 @@ const runtimeProjection = {
             actions: [
               { eventKey: 'click', kind: 'NavigateScreen', targetKey: 'secondary', version: 1 }
             ]
+          },
+          {
+            id: '26000000-0000-0000-0000-000000000102',
+            key: 'open-popup',
+            type: 'core.button',
+            properties: { x: 80, y: 160, width: 240, height: 64, text: 'Abrir popup' },
+            actions: [
+              { eventKey: 'click', kind: 'OpenPopup', targetKey: 'notice', version: 1 }
+            ]
           }
         ]
       },
@@ -41,7 +50,21 @@ const runtimeProjection = {
         ]
       }
     ],
-    popups: [],
+    popups: [
+      {
+        id: '26000000-0000-0000-0000-000000000003',
+        key: 'notice',
+        name: 'Notice',
+        elements: [
+          {
+            id: '26000000-0000-0000-0000-000000000301',
+            key: 'notice-label',
+            type: 'core.text',
+            properties: { x: 20, y: 20, width: 320, height: 64, text: 'Popup preservado' }
+          }
+        ]
+      }
+    ],
     dynamos: [],
     scripts: [],
     scriptVisualEventReferences: [],
@@ -74,14 +97,27 @@ async function installRuntimeShellContract(page: Page) {
   }));
   await page.route('**/api/auth/effective-capabilities', route => route.fulfill({
     json: {
+      authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
       authenticationEnabled: true,
       runtime: ['View', 'TrendUse', 'SystemAdmin'],
-      workspace: ['EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
+      workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
     }
   }));
   await page.route('**/api/engineering/persistence/status', route => route.fulfill({
     json: { enabled: true, hasProjects: true }
   }));
+  const session = {
+    sessionId: '26000000-0000-0000-0000-000000000401',
+    requestedClass: 'interactive',
+    grantedClass: 'interactive',
+    admissionReasonCode: 'InteractiveGranted',
+    capacityReasonCode: 'InteractiveSeatReserved'
+  };
+  await page.route('**/api/runtime/sessions', route => route.fulfill({
+    status: 201,
+    json: { ...session, clientInstanceId: route.request().postDataJSON().clientInstanceId }
+  }));
+  await page.route('**/api/runtime/sessions/*/heartbeat', route => route.fulfill({ json: session }));
 }
 
 test('C26 Runtime preserves the selected Screen across one transient projection transport failure and recovery', async ({ page }) => {
@@ -122,6 +158,61 @@ test('C26 Runtime preserves the selected Screen across one transient projection 
   await expect.poll(() => projectionRequests, { timeout: 5_000 }).toBeGreaterThan(requestsAfterFailure);
   await expect(page.getByTestId('runtime-application-error')).toHaveCount(0);
   await expect(navigator).toHaveAttribute('data-active-screen-key', 'secondary');
+});
+
+test('C26 Runtime preserves the open Popup stack across one transient projection transport failure and recovery', async ({ page }) => {
+  await installRuntimeShellContract(page);
+
+  let transportFailures = 0;
+  let failNextTransport = false;
+  await page.route('**/api/runtime/application', route => {
+    if (failNextTransport) {
+      failNextTransport = false;
+      transportFailures++;
+      return route.abort('failed');
+    }
+    return route.fulfill({ json: runtimeProjection });
+  });
+
+  await page.goto('/');
+  const navigator = page.getByTestId('runtime-visual-navigator');
+  await page.getByRole('button', { name: 'Abrir popup' }).click();
+  await expect(navigator.locator('[data-popup-key="notice"]')).toBeVisible();
+  await expect(navigator.locator('[data-popup-count="1"]')).toBeVisible();
+
+  failNextTransport = true;
+  await expect.poll(() => transportFailures, { timeout: 5_000 }).toBe(1);
+  await expect(page.getByTestId('runtime-application-error')).toHaveCount(0);
+  await expect(navigator.locator('[data-popup-key="notice"]')).toBeVisible();
+  await expect(navigator.locator('[data-popup-count="1"]')).toBeVisible();
+});
+
+test('C26 Runtime deliberately resets Screen and Popup navigation when Active identity changes', async ({ page }) => {
+  await installRuntimeShellContract(page);
+
+  let changedActiveResponses = 0;
+  let changeActive = false;
+  const nextProjection = {
+    ...runtimeProjection,
+    revision: 27,
+    activatedAtUtc: '2026-09-07T18:30:00Z'
+  };
+  await page.route('**/api/runtime/application', route => {
+    if (changeActive) changedActiveResponses++;
+    return route.fulfill({ json: changeActive ? nextProjection : runtimeProjection });
+  });
+
+  await page.goto('/');
+  const navigator = page.getByTestId('runtime-visual-navigator');
+  await page.getByRole('button', { name: 'Abrir popup' }).click();
+  await page.getByRole('button', { name: 'Abrir secundária' }).click();
+  await expect(navigator).toHaveAttribute('data-active-screen-key', 'secondary');
+  await expect(navigator.locator('[data-popup-count="1"]')).toBeVisible();
+
+  changeActive = true;
+  await expect.poll(() => changedActiveResponses, { timeout: 5_000 }).toBeGreaterThan(0);
+  await expect(navigator).toHaveAttribute('data-active-screen-key', 'home');
+  await expect(navigator.locator('[data-popup-count="0"]')).toBeVisible();
 });
 
 test('C26 Runtime preserves the selected Screen across the real transient proxy HTTP 500 signature and recovery', async ({ page }) => {
@@ -239,4 +330,33 @@ test('C26 Runtime does not hide a genuine Active package HTTP 500 behind the las
   await expect(unavailable).toContainText('(500)');
   await expect(unavailable).toContainText('Active canonical Engineering payload is invalid');
   await expect(page.getByTestId('runtime-visual-navigator')).toHaveCount(0);
+});
+
+test('Runtime header returns to the startup Screen after repeated canvas navigation', async ({ page }) => {
+  await installRuntimeShellContract(page);
+  await page.route('**/api/runtime/application', route => route.fulfill({
+    json: {
+      ...runtimeProjection,
+      package: {
+        ...runtimeProjection.package,
+        runtimePresentation: { version: 1, header: { links: [{ label: 'Início', screenKey: 'home' }] } }
+      }
+    }
+  }));
+
+  await page.goto('/?screen=home');
+  const navigator = page.getByTestId('runtime-visual-navigator');
+  const openSecondary = navigator.getByRole('button', { name: 'Abrir secundária' });
+  const returnHome = page.getByRole('button', { name: 'Início', exact: true });
+
+  for (const attempt of [1, 2]) {
+    await test.step(`Return ${attempt}`, async () => {
+      await openSecondary.click();
+      await expect(navigator.getByText('Tela secundária ativa')).toBeVisible();
+      await returnHome.click();
+      await expect(navigator).toHaveAttribute('data-active-screen-key', 'home');
+      await expect(openSecondary).toBeVisible();
+      await expect(navigator.getByText('Tela secundária ativa')).toHaveCount(0);
+    });
+  }
 });

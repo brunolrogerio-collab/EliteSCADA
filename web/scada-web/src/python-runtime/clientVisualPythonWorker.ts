@@ -200,7 +200,7 @@ class _EliteScadaDeniedImportFinder:
 
     def find_spec(self, fullname, path=None, target=None):
         if any(fullname == item or fullname.startswith(item + ".") for item in self._blocked):
-            raise ImportError("Module is unavailable in the EliteSCADA Client Visual sandbox.")
+            raise ImportError("Module is unavailable in the SCADIVO Client Visual sandbox.")
         return None
 
 _elitescada_denied_import_finder = _EliteScadaDeniedImportFinder()
@@ -304,7 +304,7 @@ function handleApiResponse(message: Extract<PythonWorkerRequest, { kind: 'api-re
 
   pendingApiRequests.delete(message.requestId);
   if (message.ok) pending.resolve(message.value ?? null);
-  else pending.reject(new Error('Requested EliteSCADA capability failed.'));
+  else pending.reject(new Error('Requested SCADIVO capability failed.'));
 }
 
 async function compileSource(message: Extract<PythonWorkerRequest, { kind: 'compile-source' }>) {
@@ -595,11 +595,9 @@ function normalizeBridgeValue(value: unknown): unknown {
     const proxy = value as PythonProxyLike;
     if (typeof proxy.toJs === 'function') {
       const converted = proxy.toJs({ dict_converter: entries => Object.fromEntries(entries) });
-      try {
-        return normalizeBridgeValue(converted);
-      } finally {
-        if (converted !== value && typeof proxy.destroy === 'function') proxy.destroy();
-      }
+      // This PyProxy is borrowed from the active Python frame. That frame may
+      // still be suspended awaiting the bridge Promise, so Pyodide owns its lifetime.
+      return normalizeBridgeValue(converted);
     }
 
     if (Array.isArray(value)) return value.map(normalizeBridgeValue);

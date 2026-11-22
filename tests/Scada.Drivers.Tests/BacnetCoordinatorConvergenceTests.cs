@@ -144,7 +144,7 @@ public sealed class BacnetCoordinatorConvergenceTests
             UseCov: true,
             WritePriority: 8);
         var communicationBinding = Binding(protocolBinding);
-        var dataSource = DataSource("bacnet.runtime", 1201);
+        var dataSource = DataSource("bacnet.runtime", 1201, localPort: 47809);
         var tagId = Guid.NewGuid();
         var package = Package(
             dataSource,
@@ -174,6 +174,7 @@ public sealed class BacnetCoordinatorConvergenceTests
         Assert.True(activation.Activated, JoinIssues(activation));
         Assert.Equal(1, sessions.CreateCalls);
         Assert.NotNull(sessions.LastOptions);
+        Assert.Equal(47809, sessions.LastOptions!.LocalPort);
         Assert.Equal(1, session.SubscribeCalls);
         Assert.True(session.ReadCalls >= 1);
         Assert.True(coordinator.TryGetCurrent(tagId, out var initial));
@@ -192,24 +193,28 @@ public sealed class BacnetCoordinatorConvergenceTests
         Assert.Equal("0", details["covTagCount"]);
         Assert.Equal("1", details["polledTagCount"]);
 
-        await coordinator.WriteAsync(tagId, 43.75d);
+        await coordinator.WriteAsync(tagId, 0.1d);
 
         Assert.Equal(1, session.WriteCalls);
         Assert.NotNull(session.LastWriteBinding);
         Assert.Equal((byte)8, session.LastWriteBinding!.WritePriority);
         var written = Assert.Single(session.LastWriteValues!);
         Assert.Equal(BacnetApplicationTags.BACNET_APPLICATION_TAG_REAL, written.Tag);
-        Assert.Equal(43.75f, Assert.IsType<float>(written.Value));
+        Assert.Equal(0.1f, Assert.IsType<float>(written.Value));
+        var encodedEngineeringValue = (double)0.1f;
+
+        Assert.True(coordinator.TryGetCurrent(tagId, out var immediatelyAfterWrite));
+        Assert.Equal(encodedEngineeringValue, Assert.IsType<double>(immediatelyAfterWrite!.Value));
 
         using var convergenceTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         await WaitUntilAsync(
             () => coordinator.TryGetCurrent(tagId, out var current) &&
                   current?.Value is double value &&
-                  Math.Abs(value - 43.75d) < 0.000001d,
+                  value.Equals(encodedEngineeringValue),
             convergenceTimeout.Token);
 
         Assert.True(coordinator.TryGetCurrent(tagId, out var afterWrite));
-        Assert.Equal(43.75d, Assert.IsType<double>(afterWrite!.Value), precision: 6);
+        Assert.Equal(encodedEngineeringValue, Assert.IsType<double>(afterWrite!.Value));
         Assert.Equal(TagQuality.Good, afterWrite.Quality);
     }
 
@@ -269,6 +274,7 @@ public sealed class BacnetCoordinatorConvergenceTests
         string key,
         uint deviceInstance,
         int scanIntervalMilliseconds = 50,
+        int localPort = 47808,
         Dictionary<string, string>? secretReferences = null) =>
         new(
             Guid.NewGuid(),
@@ -278,7 +284,7 @@ public sealed class BacnetCoordinatorConvergenceTests
             Settings: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["deviceInstance"] = deviceInstance.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ["localPort"] = "47808",
+                ["localPort"] = localPort.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["scanIntervalMilliseconds"] = scanIntervalMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["requestTimeoutMilliseconds"] = "250",
                 ["discoveryWindowMilliseconds"] = "250"

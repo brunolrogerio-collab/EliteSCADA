@@ -1,0 +1,8 @@
+.intelligence-signal-statistics { min-width: 0; max-width: 100%; overflow-wrap: anywhere; padding: 0.75rem; }
+.intelligence-signal-statistics > label { display: flex; flex-direction: column; gap: 0.4rem; max-width: 100%; margin: 0.8rem 0; }
+.intelligence-signal-statistics :is(input,select) { min-width: 0; max-width: 100%; width: 100%; box-sizing: border-box; padding: 0.5rem; font: inherit; color: inherit; background: var(--eng-input-bg,var(--app-surface)); border: 1px solid var(--eng-border,var(--app-border)); border-radius: 4px; }
+.intelligence-signal-statistics table { border-collapse: collapse; min-width: 32rem; width: 100%; }
+.intelligence-signal-statistics :is(th,td) { padding: 0.5rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--eng-border,var(--app-border)); }
+.intelligence-signal-statistics button { margin: 0.4rem 0.4rem 0.4rem 0; }
+
+.intelligence-signal-statistics :is(th,td) { white-space: nowrap; overflow-wrap: normal; }

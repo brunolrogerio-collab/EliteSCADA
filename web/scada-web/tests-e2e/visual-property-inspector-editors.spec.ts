@@ -10,9 +10,13 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   const firstScreen = page.locator('.visual-editor-screen-list').getByRole('button').first();
   await firstScreen.click();
 
-  await page.locator('[data-object-type="core.rectangle"]').click();
+  await page.locator('[data-insert-object-type="core.rectangle"]').click();
   const rectangle = page.locator('[data-canvas-object-type="core.rectangle"]').last();
   await expect(rectangle).toBeVisible();
+  const rectangleId = await rectangle.getAttribute('data-canvas-object-id');
+  expect(rectangleId).toBeTruthy();
+  const renderedRectangle = page.getByTestId('visual-editor-canonical-layer').locator(`[data-object-id="${rectangleId}"]`);
+  await expect(renderedRectangle).toHaveCSS('background-color', 'rgb(128, 128, 128)');
   await rectangle.click();
 
   const inspector = page.getByTestId('visual-property-inspector');
@@ -91,7 +95,7 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(secondaryColor).toHaveAttribute('data-editor-type', 'color');
   await expect(secondaryColor.locator('input[type="color"]')).toBeVisible();
 
-  await page.locator('[data-object-type="core.text"]').click();
+  await page.locator('[data-insert-object-type="core.text"]').click();
   const textObject = page.locator('[data-canvas-object-type="core.text"]').last();
   await expect(textObject).toBeVisible();
   await textObject.click();
@@ -99,7 +103,22 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   const fontFamily = inspector.locator('[data-property-key="fontFamily"]');
   await expect(fontFamily).toHaveAttribute('data-editor-hint', 'font-family');
   const fontInput = fontFamily.getByRole('combobox', { name: 'Font Family' });
-  await expect(fontInput).toHaveAttribute('list', /-fonts$/);
+  await expect(fontInput.locator('option')).toHaveText(['Padrão do sistema', 'Arimo — semelhante à Arial', 'Lato — sem serifa humanista', 'Tinos — semelhante à Times New Roman', 'Cousine — semelhante à Courier New', 'Personalizada…']);
+  await fontInput.selectOption('Arimo Variable');
+  await page.evaluate(async () => { await document.fonts.load('16px "Arimo Variable"'); });
+
+  const textGroupOrder = await inspector.locator('.property-inspector__group').evaluateAll(groups => groups.map(group => {
+    if (group.classList.contains('property-inspector__group--text')) return 'text';
+    if (group.classList.contains('property-inspector__group--geometry')) return 'geometry';
+    return 'other';
+  }));
+  expect(textGroupOrder.indexOf('text')).toBeGreaterThanOrEqual(0);
+  expect(textGroupOrder.indexOf('text')).toBeLessThan(textGroupOrder.indexOf('geometry'));
+
+  const fontWeight = inspector.locator('[data-property-key="fontWeight"]');
+  await expect(fontWeight.getByRole('checkbox', { name: 'Negrito' })).not.toBeChecked();
+  await fontWeight.getByRole('checkbox', { name: 'Negrito' }).check();
+  await expect(fontWeight.getByRole('checkbox', { name: 'Negrito' })).toBeChecked();
 
   const underline = inspector.locator('[data-property-key="underline"]');
   await expect(underline).toHaveAttribute('data-editor-type', 'boolean');
@@ -117,7 +136,7 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(textOverflow).toHaveAttribute('data-editor-type', 'enum');
   await expect(textOverflow.getByRole('combobox', { name: 'Text Overflow' }).locator('option')).toHaveText(['clip', 'ellipsis']);
 
-  await page.locator('[data-object-type="core.image"]').click();
+  await page.locator('[data-insert-object-type="core.image"]').click();
   const imageObject = page.locator('[data-canvas-object-type="core.image"]').last();
   await expect(imageObject).toBeVisible();
   await imageObject.click();
@@ -127,5 +146,20 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(assetRef).toHaveAttribute('data-editor-hint', 'project-asset');
   const assetBrowser = assetRef.getByTestId('visual-editor-image-asset-picker');
   await expect(assetBrowser.getByRole('combobox', { name: 'Asset Ref' })).toBeVisible();
+  await expect(assetBrowser.getByRole('button', { name: 'Importar asset do projeto…' })).toBeVisible();
+  const imageZoom = inspector.locator('[data-property-key="imageZoom"]');
+  await expect(imageZoom.locator('input[type="range"]')).toBeVisible();
+  await expect(imageZoom.locator('input[type="range"]')).toHaveAttribute('min', '1');
+  await expect(imageZoom.locator('input[type="range"]')).toHaveAttribute('max', '8');
+  await expect(assetBrowser.locator('input[type="file"]')).toHaveAttribute('accept', /image\/svg\+xml/);
   await expect(assetRef.locator('input[type="text"]')).toHaveCount(0);
+
+  // Upload remains available while the Screen draft is edited; discard only before testing the background picker.
+  await page.getByRole('button', { name: 'Restaurar rascunho', exact: true }).click();
+  await page.getByTestId('visual-editor-side-tab-assets').click();
+  const background = page.getByTestId('visual-definition-surface-inspector');
+  await background.locator('summary').click();
+  await background.locator('select').first().selectOption('image');
+  await expect(background.locator('input[type="file"]')).toHaveAttribute('accept', /image\/svg\+xml/);
+  await expect(background.getByRole('button', { name: 'Escolher imagem…' })).toBeEnabled();
 });

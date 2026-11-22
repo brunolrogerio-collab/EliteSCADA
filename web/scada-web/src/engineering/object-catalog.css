@@ -1,0 +1,26 @@
+.dynamo-catalog__panel { display: grid; gap: 1rem; }
+.dynamo-catalog__search { max-width: 32rem; display: grid; gap: .35rem; }
+.dynamo-catalog__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: .8rem; }
+.dynamo-catalog__card { min-width: 0; overflow: hidden; display: grid; grid-template-rows: minmax(180px, auto) auto; border: 1px solid var(--eng-border, #d8dde5); border-radius: .55rem; background: var(--eng-surface, #fff); }
+.dynamo-catalog__card > :first-child { min-height: 180px; }
+.dynamo-catalog__card > div { min-width: 0; display: grid; gap: .25rem; padding: .7rem; }
+.dynamo-catalog__card strong { overflow-wrap: anywhere; }
+.dynamo-catalog__card small { color: var(--eng-muted, #617186); }
+.dynamo-catalog__card button { justify-self: start; margin-top: .35rem; }
+.dynamo-catalog__notice { margin: 0; padding: .75rem; border-left: 3px solid var(--eng-accent, #168ac2); }
+.dynamo-catalog__editor { display: grid; gap: .75rem; }
+.equipment-faceplate__layout { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(320px, 1.2fr); gap: 16px; align-items: start; }
+.equipment-faceplate__editor, .equipment-faceplate__list { display: grid; gap: 12px; }
+.equipment-faceplate__editor h2, .equipment-faceplate__list h2 { margin: 0; font-size: 1rem; }
+.equipment-faceplate__editor label { display: grid; gap: 5px; font-weight: 600; }
+.equipment-faceplate__editor input, .equipment-faceplate__editor select { width: 100%; min-width: 0; }
+.equipment-faceplate__editor small { color: var(--app-muted, #667085); overflow-wrap: anywhere; }
+.equipment-faceplate__link { display: grid; gap: 5px; padding: 12px; border: 1px solid var(--app-border, #ccd4dc); border-radius: 8px; }
+.equipment-faceplate__link code, .equipment-faceplate__item code { overflow-wrap: anywhere; }
+.equipment-faceplate__link small { line-height: 1.4; }
+.equipment-faceplate__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.equipment-faceplate__message { margin: 0; }
+.equipment-faceplate__list { align-content: start; }
+.equipment-faceplate__item { display: grid; gap: 4px; text-align: left; padding: 12px; border: 1px solid var(--eng-border, #ccd4dc); border-radius: 8px; background: var(--eng-panel, #fff); color: var(--eng-text, #1f2937); cursor: pointer; }
+.equipment-faceplate__item:hover, .equipment-faceplate__item.is-selected { border-color: var(--eng-accent, #1593c5); background: var(--eng-panel-soft, #eff8fc); }
+@media (max-width: 760px) { .equipment-faceplate__layout { grid-template-columns: 1fr; } }

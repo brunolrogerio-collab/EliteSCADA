@@ -1,0 +1,4529 @@
+{
+  "schema": "elitescada.asset-batch",
+  "schemaVersion": 1,
+  "defaults": {
+    "author": "EliteSCADA",
+    "styleFamily": "sector-minimal-v13",
+    "license": {
+      "identifier": "Proprietary-EliteSCADA-Original",
+      "reference": "assets/licenses/ELITESCADA-ORIGINAL-ASSET-NOTICE.md",
+      "attributionRequired": false,
+      "commercialRedistributionAllowed": true,
+      "modificationAllowed": true
+    }
+  },
+  "assets": [
+    {
+      "id": "builtin.asset.sector2.server-rack.minimal",
+      "key": "sectors.data-center.it-infrastructure.server-rack.minimal",
+      "displayName": "Server rack - minimal",
+      "sourceFile": "assets/sources/batch13/server-rack-minimal.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "server-rack",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "server rack",
+        "sector-minimal-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "rack",
+          "kind": "stroke"
+        },
+        {
+          "id": "server",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.server-rack.flat",
+      "key": "sectors.data-center.it-infrastructure.server-rack.flat",
+      "displayName": "Server rack - flat",
+      "sourceFile": "assets/sources/batch13/server-rack-flat.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "server-rack",
+        "flat"
+      ],
+      "searchKeywords": [
+        "server rack",
+        "sector-flat-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "rack",
+          "kind": "fill"
+        },
+        {
+          "id": "server",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.server-rack.technical",
+      "key": "sectors.data-center.it-infrastructure.server-rack.technical",
+      "displayName": "Server rack - technical",
+      "sourceFile": "assets/sources/batch13/server-rack-technical.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "server-rack",
+        "technical"
+      ],
+      "searchKeywords": [
+        "server rack",
+        "sector-technical-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "rack",
+          "kind": "fill"
+        },
+        {
+          "id": "server",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.server-rack.complex",
+      "key": "sectors.data-center.it-infrastructure.server-rack.complex",
+      "displayName": "Server rack - complex",
+      "sourceFile": "assets/sources/batch13/server-rack-complex.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "server-rack",
+        "complex"
+      ],
+      "searchKeywords": [
+        "server rack",
+        "sector-complex-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "rack",
+          "kind": "fill"
+        },
+        {
+          "id": "server",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.blade-chassis.minimal",
+      "key": "sectors.data-center.it-infrastructure.blade-chassis.minimal",
+      "displayName": "Blade chassis - minimal",
+      "sourceFile": "assets/sources/batch13/blade-chassis-minimal.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "blade-chassis",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "blade chassis",
+        "sector-minimal-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "blade",
+          "kind": "stroke"
+        },
+        {
+          "id": "chassis",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.blade-chassis.flat",
+      "key": "sectors.data-center.it-infrastructure.blade-chassis.flat",
+      "displayName": "Blade chassis - flat",
+      "sourceFile": "assets/sources/batch13/blade-chassis-flat.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "blade-chassis",
+        "flat"
+      ],
+      "searchKeywords": [
+        "blade chassis",
+        "sector-flat-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "blade",
+          "kind": "fill"
+        },
+        {
+          "id": "chassis",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.blade-chassis.technical",
+      "key": "sectors.data-center.it-infrastructure.blade-chassis.technical",
+      "displayName": "Blade chassis - technical",
+      "sourceFile": "assets/sources/batch13/blade-chassis-technical.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "blade-chassis",
+        "technical"
+      ],
+      "searchKeywords": [
+        "blade chassis",
+        "sector-technical-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "blade",
+          "kind": "fill"
+        },
+        {
+          "id": "chassis",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.blade-chassis.complex",
+      "key": "sectors.data-center.it-infrastructure.blade-chassis.complex",
+      "displayName": "Blade chassis - complex",
+      "sourceFile": "assets/sources/batch13/blade-chassis-complex.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "blade-chassis",
+        "complex"
+      ],
+      "searchKeywords": [
+        "blade chassis",
+        "sector-complex-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "blade",
+          "kind": "fill"
+        },
+        {
+          "id": "chassis",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.network-switch.minimal",
+      "key": "sectors.data-center.it-infrastructure.network-switch.minimal",
+      "displayName": "Network switch - minimal",
+      "sourceFile": "assets/sources/batch13/network-switch-minimal.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "network-switch",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "network switch",
+        "sector-minimal-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "port",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.network-switch.flat",
+      "key": "sectors.data-center.it-infrastructure.network-switch.flat",
+      "displayName": "Network switch - flat",
+      "sourceFile": "assets/sources/batch13/network-switch-flat.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "network-switch",
+        "flat"
+      ],
+      "searchKeywords": [
+        "network switch",
+        "sector-flat-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "port",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.network-switch.technical",
+      "key": "sectors.data-center.it-infrastructure.network-switch.technical",
+      "displayName": "Network switch - technical",
+      "sourceFile": "assets/sources/batch13/network-switch-technical.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "network-switch",
+        "technical"
+      ],
+      "searchKeywords": [
+        "network switch",
+        "sector-technical-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "port",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.network-switch.complex",
+      "key": "sectors.data-center.it-infrastructure.network-switch.complex",
+      "displayName": "Network switch - complex",
+      "sourceFile": "assets/sources/batch13/network-switch-complex.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "network-switch",
+        "complex"
+      ],
+      "searchKeywords": [
+        "network switch",
+        "sector-complex-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "port",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.core-router.minimal",
+      "key": "sectors.data-center.it-infrastructure.core-router.minimal",
+      "displayName": "Core router - minimal",
+      "sourceFile": "assets/sources/batch13/core-router-minimal.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "core-router",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "core router",
+        "sector-minimal-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "port",
+          "kind": "fill"
+        },
+        {
+          "id": "router",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.core-router.flat",
+      "key": "sectors.data-center.it-infrastructure.core-router.flat",
+      "displayName": "Core router - flat",
+      "sourceFile": "assets/sources/batch13/core-router-flat.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "core-router",
+        "flat"
+      ],
+      "searchKeywords": [
+        "core router",
+        "sector-flat-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "port",
+          "kind": "fill"
+        },
+        {
+          "id": "router",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.core-router.technical",
+      "key": "sectors.data-center.it-infrastructure.core-router.technical",
+      "displayName": "Core router - technical",
+      "sourceFile": "assets/sources/batch13/core-router-technical.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "core-router",
+        "technical"
+      ],
+      "searchKeywords": [
+        "core router",
+        "sector-technical-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "port",
+          "kind": "fill"
+        },
+        {
+          "id": "router",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.core-router.complex",
+      "key": "sectors.data-center.it-infrastructure.core-router.complex",
+      "displayName": "Core router - complex",
+      "sourceFile": "assets/sources/batch13/core-router-complex.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "core-router",
+        "complex"
+      ],
+      "searchKeywords": [
+        "core router",
+        "sector-complex-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "port",
+          "kind": "fill"
+        },
+        {
+          "id": "router",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.rack-pdu.minimal",
+      "key": "sectors.data-center.it-infrastructure.rack-pdu.minimal",
+      "displayName": "Rack PDU - minimal",
+      "sourceFile": "assets/sources/batch13/rack-pdu-minimal.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "rack-pdu",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "rack pdu",
+        "sector-minimal-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.rack-pdu.flat",
+      "key": "sectors.data-center.it-infrastructure.rack-pdu.flat",
+      "displayName": "Rack PDU - flat",
+      "sourceFile": "assets/sources/batch13/rack-pdu-flat.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "rack-pdu",
+        "flat"
+      ],
+      "searchKeywords": [
+        "rack pdu",
+        "sector-flat-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.rack-pdu.technical",
+      "key": "sectors.data-center.it-infrastructure.rack-pdu.technical",
+      "displayName": "Rack PDU - technical",
+      "sourceFile": "assets/sources/batch13/rack-pdu-technical.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "rack-pdu",
+        "technical"
+      ],
+      "searchKeywords": [
+        "rack pdu",
+        "sector-technical-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.rack-pdu.complex",
+      "key": "sectors.data-center.it-infrastructure.rack-pdu.complex",
+      "displayName": "Rack PDU - complex",
+      "sourceFile": "assets/sources/batch13/rack-pdu-complex.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "rack-pdu",
+        "complex"
+      ],
+      "searchKeywords": [
+        "rack pdu",
+        "sector-complex-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.data-center-ups.minimal",
+      "key": "sectors.data-center.cooling-power.data-center-ups.minimal",
+      "displayName": "Data center UPS - minimal",
+      "sourceFile": "assets/sources/batch13/data-center-ups-minimal.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "data-center-ups",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "data center ups",
+        "sector-minimal-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "battery",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "display",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.data-center-ups.flat",
+      "key": "sectors.data-center.cooling-power.data-center-ups.flat",
+      "displayName": "Data center UPS - flat",
+      "sourceFile": "assets/sources/batch13/data-center-ups-flat.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "data-center-ups",
+        "flat"
+      ],
+      "searchKeywords": [
+        "data center ups",
+        "sector-flat-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "battery",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "display",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.data-center-ups.technical",
+      "key": "sectors.data-center.cooling-power.data-center-ups.technical",
+      "displayName": "Data center UPS - technical",
+      "sourceFile": "assets/sources/batch13/data-center-ups-technical.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "data-center-ups",
+        "technical"
+      ],
+      "searchKeywords": [
+        "data center ups",
+        "sector-technical-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "battery",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "display",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.data-center-ups.complex",
+      "key": "sectors.data-center.cooling-power.data-center-ups.complex",
+      "displayName": "Data center UPS - complex",
+      "sourceFile": "assets/sources/batch13/data-center-ups-complex.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "data-center-ups",
+        "complex"
+      ],
+      "searchKeywords": [
+        "data center ups",
+        "sector-complex-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "battery",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "display",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.crac-unit.minimal",
+      "key": "sectors.data-center.cooling-power.crac-unit.minimal",
+      "displayName": "CRAC unit - minimal",
+      "sourceFile": "assets/sources/batch13/crac-unit-minimal.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "crac-unit",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "crac unit",
+        "sector-minimal-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "coil",
+          "kind": "stroke"
+        },
+        {
+          "id": "fan",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.crac-unit.flat",
+      "key": "sectors.data-center.cooling-power.crac-unit.flat",
+      "displayName": "CRAC unit - flat",
+      "sourceFile": "assets/sources/batch13/crac-unit-flat.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "crac-unit",
+        "flat"
+      ],
+      "searchKeywords": [
+        "crac unit",
+        "sector-flat-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "coil",
+          "kind": "stroke"
+        },
+        {
+          "id": "fan",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.crac-unit.technical",
+      "key": "sectors.data-center.cooling-power.crac-unit.technical",
+      "displayName": "CRAC unit - technical",
+      "sourceFile": "assets/sources/batch13/crac-unit-technical.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "crac-unit",
+        "technical"
+      ],
+      "searchKeywords": [
+        "crac unit",
+        "sector-technical-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "coil",
+          "kind": "stroke"
+        },
+        {
+          "id": "fan",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.crac-unit.complex",
+      "key": "sectors.data-center.cooling-power.crac-unit.complex",
+      "displayName": "CRAC unit - complex",
+      "sourceFile": "assets/sources/batch13/crac-unit-complex.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "crac-unit",
+        "complex"
+      ],
+      "searchKeywords": [
+        "crac unit",
+        "sector-complex-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "coil",
+          "kind": "stroke"
+        },
+        {
+          "id": "fan",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.cooling-module.minimal",
+      "key": "sectors.data-center.cooling-power.cooling-module.minimal",
+      "displayName": "Data center cooling module - minimal",
+      "sourceFile": "assets/sources/batch13/cooling-module-minimal.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "cooling-module",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "data center cooling module",
+        "sector-minimal-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "fan",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.cooling-module.flat",
+      "key": "sectors.data-center.cooling-power.cooling-module.flat",
+      "displayName": "Data center cooling module - flat",
+      "sourceFile": "assets/sources/batch13/cooling-module-flat.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "cooling-module",
+        "flat"
+      ],
+      "searchKeywords": [
+        "data center cooling module",
+        "sector-flat-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "fan",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.cooling-module.technical",
+      "key": "sectors.data-center.cooling-power.cooling-module.technical",
+      "displayName": "Data center cooling module - technical",
+      "sourceFile": "assets/sources/batch13/cooling-module-technical.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "cooling-module",
+        "technical"
+      ],
+      "searchKeywords": [
+        "data center cooling module",
+        "sector-technical-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "fan",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.cooling-module.complex",
+      "key": "sectors.data-center.cooling-power.cooling-module.complex",
+      "displayName": "Data center cooling module - complex",
+      "sourceFile": "assets/sources/batch13/cooling-module-complex.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "cooling-module",
+        "complex"
+      ],
+      "searchKeywords": [
+        "data center cooling module",
+        "sector-complex-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "fan",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.battery-cabinet-dc.minimal",
+      "key": "sectors.data-center.cooling-power.battery-cabinet-dc.minimal",
+      "displayName": "Data center battery cabinet - minimal",
+      "sourceFile": "assets/sources/batch13/battery-cabinet-dc-minimal.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "battery-cabinet-dc",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "data center battery cabinet",
+        "sector-minimal-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "battery",
+          "kind": "stroke"
+        },
+        {
+          "id": "cabinet",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.battery-cabinet-dc.flat",
+      "key": "sectors.data-center.cooling-power.battery-cabinet-dc.flat",
+      "displayName": "Data center battery cabinet - flat",
+      "sourceFile": "assets/sources/batch13/battery-cabinet-dc-flat.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "battery-cabinet-dc",
+        "flat"
+      ],
+      "searchKeywords": [
+        "data center battery cabinet",
+        "sector-flat-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "battery",
+          "kind": "fill"
+        },
+        {
+          "id": "cabinet",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.battery-cabinet-dc.technical",
+      "key": "sectors.data-center.cooling-power.battery-cabinet-dc.technical",
+      "displayName": "Data center battery cabinet - technical",
+      "sourceFile": "assets/sources/batch13/battery-cabinet-dc-technical.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "battery-cabinet-dc",
+        "technical"
+      ],
+      "searchKeywords": [
+        "data center battery cabinet",
+        "sector-technical-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "battery",
+          "kind": "fill"
+        },
+        {
+          "id": "cabinet",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.battery-cabinet-dc.complex",
+      "key": "sectors.data-center.cooling-power.battery-cabinet-dc.complex",
+      "displayName": "Data center battery cabinet - complex",
+      "sourceFile": "assets/sources/batch13/battery-cabinet-dc-complex.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "battery-cabinet-dc",
+        "complex"
+      ],
+      "searchKeywords": [
+        "data center battery cabinet",
+        "sector-complex-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "battery",
+          "kind": "fill"
+        },
+        {
+          "id": "cabinet",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.generator-set-dc.minimal",
+      "key": "sectors.data-center.cooling-power.generator-set-dc.minimal",
+      "displayName": "Data center generator set - minimal",
+      "sourceFile": "assets/sources/batch13/generator-set-dc-minimal.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "generator-set-dc",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "data center generator set",
+        "sector-minimal-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "generator",
+          "kind": "stroke"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.generator-set-dc.flat",
+      "key": "sectors.data-center.cooling-power.generator-set-dc.flat",
+      "displayName": "Data center generator set - flat",
+      "sourceFile": "assets/sources/batch13/generator-set-dc-flat.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "generator-set-dc",
+        "flat"
+      ],
+      "searchKeywords": [
+        "data center generator set",
+        "sector-flat-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "generator",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.generator-set-dc.technical",
+      "key": "sectors.data-center.cooling-power.generator-set-dc.technical",
+      "displayName": "Data center generator set - technical",
+      "sourceFile": "assets/sources/batch13/generator-set-dc-technical.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "generator-set-dc",
+        "technical"
+      ],
+      "searchKeywords": [
+        "data center generator set",
+        "sector-technical-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "generator",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.generator-set-dc.complex",
+      "key": "sectors.data-center.cooling-power.generator-set-dc.complex",
+      "displayName": "Data center generator set - complex",
+      "sourceFile": "assets/sources/batch13/generator-set-dc-complex.svg",
+      "categoryPath": "sectors/data-center/cooling-power",
+      "tags": [
+        "sector",
+        "datacenter",
+        "generator-set-dc",
+        "complex"
+      ],
+      "searchKeywords": [
+        "data center generator set",
+        "sector-complex-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "generator",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.overhead-busway.minimal",
+      "key": "sectors.data-center.it-infrastructure.overhead-busway.minimal",
+      "displayName": "Overhead busway - minimal",
+      "sourceFile": "assets/sources/batch13/overhead-busway-minimal.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "overhead-busway",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "overhead busway",
+        "sector-minimal-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "busway",
+          "kind": "stroke"
+        },
+        {
+          "id": "rack-line",
+          "kind": "stroke"
+        },
+        {
+          "id": "tap",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.overhead-busway.flat",
+      "key": "sectors.data-center.it-infrastructure.overhead-busway.flat",
+      "displayName": "Overhead busway - flat",
+      "sourceFile": "assets/sources/batch13/overhead-busway-flat.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "overhead-busway",
+        "flat"
+      ],
+      "searchKeywords": [
+        "overhead busway",
+        "sector-flat-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "busway",
+          "kind": "fill"
+        },
+        {
+          "id": "rack-line",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "tap",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.overhead-busway.technical",
+      "key": "sectors.data-center.it-infrastructure.overhead-busway.technical",
+      "displayName": "Overhead busway - technical",
+      "sourceFile": "assets/sources/batch13/overhead-busway-technical.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "overhead-busway",
+        "technical"
+      ],
+      "searchKeywords": [
+        "overhead busway",
+        "sector-technical-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "busway",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "rack-line",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "tap",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.overhead-busway.complex",
+      "key": "sectors.data-center.it-infrastructure.overhead-busway.complex",
+      "displayName": "Overhead busway - complex",
+      "sourceFile": "assets/sources/batch13/overhead-busway-complex.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "overhead-busway",
+        "complex"
+      ],
+      "searchKeywords": [
+        "overhead busway",
+        "sector-complex-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "busway",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "rack-line",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "tap",
+          "kind": "stroke"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.cold-aisle-containment.minimal",
+      "key": "sectors.data-center.it-infrastructure.cold-aisle-containment.minimal",
+      "displayName": "Cold aisle containment - minimal",
+      "sourceFile": "assets/sources/batch13/cold-aisle-containment-minimal.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "cold-aisle-containment",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "cold aisle containment",
+        "sector-minimal-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "aisle",
+          "kind": "stroke"
+        },
+        {
+          "id": "containment",
+          "kind": "stroke"
+        },
+        {
+          "id": "rack",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.cold-aisle-containment.flat",
+      "key": "sectors.data-center.it-infrastructure.cold-aisle-containment.flat",
+      "displayName": "Cold aisle containment - flat",
+      "sourceFile": "assets/sources/batch13/cold-aisle-containment-flat.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "cold-aisle-containment",
+        "flat"
+      ],
+      "searchKeywords": [
+        "cold aisle containment",
+        "sector-flat-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "aisle",
+          "kind": "stroke"
+        },
+        {
+          "id": "containment",
+          "kind": "fill"
+        },
+        {
+          "id": "rack",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.cold-aisle-containment.technical",
+      "key": "sectors.data-center.it-infrastructure.cold-aisle-containment.technical",
+      "displayName": "Cold aisle containment - technical",
+      "sourceFile": "assets/sources/batch13/cold-aisle-containment-technical.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "cold-aisle-containment",
+        "technical"
+      ],
+      "searchKeywords": [
+        "cold aisle containment",
+        "sector-technical-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "aisle",
+          "kind": "stroke"
+        },
+        {
+          "id": "containment",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "rack",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.cold-aisle-containment.complex",
+      "key": "sectors.data-center.it-infrastructure.cold-aisle-containment.complex",
+      "displayName": "Cold aisle containment - complex",
+      "sourceFile": "assets/sources/batch13/cold-aisle-containment-complex.svg",
+      "categoryPath": "sectors/data-center/it-infrastructure",
+      "tags": [
+        "sector",
+        "datacenter",
+        "cold-aisle-containment",
+        "complex"
+      ],
+      "searchKeywords": [
+        "cold aisle containment",
+        "sector-complex-v13",
+        "datacenter"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "aisle",
+          "kind": "stroke"
+        },
+        {
+          "id": "containment",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "rack",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.warehouse-rack.minimal",
+      "key": "sectors.logistics.warehouse.warehouse-rack.minimal",
+      "displayName": "Warehouse rack - minimal",
+      "sourceFile": "assets/sources/batch13/warehouse-rack-minimal.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "warehouse-rack",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "warehouse rack",
+        "sector-minimal-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "beam",
+          "kind": "stroke"
+        },
+        {
+          "id": "upright",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.warehouse-rack.flat",
+      "key": "sectors.logistics.warehouse.warehouse-rack.flat",
+      "displayName": "Warehouse rack - flat",
+      "sourceFile": "assets/sources/batch13/warehouse-rack-flat.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "warehouse-rack",
+        "flat"
+      ],
+      "searchKeywords": [
+        "warehouse rack",
+        "sector-flat-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "beam",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "upright",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.warehouse-rack.technical",
+      "key": "sectors.logistics.warehouse.warehouse-rack.technical",
+      "displayName": "Warehouse rack - technical",
+      "sourceFile": "assets/sources/batch13/warehouse-rack-technical.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "warehouse-rack",
+        "technical"
+      ],
+      "searchKeywords": [
+        "warehouse rack",
+        "sector-technical-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "beam",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "upright",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.warehouse-rack.complex",
+      "key": "sectors.logistics.warehouse.warehouse-rack.complex",
+      "displayName": "Warehouse rack - complex",
+      "sourceFile": "assets/sources/batch13/warehouse-rack-complex.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "warehouse-rack",
+        "complex"
+      ],
+      "searchKeywords": [
+        "warehouse rack",
+        "sector-complex-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "beam",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "upright",
+          "kind": "stroke"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.pallet.minimal",
+      "key": "sectors.logistics.warehouse.pallet.minimal",
+      "displayName": "Pallet - minimal",
+      "sourceFile": "assets/sources/batch13/pallet-minimal.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "pallet",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "pallet",
+        "sector-minimal-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "block",
+          "kind": "stroke"
+        },
+        {
+          "id": "deck",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.pallet.flat",
+      "key": "sectors.logistics.warehouse.pallet.flat",
+      "displayName": "Pallet - flat",
+      "sourceFile": "assets/sources/batch13/pallet-flat.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "pallet",
+        "flat"
+      ],
+      "searchKeywords": [
+        "pallet",
+        "sector-flat-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "block",
+          "kind": "stroke"
+        },
+        {
+          "id": "deck",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.pallet.technical",
+      "key": "sectors.logistics.warehouse.pallet.technical",
+      "displayName": "Pallet - technical",
+      "sourceFile": "assets/sources/batch13/pallet-technical.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "pallet",
+        "technical"
+      ],
+      "searchKeywords": [
+        "pallet",
+        "sector-technical-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "block",
+          "kind": "stroke"
+        },
+        {
+          "id": "deck",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.pallet.complex",
+      "key": "sectors.logistics.warehouse.pallet.complex",
+      "displayName": "Pallet - complex",
+      "sourceFile": "assets/sources/batch13/pallet-complex.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "pallet",
+        "complex"
+      ],
+      "searchKeywords": [
+        "pallet",
+        "sector-complex-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "block",
+          "kind": "stroke"
+        },
+        {
+          "id": "deck",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.shipping-carton.minimal",
+      "key": "sectors.logistics.warehouse.shipping-carton.minimal",
+      "displayName": "Shipping carton - minimal",
+      "sourceFile": "assets/sources/batch13/shipping-carton-minimal.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "shipping-carton",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "shipping carton",
+        "sector-minimal-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "box",
+          "kind": "stroke"
+        },
+        {
+          "id": "flap",
+          "kind": "stroke"
+        },
+        {
+          "id": "seam",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.shipping-carton.flat",
+      "key": "sectors.logistics.warehouse.shipping-carton.flat",
+      "displayName": "Shipping carton - flat",
+      "sourceFile": "assets/sources/batch13/shipping-carton-flat.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "shipping-carton",
+        "flat"
+      ],
+      "searchKeywords": [
+        "shipping carton",
+        "sector-flat-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "box",
+          "kind": "fill"
+        },
+        {
+          "id": "flap",
+          "kind": "stroke"
+        },
+        {
+          "id": "seam",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.shipping-carton.technical",
+      "key": "sectors.logistics.warehouse.shipping-carton.technical",
+      "displayName": "Shipping carton - technical",
+      "sourceFile": "assets/sources/batch13/shipping-carton-technical.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "shipping-carton",
+        "technical"
+      ],
+      "searchKeywords": [
+        "shipping carton",
+        "sector-technical-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "box",
+          "kind": "fill"
+        },
+        {
+          "id": "flap",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "seam",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.shipping-carton.complex",
+      "key": "sectors.logistics.warehouse.shipping-carton.complex",
+      "displayName": "Shipping carton - complex",
+      "sourceFile": "assets/sources/batch13/shipping-carton-complex.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "shipping-carton",
+        "complex"
+      ],
+      "searchKeywords": [
+        "shipping carton",
+        "sector-complex-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "box",
+          "kind": "fill"
+        },
+        {
+          "id": "flap",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "seam",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.dock-door.minimal",
+      "key": "sectors.logistics.warehouse.dock-door.minimal",
+      "displayName": "Dock door - minimal",
+      "sourceFile": "assets/sources/batch13/dock-door-minimal.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "dock-door",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "dock door",
+        "sector-minimal-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "door",
+          "kind": "stroke"
+        },
+        {
+          "id": "panel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.dock-door.flat",
+      "key": "sectors.logistics.warehouse.dock-door.flat",
+      "displayName": "Dock door - flat",
+      "sourceFile": "assets/sources/batch13/dock-door-flat.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "dock-door",
+        "flat"
+      ],
+      "searchKeywords": [
+        "dock door",
+        "sector-flat-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "door",
+          "kind": "fill"
+        },
+        {
+          "id": "panel",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.dock-door.technical",
+      "key": "sectors.logistics.warehouse.dock-door.technical",
+      "displayName": "Dock door - technical",
+      "sourceFile": "assets/sources/batch13/dock-door-technical.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "dock-door",
+        "technical"
+      ],
+      "searchKeywords": [
+        "dock door",
+        "sector-technical-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "door",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "panel",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.dock-door.complex",
+      "key": "sectors.logistics.warehouse.dock-door.complex",
+      "displayName": "Dock door - complex",
+      "sourceFile": "assets/sources/batch13/dock-door-complex.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "dock-door",
+        "complex"
+      ],
+      "searchKeywords": [
+        "dock door",
+        "sector-complex-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "door",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "panel",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.loading-dock.minimal",
+      "key": "sectors.logistics.warehouse.loading-dock.minimal",
+      "displayName": "Loading dock - minimal",
+      "sourceFile": "assets/sources/batch13/loading-dock-minimal.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "loading-dock",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "loading dock",
+        "sector-minimal-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "dock",
+          "kind": "stroke"
+        },
+        {
+          "id": "leveler",
+          "kind": "stroke"
+        },
+        {
+          "id": "truck",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.loading-dock.flat",
+      "key": "sectors.logistics.warehouse.loading-dock.flat",
+      "displayName": "Loading dock - flat",
+      "sourceFile": "assets/sources/batch13/loading-dock-flat.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "loading-dock",
+        "flat"
+      ],
+      "searchKeywords": [
+        "loading dock",
+        "sector-flat-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "dock",
+          "kind": "fill"
+        },
+        {
+          "id": "leveler",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "truck",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.loading-dock.technical",
+      "key": "sectors.logistics.warehouse.loading-dock.technical",
+      "displayName": "Loading dock - technical",
+      "sourceFile": "assets/sources/batch13/loading-dock-technical.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "loading-dock",
+        "technical"
+      ],
+      "searchKeywords": [
+        "loading dock",
+        "sector-technical-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "dock",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "leveler",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "truck",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.loading-dock.complex",
+      "key": "sectors.logistics.warehouse.loading-dock.complex",
+      "displayName": "Loading dock - complex",
+      "sourceFile": "assets/sources/batch13/loading-dock-complex.svg",
+      "categoryPath": "sectors/logistics/warehouse",
+      "tags": [
+        "sector",
+        "logistics",
+        "loading-dock",
+        "complex"
+      ],
+      "searchKeywords": [
+        "loading dock",
+        "sector-complex-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "dock",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "leveler",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "truck",
+          "kind": "stroke"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.sortation-conveyor.minimal",
+      "key": "sectors.logistics.automation.sortation-conveyor.minimal",
+      "displayName": "Sortation conveyor - minimal",
+      "sourceFile": "assets/sources/batch13/sortation-conveyor-minimal.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "sortation-conveyor",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "sortation conveyor",
+        "sector-minimal-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "diverter",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.sortation-conveyor.flat",
+      "key": "sectors.logistics.automation.sortation-conveyor.flat",
+      "displayName": "Sortation conveyor - flat",
+      "sourceFile": "assets/sources/batch13/sortation-conveyor-flat.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "sortation-conveyor",
+        "flat"
+      ],
+      "searchKeywords": [
+        "sortation conveyor",
+        "sector-flat-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "diverter",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.sortation-conveyor.technical",
+      "key": "sectors.logistics.automation.sortation-conveyor.technical",
+      "displayName": "Sortation conveyor - technical",
+      "sourceFile": "assets/sources/batch13/sortation-conveyor-technical.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "sortation-conveyor",
+        "technical"
+      ],
+      "searchKeywords": [
+        "sortation conveyor",
+        "sector-technical-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "diverter",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.sortation-conveyor.complex",
+      "key": "sectors.logistics.automation.sortation-conveyor.complex",
+      "displayName": "Sortation conveyor - complex",
+      "sourceFile": "assets/sources/batch13/sortation-conveyor-complex.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "sortation-conveyor",
+        "complex"
+      ],
+      "searchKeywords": [
+        "sortation conveyor",
+        "sector-complex-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "diverter",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.barcode-scanner.minimal",
+      "key": "sectors.logistics.automation.barcode-scanner.minimal",
+      "displayName": "Barcode scanner - minimal",
+      "sourceFile": "assets/sources/batch13/barcode-scanner-minimal.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "barcode-scanner",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "barcode scanner",
+        "sector-minimal-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "barcode",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "handle",
+          "kind": "stroke"
+        },
+        {
+          "id": "scan",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.barcode-scanner.flat",
+      "key": "sectors.logistics.automation.barcode-scanner.flat",
+      "displayName": "Barcode scanner - flat",
+      "sourceFile": "assets/sources/batch13/barcode-scanner-flat.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "barcode-scanner",
+        "flat"
+      ],
+      "searchKeywords": [
+        "barcode scanner",
+        "sector-flat-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "barcode",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "handle",
+          "kind": "stroke"
+        },
+        {
+          "id": "scan",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.barcode-scanner.technical",
+      "key": "sectors.logistics.automation.barcode-scanner.technical",
+      "displayName": "Barcode scanner - technical",
+      "sourceFile": "assets/sources/batch13/barcode-scanner-technical.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "barcode-scanner",
+        "technical"
+      ],
+      "searchKeywords": [
+        "barcode scanner",
+        "sector-technical-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "barcode",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "handle",
+          "kind": "stroke"
+        },
+        {
+          "id": "scan",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.barcode-scanner.complex",
+      "key": "sectors.logistics.automation.barcode-scanner.complex",
+      "displayName": "Barcode scanner - complex",
+      "sourceFile": "assets/sources/batch13/barcode-scanner-complex.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "barcode-scanner",
+        "complex"
+      ],
+      "searchKeywords": [
+        "barcode scanner",
+        "sector-complex-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "barcode",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "handle",
+          "kind": "stroke"
+        },
+        {
+          "id": "scan",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.shuttle-system.minimal",
+      "key": "sectors.logistics.automation.shuttle-system.minimal",
+      "displayName": "Warehouse shuttle system - minimal",
+      "sourceFile": "assets/sources/batch13/shuttle-system-minimal.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "shuttle-system",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "warehouse shuttle system",
+        "sector-minimal-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "rail",
+          "kind": "stroke"
+        },
+        {
+          "id": "shuttle",
+          "kind": "stroke"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.shuttle-system.flat",
+      "key": "sectors.logistics.automation.shuttle-system.flat",
+      "displayName": "Warehouse shuttle system - flat",
+      "sourceFile": "assets/sources/batch13/shuttle-system-flat.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "shuttle-system",
+        "flat"
+      ],
+      "searchKeywords": [
+        "warehouse shuttle system",
+        "sector-flat-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "rail",
+          "kind": "stroke"
+        },
+        {
+          "id": "shuttle",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.shuttle-system.technical",
+      "key": "sectors.logistics.automation.shuttle-system.technical",
+      "displayName": "Warehouse shuttle system - technical",
+      "sourceFile": "assets/sources/batch13/shuttle-system-technical.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "shuttle-system",
+        "technical"
+      ],
+      "searchKeywords": [
+        "warehouse shuttle system",
+        "sector-technical-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "rail",
+          "kind": "stroke"
+        },
+        {
+          "id": "shuttle",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.shuttle-system.complex",
+      "key": "sectors.logistics.automation.shuttle-system.complex",
+      "displayName": "Warehouse shuttle system - complex",
+      "sourceFile": "assets/sources/batch13/shuttle-system-complex.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "shuttle-system",
+        "complex"
+      ],
+      "searchKeywords": [
+        "warehouse shuttle system",
+        "sector-complex-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "rail",
+          "kind": "stroke"
+        },
+        {
+          "id": "shuttle",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.asrs-crane.minimal",
+      "key": "sectors.logistics.automation.asrs-crane.minimal",
+      "displayName": "AS/RS crane - minimal",
+      "sourceFile": "assets/sources/batch13/asrs-crane-minimal.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "asrs-crane",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "as/rs crane",
+        "sector-minimal-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "beam",
+          "kind": "stroke"
+        },
+        {
+          "id": "carriage",
+          "kind": "stroke"
+        },
+        {
+          "id": "fork",
+          "kind": "stroke"
+        },
+        {
+          "id": "mast",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.asrs-crane.flat",
+      "key": "sectors.logistics.automation.asrs-crane.flat",
+      "displayName": "AS/RS crane - flat",
+      "sourceFile": "assets/sources/batch13/asrs-crane-flat.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "asrs-crane",
+        "flat"
+      ],
+      "searchKeywords": [
+        "as/rs crane",
+        "sector-flat-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "beam",
+          "kind": "stroke"
+        },
+        {
+          "id": "carriage",
+          "kind": "fill"
+        },
+        {
+          "id": "fork",
+          "kind": "stroke"
+        },
+        {
+          "id": "mast",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.asrs-crane.technical",
+      "key": "sectors.logistics.automation.asrs-crane.technical",
+      "displayName": "AS/RS crane - technical",
+      "sourceFile": "assets/sources/batch13/asrs-crane-technical.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "asrs-crane",
+        "technical"
+      ],
+      "searchKeywords": [
+        "as/rs crane",
+        "sector-technical-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "beam",
+          "kind": "stroke"
+        },
+        {
+          "id": "carriage",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "fork",
+          "kind": "stroke"
+        },
+        {
+          "id": "mast",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.asrs-crane.complex",
+      "key": "sectors.logistics.automation.asrs-crane.complex",
+      "displayName": "AS/RS crane - complex",
+      "sourceFile": "assets/sources/batch13/asrs-crane-complex.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "asrs-crane",
+        "complex"
+      ],
+      "searchKeywords": [
+        "as/rs crane",
+        "sector-complex-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "beam",
+          "kind": "stroke"
+        },
+        {
+          "id": "carriage",
+          "kind": "fill"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "fork",
+          "kind": "stroke"
+        },
+        {
+          "id": "mast",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.parcel-sorter.minimal",
+      "key": "sectors.logistics.automation.parcel-sorter.minimal",
+      "displayName": "Parcel sorter - minimal",
+      "sourceFile": "assets/sources/batch13/parcel-sorter-minimal.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "parcel-sorter",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "parcel sorter",
+        "sector-minimal-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "chute",
+          "kind": "stroke"
+        },
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.parcel-sorter.flat",
+      "key": "sectors.logistics.automation.parcel-sorter.flat",
+      "displayName": "Parcel sorter - flat",
+      "sourceFile": "assets/sources/batch13/parcel-sorter-flat.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "parcel-sorter",
+        "flat"
+      ],
+      "searchKeywords": [
+        "parcel sorter",
+        "sector-flat-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "chute",
+          "kind": "stroke"
+        },
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.parcel-sorter.technical",
+      "key": "sectors.logistics.automation.parcel-sorter.technical",
+      "displayName": "Parcel sorter - technical",
+      "sourceFile": "assets/sources/batch13/parcel-sorter-technical.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "parcel-sorter",
+        "technical"
+      ],
+      "searchKeywords": [
+        "parcel sorter",
+        "sector-technical-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "chute",
+          "kind": "stroke"
+        },
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.parcel-sorter.complex",
+      "key": "sectors.logistics.automation.parcel-sorter.complex",
+      "displayName": "Parcel sorter - complex",
+      "sourceFile": "assets/sources/batch13/parcel-sorter-complex.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "parcel-sorter",
+        "complex"
+      ],
+      "searchKeywords": [
+        "parcel sorter",
+        "sector-complex-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "chute",
+          "kind": "stroke"
+        },
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.parcel-dimensioner.minimal",
+      "key": "sectors.logistics.automation.parcel-dimensioner.minimal",
+      "displayName": "Parcel dimensioner - minimal",
+      "sourceFile": "assets/sources/batch13/parcel-dimensioner-minimal.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "parcel-dimensioner",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "parcel dimensioner",
+        "sector-minimal-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "beam",
+          "kind": "stroke"
+        },
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "stroke"
+        },
+        {
+          "id": "scan",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.parcel-dimensioner.flat",
+      "key": "sectors.logistics.automation.parcel-dimensioner.flat",
+      "displayName": "Parcel dimensioner - flat",
+      "sourceFile": "assets/sources/batch13/parcel-dimensioner-flat.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "parcel-dimensioner",
+        "flat"
+      ],
+      "searchKeywords": [
+        "parcel dimensioner",
+        "sector-flat-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "beam",
+          "kind": "stroke"
+        },
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "fill"
+        },
+        {
+          "id": "scan",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.parcel-dimensioner.technical",
+      "key": "sectors.logistics.automation.parcel-dimensioner.technical",
+      "displayName": "Parcel dimensioner - technical",
+      "sourceFile": "assets/sources/batch13/parcel-dimensioner-technical.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "parcel-dimensioner",
+        "technical"
+      ],
+      "searchKeywords": [
+        "parcel dimensioner",
+        "sector-technical-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "beam",
+          "kind": "stroke"
+        },
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "fill"
+        },
+        {
+          "id": "scan",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.parcel-dimensioner.complex",
+      "key": "sectors.logistics.automation.parcel-dimensioner.complex",
+      "displayName": "Parcel dimensioner - complex",
+      "sourceFile": "assets/sources/batch13/parcel-dimensioner-complex.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "parcel-dimensioner",
+        "complex"
+      ],
+      "searchKeywords": [
+        "parcel dimensioner",
+        "sector-complex-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "beam",
+          "kind": "stroke"
+        },
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "fill"
+        },
+        {
+          "id": "scan",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.stretch-wrapper.minimal",
+      "key": "sectors.logistics.automation.stretch-wrapper.minimal",
+      "displayName": "Stretch wrapper - minimal",
+      "sourceFile": "assets/sources/batch13/stretch-wrapper-minimal.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "stretch-wrapper",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "stretch wrapper",
+        "sector-minimal-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "film",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "stroke"
+        },
+        {
+          "id": "load",
+          "kind": "stroke"
+        },
+        {
+          "id": "turntable",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.stretch-wrapper.flat",
+      "key": "sectors.logistics.automation.stretch-wrapper.flat",
+      "displayName": "Stretch wrapper - flat",
+      "sourceFile": "assets/sources/batch13/stretch-wrapper-flat.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "stretch-wrapper",
+        "flat"
+      ],
+      "searchKeywords": [
+        "stretch wrapper",
+        "sector-flat-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "film",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "fill"
+        },
+        {
+          "id": "load",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "turntable",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.stretch-wrapper.technical",
+      "key": "sectors.logistics.automation.stretch-wrapper.technical",
+      "displayName": "Stretch wrapper - technical",
+      "sourceFile": "assets/sources/batch13/stretch-wrapper-technical.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "stretch-wrapper",
+        "technical"
+      ],
+      "searchKeywords": [
+        "stretch wrapper",
+        "sector-technical-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "film",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "fill"
+        },
+        {
+          "id": "load",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "turntable",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.stretch-wrapper.complex",
+      "key": "sectors.logistics.automation.stretch-wrapper.complex",
+      "displayName": "Stretch wrapper - complex",
+      "sourceFile": "assets/sources/batch13/stretch-wrapper-complex.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "stretch-wrapper",
+        "complex"
+      ],
+      "searchKeywords": [
+        "stretch wrapper",
+        "sector-complex-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "film",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "fill"
+        },
+        {
+          "id": "load",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "turntable",
+          "kind": "stroke"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.dock-leveler.minimal",
+      "key": "sectors.logistics.automation.dock-leveler.minimal",
+      "displayName": "Dock leveler - minimal",
+      "sourceFile": "assets/sources/batch13/dock-leveler-minimal.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "dock-leveler",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "dock leveler",
+        "sector-minimal-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-minimal-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "dock",
+          "kind": "stroke"
+        },
+        {
+          "id": "hinge",
+          "kind": "stroke"
+        },
+        {
+          "id": "leveler",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.dock-leveler.flat",
+      "key": "sectors.logistics.automation.dock-leveler.flat",
+      "displayName": "Dock leveler - flat",
+      "sourceFile": "assets/sources/batch13/dock-leveler-flat.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "dock-leveler",
+        "flat"
+      ],
+      "searchKeywords": [
+        "dock leveler",
+        "sector-flat-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-flat-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "dock",
+          "kind": "stroke"
+        },
+        {
+          "id": "hinge",
+          "kind": "stroke"
+        },
+        {
+          "id": "leveler",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.dock-leveler.technical",
+      "key": "sectors.logistics.automation.dock-leveler.technical",
+      "displayName": "Dock leveler - technical",
+      "sourceFile": "assets/sources/batch13/dock-leveler-technical.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "dock-leveler",
+        "technical"
+      ],
+      "searchKeywords": [
+        "dock leveler",
+        "sector-technical-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-technical-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "dock",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "hinge",
+          "kind": "stroke"
+        },
+        {
+          "id": "leveler",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector2.dock-leveler.complex",
+      "key": "sectors.logistics.automation.dock-leveler.complex",
+      "displayName": "Dock leveler - complex",
+      "sourceFile": "assets/sources/batch13/dock-leveler-complex.svg",
+      "categoryPath": "sectors/logistics/automation",
+      "tags": [
+        "sector",
+        "logistics",
+        "dock-leveler",
+        "complex"
+      ],
+      "searchKeywords": [
+        "dock leveler",
+        "sector-complex-v13",
+        "logistics"
+      ],
+      "styleFamily": "sector-complex-v13",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA Data Center/Logistics sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "dock",
+          "kind": "stroke"
+        },
+        {
+          "id": "floor",
+          "kind": "stroke"
+        },
+        {
+          "id": "hinge",
+          "kind": "stroke"
+        },
+        {
+          "id": "leveler",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "zone",
+          "kind": "stroke"
+        }
+      ]
+    }
+  ]
+}

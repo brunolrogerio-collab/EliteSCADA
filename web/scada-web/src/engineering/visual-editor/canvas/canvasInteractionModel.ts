@@ -2,7 +2,7 @@ import type { ScreenEngineering, VisualElementEngineering } from '../../types';
 import {
   COMMON_VISUAL_PROPERTY_REGISTRY,
   VISUAL_PROPERTY_KEYS,
-  getBuiltinVisualObjectSchema
+  getVisualSchemaForEngineering
 } from '../../../visual-runtime';
 import type {
   VisualEditorBounds,
@@ -144,6 +144,32 @@ export function normalizeViewport(viewport: VisualEditorViewport): VisualEditorV
     zoom: clampFinite(viewport.zoom, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM, 1),
     panX: finiteOr(viewport.panX, 0),
     panY: finiteOr(viewport.panY, 0)
+  });
+}
+
+export function fitViewportToBounds(
+  viewportWidth: number,
+  viewportHeight: number,
+  contentWidth: number,
+  contentHeight: number,
+  padding = 24
+): VisualEditorViewport {
+  const availableWidth = positiveFinite(viewportWidth, 0);
+  const availableHeight = positiveFinite(viewportHeight, 0);
+  const width = positiveFinite(contentWidth, 1);
+  const height = positiveFinite(contentHeight, 1);
+  const inset = Math.min(Math.max(finiteOr(padding, 24), 0), Math.min(availableWidth, availableHeight) / 2);
+  const innerWidth = Math.max(0, availableWidth - inset * 2);
+  const innerHeight = Math.max(0, availableHeight - inset * 2);
+  const fitZoom = innerWidth > 0 && innerHeight > 0
+    ? Math.min(innerWidth / width, innerHeight / height)
+    : MIN_CANVAS_ZOOM;
+  const zoom = clampFinite(fitZoom, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM, 1);
+
+  return Object.freeze({
+    zoom,
+    panX: (availableWidth - width * zoom) / 2,
+    panY: (availableHeight - height * zoom) / 2
   });
 }
 
@@ -305,7 +331,7 @@ function readBoolean(element: VisualElementEngineering, propertyKey: string): bo
 
 function registryDefault(objectType: string, propertyKey: string): unknown {
   try {
-    const schema = getBuiltinVisualObjectSchema(objectType);
+    const schema = getVisualSchemaForEngineering(objectType);
     if (schema.declares(propertyKey)) return schema.getRequired(propertyKey).defaultValue;
   } catch {
     // Historical/non-built-in objects may still be projected generically. Their
@@ -317,6 +343,10 @@ function registryDefault(objectType: string, propertyKey: string): unknown {
 
 function finiteOr(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
+}
+
+function positiveFinite(value: number, fallback: number): number {
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function clampFinite(value: number, minimum: number, maximum: number, fallback: number): number {

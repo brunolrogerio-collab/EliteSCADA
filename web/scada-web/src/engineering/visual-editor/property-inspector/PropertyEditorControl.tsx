@@ -2,10 +2,13 @@ import {
   useEffect,
   useRef,
   useState,
+  type ChangeEvent,
   type KeyboardEvent
 } from 'react';
 import type { VisualAssetEngineering, VisualEngineeringPropertyValue } from '../../types';
-import type { VisualPropertyDefinition } from '../../../visual-runtime';
+import type { MediaSourceEngineering } from '../../types';
+import { loadMediaSources } from '../../api';
+import { VISUAL_PROPERTY_KEYS, type VisualPropertyDefinition } from '../../../visual-runtime';
 import { normalizeCanonicalStrokeStyle, svgStrokeDasharray } from '../visualStrokePresentation';
 import type { PropertyInspectorCopy } from './PropertyInspector';
 import {
@@ -16,33 +19,40 @@ import {
 
 export type PropertyEditorControlProps = Readonly<{
   definition: VisualPropertyDefinition;
+  objectType?: string;
   row: PropertyInspectorRow;
   text: PropertyInspectorCopy;
   visualAssets: readonly VisualAssetEngineering[];
+  onImportImage?: (file: File) => Promise<string | null | void> | string | null | void;
+  imageImportDisabled?: boolean;
+  imageImportBusy?: boolean;
   commit: (value: VisualEngineeringPropertyValue) => boolean;
   setError: (message: string | null) => void;
 }>;
 
-const FONT_FAMILY_SUGGESTIONS = Object.freeze([
-  'system',
-  'Arial',
-  'Helvetica',
-  'Verdana',
-  'Tahoma',
-  'Georgia',
-  'Times New Roman',
-  'Courier New',
-  'monospace'
-]);
+const FONT_FAMILY_OPTIONS = Object.freeze(['system', 'Arimo Variable', 'Lato', 'Tinos', 'Cousine']);
 
 export function PropertyEditorControl({
   definition,
+  objectType,
   row,
   text,
   visualAssets,
+  onImportImage,
+  imageImportDisabled,
+  imageImportBusy,
   commit,
   setError
 }: PropertyEditorControlProps) {
+  if (definition.key === VISUAL_PROPERTY_KEYS.mediaSourceId) return <MediaSourceControl row={row} commit={commit} setError={setError}/>;
+  if (definition.type === 'number' && [VISUAL_PROPERTY_KEYS.imagePositionX, VISUAL_PROPERTY_KEYS.imagePositionY, VISUAL_PROPERTY_KEYS.imageZoom].includes(definition.key as never)) {
+    return <ImageAdjustmentControl definition={definition} row={row} text={text} commit={commit} />;
+  }
+
+  if (definition.type === 'number' && definition.key === VISUAL_PROPERTY_KEYS.fontWeight) {
+    return <BoldControl definition={definition} row={row} text={text} commit={commit} />;
+  }
+
   if (definition.type === 'boolean') {
     return <BooleanControl definition={definition} row={row} text={text} commit={commit} />;
   }
@@ -62,10 +72,14 @@ export function PropertyEditorControl({
   if (definition.type === 'assetRef' || definition.presentationHint === 'project-asset') {
     return <AssetReferenceControl
       definition={definition}
+      objectType={objectType}
       row={row}
       text={text}
       visualAssets={visualAssets}
       commit={commit}
+      onImportImage={onImportImage}
+      imageImportDisabled={imageImportDisabled}
+      imageImportBusy={imageImportBusy}
     />;
   }
 
@@ -74,6 +88,21 @@ export function PropertyEditorControl({
   }
 
   return <TextualControl definition={definition} row={row} text={text} commit={commit} setError={setError} />;
+}
+
+function MediaSourceControl({ row, commit, setError }: Pick<PropertyEditorControlProps, 'row' | 'commit' | 'setError'>) {
+  const [sources, setSources] = useState<MediaSourceEngineering[]>([]);
+  useEffect(() => {
+    let disposed = false;
+    void loadMediaSources().then(items => { if (!disposed) setSources(items); }).catch(error => { if (!disposed) setError(error instanceof Error ? error.message : String(error)); });
+    return () => { disposed = true; };
+  }, [setError]);
+  const current = String(row.value ?? '');
+  return <select aria-label="Media Source" value={current} onChange={event => commit(event.target.value)}>
+    <option value="">Project asset</option>
+    {current && !sources.some(source => source.id === current) && <option value={current}>{current}</option>}
+    {sources.filter(source => source.id && source.enabled).map(source => <option key={source.id!} value={source.id!}>{source.name} · {source.protocol}</option>)}
+  </select>;
 }
 
 type BasicEditorProps = Pick<PropertyEditorControlProps, 'definition' | 'row' | 'text' | 'commit'>;
@@ -97,6 +126,30 @@ function BooleanControl({ definition, row, text, commit }: BasicEditorProps) {
         onChange={event => commit(event.currentTarget.checked)}
       />
       <span>{row.state === 'mixed' ? text.mixed : displayValue ? text.trueLabel : text.falseLabel}</span>
+    </label>
+  );
+}
+
+function BoldControl({ definition, row, text, commit }: BasicEditorProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const weight = Number(row.value ?? row.defaultValue ?? 400);
+  const checked = row.state !== 'mixed' && weight >= 600;
+
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.indeterminate = row.state === 'mixed';
+  }, [row.state]);
+
+  return (
+    <label className="property-inspector__boolean-control">
+      <input
+        id={`visual-property-${definition.key}`}
+        ref={inputRef}
+        type="checkbox"
+        checked={checked}
+        disabled={!definition.engineeringEditable}
+        onChange={event => commit(event.currentTarget.checked ? 700 : 400)}
+      />
+      <span>{text.fontWeightLabel}</span>
     </label>
   );
 }
@@ -163,22 +216,61 @@ function EnumControl({ definition, row, text, commit }: BasicEditorProps) {
       onChange={event => commit(event.currentTarget.value)}
     >
       {row.state === 'mixed' ? <option value="__mixed__" disabled>{text.mixed}</option> : null}
-      {definition.allowedValues.map(option => <option key={option} value={option}>{option}</option>)}
+      {definition.allowedValues.map(option => <option key={option} value={option}>{definition.key === VISUAL_PROPERTY_KEYS.imageFit ? text.fitOptions[option] ?? option : option}</option>)}
     </select>
   );
 }
 
+function ImageAdjustmentControl({ definition, row, commit }: BasicEditorProps) {
+  const isZoom = definition.key === VISUAL_PROPERTY_KEYS.imageZoom;
+  const value = Number(row.state === 'mixed' ? row.defaultValue : row.value ?? row.defaultValue);
+  const sliderValue = isZoom ? value : value * 100;
+  const minimum = isZoom ? 1 : 0;
+  const maximum = isZoom ? 8 : 100;
+  const step = isZoom ? 0.1 : 1;
+  return <div className="property-inspector__image-adjustment" data-property-editor="image-adjustment">
+    <input
+      id={`visual-property-${definition.key}`}
+      type="range"
+      min={minimum}
+      max={maximum}
+      step={step}
+      value={Number.isFinite(sliderValue) ? sliderValue : minimum}
+      disabled={!definition.engineeringEditable}
+      onChange={event => {
+        const next = Number(event.currentTarget.value);
+        commit(isZoom ? next : next / 100);
+      }}
+    />
+    <output>{isZoom ? `${sliderValue.toFixed(1)}×` : `${Math.round(sliderValue)}%`}</output>
+  </div>;
+}
+
 function AssetReferenceControl({
   definition,
+  objectType,
   row,
   text,
   visualAssets,
-  commit
-}: Pick<PropertyEditorControlProps, 'definition' | 'row' | 'text' | 'visualAssets' | 'commit'>) {
+  commit,
+  onImportImage,
+  imageImportDisabled = false,
+  imageImportBusy = false
+}: Pick<PropertyEditorControlProps, 'definition' | 'objectType' | 'row' | 'text' | 'visualAssets' | 'commit' | 'onImportImage' | 'imageImportDisabled' | 'imageImportBusy'>) {
+  const fileInput = useRef<HTMLInputElement>(null);
   const current = row.state === 'mixed'
     ? '__mixed__'
     : formatPropertyInspectorValue(row.value ?? row.defaultValue);
-  const assets = visualAssets.filter(asset => typeof asset.id === 'string' && asset.id.length > 0);
+  const acceptedTypes = objectType === 'core.videoPlayer'
+    ? ['video/mp4', 'video/webm']
+    : objectType === 'core.pdfViewer'
+      ? ['application/pdf']
+      : objectType === 'core.model3d'
+        ? ['model/gltf-binary', 'model/gltf+json']
+        : objectType === 'core.svgSymbol'
+          ? ['image/svg+xml']
+          : ['image/png', 'image/jpeg', 'image/bmp', 'image/svg+xml'];
+  const assets = visualAssets.filter(asset => typeof asset.id === 'string' && asset.id.length > 0 && acceptedTypes.includes(asset.mediaType));
   const selectedValue = current.startsWith('asset:') ? current.slice('asset:'.length) : current;
 
   return (
@@ -203,6 +295,27 @@ function AssetReferenceControl({
           </option>
         ))}
       </select>
+      {onImportImage ? <>
+        <input
+          ref={fileInput}
+          type="file"
+          accept={acceptedTypes.join(',')}
+          hidden
+          onChange={event => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = '';
+            if (file) void Promise.resolve(onImportImage(file)).then(id => {
+              if (typeof id === 'string' && id) commit({ assetId: id });
+            });
+          }}
+        />
+        <button
+          type="button"
+          className="property-inspector__asset-import"
+          disabled={!definition.engineeringEditable || imageImportDisabled || imageImportBusy}
+          onClick={() => fileInput.current?.click()}
+        >{imageImportBusy ? text.importingAsset : text.chooseImage}</button>
+      </> : null}
       <small>{text.assetBrowserHint}</small>
     </div>
   );
@@ -215,59 +328,74 @@ function FontFamilyControl({
   commit,
   setError
 }: Omit<PropertyEditorControlProps, 'visualAssets'>) {
-  const displayValue = row.state === 'mixed' ? '' : formatPropertyInspectorValue(row.value ?? row.defaultValue);
-  const [draft, setDraft] = useState(displayValue);
-  const [dirty, setDirty] = useState(false);
-  const listId = `visual-property-${definition.key}-fonts`;
+  const displayValue = row.state === 'mixed' ? '__mixed__' : formatPropertyInspectorValue(row.value ?? row.defaultValue);
+  const isKnownFamily = FONT_FAMILY_OPTIONS.includes(displayValue);
+  const [customDraft, setCustomDraft] = useState(isKnownFamily ? '' : displayValue === '__mixed__' ? '' : displayValue);
+  const [customMode, setCustomMode] = useState(!isKnownFamily);
 
   useEffect(() => {
-    setDraft(displayValue);
-    setDirty(false);
+    const known = FONT_FAMILY_OPTIONS.includes(displayValue);
+    setCustomDraft(known || displayValue === '__mixed__' ? '' : displayValue);
+    setCustomMode(!known && displayValue !== '__mixed__');
   }, [displayValue]);
 
-  const applyDraft = () => {
-    if (!dirty) return;
-    const parsed = parsePropertyInspectorInput(definition, draft);
+  const selectValue = row.state === 'mixed' ? '__mixed__' : customMode ? '__custom__' : displayValue;
+  const applyCustom = () => {
+    if (!customDraft.trim()) return;
+    const parsed = parsePropertyInspectorInput(definition, customDraft);
     if (!parsed.ok) {
       setError(parsed.error);
       return;
     }
-    if (commit(parsed.value)) setDirty(false);
+    setError(null);
+    commit(parsed.value);
   };
 
   return (
     <>
-      <input
+      <select
         id={`visual-property-${definition.key}`}
-        type="text"
-        list={listId}
-        value={draft}
-        placeholder={row.state === 'mixed' ? text.mixed : text.fontFamilyPlaceholder}
+        value={selectValue}
         disabled={!definition.engineeringEditable}
         onChange={event => {
-          setDraft(event.currentTarget.value);
-          setDirty(true);
+          const value = event.currentTarget.value;
+          if (value === '__mixed__') return;
+          if (value === '__custom__') {
+            setCustomMode(true);
+            if (!customDraft) setCustomDraft('');
+            return;
+          }
+          setCustomMode(false);
+          setError(null);
+          commit(value);
+        }}
+      >
+        {row.state === 'mixed' ? <option value="__mixed__" disabled>{text.mixed}</option> : null}
+        {FONT_FAMILY_OPTIONS.map(font => <option key={font} value={font}>{text.fontFamilyOptions[font] ?? font}</option>)}
+        <option value="__custom__">{text.fontFamilyOptions.custom ?? 'Custom…'}</option>
+      </select>
+      {customMode ? <input
+        type="text"
+        aria-label={text.fontFamilyPlaceholder}
+        value={customDraft}
+        placeholder={text.fontFamilyPlaceholder}
+        disabled={!definition.engineeringEditable}
+        onChange={event => {
+          setCustomDraft(event.currentTarget.value);
           setError(null);
         }}
-        onBlur={applyDraft}
-        onKeyDown={event => {
+        onBlur={applyCustom}
+        onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
           if (event.key === 'Enter') {
             event.preventDefault();
-            applyDraft();
             event.currentTarget.blur();
-          }
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            setDraft(displayValue);
-            setDirty(false);
-            setError(null);
+          } else if (event.key === 'Escape') {
+            setCustomDraft(displayValue === '__mixed__' ? '' : displayValue);
+            setCustomMode(displayValue !== '__mixed__' && !FONT_FAMILY_OPTIONS.includes(displayValue));
             event.currentTarget.blur();
           }
         }}
-      />
-      <datalist id={listId}>
-        {FONT_FAMILY_SUGGESTIONS.map(font => <option key={font} value={font} />)}
-      </datalist>
+      /> : null}
     </>
   );
 }
@@ -317,7 +445,10 @@ function ColorControl({
           disabled={!definition.engineeringEditable}
           aria-label={`${definition.key} color`}
           onChange={event => {
-            const next = withColorAlpha(event.currentTarget.value, alpha);
+            // A first color choice must be immediately visible. Canonical color defaults may be
+            // fully transparent (#RRGGBB00); preserving that zero alpha makes the picker look broken.
+            // Preserve intentional translucency, but promote the transparent default to opaque.
+            const next = withColorAlpha(event.currentTarget.value, alpha === 0 ? 100 : alpha);
             setDraft(next);
             setDirty(false);
             commit(next);
@@ -413,7 +544,7 @@ function TextualControl({
     if (commit(parsed.value)) setDirty(false);
   };
 
-  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault();
       applyDraft();
@@ -428,25 +559,31 @@ function TextualControl({
     }
   };
 
-  return (
-    <input
-      id={`visual-property-${definition.key}`}
-      type={definition.type === 'number' ? 'number' : 'text'}
-      value={draft}
-      placeholder={row.state === 'mixed' ? text.mixed : undefined}
-      min={definition.type === 'number' ? definition.minimum : undefined}
-      max={definition.type === 'number' ? definition.maximum : undefined}
-      step={definition.type === 'number' ? (definition.integer ? 1 : 'any') : undefined}
-      disabled={!definition.engineeringEditable}
-      onChange={event => {
-        setDraft(event.currentTarget.value);
-        setDirty(true);
-        setError(null);
-      }}
-      onBlur={applyDraft}
-      onKeyDown={onKeyDown}
-    />
-  );
+  const sharedProps = {
+    id: `visual-property-${definition.key}`,
+    value: draft,
+    placeholder: row.state === 'mixed' ? text.mixed : undefined,
+    disabled: !definition.engineeringEditable,
+    onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setDraft(event.currentTarget.value);
+      setDirty(true);
+      setError(null);
+    },
+    onBlur: applyDraft,
+    onKeyDown
+  };
+
+  if (definition.key === VISUAL_PROPERTY_KEYS.bezierPath) {
+    return <textarea {...sharedProps} rows={4} spellCheck={false} data-property-editor="bezier-path" />;
+  }
+
+  return <input
+    {...sharedProps}
+    type={definition.type === 'number' ? 'number' : 'text'}
+    min={definition.type === 'number' ? definition.minimum : undefined}
+    max={definition.type === 'number' ? definition.maximum : undefined}
+    step={definition.type === 'number' ? (definition.integer ? 1 : 'any') : undefined}
+  />;
 }
 
 function colorPickerValue(value: string): string {

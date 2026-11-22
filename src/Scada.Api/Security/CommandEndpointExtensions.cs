@@ -35,7 +35,9 @@ public static class CommandEndpointExtensions
                     Area: command.Area,
                     EquipmentPath: command.EquipmentPath,
                     TagPath: command.TargetTagPath,
-                    CommandKey: command.Key),
+                    CommandKey: command.Key,
+                    ResourceKind: AuthorizationResourceKind.Command,
+                    ResourceId: command.Id),
                 ct);
             var failure = authorization.FailureResult();
             if (failure is not null)

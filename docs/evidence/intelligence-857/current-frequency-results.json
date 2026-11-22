@@ -1,0 +1,39 @@
+{
+  "syntheticOnly": true,
+  "activeRevision": 57,
+  "scopeId": "85300000-0000-0000-0000-000000000200",
+  "assignmentId": "85900000-0000-0000-0000-000000000401",
+  "profileId": "85900000-0000-0000-0000-000000000301",
+  "queryOnOpenOrEdit": 0,
+  "configurationWrites": 0,
+  "pageErrors": [],
+  "rawObservations": 240,
+  "primaryMeanA": 5.999999999999998,
+  "comparisonMeanA": 4.9999999999999964,
+  "differenceA": 1.0000000000000018,
+  "percentChange": 20.00000000000005,
+  "selectedPairs": [
+    58,
+    58
+  ],
+  "outOfRange": [
+    1,
+    1
+  ],
+  "rejectedCurrent": [
+    1,
+    1
+  ],
+  "currentBasis": "line_rms",
+  "frequencyReference": "drive_electrical",
+  "physicalSimultaneity": "unverified; exact recorded source-time equality does not prove physical simultaneous acquisition.",
+  "operatingRegimeEquivalence": "unverified; frequency conditioning does not prove equal load or a globally equivalent process regime.",
+  "insufficientPairs": [
+    1,
+    1
+  ],
+  "insufficientDifference": null,
+  "insufficientPercent": null,
+  "mobileNoOverflow": true,
+  "explicitQueries": 2
+}

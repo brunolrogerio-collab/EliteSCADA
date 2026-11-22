@@ -1,13 +1,16 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Scada.Api.Runtime;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.InternalMemory;
+using Scada.Core.Interactions;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.VisualScripting;
@@ -62,6 +65,108 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
     }
 
     [Fact]
+    public async Task RED_3_ServerScript_ReadableTagReference_ResolvesDeclaredStableDependency()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var tagId = Guid.NewGuid();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "readable-tag-red",
+            1,
+            TimerPackage(tagId, initialValue: 0, revisionMarker: "readable", readableReference: true))).Activated);
+
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(3);
+        while ((!runtime.TryGetCurrent(tagId, out var current) || Convert.ToInt32(current!.Value) < 1) &&
+               DateTimeOffset.UtcNow < deadline)
+            await Task.Delay(20);
+
+        Assert.True(
+            runtime.TryGetCurrent(tagId, out var final) && Convert.ToInt32(final!.Value) >= 1,
+            manager.Snapshot().Scripts.Single().Diagnostics.LastSanitizedError);
+
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ServerScript_CaseVariantReadableTagReference_IsUndeclaredBeforeRuntimeAccess()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var tagId = Guid.NewGuid();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "case-readable-tag-rejected",
+            1,
+            TimerPackage(tagId, initialValue: 0, revisionMarker: "case-readable", readableReference: true, caseVariantReference: true))).Activated);
+
+        await WaitUntilAsync(() =>
+                manager.Snapshot().Scripts.Single().Diagnostics.LastSanitizedError?.Contains(
+                    "not an active declared dependency",
+                    StringComparison.Ordinal) == true,
+            TimeSpan.FromSeconds(3));
+
+        Assert.True(runtime.TryGetCurrent(tagId, out var current));
+        Assert.Equal(0, Convert.ToInt32(current!.Value));
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ServerScript_UnicodeCaseVariantReadableTagReference_IsUndeclaredBeforeRuntimeAccess()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var tagId = Guid.NewGuid();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "unicode-readable-tag-rejected",
+            1,
+            TimerPackage(
+                tagId,
+                initialValue: 0,
+                revisionMarker: "unicode-readable-rejected",
+                readableReference: true,
+                readableBindingReference: "Simulation.Σ",
+                readableSourceReference: "Simulation.ς"))).Activated);
+
+        await WaitUntilAsync(() =>
+                manager.Snapshot().Scripts.Single().Diagnostics.LastSanitizedError?.Contains(
+                    "not an active declared dependency",
+                    StringComparison.Ordinal) == true,
+            TimeSpan.FromSeconds(3));
+
+        Assert.True(runtime.TryGetCurrent(tagId, out var current));
+        Assert.Equal(0, Convert.ToInt32(current!.Value));
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ServerScript_MultipleReadableTagReferencesResolveOnlyTheirDeclaredStableDependencies()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var stateId = Guid.NewGuid();
+        var incrementId = Guid.NewGuid();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "multi-readable-tag",
+            1,
+            MultiReadableTimerPackage(stateId, incrementId))).Activated);
+
+        await WaitUntilAsync(
+            () => runtime.TryGetCurrent(stateId, out var state) && Convert.ToInt32(state!.Value) >= 2,
+            TimeSpan.FromSeconds(4));
+
+        Assert.True(runtime.TryGetCurrent(incrementId, out var increment));
+        Assert.Equal(2, Convert.ToInt32(increment!.Value));
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
     public async Task RevisionBoundAccess_RejectsObsoleteGenerationWithSameStableTagId()
     {
         var eventBus = new InMemoryScadaEventBus();
@@ -104,7 +209,7 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
     }
 
     [Fact]
-    public async Task TagChangedAndServerRuntimeEvent_DispatchAgainstSameActiveState()
+    public async Task TagChangedAndManualServerRuntimeEvent_DoesNotBypassCanonicalOccurrences()
     {
         var eventBus = new InMemoryScadaEventBus();
         var triggerId = Guid.NewGuid();
@@ -122,10 +227,378 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
             runtime.TryGetCurrent(stateId, out var state) && Convert.ToInt32(state!.Value) == 1,
             TimeSpan.FromSeconds(5));
 
-        await manager.DispatchRuntimeEventAsync("pulse");
-        await WaitUntilAsync(() =>
-            runtime.TryGetCurrent(stateId, out var state) && Convert.ToInt32(state!.Value) == 11,
+        await Assert.ThrowsAsync<ScriptExecutionDiagnosticException>(
+            () => manager.DispatchRuntimeEventAsync("pulse"));
+        await Task.Delay(150);
+        Assert.True(runtime.TryGetCurrent(stateId, out var unchanged));
+        Assert.Equal(1, Convert.ToInt32(unchanged!.Value));
+
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ServerScript_NonCanonicalRuntimeEventTargetFailsActivation()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var interactions = new ActiveDriverInteractionRuntimeCatalog();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration(), interactions);
+        var package = EventPackage(Guid.NewGuid(), Guid.NewGuid(), includeManualRuntimeEvent: true);
+
+        await Assert.ThrowsAsync<ScriptExecutionDiagnosticException>(() =>
+            manager.ActivateRuntimeAsync("non-canonical-server-event", 1, package));
+
+        Assert.Null(manager.Snapshot().Revision);
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ActiveServerScript_ReceivesCanonicalTransientEventPayloadFromActiveReference()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var interactions = new ActiveDriverInteractionRuntimeCatalog();
+        var stateId = Guid.NewGuid();
+        var definitionId = Guid.NewGuid();
+        var package = TransientEventScriptPackage(stateId, definitionId);
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration(), interactions);
+        var prepared = interactions.Prepare(package);
+
+        var activated = await manager.ActivateRuntimeAsync(
+            "canonical-event-script",
+            1,
+            package,
+            (_, _) =>
+            {
+                interactions.Commit(prepared);
+                return Task.CompletedTask;
+            });
+        Assert.True(activated.Activated);
+
+        await using var dispatcher = new TransientEventRuntimeDispatcher(interactions, eventBus);
+        await dispatcher.DispatchAsync(TransientOccurrence(definitionId, 42));
+
+        await WaitUntilAsync(
+            () => runtime.TryGetCurrent(stateId, out var state) && Convert.ToInt32(state!.Value) == 42,
             TimeSpan.FromSeconds(5));
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task HaReferenceFence_OnlyActiveNodeExecutesServerScriptForTransientEventsAcrossTakeover()
+    {
+        var now = DateTimeOffset.Parse("2026-11-09T12:00:00Z");
+        string? referenceActiveNodeId = "node-a";
+        var referenceEpoch = 1L;
+        bool ReferenceAllows(RuntimeHaTopologySnapshot snapshot) =>
+            referenceActiveNodeId is not null &&
+            referenceActiveNodeId.Equals(snapshot.LocalNodeId, StringComparison.OrdinalIgnoreCase) &&
+            referenceActiveNodeId.Equals(snapshot.EffectiveActiveNodeId, StringComparison.OrdinalIgnoreCase) &&
+            referenceEpoch == snapshot.AuthorityEpoch &&
+            !snapshot.AmbiguousAuthority &&
+            snapshot.PendingTransfer is null;
+
+        RuntimeHighAvailabilityService CreateNodeService(string nodeId)
+        {
+            var service = new RuntimeHighAvailabilityService(
+                CreateTopology(nodeId),
+                () => now,
+                Guid.NewGuid(),
+                externalIndustrialFenceRequired: true);
+            var readiness = new RuntimeHaNodeReadinessEvidence(
+                Healthy: true,
+                SynchronizationComplete: true,
+                HaLicenseEntitled: true,
+                Runtime: new RuntimeHaRuntimeIdentity("engineering", "ha-server-script", 1),
+                ObservedAtUtc: now);
+            service.Authority.UpdateNodeReadiness("node-a", readiness);
+            service.Authority.UpdateNodeReadiness("node-b", readiness);
+            service.AttachExternalIndustrialFence(ReferenceAllows);
+            return service;
+        }
+
+        static RuntimeHaTopologyDefinition CreateTopology(string localNodeId) => new(
+            Enabled: true,
+            ClusterId: "cluster-a",
+            LocalNodeId: localNodeId,
+            InitialActiveNodeId: "node-a",
+            TopologyVersion: 3,
+            FreshnessWindow: TimeSpan.FromSeconds(15),
+            Nodes: new[]
+            {
+                new RuntimeHaNodeDefinition(
+                    "node-a",
+                    new[]
+                    {
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.1:5001", 0),
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://a.example.test", 1)
+                    }),
+                new RuntimeHaNodeDefinition(
+                    "node-b",
+                    new[]
+                    {
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.2:5001", 0),
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://b.example.test", 1)
+                    })
+            });
+
+        var serviceA = CreateNodeService("node-a");
+        var serviceB = CreateNodeService("node-b");
+        var stateId = Guid.NewGuid();
+        var definitionId = Guid.NewGuid();
+        var packageOperationalEventId = Guid.NewGuid();
+        var package = TransientEventScriptPackage(
+            stateId,
+            definitionId,
+            includeHistorianAndAlarm: true,
+            operationalEventId: packageOperationalEventId);
+        var interactionsA = new ActiveDriverInteractionRuntimeCatalog();
+        var interactionsB = new ActiveDriverInteractionRuntimeCatalog();
+        var canonicalEventBus = new InMemoryScadaEventBus();
+        var operationalOccurrences = new ConcurrentQueue<OperationalEventOccurred>();
+        using var operationalSubscription = canonicalEventBus.Subscribe<OperationalEventOccurred>(occurrence =>
+        {
+            operationalOccurrences.Enqueue(occurrence);
+            return ValueTask.CompletedTask;
+        });
+        var eventBusA = new RuntimeEventGate(
+            canonicalEventBus,
+            forwardingEnabled: true,
+            effectAuthority: serviceA.CanOwnIndustrialEffects);
+        var eventBusB = new RuntimeEventGate(
+            canonicalEventBus,
+            forwardingEnabled: true,
+            effectAuthority: serviceB.CanOwnIndustrialEffects);
+        await using var historian = new BufferedInMemoryHistorian(canonicalEventBus);
+        await using var runtimeA = new GatewayEngineeringRuntimeCoordinator(
+            CreateRuntime(eventBusA, serviceA.CanOwnIndustrialEffects),
+            eventBusA);
+        await using var runtimeB = new GatewayEngineeringRuntimeCoordinator(
+            CreateRuntime(eventBusB, serviceB.CanOwnIndustrialEffects),
+            eventBusB);
+        var managerA = ServerScriptRuntimeManager.GetShared(runtimeA, eventBusA, Configuration(), interactionsA);
+        var managerB = ServerScriptRuntimeManager.GetShared(runtimeB, eventBusB, Configuration(), interactionsB);
+        ServerScriptOperationalEventBridge.Bind(managerA, runtimeA, serviceA.CanOwnIndustrialEffects);
+        ServerScriptOperationalEventBridge.Bind(managerB, runtimeB, serviceB.CanOwnIndustrialEffects);
+        await using var dispatcherA = new TransientEventRuntimeDispatcher(interactionsA, eventBusA);
+        await using var dispatcherB = new TransientEventRuntimeDispatcher(interactionsB, eventBusB);
+
+        foreach (var (manager, interactions) in new[]
+                 {
+                     (managerA, interactionsA),
+                     (managerB, interactionsB)
+                 })
+        {
+            var prepared = interactions.Prepare(package);
+            var activation = await manager.ActivateRuntimeAsync(
+                "ha-server-script",
+                1,
+                package,
+                (_, _) =>
+                {
+                    interactions.Commit(prepared);
+                    return Task.CompletedTask;
+                });
+            Assert.True(activation.Activated);
+        }
+
+        await WaitUntilAsync(() => historian.PendingSamples == 0, TimeSpan.FromSeconds(2));
+        var historianBaseline = historian.WrittenSamples;
+        var activeAlarmTransitions = 0;
+        using var alarmSubscription = canonicalEventBus.Subscribe<AlarmStateChanged>(stateChange =>
+        {
+            if (stateChange.Current.State == AlarmState.Active)
+                Interlocked.Increment(ref activeAlarmTransitions);
+            return ValueTask.CompletedTask;
+        });
+
+        var initialOccurrence = TransientOccurrence(definitionId, 3);
+        await dispatcherA.DispatchAsync(initialOccurrence);
+        await dispatcherB.DispatchAsync(initialOccurrence);
+        await WaitUntilAsync(
+            () => runtimeA.TryGetCurrent(stateId, out var valueA) &&
+                  Convert.ToInt32(valueA!.Value) == 3 &&
+                  managerA.Snapshot().Scripts.Single().Diagnostics.ExecutionCount == 1 &&
+                  historian.WrittenSamples >= historianBaseline + 1 &&
+                  operationalOccurrences.Count == 1,
+            TimeSpan.FromSeconds(5));
+        Assert.True(runtimeB.TryGetCurrent(stateId, out var standbyState));
+        Assert.Equal(0, Convert.ToInt32(standbyState!.Value));
+        Assert.Equal(0, managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+        Assert.Equal(historianBaseline + 1, historian.WrittenSamples);
+        Assert.Empty(runtimeA.Alarms(activeOnly: true));
+        Assert.Empty(runtimeB.Alarms(activeOnly: true));
+        Assert.Equal(0, Volatile.Read(ref activeAlarmTransitions));
+        var firstOperationalOccurrence = Assert.Single(operationalOccurrences);
+        Assert.Equal(packageOperationalEventId, firstOperationalOccurrence.DefinitionId);
+        Assert.Equal("HA transient state 3", firstOperationalOccurrence.Message);
+
+        var standbyWitness = Assert.IsType<RuntimeHaStandbyPromotionWitness>(
+            serviceB.Authority.CaptureStandbyPromotionWitness("node-b"));
+        referenceActiveNodeId = null;
+        referenceEpoch = 2;
+        serviceA.Authority.ReportNodeUnavailable("node-a");
+        var afterLossB = serviceB.Authority.ReportNodeUnavailable("node-a");
+
+        var fencedOccurrence = TransientOccurrence(definitionId, 5);
+        await dispatcherA.DispatchAsync(fencedOccurrence);
+        await dispatcherB.DispatchAsync(fencedOccurrence);
+        await Task.Delay(100);
+        Assert.True(runtimeA.TryGetCurrent(stateId, out var fencedA));
+        Assert.Equal(3, Convert.ToInt32(fencedA!.Value));
+        Assert.True(runtimeB.TryGetCurrent(stateId, out var fencedB));
+        Assert.Equal(0, Convert.ToInt32(fencedB!.Value));
+        Assert.Equal(1, managerA.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+        Assert.Equal(0, managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+        Assert.Equal(historianBaseline + 1, historian.WrittenSamples);
+        Assert.Empty(runtimeA.Alarms(activeOnly: true));
+        Assert.Empty(runtimeB.Alarms(activeOnly: true));
+        Assert.Equal(0, Volatile.Read(ref activeAlarmTransitions));
+        Assert.Single(operationalOccurrences);
+
+        var promoted = serviceB.Authority.ApplyReferencedAuthority(
+            "node-b",
+            afterLossB.AuthorityEpoch,
+            previousAuthorityFenced: true,
+            standbyWitness: standbyWitness);
+        Assert.True(promoted.Accepted, promoted.ReasonCode);
+        referenceActiveNodeId = "node-b";
+        referenceEpoch = promoted.Snapshot.AuthorityEpoch;
+
+        var postTakeoverOccurrence = TransientOccurrence(definitionId, 7);
+        await dispatcherA.DispatchAsync(postTakeoverOccurrence);
+        await dispatcherB.DispatchAsync(postTakeoverOccurrence);
+        await WaitUntilAsync(
+            () => runtimeB.TryGetCurrent(stateId, out var valueB) &&
+                  Convert.ToInt32(valueB!.Value) == 7 &&
+                  managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount == 1 &&
+                  historian.WrittenSamples >= historianBaseline + 2 &&
+                  Volatile.Read(ref activeAlarmTransitions) == 1 &&
+                  operationalOccurrences.Count == 2,
+            TimeSpan.FromSeconds(5));
+        Assert.True(runtimeA.TryGetCurrent(stateId, out var formerActiveState));
+        Assert.Equal(3, Convert.ToInt32(formerActiveState!.Value));
+        Assert.Equal(1, managerA.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+        Assert.Equal(1, managerB.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+        Assert.Equal(historianBaseline + 2, historian.WrittenSamples);
+        Assert.DoesNotContain(runtimeA.Alarms(activeOnly: true), alarm => alarm.Type == AlarmType.High);
+        Assert.Contains(runtimeB.Alarms(activeOnly: true), alarm =>
+            alarm.Type == AlarmType.High && alarm.State == AlarmState.Active);
+        Assert.Equal(1, Volatile.Read(ref activeAlarmTransitions));
+        Assert.Collection(
+            operationalOccurrences,
+            occurrence => Assert.Equal("HA transient state 3", occurrence.Message),
+            occurrence => Assert.Equal("HA transient state 7", occurrence.Message));
+
+        var recordedValues = historian.Query(
+                stateId,
+                DateTimeOffset.UtcNow.AddMinutes(-1),
+                DateTimeOffset.UtcNow.AddMinutes(1))
+            .Select(sample => Convert.ToInt32(sample.Value))
+            .ToArray();
+        Assert.Equal(2, recordedValues.Length);
+        Assert.Contains(3, recordedValues);
+        Assert.Contains(7, recordedValues);
+        Assert.DoesNotContain(5, recordedValues);
+
+        await managerA.DisposeAsync();
+        await managerB.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ServerScript_CanonicalTransientEventReferenceWithoutActiveCapabilityReference_FailsClosed()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var interactions = new ActiveDriverInteractionRuntimeCatalog();
+        var package = TransientEventScriptPackage(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            includeCapabilityEventReference: false);
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration(), interactions);
+
+        await Assert.ThrowsAsync<ScriptExecutionDiagnosticException>(() =>
+            manager.ActivateRuntimeAsync(
+                "missing-event-reference",
+                1,
+                package,
+                (_, _) => Task.CompletedTask));
+
+        Assert.Null(manager.Snapshot().Revision);
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ServerScript_DraftEventGraphDoesNotReplaceActiveSubscriptions_AndActivationReplacesGeneration()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var interactions = new ActiveDriverInteractionRuntimeCatalog();
+        var stateId = Guid.NewGuid();
+        var firstDefinitionId = Guid.NewGuid();
+        var secondDefinitionId = Guid.NewGuid();
+        var firstPackage = TransientEventScriptPackage(stateId, firstDefinitionId);
+        var secondPackage = TransientEventScriptPackage(stateId, secondDefinitionId);
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration(), interactions);
+
+        var firstPrepared = interactions.Prepare(firstPackage);
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "event-revision-script",
+            1,
+            firstPackage,
+            (_, _) =>
+            {
+                interactions.Commit(firstPrepared);
+                return Task.CompletedTask;
+            })).Activated);
+
+        await using var dispatcher = new TransientEventRuntimeDispatcher(interactions, eventBus);
+        var draftPrepared = interactions.Prepare(secondPackage);
+        await Assert.ThrowsAsync<KeyNotFoundException>(async () =>
+            await dispatcher.DispatchAsync(TransientOccurrence(secondDefinitionId, 1)));
+        await dispatcher.DispatchAsync(TransientOccurrence(firstDefinitionId, 3));
+        await WaitUntilAsync(
+            () => runtime.TryGetCurrent(stateId, out var state) && Convert.ToInt32(state!.Value) == 3,
+            TimeSpan.FromSeconds(5));
+        _ = draftPrepared;
+
+        Assert.True((await runtime.ActivateAsync(
+            "event-revision-script",
+            99,
+            firstPackage)).Activated);
+        await dispatcher.DispatchAsync(TransientOccurrence(firstDefinitionId, 4));
+        await Task.Delay(150);
+        Assert.True(runtime.TryGetCurrent(stateId, out var gatedState));
+        // Server Memory retains its last value across Active Runtime revisions.
+        Assert.Equal(3, Convert.ToInt32(gatedState!.Value));
+        Assert.Equal(1, manager.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+
+        var secondPrepared = interactions.Prepare(secondPackage);
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "event-revision-script",
+            2,
+            secondPackage,
+            (_, _) =>
+            {
+                interactions.Commit(secondPrepared);
+                return Task.CompletedTask;
+            })).Activated);
+
+        Assert.True(runtime.TryGetCurrent(stateId, out var retainedState));
+        Assert.Equal(3, Convert.ToInt32(retainedState!.Value));
+        await Assert.ThrowsAsync<KeyNotFoundException>(async () =>
+            await dispatcher.DispatchAsync(TransientOccurrence(firstDefinitionId, 5)));
+
+        await dispatcher.DispatchAsync(TransientOccurrence(secondDefinitionId, 7));
+        await WaitUntilAsync(
+            () => runtime.TryGetCurrent(stateId, out var state) &&
+                  Convert.ToInt32(state!.Value) == 10 &&
+                  manager.Snapshot().Scripts.Single().Diagnostics.ExecutionCount == 1,
+            TimeSpan.FromSeconds(5));
+        Assert.Equal(1, manager.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
+        await Task.Delay(150);
+        Assert.True(runtime.TryGetCurrent(stateId, out var finalState));
+        Assert.Equal(10, Convert.ToInt32(finalState!.Value));
 
         await manager.DisposeAsync();
     }
@@ -171,12 +644,15 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         Assert.False(string.IsNullOrWhiteSpace(result.Execution.SanitizedError));
     }
 
-    private static EngineeringRuntimeCoordinator CreateRuntime(InMemoryScadaEventBus eventBus) =>
+    private static EngineeringRuntimeCoordinator CreateRuntime(
+        IScadaEventBus eventBus,
+        Func<bool>? industrialEffectAuthority = null) =>
         new(
             eventBus,
             new EngineeringDriverCompiler(),
             TimeSpan.FromSeconds(2),
-            new InMemoryServerMemoryRetentionStore());
+            new InMemoryServerMemoryRetentionStore(),
+            industrialEffectAuthority: industrialEffectAuthority);
 
     private static IConfiguration Configuration() =>
         new ConfigurationBuilder()
@@ -192,10 +668,24 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
     private static EngineeringPackage TimerPackage(
         Guid tagId,
         int initialValue,
-        string revisionMarker)
+        string revisionMarker,
+        bool readableReference = false,
+        bool caseVariantReference = false,
+        string? readableBindingReference = null,
+        string? readableSourceReference = null)
     {
         var tagReference = tagId.ToString("D");
-        var source = $"""
+        var visibleTagReference = readableBindingReference ?? "Simulation.ProcessState";
+        var readableTagReference = readableSourceReference ?? (caseVariantReference
+            ? "simulation.processstate"
+            : visibleTagReference);
+        var source = readableReference
+            ? $"""
+def timer(event):
+    current = read_tag("{readableTagReference}")
+    write_tag("{readableTagReference}", current + 1)
+"""
+            : $"""
 def initialize(event):
     write_server_memory("{tagReference}", 1)
 
@@ -212,18 +702,24 @@ def timer(event):
             entryPoints: new[]
             {
                 new ScriptEngineeringEntryPoint(
-                    ScriptEngineeringEventKind.Initialize,
-                    "initialize"),
-                new ScriptEngineeringEntryPoint(
                     ScriptEngineeringEventKind.Timer,
                     "timer",
                     TimerIntervalMs: 100)
-            },
+            }.Concat(readableReference
+                ? Array.Empty<ScriptEngineeringEntryPoint>()
+                : new[] { new ScriptEngineeringEntryPoint(ScriptEngineeringEventKind.Initialize, "initialize") })
+             .ToArray(),
             dependencies: new[]
             {
                 new ScriptEngineeringDependency(
                     ScriptEngineeringDependencyKind.ServerMemoryTag,
-                    tagReference)
+                    tagReference,
+                    readableReference
+                        ? new ScriptTagReferenceBinding(
+                            1,
+                            visibleTagReference,
+                            new TagValueReference(tagId))
+                        : null)
             });
 
         return new EngineeringPackage(
@@ -235,7 +731,7 @@ def timer(event):
                 ServerMemoryTag(
                     tagId,
                     "ProcessState",
-                    "Simulation.ProcessState",
+                    visibleTagReference,
                     initialValue,
                     historian: true)
             },
@@ -245,13 +741,54 @@ def timer(event):
                     null,
                     "Process state high",
                     tagId,
-                    "Simulation.ProcessState",
+                    visibleTagReference,
                     AlarmType.High,
                     AlarmPriority.High,
                     Setpoint: 1.5)
             },
             ServerMemoryDataSource(),
             Scripts: new[] { script });
+    }
+
+    private static EngineeringPackage MultiReadableTimerPackage(Guid stateId, Guid incrementId)
+    {
+        const string statePath = "Simulation.ProcessState";
+        const string incrementPath = "Simulation.ProcessIncrement";
+        var script = new ScriptEngineeringDefinition(
+            Guid.NewGuid(),
+            "Scripts.Process.MultiReadable",
+            "Multi Readable Process",
+            ScriptEngineeringScope.Server,
+            $$"""
+def timer(event):
+    state = read_tag("{{statePath}}")
+    increment = read_tag("{{incrementPath}}")
+    write_tag("{{statePath}}", state + increment)
+""",
+            entryPoints: [new ScriptEngineeringEntryPoint(ScriptEngineeringEventKind.Timer, "timer", TimerIntervalMs: 100)],
+            dependencies:
+            [
+                new ScriptEngineeringDependency(
+                    ScriptEngineeringDependencyKind.ServerMemoryTag,
+                    stateId.ToString("D"),
+                    new ScriptTagReferenceBinding(1, statePath, new TagValueReference(stateId))),
+                new ScriptEngineeringDependency(
+                    ScriptEngineeringDependencyKind.ServerMemoryTag,
+                    incrementId.ToString("D"),
+                    new ScriptTagReferenceBinding(1, incrementPath, new TagValueReference(incrementId)))
+            ]);
+
+        return new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [
+                ServerMemoryTag(stateId, "ProcessState", statePath, 0, historian: false),
+                ServerMemoryTag(incrementId, "ProcessIncrement", incrementPath, 2, historian: false)
+            ],
+            Array.Empty<AlarmEngineeringDto>(),
+            ServerMemoryDataSource(),
+            Scripts: [script]);
     }
 
     private static EngineeringPackage MemoryPackage(Guid tagId, int initialValue) =>
@@ -271,7 +808,10 @@ def timer(event):
             Array.Empty<AlarmEngineeringDto>(),
             ServerMemoryDataSource());
 
-    private static EngineeringPackage EventPackage(Guid triggerId, Guid stateId)
+    private static EngineeringPackage EventPackage(
+        Guid triggerId,
+        Guid stateId,
+        bool includeManualRuntimeEvent = false)
     {
         var triggerReference = triggerId.ToString("D");
         var stateReference = stateId.ToString("D");
@@ -290,17 +830,25 @@ def pulse(event):
             "Generic Event Process",
             ScriptEngineeringScope.Server,
             source,
-            entryPoints: new[]
-            {
-                new ScriptEngineeringEntryPoint(
-                    ScriptEngineeringEventKind.TagChanged,
-                    "changed",
-                    TagReference: new TagValueReference(triggerId)),
-                new ScriptEngineeringEntryPoint(
-                    ScriptEngineeringEventKind.ServerRuntimeEvent,
-                    "pulse",
-                    TargetReference: "pulse")
-            },
+            entryPoints: includeManualRuntimeEvent
+                ? new[]
+                {
+                    new ScriptEngineeringEntryPoint(
+                        ScriptEngineeringEventKind.TagChanged,
+                        "changed",
+                        TagReference: new TagValueReference(triggerId)),
+                    new ScriptEngineeringEntryPoint(
+                        ScriptEngineeringEventKind.ServerRuntimeEvent,
+                        "pulse",
+                        TargetReference: "pulse")
+                }
+                : new[]
+                {
+                    new ScriptEngineeringEntryPoint(
+                        ScriptEngineeringEventKind.TagChanged,
+                        "changed",
+                        TagReference: new TagValueReference(triggerId))
+                },
             dependencies: new[]
             {
                 new ScriptEngineeringDependency(
@@ -324,6 +872,140 @@ def pulse(event):
             ServerMemoryDataSource(),
             Scripts: new[] { script });
     }
+
+    private static EngineeringPackage TransientEventScriptPackage(
+        Guid stateId,
+        Guid eventDefinitionId,
+        bool includeCapabilityEventReference = true,
+        bool includeHistorianAndAlarm = false,
+        Guid? operationalEventId = null)
+    {
+        var stateReference = stateId.ToString("D");
+        var eventReference = operationalEventId?.ToString("D") ?? Guid.NewGuid().ToString("D");
+        var equipmentId = Guid.Parse("d4b42000-0000-0000-0000-000000000002");
+        var dataSourceId = Guid.Parse("d4b42000-0000-0000-0000-000000000001");
+        const string capabilityId = "input.main";
+        const string semanticKey = "sensor.changed";
+        var operationalEventEmission = operationalEventId.HasValue
+            ? $"    emit_operational_event(\"{eventReference}\", \"HA transient state \" + str(next_value))"
+            : string.Empty;
+        var script = new ScriptEngineeringDefinition(
+            Guid.NewGuid(),
+            "Scripts.TransientEvents",
+            "Transient Event handler",
+            ScriptEngineeringScope.Server,
+            $"""
+def on_event(event):
+    canonical = event["canonicalEvent"]
+    if canonical["semanticKey"] == "{semanticKey}" and canonical["source"]["stableDeviceIdentity"] == "device-1":
+        current = read_server_memory("{stateReference}")
+        next_value = current + canonical["payload"]["value"]
+        write_server_memory("{stateReference}", next_value)
+{operationalEventEmission}
+""",
+            entryPoints:
+            [
+                new ScriptEngineeringEntryPoint(
+                    ScriptEngineeringEventKind.ServerRuntimeEvent,
+                    "on_event",
+                    TargetReference: eventDefinitionId.ToString("D"))
+            ],
+            dependencies:
+            [
+                new ScriptEngineeringDependency(
+                    ScriptEngineeringDependencyKind.ServerMemoryTag,
+                    stateReference)
+            ]);
+
+        return new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [ServerMemoryTag(
+                stateId,
+                "EventState",
+                "Simulation.EventState",
+                0,
+                historian: includeHistorianAndAlarm)],
+            includeHistorianAndAlarm
+                ?
+                [new AlarmEngineeringDto(
+                    Guid.NewGuid(),
+                    "Event state high",
+                    stateId,
+                    "Simulation.EventState",
+                    AlarmType.High,
+                    AlarmPriority.High,
+                    Setpoint: 4)]
+                : Array.Empty<AlarmEngineeringDto>(),
+            DataSources: ServerMemoryDataSource()
+                .Append(new DataSourceEngineeringDto(dataSourceId, "test.events", "Test Events", "test.driver", Enabled: false))
+                .ToArray(),
+            Equipment:
+            [
+                new EquipmentEngineeringDto(
+                    equipmentId,
+                    "Plant.Sensor01",
+                    "Sensor 01",
+                    Capabilities:
+                    [
+                        new EquipmentCapabilityEngineeringDto(
+                            capabilityId,
+                            EquipmentCapabilityKinds.BinaryInput)
+                    ])
+            ],
+            TransientEventDefinitions:
+            [
+                new TransientEventDefinitionEngineeringDto(
+                    eventDefinitionId,
+                    semanticKey,
+                    [
+                        new TransientEventFieldDefinition(
+                            "value",
+                            new InteractionScalarSchema(InteractionScalarKind.Integer),
+                            Required: true)
+                    ],
+                    equipmentId,
+                    capabilityId)
+            ],
+            CapabilityEventReferences: includeCapabilityEventReference
+                ? new[]
+                {
+                    new CapabilityEventReferenceEngineeringDto(
+                        equipmentId,
+                        capabilityId,
+                        "changed",
+                        eventDefinitionId,
+                        semanticKey)
+                }
+                : Array.Empty<CapabilityEventReferenceEngineeringDto>(),
+            Scripts: [script],
+            OperationalEvents: operationalEventId.HasValue
+                ?
+                [new OperationalEventEngineeringDto(
+                    operationalEventId,
+                    "ha.transient.state",
+                    "HA transient state",
+                    "state-change",
+                    "process",
+                    "runtime.server-script")]
+                : Array.Empty<OperationalEventEngineeringDto>());
+    }
+
+    private static TransientEventOccurrence TransientOccurrence(
+        Guid definitionId,
+        long value) =>
+        new(
+            Guid.NewGuid(),
+            definitionId,
+            "sensor.changed",
+            new TransientEventSource(
+                DataSourceId: Guid.Parse("d4b42000-0000-0000-0000-000000000001"),
+                StableDeviceIdentity: "device-1",
+                EquipmentId: Guid.Parse("d4b42000-0000-0000-0000-000000000002"),
+                CapabilityId: "input.main"),
+            [new TransientEventFieldValue("value", InteractionScalarValue.Integer(value))],
+            DateTimeOffset.UtcNow);
 
     private static TagEngineeringDto ServerMemoryTag(
         Guid id,

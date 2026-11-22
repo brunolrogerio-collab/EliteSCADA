@@ -1,0 +1,198 @@
+"""Keep long-form system chapters aligned with installed localized Help content."""
+import argparse
+import json
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+SOURCE = ROOT / 'src/Scada.Api/Runtime/HelpGuides/system-guides.json'
+REVIEW_MARKERS = json.loads((ROOT / 'docs/manual/PRODUCT-CHANGE-REVIEW-MARKERS.json').read_text(encoding='utf-8'))
+CHAPTERS = {
+    'pt-BR': [('19-BIBLIOTECAS-E-ASSETS.md', 'Bibliotecas e assets: reutilizar e incorporar', ['libraries.associate-incorporate', 'assets.management']), ('20-GATEWAY-CSV-EXCEL.md', 'Gateway e arquivos CSV/Excel', ['gateway.configure-test', 'engineering.tabular-workflow']), ('18-SEGURANCA-E-AUDITORIA.md', 'Segurança e auditoria: contas, permissões e proteção', ['security.local-accounts', 'security.policy-scopes', 'audit.query-diagnostics', 'security.lock-workflow']), ('17-ALARMES-E-EVENTOS.md', 'Alarmes e eventos: configuração e operação', ['alarms.configuration', 'alarms.runtime-operation', 'operational-events.configuration']), ('07-HISTORIAN-CAPTURA-CONSULTA.md', 'Historian: captura e consulta', ['historian.capture-query']), ('16-RELATORIOS.md', 'Relatórios: autoria e operação', ['reports.data-designer', 'reports.layout-variables', 'reports.runtime-output']), ('04-TEMPLATES-E-EQUIPAMENTOS.md', 'Templates e Equipamentos', ['templates.overview', 'equipment.overview']),
+              ('13-ALTA-DISPONIBILIDADE.md', 'Alta disponibilidade: configuração e operação', ['ha.configuration-operation']),
+              ('14-BANCO-DE-DADOS.md', 'Banco de dados: configuração, migração e recuperação', ['database.topology']),
+              ('15-APRESENTACAO-MIDIA-E-LOCAIS.md', 'Apresentação, mídia e locais', ['application.presentation', 'sources.media', 'home-building.organization'])],
+    'en': [('19-LIBRARIES-AND-ASSETS.md', 'Libraries and assets: reuse and incorporation', ['libraries.associate-incorporate', 'assets.management']), ('20-GATEWAY-CSV-EXCEL.md', 'Gateway and CSV/Excel files', ['gateway.configure-test', 'engineering.tabular-workflow']), ('18-SECURITY-AND-AUDIT.md', 'Security and Audit: accounts, permissions and protection', ['security.local-accounts', 'security.policy-scopes', 'audit.query-diagnostics', 'security.lock-workflow']), ('17-ALARMS-AND-EVENTS.md', 'Alarms and events: configuration and operation', ['alarms.configuration', 'alarms.runtime-operation', 'operational-events.configuration']), ('07-HISTORIAN-CAPTURE-QUERY.md', 'Historian: capture and queries', ['historian.capture-query']), ('16-REPORTS.md', 'Reports: authoring and operation', ['reports.data-designer', 'reports.layout-variables', 'reports.runtime-output']), ('04-TEMPLATES-AND-EQUIPMENT.md', 'Templates and Equipment', ['templates.overview', 'equipment.overview']),
+           ('13-HIGH-AVAILABILITY.md', 'High Availability: configuration and operation', ['ha.configuration-operation']),
+           ('14-DATABASE.md', 'Database: configuration, migration and recovery', ['database.topology']),
+           ('15-PRESENTATION-MEDIA-LOCATIONS.md', 'Presentation, media and locations', ['application.presentation', 'sources.media', 'home-building.organization'])],
+    'es': [('19-BIBLIOTECAS-Y-ASSETS.md', 'Bibliotecas y assets: reutilizar e incorporar', ['libraries.associate-incorporate', 'assets.management']), ('20-GATEWAY-CSV-EXCEL.md', 'Gateway y archivos CSV/Excel', ['gateway.configure-test', 'engineering.tabular-workflow']), ('18-SEGURIDAD-Y-AUDITORIA.md', 'Seguridad y auditoría: cuentas, permisos y protección', ['security.local-accounts', 'security.policy-scopes', 'audit.query-diagnostics', 'security.lock-workflow']), ('17-ALARMAS-Y-EVENTOS.md', 'Alarmas y eventos: configuración y operación', ['alarms.configuration', 'alarms.runtime-operation', 'operational-events.configuration']), ('07-HISTORIAN-CAPTURA-CONSULTA.md', 'Historian: captura y consulta', ['historian.capture-query']), ('16-INFORMES.md', 'Informes: diseño y operación', ['reports.data-designer', 'reports.layout-variables', 'reports.runtime-output']), ('04-PLANTILLAS-Y-EQUIPOS.md', 'Plantillas y Equipos', ['templates.overview', 'equipment.overview']),
+           ('13-ALTA-DISPONIBILIDAD.md', 'Alta disponibilidad: configuración y operación', ['ha.configuration-operation']),
+           ('14-BASE-DE-DATOS.md', 'Base de datos: configuración, migración y recuperación', ['database.topology']),
+           ('15-PRESENTACION-MULTIMEDIA-UBICACIONES.md', 'Presentación, multimedia y ubicaciones', ['application.presentation', 'sources.media', 'home-building.organization'])]
+}
+for locale, (name, title) in {'pt-BR': ('21-CONEXOES-E-PROTOCOLOS.md', 'Conexões, Modbus, MQTT e OPC UA'), 'en': ('21-CONNECTIONS-AND-PROTOCOLS.md', 'Connections, Modbus, MQTT and OPC UA'), 'es': ('21-CONEXIONES-Y-PROTOCOLOS.md', 'Conexiones, Modbus, MQTT y OPC UA')}.items():
+    CHAPTERS[locale].append((name, title, ['sources.connection-workflow', 'drivers.modbus-setup', 'drivers.mqtt-setup', 'drivers.opcua-setup']))
+
+for locale, (name, title) in {'pt-BR': ('22-HOME-BUILDING-CONEXOES.md', 'Home/Building: dispositivos e conexões'), 'en': ('22-HOME-BUILDING-CONNECTIONS.md', 'Home/Building: devices and connections'), 'es': ('22-HOME-BUILDING-CONEXIONES.md', 'Home/Building: dispositivos y conexiones')}.items():
+    CHAPTERS[locale].append((name, title, ['home-building.device-workflow', 'drivers.bacnet-setup', 'drivers.knx-setup', 'drivers.homeassistant-setup', 'drivers.esphome-setup', 'drivers.shelly-setup']))
+
+for locale, (name, title) in {'pt-BR': ('23-ZIGBEE-E-ZWAVE.md', 'Zigbee e Z-Wave: conexão, identidade e operação'), 'en': ('23-ZIGBEE-AND-ZWAVE.md', 'Zigbee and Z-Wave: connection, identity and operation'), 'es': ('23-ZIGBEE-Y-ZWAVE.md', 'Zigbee y Z-Wave: conexión, identidad y operación')}.items():
+    CHAPTERS[locale].append((name, title, ['drivers.radio-connections', 'drivers.zigbee-native-setup', 'drivers.zwave-setup', 'drivers.zigbee2mqtt-setup']))
+
+for locale, (name, title) in {'pt-BR': ('24-CLPS-E-MEMORIA.md', 'CLPs: conexão, símbolos e memória'), 'en': ('24-PLCS-AND-MEMORY.md', 'PLCs: connections, symbols and memory'), 'es': ('24-PLCS-Y-MEMORIA.md', 'PLCs: conexiones, símbolos y memoria')}.items():
+    CHAPTERS[locale].append((name, title, ['drivers.siemens-setup', 'drivers.logix-setup', 'drivers.melsec-setup', 'drivers.panasonic-setup']))
+
+for locale, (name, title) in {'pt-BR': ('25-TELECONTROLE-E-MODBUS-SERVER.md', 'Telecontrole e Modbus Server'), 'en': ('25-TELECONTROL-AND-MODBUS-SERVER.md', 'Telecontrol and Modbus Server'), 'es': ('25-TELECONTROL-Y-MODBUS-SERVER.md', 'Telecontrol y Modbus Server')}.items():
+    CHAPTERS[locale].append((name, title, ['drivers.dnp3-setup', 'drivers.iec104-setup', 'drivers.modbus-server-setup']))
+
+INTELLIGENCE = {'pt-BR': '12-INTELIGENCIA-ATIVOS-PROCESSOS.md', 'en': '12-ASSET-PROCESS-INTELLIGENCE.md', 'es': '12-INTELIGENCIA-ACTIVOS-PROCESOS.md'}
+for locale, (name, title) in {'pt-BR': ('26-MATTER-VERSAO-EM-TESTE.md', 'Matter Wi-Fi: versão em teste'), 'en': ('26-MATTER-TEST-VERSION.md', 'Matter Wi-Fi: test version'), 'es': ('26-MATTER-VERSION-EN-PRUEBA.md', 'Matter Wi-Fi: versión en prueba')}.items():
+    CHAPTERS[locale].append((name, title, ['drivers.matter-test-workflow']))
+APPEND_MARKER = '<!-- installed-system-guides -->'
+MANUAL_ILLUSTRATIONS = {
+    'pt-BR': {
+        'runtime.station-multimonitor': {
+            'heading': 'Exemplo visual',
+            'intro': 'As capturas mostram a interface real em português durante um teste automatizado. O nome da aplicação e “Demo Overview” são dados de demonstração; no seu projeto, escolha a tela adequada em cada janela.',
+            'images': [
+                ('Antes de validar', 'Perfil de quatro janelas preenchido, antes da validação', '../assets/runtime-station-profile-before-validation.png'),
+                ('Depois de clicar em Validar', 'Perfil de quatro janelas com a configuração válida', '../assets/runtime-station-profile-validated.png'),
+            ],
+        },
+    },
+    'en': {
+        'runtime.station-multimonitor': {
+            'heading': 'Visual example',
+            'intro': 'These captures show the real interface in Portuguese during an automated test. The application name and “Demo Overview” are sample data; in your project, choose the right screen for each window.',
+            'images': [
+                ('Before validation', 'Four-window profile filled in, before validation', '../assets/runtime-station-profile-before-validation.png'),
+                ('After selecting Validate', 'Four-window profile with a valid configuration', '../assets/runtime-station-profile-validated.png'),
+            ],
+        },
+    },
+    'es': {
+        'runtime.station-multimonitor': {
+            'heading': 'Ejemplo visual',
+            'intro': 'Las capturas muestran la interfaz real en portugués durante una prueba automatizada. El nombre de la aplicación y “Demo Overview” son datos de demostración; en su proyecto, elija la pantalla adecuada para cada ventana.',
+            'images': [
+                ('Antes de validar', 'Perfil de cuatro ventanas rellenado, antes de validar', '../assets/runtime-station-profile-before-validation.png'),
+                ('Después de seleccionar Validar', 'Perfil de cuatro ventanas con la configuración válida', '../assets/runtime-station-profile-validated.png'),
+            ],
+        },
+    },
+}
+for locale, heading, intro, labels in [
+    ('pt-BR', 'Exemplo real: corrente e frequência', 'Interface real em português, com dados sintéticos de validação. O exemplo não representa um diagnóstico de campo.', ['Escolher as medições no celular', 'Comparar 6 A com 5 A', 'Dados insuficientes não são zero']),
+    ('en', 'Real example: current and frequency', 'Real interface in Portuguese, with synthetic validation data. This example does not represent a field diagnosis.', ['Choose measurements on mobile', 'Compare 6 A with 5 A', 'Insufficient data is not zero']),
+    ('es', 'Ejemplo real: corriente y frecuencia', 'Interfaz real en portugués, con datos sintéticos de validación. El ejemplo no representa un diagnóstico de campo.', ['Elegir mediciones en el móvil', 'Comparar 6 A con 5 A', 'Datos insuficientes no son cero']),
+]:
+    MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide'] = {
+        'heading': heading, 'intro': intro,
+        'images': [(label, label, '../../evidence/intelligence-857/' + filename) for label, filename in zip(labels, ['current-frequency-mobile.png', 'current-frequency-results.png', 'current-frequency-insufficient.png'])] + [(label, label, '../../evidence/intelligence-857/' + filename) for label, filename in zip(
+            {'pt-BR': ['Incluir a comparação no gerador da etapa', 'Selecionar o membro no Runtime', 'Resultado por equipamento'],
+             'en': ['Include comparison in the stage generator', 'Select the member in Runtime', 'Result per equipment'],
+             'es': ['Incluir la comparación en el generador de etapa', 'Seleccionar el miembro en Runtime', 'Resultado por equipo']}[locale],
+            ['runtime-stage-generator.png', 'runtime-stage-query.png', 'runtime-profile-result.png'])],
+    }
+for locale, caption in [('pt-BR', 'Detalhes estatísticos: interface real em teste, com respostas simuladas'), ('en', 'Statistical details: real Portuguese interface under test, with simulated responses'), ('es', 'Detalles estadísticos: interfaz real en portugués bajo prueba, con respuestas simuladas')]:
+    MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide']['images'].append((caption, caption, '../../evidence/intelligence-857/statistical-details-browser.png'))
+for locale, caption in [('pt-BR', 'Taxa líquida: interface real com respostas de API simuladas, não prova API/PostgreSQL'), ('en', 'Net rate: real UI with mocked API responses, not API/PostgreSQL proof'), ('es', 'Tasa neta: interfaz real con respuestas API simuladas, no prueba API/PostgreSQL')]:
+    MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide']['images'].append((caption, caption, '../../evidence/intelligence-857/net-observed-rate-browser.png'))
+for locale, captions in [('pt-BR', ['Alvo único: formulário real com API simulada; não prova API/PostgreSQL', 'Alvo único: resultado e evidências reais da interface com dados simulados']), ('en', ['Single target: real form with mocked API, not API/PostgreSQL proof', 'Single target: real result UI and evidence with simulated data']), ('es', ['Objetivo único: formulario real con API simulada, no prueba API/PostgreSQL', 'Objetivo único: resultado y evidencia reales de interfaz con datos simulados'])]:
+    for caption, filename in zip(captions, ['single-target-form-browser.png', 'single-target-result-browser.png']):
+        MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide']['images'].append((caption, caption, '../../evidence/intelligence-857/' + filename))
+for locale, caption in [('pt-BR', 'Alvo único no Runtime: interface real em inglês com API simulada, não prova API/PostgreSQL'), ('en', 'Single-target Runtime: real English UI with mocked API, not API/PostgreSQL proof'), ('es', 'Objetivo único en Runtime: interfaz real en inglés con API simulada, no prueba API/PostgreSQL')]:
+    MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide']['images'].append((caption, caption, '../../evidence/intelligence-857/single-target-runtime-browser.png'))
+for locale, captions in [('pt-BR', ['Escolher a medição sob condição no compositor de etapa (API simulada)', 'Membro sem condição compatível mantém as outras vistas (API simulada)', 'Taxa real de 0 A/s para corrente constante de 6 A (API/PostgreSQL reais, dados sintéticos)', 'Diferença real entre médias de 6 A e 5 A (API/PostgreSQL reais, dados sintéticos)', 'Consulta por membro de etapa no Runtime (API/PostgreSQL reais, dados sintéticos)']), ('en', ['Select measurement under a condition in the stage composer (mocked API)', 'Member without a compatible condition retains other views (mocked API)', 'Real 0 A/s rate for constant 6 A current (real API/PostgreSQL, synthetic data)', 'Real difference between 6 A and 5 A means (real API/PostgreSQL, synthetic data)', 'Stage member query in Runtime (real API/PostgreSQL, synthetic data)']), ('es', ['Elegir medición bajo condición en el compositor de etapa (API simulada)', 'Miembro sin condición compatible conserva otras vistas (API simulada)', 'Tasa real de 0 A/s para corriente constante de 6 A (API/PostgreSQL reales, datos sintéticos)', 'Diferencia real entre medias de 6 A y 5 A (API/PostgreSQL reales, datos sintéticos)', 'Consulta de miembro de etapa en Runtime (API/PostgreSQL reales, datos sintéticos)'])]:
+    for caption, filename in zip(captions, ['single-target-stage-composer-browser.png', 'single-target-stage-partial-browser.png', 'composer-real-rate-ui.png', 'composer-real-statistics-ui.png', 'composer-stage-single-target-runtime.png']):
+        MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide']['images'].append((caption, caption, '../../evidence/intelligence-857/' + filename))
+for locale, heading, intro in [('pt-BR','Exemplos reais: consultas e dashboards','As legendas indicam se a captura usa API simulada ou API/PostgreSQL reais. Todos os dados apresentados são sintéticos, sem validação de campo.'),('en','Real examples: queries and dashboards','Captions identify mocked API or real API/PostgreSQL captures. All displayed data is synthetic, without field validation.'),('es','Ejemplos reales: consultas y paneles','Las leyendas indican API simulada o API/PostgreSQL reales. Todos los datos son sintéticos, sin validación de campo.')]:
+    caption = {'pt-BR': 'Consulta conjunta real: dados sintéticos na API e PostgreSQL; diferenças e scores por medição.', 'en': 'Real joint query: synthetic API and PostgreSQL data; differences and scores per measurement.', 'es': 'Consulta conjunta real: datos sintéticos en API y PostgreSQL; diferencias y puntuaciones por medición.'}[locale]
+    MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide']['images'].append((caption, caption, '../../evidence/intelligence-857/vector-profile-real-scored.png'))
+    MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide']['heading'] = heading
+    MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide']['intro'] = intro
+for locale, caption in [('pt-BR', 'Conta gestora real: pode pausar o equipamento autorizado; outra bomba e edição da seleção ficam bloqueadas. Área exige reativação após a mudança de revisão. API e PostgreSQL reais, aplicação sintética.'), ('en', 'Real manager account: can pause the authorized equipment; another pump and selection editing remain blocked. The area requires reactivation after a revision change. Real API and PostgreSQL, synthetic application.'), ('es', 'Cuenta gestora real: puede pausar el equipo autorizado; otra bomba y edición de selección siguen bloqueadas. El área requiere reactivación tras cambiar la revisión. API y PostgreSQL reales, aplicación sintética.')]:
+    MANUAL_ILLUSTRATIONS[locale]['intelligence.activation'] = {'heading': {'pt-BR': 'Exemplo de operação com acesso restrito', 'en': 'Operating with restricted access', 'es': 'Operación con acceso restringido'}[locale], 'intro': caption, 'images': [(caption, caption, '../../evidence/intelligence-858/manager858-real-ui.png')]}
+for locale, caption in [('pt-BR', 'Autor com edição de Engenharia e gestão de um equipamento, sem gestão global: compositor real em português, API/PostgreSQL e aplicação sintética.'), ('en', 'Author with Engineering editing and management of one equipment item, without global management: real Portuguese composer, API/PostgreSQL and synthetic application.'), ('es', 'Autor con edición de Ingeniería y gestión de un equipo, sin gestión global: compositor real en portugués, API/PostgreSQL y aplicación sintética.')]:
+    MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide']['images'].append((caption, caption, '../../evidence/intelligence-791-final/author791-scoped-composer.png'))
+for locale, captions in [('pt-BR', ['Desempenho bloqueado: próximos passos na interface real, com sessão local e dados sintéticos.', 'Atalho do conjunto fixo e retorno ao compositor principal, na interface real.']), ('en', ['Blocked performance query: next steps in the real Portuguese UI, local session and synthetic data.', 'Fixed-set shortcut and return to the main composer in the real Portuguese UI.']), ('es', ['Consulta de rendimiento bloqueada: próximos pasos en la interfaz real en portugués, sesión local y datos sintéticos.', 'Atajo del conjunto fijo y regreso al compositor principal en la interfaz real en portugués.'])]:
+    for caption, filename in zip(captions, ['language791-performance-blocked.png', 'language791-fixed-shortcut.png']):
+        MANUAL_ILLUSTRATIONS[locale]['intelligence.analysis-guide']['images'].append((caption, caption, '../../evidence/intelligence-791-final/' + filename))
+for locale, (name, title) in {'pt-BR': ('30-PRIMEIRO-PROJETO.md', 'Primeiro projeto: da entrada ao Runtime'), 'en': ('30-FIRST-PROJECT.md', 'First project: from sign-in to Runtime'), 'es': ('30-PRIMER-PROYECTO.md', 'Primer proyecto: de la entrada al Runtime')}.items():
+    CHAPTERS[locale].append((name, title, ['getting-started.first-project']))
+for locale, (name, title) in {'pt-BR': ('31-TROCA-DA-APLICACAO.md', 'Trocar a aplicação da instalação'), 'en': ('31-SWITCHING-APPLICATION.md', 'Switching the installation application'), 'es': ('31-CAMBIO-DE-APLICACION.md', 'Cambiar la aplicación de la instalación')}.items():
+    CHAPTERS[locale].append((name, title, ['installation.switch-workflow']))
+for locale, (name, title) in {'pt-BR': ('32-ESTACOES-RUNTIME-MULTIMONITOR.md', 'Estações Runtime em vários monitores'), 'en': ('32-RUNTIME-STATIONS-MULTIMONITOR.md', 'Runtime stations across monitors'), 'es': ('32-ESTACIONES-RUNTIME-MULTIMONITOR.md', 'Estaciones Runtime en varios monitores')}.items():
+    CHAPTERS[locale].append((name, title, ['runtime.station-multimonitor']))
+for locale, (name, title) in {'pt-BR': ('29-MONITORES-E-INFORMACOES.md', 'Monitores e Informações'), 'en': ('29-MONITORS-AND-INFORMATION.md', 'Monitors and Information'), 'es': ('29-MONITORES-E-INFORMACION.md', 'Monitores e Información')}.items():
+    CHAPTERS[locale].append((name, title, ['engineering.development-monitor', 'engineering.tag-monitor', 'engineering.information']))
+for locale, (name, title) in {'pt-BR': ('27-SESSOES-E-DIAGNOSTICO.md', 'Sessões Runtime e diagnóstico'), 'en': ('27-SESSIONS-AND-DIAGNOSTICS.md', 'Runtime sessions and diagnostics'), 'es': ('27-SESIONES-Y-DIAGNOSTICO.md', 'Sesiones Runtime y diagnóstico')}.items():
+    CHAPTERS[locale].append((name, title, ['runtime.session-classes', 'diagnostics.overview']))
+for locale, (name, title) in {'pt-BR': ('28-BACKUP-E-RECUPERACAO.md', 'Backup e recuperação'), 'en': ('28-BACKUP-AND-RECOVERY.md', 'Backup and recovery'), 'es': ('28-BACKUP-Y-RECUPERACION.md', 'Backup y recuperación')}.items():
+    CHAPTERS[locale].append((name, title, ['recovery.backup-system-recovery']))
+
+def cell(value):
+    return value.replace('|', '&#124;').replace('\n', ' ')
+
+def article(topic, locale):
+    text = [f'## {topic["title"]}', '', topic['summary'], '']
+    for marker in REVIEW_MARKERS:
+        if marker['topicId'] == topic['id']:
+            text.extend([f'<!-- {marker["id"]}: https://github.com/brunolrogerio-collab/EliteSCADA/issues/{marker["issue"]}; topic={topic["id"]}; fields={",".join(marker["fieldKeys"])}; status={marker["status"]} -->', ''])
+    for section in topic['sections']:
+        text.extend([f'### {section["heading"]}', '', re.sub(r'(?<=[.!?])\s+(?=\d{1,2}\.\s)|\n\s*(?=\d{1,2}\.\s)', '\n', section['body']) if section['body'].startswith('1. ') else section['body'], ''])
+        if section.get('code'):
+            language = 'csv' if topic['id'] in ('gateway.configure-test', 'engineering.tabular-workflow') else 'json' if topic['id'].startswith('drivers.') or topic['id'] in ('diagnostics.overview', 'engineering.development-monitor') else 'python'
+            text.extend([f'```{language}', section['code'], '```', ''])
+        if section.get('fields'):
+            headers = {'pt-BR': ('Campo', 'Para que serve e como preencher', 'Exemplo', 'Limites'),
+                       'en': ('Field', 'Purpose and how to fill it', 'Example', 'Bounds'),
+                       'es': ('Campo', 'Finalidad y cómo rellenarlo', 'Ejemplo', 'Límites')}[locale]
+            text.extend(['| ' + ' | '.join(headers) + ' |', '| --- | --- | --- | --- |'])
+            for field in section['fields']:
+                text.append('| ' + ' | '.join(cell(field[name]) for name in ('label', 'description', 'example', 'constraints')) + ' |')
+            text.append('')
+    illustration = MANUAL_ILLUSTRATIONS.get(locale, {}).get(topic['id'])
+    if illustration:
+        text.extend([f'#### {illustration["heading"]}', '', illustration['intro'], ''])
+        for heading, alt, path in illustration['images']:
+            text.extend([f'**{heading}**', '', f'![{alt}]({path})', ''])
+    label = {'pt-BR': 'Abrir este guia na Ajuda instalada', 'en': 'Open this guide in installed Help', 'es': 'Abrir esta guía en Ayuda instalada'}[locale]
+    text.extend([f'[{label}](/help?topic={topic["id"]})', ''])
+    return '\n'.join(text)
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--check', action='store_true')
+    args = parser.parse_args()
+    data = json.loads(SOURCE.read_text(encoding='utf-8'))
+    marker_ids = [marker['id'] for marker in REVIEW_MARKERS]
+    if len(marker_ids) != len(set(marker_ids)):
+        raise SystemExit('Duplicate product-change review marker ID.')
+    for locale, topics in data.items():
+        by_id = {topic['id']: topic for topic in topics}
+        for marker in REVIEW_MARKERS:
+            topic = by_id.get(marker['topicId'])
+            if topic is None:
+                raise SystemExit(f'Missing review topic: {locale}/{marker["topicId"]}')
+            field_keys = {field['key'] for section in topic['sections'] for field in section.get('fields') or []}
+            if not set(marker['fieldKeys']).issubset(field_keys):
+                raise SystemExit(f'Missing review field: {locale}/{marker["id"]}')
+    stale = []
+    for locale, chapters in CHAPTERS.items():
+        topics = {topic['id']: topic for topic in data[locale]}
+        for filename, title, ids in chapters:
+            path = ROOT / 'docs/manual' / locale / filename
+            content = f'# {title}\n\n' + '\n'.join(article(topics[key], locale) for key in ids)
+            if args.check:
+                if not path.exists() or path.read_text(encoding='utf-8') != content:
+                    stale.append(str(path.relative_to(ROOT)))
+            else:
+                path.write_text(content, encoding='utf-8')
+        path = ROOT / 'docs/manual' / locale / INTELLIGENCE[locale]
+        original = path.read_text(encoding='utf-8').split(APPEND_MARKER)[0].rstrip()
+        content = original + '\n\n' + APPEND_MARKER + '\n\n' + '\n'.join(article(topics[key], locale) for key in
+            ('intelligence.activation', 'intelligence.semantics', 'intelligence.analysis-guide'))
+        if args.check:
+            if path.read_text(encoding='utf-8') != content:
+                stale.append(str(path.relative_to(ROOT)))
+        else:
+            path.write_text(content, encoding='utf-8')
+    if stale:
+        raise SystemExit('Manual/Help source mismatch: ' + ', '.join(stale))
+    total = sum(len(chapters) for chapters in CHAPTERS.values()) + len(INTELLIGENCE)
+    print(f'Manual/Help source alignment: {total} files checked.' if args.check else f'Updated {total} localized manual files.')
+
+if __name__ == '__main__':
+    main()

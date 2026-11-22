@@ -65,6 +65,7 @@ class TweenRequestWorker {
   private pendingDispatch: Extract<PythonWorkerRequest, { kind: 'dispatch-event' }> | null = null;
 
   lastHandlerName: string | null = null;
+  lastEventPayload: unknown = null;
   lastApiResponse: Extract<PythonWorkerRequest, { kind: 'api-response' }> | null = null;
   terminated = false;
 
@@ -92,6 +93,7 @@ class TweenRequestWorker {
       case 'dispatch-event':
         this.pendingDispatch = message;
         this.lastHandlerName = message.handlerName;
+        this.lastEventPayload = message.payload;
         queueMicrotask(() => this.emitBridge({
           kind: 'api-request',
           requestId: `api-${message.executionId}`,
@@ -100,7 +102,7 @@ class TweenRequestWorker {
           capability: 'visualTween.request',
           operation: 'request',
           arguments: {
-            targetReference: objectId,
+            targetReference: `${visualDefinitionId}/${objectId}`,
             propertyKey: 'x',
             targetValue: 100,
             durationMs: 100,
@@ -183,21 +185,22 @@ function createInstance(): RuntimeVisualInstance {
   });
 }
 
-function createContext(): ScriptEngineeringContext {
+function createContext(eventKey = 'click'): ScriptEngineeringContext {
+  const handlerName = eventKey === 'click' ? 'on_click' : 'on_pointer_enter';
   return {
     workspace: { isDirty: false, changeVersion: 7 },
     scripts: [{
       id: scriptId,
       path: 'Screens/PumpBox.py',
-      name: 'PumpBox Click',
+      name: `PumpBox ${eventKey}`,
       scope: 'clientVisual',
-      source: 'async def on_click(event):\n    return None\n',
+      source: `async def ${handlerName}(event):\n    return None\n`,
       enabled: true,
       language: 'Python',
       languageVersion: '3',
       entryPoints: [{
         eventKind: 'objectInteraction',
-        handlerName: 'on_click',
+        handlerName,
         targetReference: null,
         tagReference: null,
         timerIntervalMs: null
@@ -209,8 +212,9 @@ function createContext(): ScriptEngineeringContext {
       visualDefinitionId,
       visualObjectId: objectId,
       eventKind: 'objectInteraction',
+      eventKey,
       scriptId,
-      entryPoint: 'on_click',
+      entryPoint: handlerName,
       targetReference: null,
       tagReference: null,
       timerIntervalMs: null
@@ -225,6 +229,7 @@ test('Wave 10 click association dispatches through Python bridge into tween and 
   let invalidations = 0;
 
   const dispatcher = new ClientVisualEventDispatcher({
+    visualDefinitionId,
     instances: new Map([[objectId, instance]]),
     frameClock: clock,
     onVisualStateChanged: () => { invalidations++; },
@@ -259,12 +264,80 @@ test('Wave 10 click association dispatches through Python bridge into tween and 
   dispatcher.dispose();
 });
 
+test('Dynamo root click association dispatches in event-only context without visual-property authority', async () => {
+  let runtimeVisualInstanceId: string | undefined;
+  let visualPropertyWriteAvailable = true;
+  const dispatcher = new ClientVisualEventDispatcher({
+    visualDefinitionId,
+    instances: new Map(),
+    eventOnlyObjectIds: new Set([objectId]),
+    runtimeFactory: options => {
+      runtimeVisualInstanceId = options.identity.visualRuntimeInstanceId;
+      visualPropertyWriteAvailable = typeof options.capabilityProvider.writeVisualProperty === 'function';
+      return {
+        dispatchEvent: async () => ({ status: 'completed', durationMs: 1 }),
+        dispose: async () => undefined
+      };
+    }
+  });
+
+  const records = await dispatcher.dispatchObjectInteraction({
+    visualDefinitionId,
+    objectId,
+    eventKey: 'click',
+    context: createContext()
+  });
+
+  expect(records).toHaveLength(1);
+  expect(records[0].result.status).toBe('completed');
+  expect(runtimeVisualInstanceId).toContain(objectId);
+  expect(visualPropertyWriteAvailable).toBe(false);
+  dispatcher.dispose();
+});
+
+test('Wave 10 dispatches distinct pointer interaction keys to their exact event association', async () => {
+  const instance = createInstance();
+  const clock = new ManualFrameClock();
+  const worker = new TweenRequestWorker();
+  const dispatcher = new ClientVisualEventDispatcher({
+    visualDefinitionId,
+    instances: new Map([[objectId, instance]]),
+    frameClock: clock,
+    runtimeFactory: options => new ClientVisualPythonRuntime({
+      ...options,
+      workerFactory: () => worker as unknown as Worker,
+      environment
+    })
+  });
+  const context = createContext('pointerenter');
+
+  expect(await dispatcher.dispatchObjectInteraction({ visualDefinitionId, objectId, eventKey: 'click', context })).toHaveLength(0);
+  const records = await dispatcher.dispatchObjectInteraction({
+    visualDefinitionId,
+    objectId,
+    eventKey: 'pointerenter',
+    pointer: { x: 120, y: 240, type: 'mouse', button: -1, buttons: 0 },
+    context
+  });
+
+  expect(records).toHaveLength(1);
+  expect(records[0].result.status).toBe('completed');
+  expect(worker.lastHandlerName).toBe('on_pointer_enter');
+  expect(worker.lastEventPayload).toMatchObject({
+    kind: 'objectInteraction',
+    eventKey: 'pointerenter',
+    pointer: { x: 120, y: 240, type: 'mouse', button: -1, buttons: 0 }
+  });
+  dispatcher.dispose();
+});
+
 test('Wave 10 dispatcher fails closed when persisted reference cannot resolve an enabled Client Visual Script', async () => {
   const instance = createInstance();
   const context = createContext();
   context.scripts[0] = { ...context.scripts[0], enabled: false };
 
   const dispatcher = new ClientVisualEventDispatcher({
+    visualDefinitionId,
     instances: new Map([[objectId, instance]]),
     frameClock: new ManualFrameClock()
   });

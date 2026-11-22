@@ -1,7 +1,9 @@
 import { expect, request as playwrightRequest, test } from '@playwright/test';
 import { createE2eJwt } from './jwt';
+import { admitInteractiveRuntimeSession, terminateRuntimeSession } from './runtimeSessionLease';
 
 const baseURL = 'http://127.0.0.1:5173';
+const activeProjectKey = 'e2e-wave03';
 
 test('API distinguishes access levels and records protected-operation audit events', async ({ request }) => {
   const meResponse = await request.get('/api/auth/me');
@@ -122,7 +124,7 @@ test('API distinguishes access levels and records protected-operation audit even
       data: engineeringJson,
       headers: { 'content-type': 'application/json; charset=utf-8' }
     })).status()).toBe(401);
-    expect((await anonymous.post('/api/engineering/persistence/e2e-security/save', {
+    expect((await anonymous.post(`/api/engineering/persistence/${activeProjectKey}/save`, {
       data: { projectName: 'E2E Security', savedBy: 'spoofed-anonymous' }
     })).status()).toBe(401);
   } finally {
@@ -212,36 +214,45 @@ test('API distinguishes access levels and records protected-operation audit even
     })).status()).toBe(403);
 
     // The demo operator has CommandExecute, but ProcessValueWrite is deliberately absent.
-    expect((await operator.post(`/api/commands/${startCommand!.id}/execute`)).status()).toBe(202);
+    const operatorLeaseHeaders = await admitInteractiveRuntimeSession(operator);
+    expect((await operator.post(`/api/commands/${startCommand!.id}/execute`, { headers: operatorLeaseHeaders })).status()).toBe(202);
     expect((await operator.post(`/api/tags/${frequency!.id}/write`, {
-      data: { value: 52 }
+      data: { value: 52 },
+      headers: operatorLeaseHeaders
     })).status()).toBe(403);
 
     // AlarmShelve is deliberately separate from acknowledgement and command authority.
-    expect((await operator.post(`/api/alarms/${shelfableAlarm!.id}/shelve`)).status()).toBe(403);
+    expect((await operator.post(`/api/alarms/${shelfableAlarm!.id}/shelve`, {
+      headers: operatorLeaseHeaders
+    })).status()).toBe(403);
 
     // Engineering mutations require EngineeringModify, which the operator also does not have.
     expect((await operator.post('/api/engineering/import/json/apply', {
       data: engineeringJson,
       headers: { 'content-type': 'application/json; charset=utf-8' }
     })).status()).toBe(403);
-    expect((await operator.post('/api/engineering/persistence/e2e-security/save', {
+    expect((await operator.post(`/api/engineering/persistence/${activeProjectKey}/save`, {
       data: { projectName: 'E2E Security', savedBy: 'spoofed-operator' }
     })).status()).toBe(403);
 
     // Audit history itself is administrative information.
     expect((await operator.get('/api/audit')).status()).toBe(403);
+    await terminateRuntimeSession(operator, operatorLeaseHeaders);
   } finally {
     await operator.dispose();
   }
 
   // The developer role explicitly has the protected capabilities used below.
+  const developerLeaseHeaders = await admitInteractiveRuntimeSession(request);
   expect((await request.post(`/api/tags/${frequency!.id}/write`, {
-    data: { value: 54 }
+    data: { value: 54 },
+    headers: developerLeaseHeaders
   })).status()).toBe(202);
-  expect((await request.post(`/api/commands/${startCommand!.id}/execute`)).status()).toBe(202);
+  expect((await request.post(`/api/commands/${startCommand!.id}/execute`, { headers: developerLeaseHeaders })).status()).toBe(202);
 
-  expect((await request.post(`/api/alarms/${shelfableAlarm!.id}/shelve`)).status()).toBe(200);
+  expect((await request.post(`/api/alarms/${shelfableAlarm!.id}/shelve`, {
+    headers: developerLeaseHeaders
+  })).status()).toBe(200);
   const shelvedAlarmsResponse = await request.get('/api/alarms');
   expect(shelvedAlarmsResponse.ok()).toBeTruthy();
   const shelvedAlarms = await shelvedAlarmsResponse.json() as Array<{
@@ -253,9 +264,12 @@ test('API distinguishes access levels and records protected-operation audit even
   expect(shelvedAlarm).toBeTruthy();
   expect(shelvedAlarm!.state).toBe(5);
   expect(shelvedAlarm!.shelvedBy).toBe('E2E Developer');
-  expect((await request.post(`/api/alarms/${shelfableAlarm!.id}/unshelve`)).status()).toBe(200);
+  expect((await request.post(`/api/alarms/${shelfableAlarm!.id}/unshelve`, {
+    headers: developerLeaseHeaders
+  })).status()).toBe(200);
+  await terminateRuntimeSession(request, developerLeaseHeaders);
 
-  const saveResponse = await request.post('/api/engineering/persistence/e2e-security/save', {
+  const saveResponse = await request.post(`/api/engineering/persistence/${activeProjectKey}/save`, {
     data: { projectName: 'E2E Security', savedBy: 'spoofed-client' }
   });
   expect(saveResponse.ok()).toBeTruthy();
@@ -264,11 +278,11 @@ test('API distinguishes access levels and records protected-operation audit even
     projectKey: string;
     savedBy: string;
   };
-  expect(saved.projectKey).toBe('e2e-security');
+  expect(saved.projectKey).toBe(activeProjectKey);
   expect(saved.savedBy).toBe('e2e-developer');
 
   const publishResponse = await request.post(
-    `/api/engineering/persistence/e2e-security/revisions/${saved.revision}/publish`,
+    `/api/engineering/persistence/${activeProjectKey}/revisions/${saved.revision}/publish`,
     { data: { publishedBy: 'spoofed-publisher' } });
   expect(publishResponse.ok()).toBeTruthy();
   const published = await publishResponse.json() as {
@@ -281,7 +295,7 @@ test('API distinguishes access levels and records protected-operation audit even
   }
 
   const checkoutResponse = await request.post(
-    `/api/engineering/persistence/e2e-security/revisions/${saved.revision}/checkout`);
+    `/api/engineering/persistence/${activeProjectKey}/revisions/${saved.revision}/checkout`);
   expect(checkoutResponse.ok()).toBeTruthy();
 
   const workspaceResponse = await request.get('/api/engineering/workspace');
@@ -289,7 +303,7 @@ test('API distinguishes access levels and records protected-operation audit even
   const workspace = await workspaceResponse.json() as { changeVersion: number };
 
   const applyResponse = await request.post(
-    `/api/engineering/persistence/e2e-security/revisions/${saved.revision}/apply`,
+    `/api/engineering/persistence/${activeProjectKey}/revisions/${saved.revision}/apply`,
     { headers: { 'x-elitescada-workspace-version': String(workspace.changeVersion) } });
   expect(applyResponse.ok()).toBeTruthy();
 
@@ -364,17 +378,17 @@ test('API distinguishes access levels and records protected-operation audit even
     event.subjectId === 'e2e-developer' &&
     event.action === 'engineering.save' &&
     event.outcome === 0 &&
-    event.targetId === 'e2e-security')).toBeTruthy();
+    event.targetId === activeProjectKey)).toBeTruthy();
   expect(events.some(event =>
     event.subjectId === 'e2e-operator' &&
     event.action === 'engineering.save' &&
     event.outcome === 1 &&
-    event.targetId === 'e2e-security')).toBeTruthy();
+    event.targetId === activeProjectKey)).toBeTruthy();
   expect(events.some(event =>
     event.subjectId === 'anonymous' &&
     event.action === 'engineering.save' &&
     event.outcome === 1 &&
-    event.targetId === 'e2e-security')).toBeTruthy();
+    event.targetId === activeProjectKey)).toBeTruthy();
   expect(events.some(event =>
     event.subjectId === 'e2e-developer' &&
     event.action === 'engineering.publish' &&
@@ -391,6 +405,59 @@ test('API distinguishes access levels and records protected-operation audit even
   // Audit metadata is intentionally structural; process values and credentials are not copied into it.
   expect(events.every(event => !event.details || !('value' in event.details))).toBeTruthy();
   expect(events.every(event => !event.details || !('authorization' in event.details))).toBeTruthy();
+});
+
+test('Security lets an administrator change and retain the local login session duration', async ({ browser }) => {
+  const context = await browser.newContext({
+    baseURL,
+    locale: 'pt-BR',
+    extraHTTPHeaders: { Authorization: `Bearer ${createE2eJwt('session-duration-admin', ['developer'])}` }
+  });
+  const page = await context.newPage();
+  let originalMinutes: number | null = null;
+
+  try {
+    const initialResponse = await page.request.get('/api/auth/local-session-policy');
+    expect(initialResponse.ok()).toBeTruthy();
+    const initial = await initialResponse.json() as { version: number; accessTokenMinutes: number };
+    originalMinutes = initial.accessTokenMinutes;
+    const nextMinutes = originalMinutes > 5 ? originalMinutes - 1 : originalMinutes + 1;
+
+    await page.goto('/engineering');
+    await page.getByRole('button', { name: /Segurança/ }).click();
+    const durationInput = page.getByTestId('local-session-duration-input');
+    await expect(durationInput).toHaveValue(String(originalMinutes));
+    await durationInput.fill(String(nextMinutes));
+
+    const saveResponse = page.waitForResponse(response =>
+      response.url().endsWith('/api/auth/local-session-policy') &&
+      response.request().method() === 'PUT' &&
+      response.status() === 200);
+    await page.getByTestId('local-session-duration-save').click();
+    await saveResponse;
+    await expect(page.getByText('Prazo de login atualizado.')).toBeVisible();
+
+    const persistedResponse = await page.request.get('/api/auth/local-session-policy');
+    expect((await persistedResponse.json()).accessTokenMinutes).toBe(nextMinutes);
+
+    await page.reload();
+    await page.getByRole('button', { name: /Segurança/ }).click();
+    await expect(page.getByTestId('local-session-duration-input')).toHaveValue(String(nextMinutes));
+  } finally {
+    if (originalMinutes !== null) {
+      const currentResponse = await page.request.get('/api/auth/local-session-policy');
+      if (currentResponse.ok()) {
+        const current = await currentResponse.json() as { version: number; accessTokenMinutes: number };
+        if (current.accessTokenMinutes !== originalMinutes) {
+          const restoreResponse = await page.request.put('/api/auth/local-session-policy', {
+            data: { expectedVersion: current.version, accessTokenMinutes: originalMinutes }
+          });
+          expect(restoreResponse.ok()).toBeTruthy();
+        }
+      }
+    }
+    await context.close();
+  }
 });
 
 test('realtime WebSocket requires identity, filters TAGs and expires with JWT', async ({ browser }) => {
@@ -420,14 +487,27 @@ test('realtime WebSocket requires identity, filters TAGs and expires with JWT', 
     expect(anonymousResult).toBe('rejected');
 
     const developerToken = createE2eJwt('ws-developer', ['developer'], 'WS Developer');
-    const developerMessage = await page.evaluate(async token => {
-      return await new Promise<string>(resolve => {
+    const developer = await playwrightRequest.newContext({
+      baseURL,
+      extraHTTPHeaders: { Authorization: `Bearer ${developerToken}` }
+    });
+    const developerTags = await developer.get('/api/tags');
+    expect(developerTags.ok()).toBeTruthy();
+    const writable = (await developerTags.json() as Array<{ id: string; path: string; readOnly: boolean }>)
+      .find(tag => !tag.readOnly);
+    expect(writable).toBeTruthy();
+
+    await page.evaluate(({ token, tagId }) => {
+      const target = window as typeof window & { e2eDeveloperMessage?: Promise<string> };
+      target.e2eDeveloperMessage = new Promise<string>(resolve => {
         const socket = new WebSocket(`ws://127.0.0.1:5173/ws/tags?access_token=${encodeURIComponent(token)}`);
         const timeout = window.setTimeout(() => {
           socket.close();
           resolve('timeout');
-        }, 3000);
+        }, 5_000);
         socket.onmessage = event => {
+          const parsed = JSON.parse(String(event.data)) as { tag?: { id?: string } };
+          if (parsed.tag?.id !== tagId) return;
           window.clearTimeout(timeout);
           socket.close();
           resolve(event.data);
@@ -437,7 +517,18 @@ test('realtime WebSocket requires identity, filters TAGs and expires with JWT', 
           resolve('rejected');
         };
       });
-    }, developerToken);
+    }, { token: developerToken, tagId: writable!.id });
+
+    const developerLeaseHeaders = await admitInteractiveRuntimeSession(developer);
+    expect((await developer.post(`/api/tags/${writable!.id}/write`, {
+      data: { value: 58.5 },
+      headers: developerLeaseHeaders
+    })).status()).toBe(202);
+    const developerMessage = await page.evaluate(() => {
+      const target = window as typeof window & { e2eDeveloperMessage?: Promise<string> };
+      if (!target.e2eDeveloperMessage) throw new Error('Developer WebSocket listener was not initialized.');
+      return target.e2eDeveloperMessage;
+    });
     expect(developerMessage).not.toBe('timeout');
     expect(developerMessage).not.toBe('rejected');
     const parsed = JSON.parse(developerMessage) as { type: string; tag: { path: string } };
@@ -468,8 +559,9 @@ test('realtime WebSocket requires identity, filters TAGs and expires with JWT', 
     expect(noReadResult).toBe('opened-no-message');
 
     const expiringToken = createE2eJwt('ws-expiring', ['developer'], 'WS Expiring', 5);
-    const expiryResult = await page.evaluate(async token => {
-      return await new Promise<string>(resolve => {
+    await page.evaluate(token => {
+      const target = window as typeof window & { e2eExpiryResult?: Promise<string> };
+      target.e2eExpiryResult = new Promise<string>(resolve => {
         const socket = new WebSocket(`ws://127.0.0.1:5173/ws/tags?access_token=${encodeURIComponent(token)}`);
         let opened = false;
         let receivedMessage = false;
@@ -485,7 +577,18 @@ test('realtime WebSocket requires identity, filters TAGs and expires with JWT', 
         };
       });
     }, expiringToken);
+    expect((await developer.post(`/api/tags/${writable!.id}/write`, {
+      data: { value: 58.75 },
+      headers: developerLeaseHeaders
+    })).status()).toBe(202);
+    await terminateRuntimeSession(developer, developerLeaseHeaders);
+    const expiryResult = await page.evaluate(() => {
+      const target = window as typeof window & { e2eExpiryResult?: Promise<string> };
+      if (!target.e2eExpiryResult) throw new Error('Expiring WebSocket listener was not initialized.');
+      return target.e2eExpiryResult;
+    });
     expect(expiryResult).toBe('expired-after-message');
+    await developer.dispose();
   } finally {
     await context.close();
   }

@@ -33,7 +33,8 @@ test('builds bounded live and historical windows without querying the future', (
 
   const future = buildBasicTrendRange('historical', '24h', new Date('2026-08-29T18:00:00Z'), now);
   expect(future.to).toBe(now.toISOString());
-  expect(() => validateTrendRange('2026-08-26T20:29:59Z', now.toISOString())).toThrow(/24 hours/);
+  expect(() => validateTrendRange('2026-07-27T20:29:59Z', now.toISOString())).toThrow(/31 days/);
+  expect(() => validateTrendRange(now.toISOString(), now.toISOString())).toThrow(/greater than start/);
   expect(clampTrendSampleLimit(50_000)).toBe(MAX_TREND_SAMPLES);
 });
 
@@ -79,22 +80,34 @@ test('protected TAG catalog and Historian expose the facts required by the basic
   const tags = await tagsResponse.json() as RuntimeTagListItem[];
   expect(tags.length).toBeGreaterThan(0);
 
-  const selected = tags.find(tag => tag.path === 'Demo.Tank01.Level') ?? tags[0];
-  expect(selected.id).toBeTruthy();
-  expect(selected.path).toBeTruthy();
+  // local-auth.spec.ts seeds this historian-enabled writable TAG only after
+  // committed activation, so this contract never depends on candidate initial state.
+  const selected = tags.find(tag => tag.path === 'Demo.P01.Frequency');
+  expect(selected).toBeTruthy();
+  expect(selected!.id).toBeTruthy();
+  expect(selected!.path).toBeTruthy();
 
   let history: RuntimeTagHistorySample[] = [];
   await expect.poll(async () => {
     const end = new Date();
     const start = new Date(end.getTime() - 15 * 60_000);
-    const response = await request.get(buildTrendHistoryPath(selected.id, start.toISOString(), end.toISOString(), 200));
+    const response = await request.get(buildTrendHistoryPath(selected!.id, start.toISOString(), end.toISOString(), 200));
     if (!response.ok()) return 0;
     history = await response.json() as RuntimeTagHistorySample[];
     return history.length;
   }, { timeout: 12_000 }).toBeGreaterThan(0);
 
   expect(history.length).toBeLessThanOrEqual(200);
-  expect(history.every(item => item.tagId === selected.id)).toBeTruthy();
+  expect(history.every(item => item.tagId === selected!.id)).toBeTruthy();
   expect(history.every(item => Boolean(item.timestamp))).toBeTruthy();
   expect(history.every((item, index) => index === 0 || new Date(item.timestamp).getTime() >= new Date(history[index - 1].timestamp).getTime())).toBeTruthy();
+});
+
+
+test('basic Trend transport accepts the shared seven-day bounded range', () => {
+  const to = '2026-09-30T12:00:00.000Z';
+  const from = '2026-09-23T12:00:00.000Z';
+  expect(() => validateTrendRange(from, to)).not.toThrow();
+  const path = buildTrendHistoryPath('10000000-0000-0000-0000-000000000001', from, to, 5000);
+  expect(new URL(path, 'http://localhost').searchParams.get('limit')).toBe(String(MAX_TREND_SAMPLES));
 });

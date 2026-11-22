@@ -1,11 +1,15 @@
 using System.Text.Json;
+using Scada.Core.Sources;
 using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Commands;
+using Scada.Engineering.DataSources;
 using Scada.Engineering.Validation;
 using Scada.Engineering.Views;
 using Scada.Engineering.VisualAssets;
 using Scada.Engineering.VisualScripting;
+using Scada.Engineering.Media;
 
 namespace Scada.Engineering.ImportExport.Handlers;
 
@@ -14,18 +18,27 @@ internal sealed class ViewEngineeringHandler
     private readonly IEngineeringViewRegistry _views;
     private readonly IEngineeringAssetRegistry _assets;
     private readonly ITagRegistry _tags;
+    private readonly IDataSourceEngineeringRegistry _dataSources;
     private readonly IVisualAssetEngineeringRegistry _visualAssets;
+    private readonly ICommandEngineeringRegistry _commands;
+    private readonly IMediaSourceEngineeringRegistry _mediaSources;
 
     public ViewEngineeringHandler(
         IEngineeringViewRegistry views,
         IEngineeringAssetRegistry assets,
         ITagRegistry tags,
-        IVisualAssetEngineeringRegistry? visualAssets = null)
+        IDataSourceEngineeringRegistry dataSources,
+        IVisualAssetEngineeringRegistry? visualAssets = null,
+        ICommandEngineeringRegistry? commands = null,
+        IMediaSourceEngineeringRegistry? mediaSources = null)
     {
         _views = views;
         _assets = assets;
         _tags = tags;
+        _dataSources = dataSources;
         _visualAssets = visualAssets ?? new InMemoryVisualAssetEngineeringRegistry();
+        _commands = commands ?? new InMemoryCommandEngineeringRegistry();
+        _mediaSources = mediaSources ?? new InMemoryMediaSourceEngineeringRegistry();
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -43,6 +56,7 @@ internal sealed class ViewEngineeringHandler
             if (operation == ImportOperation.Skip) { skipped++; continue; }
 
             var normalized = VisualEngineeringPropertyMigration.NormalizeScreen(dto, package.SchemaVersion);
+            normalized = normalized with { Elements = NormalizeVisualReferences(normalized.Elements) };
             _views.UpsertScreen(normalized with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
             if (existing is null) created++; else updated++;
         }
@@ -54,6 +68,7 @@ internal sealed class ViewEngineeringHandler
             if (operation == ImportOperation.Skip) { skipped++; continue; }
 
             var normalized = VisualEngineeringPropertyMigration.NormalizePopup(dto, package.SchemaVersion);
+            normalized = NormalizePopupReferences(normalized);
             _views.UpsertPopup(normalized with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
             if (existing is null) created++; else updated++;
         }
@@ -139,13 +154,12 @@ internal sealed class ViewEngineeringHandler
                     entityKey,
                     true));
 
-            if (!string.IsNullOrWhiteSpace(dto.TemplateKey) && !TemplateExists(dto.TemplateKey, package))
-                issues.Add(new(
-                    "POPUP_TEMPLATE_NOT_FOUND",
-                    $"Template '{dto.TemplateKey}' referenced by popup '{dto.Key}' was not found.",
-                    ImportEntityKind.Popup,
-                    entityKey,
-                    true));
+            ValidateTemplateReference(
+                dto.TemplateId,
+                dto.TemplateKey,
+                entityKey,
+                package,
+                issues);
 
             ValidateVisualReferences(dto.Elements, ImportEntityKind.Popup, entityKey, package, issues);
             EngineeringHandlerSupport.AddPreview(
@@ -178,37 +192,17 @@ internal sealed class ViewEngineeringHandler
             issues.AddRange(VisualCompositionEngineeringValidation.ValidateElement(element, kind, entityKey));
 
             ValidateVisualAssetReference(element, kind, entityKey, package, issues);
+            ValidateMediaSourceReference(element, kind, entityKey, package, issues);
             ValidateDynamicReferences(element, kind, entityKey, package, issues);
 
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
-                _tags, element.Bindings, kind, entityKey, package, issues);
+                _tags, element.Bindings, kind, entityKey, package, issues, element.Type);
 
-            DynamoEngineeringDto? dynamo = null;
-            if (!string.IsNullOrWhiteSpace(element.DynamoKey))
-            {
-                dynamo = FindDynamo(element.DynamoKey, package);
-                if (dynamo is null)
-                    issues.Add(new(
-                        "VISUAL_DYNAMO_NOT_FOUND",
-                        $"Dynamo '{element.DynamoKey}' referenced by visual element '{element.Key}' was not found.",
-                        kind,
-                        entityKey,
-                        true));
-                else
-                    ValidateDynamoInstance(element, dynamo, kind, entityKey, package, issues);
-            }
+            var dynamo = ValidateDynamoReference(element, kind, entityKey, package, issues);
+            if (dynamo is not null)
+                ValidateDynamoInstance(element, dynamo, kind, entityKey, package, issues);
 
-            if (!string.IsNullOrWhiteSpace(element.EquipmentPath) &&
-                !EngineeringHandlerSupport.ContainsPlaceholder(element.EquipmentPath) &&
-                !EquipmentExists(element.EquipmentPath, package))
-            {
-                issues.Add(new(
-                    "VISUAL_EQUIPMENT_NOT_FOUND",
-                    $"Equipment '{element.EquipmentPath}' referenced by visual element '{element.Key}' was not found.",
-                    kind,
-                    entityKey,
-                    true));
-            }
+            ValidateEquipmentReference(element, kind, entityKey, package, issues);
 
             ValidateNavigationReferences(element, kind, entityKey, package, issues);
             ValidateVisualReferences(element.Children, kind, entityKey, package, issues);
@@ -254,13 +248,45 @@ internal sealed class ViewEngineeringHandler
 
             if (value.Kind == DynamoParameterKind.TagReference && value.TagReference is not null)
                 ValidateCompositionTagReference(value.TagReference, value.Key, kind, entityKey, package, issues);
+            if (value.Kind == DynamoParameterKind.ValueSource && value.ValueSource is not null)
+            {
+                if (parameter.ValueSourceType.HasValue && value.ValueSource.ValueType != parameter.ValueSourceType.Value)
+                {
+                    issues.Add(new(
+                        "VISUAL_DYNAMO_VALUE_SOURCE_TYPE_MISMATCH",
+                        $"Visual element '{element.Key}' parameter '{value.Key}' expects {parameter.ValueSourceType.Value} but its source declares {value.ValueSource.ValueType}.",
+                        kind,
+                        entityKey,
+                        true));
+                }
+
+                ValidateValueSourceReferences(value.ValueSource, kind, entityKey, package, issues);
+            }
+            if (value.Kind == DynamoParameterKind.Command && value.CommandId.HasValue)
+            {
+                var commandId = value.CommandId.Value;
+                var exists = commandId != Guid.Empty &&
+                    (_commands.Find(commandId) is not null ||
+                     (package.Commands ?? Array.Empty<CommandEngineeringDto>())
+                        .Any(command => command is not null && command.Id == commandId));
+                if (!exists)
+                    issues.Add(new(
+                        "VISUAL_DYNAMO_COMMAND_PARAMETER_NOT_FOUND",
+                        $"Visual element '{element.Key}' Command parameter '{value.Key}' references missing Command '{commandId:D}'.",
+                        kind,
+                        entityKey,
+                        true));
+            }
         }
 
         foreach (var parameter in definitions.Values.Where(x => x.Required))
         {
-            var hasDefault = parameter.Kind == DynamoParameterKind.TagReference
-                ? parameter.DefaultTagReference is not null
-                : parameter.DefaultValue.HasValue;
+            var hasDefault = parameter.Kind switch
+            {
+                DynamoParameterKind.TagReference => parameter.DefaultTagReference is not null,
+                DynamoParameterKind.Command => false,
+                _ => parameter.DefaultValue.HasValue
+            };
             if (!hasDefault && !supplied.ContainsKey(parameter.Key))
                 issues.Add(new(
                     "VISUAL_DYNAMO_PARAMETER_REQUIRED",
@@ -282,6 +308,28 @@ internal sealed class ViewEngineeringHandler
         {
             if (action is null || string.IsNullOrWhiteSpace(action.TargetKey))
                 continue;
+
+            if (action.Kind is VisualNavigationActionKind.SetTagValue or VisualNavigationActionKind.ToggleTagBoolean)
+            {
+                if (!Guid.TryParse(action.TargetKey, out var tagId) || tagId == Guid.Empty ||
+                    !TryResolveTagDataType(tagId, package, out var dataType))
+                {
+                    issues.Add(new("VISUAL_ACTION_TAG_NOT_FOUND", $"Visual action '{action.EventKey}' references a missing canonical TAG identity '{action.TargetKey}'.", kind, entityKey, true));
+                    continue;
+                }
+
+                var prospectiveTag = package.Tags.FirstOrDefault(tag => tag is not null && tag.Id == tagId);
+                var readOnly = prospectiveTag?.ReadOnly ?? (_tags.TryGet(tagId, out var registeredTag) && registeredTag?.ReadOnly == true);
+                if (readOnly)
+                    issues.Add(new("VISUAL_ACTION_TAG_READ_ONLY", $"Visual action '{action.EventKey}' cannot write read-only TAG '{action.TargetKey}'.", kind, entityKey, true));
+                if (action.Kind == VisualNavigationActionKind.ToggleTagBoolean && dataType != TagDataType.Boolean)
+                    issues.Add(new("VISUAL_ACTION_TAG_BOOLEAN_REQUIRED", $"ToggleTagBoolean action '{action.EventKey}' requires a Boolean TAG.", kind, entityKey, true));
+                if (action.Kind == VisualNavigationActionKind.SetTagValue &&
+                    action.Parameters is { } parameters && parameters.TryGetValue("value", out var value) &&
+                    !MatchesTagValueType(value, dataType))
+                    issues.Add(new("VISUAL_ACTION_TAG_VALUE_TYPE_MISMATCH", $"SetTagValue action '{action.EventKey}' value does not match TAG data type {dataType}.", kind, entityKey, true));
+                continue;
+            }
 
             var exists = action.Kind switch
             {
@@ -369,7 +417,17 @@ internal sealed class ViewEngineeringHandler
             case VisualValueSourceKind.Tag:
             case VisualValueSourceKind.ClientMemory:
                 if (source.TagReference is not null)
+                {
+                    ValidateDynamicSourceKind(
+                        source.TagReference,
+                        source.Kind == VisualValueSourceKind.ClientMemory,
+                        source.Target,
+                        kind,
+                        entityKey,
+                        package,
+                        issues);
                     ValidateDynamicTagReference(source.TagReference, source.ValueType, source.Target, kind, entityKey, package, issues);
+                }
                 break;
             case VisualValueSourceKind.Expression:
                 if (source.Expression is not null)
@@ -389,6 +447,14 @@ internal sealed class ViewEngineeringHandler
         {
             if (dependency?.TagReference is null)
                 continue;
+            ValidateDynamicSourceKind(
+                dependency.TagReference,
+                dependency.Kind == VisualExpressionDependencyKind.ClientMemory,
+                dependency.Target ?? dependency.Symbol,
+                kind,
+                entityKey,
+                package,
+                issues);
             ValidateDynamicTagReference(
                 dependency.TagReference,
                 dependency.ValueType,
@@ -398,6 +464,52 @@ internal sealed class ViewEngineeringHandler
                 package,
                 issues);
         }
+    }
+
+    private void ValidateDynamicSourceKind(
+        TagValueReference reference,
+        bool expectsClientMemory,
+        string? displayTarget,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        if (!TryResolveTagSourceDriver(reference.TagId, package, out var driver)) return;
+        var isClientMemory = string.Equals(
+            driver,
+            BuiltInSourceProviderDescriptors.ClientMemory.TypeKey,
+            StringComparison.OrdinalIgnoreCase);
+        if (isClientMemory == expectsClientMemory) return;
+
+        var label = string.IsNullOrWhiteSpace(displayTarget) ? reference.TagId.ToString("D") : displayTarget;
+        issues.Add(new(
+            "VISUAL_DYNAMIC_REFERENCE_KIND_MISMATCH",
+            $"Visual dynamic source '{label}' uses {(expectsClientMemory ? "Client Memory" : "TAG")} identity, but the referenced TAG is configured for {(isClientMemory ? "Client Memory" : "a server source")}.",
+            kind,
+            entityKey,
+            true));
+    }
+
+    private bool TryResolveTagSourceDriver(Guid tagId, EngineeringPackage package, out string? driver)
+    {
+        var sourceKey = package.Tags.FirstOrDefault(tag => tag is not null && tag.Id == tagId)?.Source;
+        var dataSourceId = package.Tags.FirstOrDefault(tag => tag is not null && tag.Id == tagId)?.DataSourceId;
+        if (string.IsNullOrWhiteSpace(sourceKey) && _tags.TryGet(tagId, out var existing) && existing is not null)
+        {
+            sourceKey = existing.Source;
+            dataSourceId = existing.DataSourceId;
+        }
+
+        var dataSource = dataSourceId.HasValue
+            ? (package.DataSources ?? Array.Empty<DataSourceEngineeringDto>()).FirstOrDefault(candidate => candidate is not null && candidate.Id == dataSourceId)
+              ?? _dataSources.Find(dataSourceId.Value)
+            : null;
+        dataSource ??= string.IsNullOrWhiteSpace(sourceKey) ? null :
+            (package.DataSources ?? Array.Empty<DataSourceEngineeringDto>()).FirstOrDefault(candidate => candidate is not null &&
+                candidate.Key.Equals(sourceKey, StringComparison.OrdinalIgnoreCase)) ?? _dataSources.FindByKey(sourceKey);
+        driver = dataSource?.Driver;
+        return !string.IsNullOrWhiteSpace(driver);
     }
 
     private void ValidateDynamicTagReference(
@@ -479,6 +591,16 @@ internal sealed class ViewEngineeringHandler
         return false;
     }
 
+    private static bool MatchesTagValueType(JsonElement value, TagDataType dataType) => dataType switch
+    {
+        TagDataType.Boolean => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
+        TagDataType.Int16 or TagDataType.Int32 or TagDataType.Int64 or TagDataType.Float or TagDataType.Double =>
+            value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number) && double.IsFinite(number),
+        TagDataType.String or TagDataType.DateTime => value.ValueKind == JsonValueKind.String,
+        TagDataType.Enum => value.ValueKind is JsonValueKind.Number or JsonValueKind.String,
+        _ => false
+    };
+
     private static VisualExpressionValueType? ToExpressionValueType(TagDataType dataType) => dataType switch
     {
         TagDataType.Boolean => VisualExpressionValueType.Boolean,
@@ -493,8 +615,20 @@ internal sealed class ViewEngineeringHandler
         EngineeringPackage package,
         List<ImportIssue> issues)
     {
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.ReportLauncherType, StringComparison.Ordinal))
+        {
+            ValidateReportLauncherReference(element, kind, entityKey, package, issues);
+            return;
+        }
+
+        if (element.Type is BuiltinVisualObjectSchemas.VideoPlayerType or BuiltinVisualObjectSchemas.PdfViewerType or BuiltinVisualObjectSchemas.Model3dType)
+        {
+            issues.AddRange(VisualAssetReferenceEngineeringValidation.Validate(element, kind, entityKey, package, _visualAssets));
+            return;
+        }
         if (package.SchemaVersion < 13 ||
-            !element.Type.Equals("core.image", StringComparison.Ordinal) ||
+            (!element.Type.Equals("core.image", StringComparison.Ordinal) &&
+             !element.Type.Equals("core.svgSymbol", StringComparison.Ordinal)) ||
             element.Properties is null ||
             !element.Properties.TryGetValue("assetRef", out var serialized) ||
             serialized.ValueKind == JsonValueKind.Null)
@@ -528,31 +662,308 @@ internal sealed class ViewEngineeringHandler
             return;
         }
 
-        if (VisualAssetExists(assetId, package))
+        var asset = FindVisualAsset(assetId, package);
+        if (asset is null)
+        {
+            issues.Add(new ImportIssue(
+                "VISUAL_ASSET_REFERENCE_NOT_FOUND",
+                $"Visual element '{element.Key}' references Visual Asset '{reference}', which does not exist in the prospective Engineering model.",
+                kind,
+                entityKey,
+                true));
             return;
+        }
 
-        issues.Add(new ImportIssue(
-            "VISUAL_ASSET_REFERENCE_NOT_FOUND",
-            $"Visual element '{element.Key}' references Visual Asset '{reference}', which does not exist in the prospective Engineering model.",
-            kind,
-            entityKey,
-            true));
+        if (element.Type.Equals("core.svgSymbol", StringComparison.Ordinal) &&
+            !asset.MediaType.Equals(VisualAssetContentInspector.SvgMediaType, StringComparison.OrdinalIgnoreCase))
+        {
+            issues.Add(new ImportIssue(
+                "VISUAL_SVG_ASSET_MEDIA_INVALID",
+                $"SVG symbol '{element.Key}' must reference an image/svg+xml Visual Asset.",
+                kind,
+                entityKey,
+                true));
+        }
     }
 
-    private bool VisualAssetExists(Guid id, EngineeringPackage package) =>
-        _visualAssets.FindAsset(id) is not null ||
+    private static void ValidateReportLauncherReference(
+        VisualElementEngineeringDto element,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        ICollection<ImportIssue> issues)
+    {
+        var reportKey = element.Properties is not null &&
+            element.Properties.TryGetValue(VisualPropertyKeys.ReportKey, out var value) &&
+            value.ValueKind == JsonValueKind.String
+                ? value.GetString()?.Trim()
+                : null;
+        if (string.IsNullOrWhiteSpace(reportKey) || reportKey.Any(char.IsControl))
+        {
+            issues.Add(new ImportIssue(
+                "VISUAL_REPORT_REFERENCE_REQUIRED",
+                $"Report launcher '{element.Key}' requires a stable Report key.",
+                kind,
+                entityKey,
+                true));
+            return;
+        }
+
+        if (!(package.Reports ?? Array.Empty<Scada.Engineering.Reports.ReportEngineeringDto>())
+            .Any(report => report is not null && string.Equals(report.Key, reportKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            issues.Add(new ImportIssue(
+                "VISUAL_REPORT_REFERENCE_NOT_FOUND",
+                $"Report launcher '{element.Key}' references Report '{reportKey}', which is not in the prospective Engineering package.",
+                kind,
+                entityKey,
+                true));
+        }
+    }
+
+    private void ValidateMediaSourceReference(VisualElementEngineeringDto element, ImportEntityKind kind,
+        string entityKey, EngineeringPackage package, List<ImportIssue> issues)
+    {
+        if (element.Type != BuiltinVisualObjectSchemas.VideoPlayerType || element.Properties is null ||
+            !element.Properties.TryGetValue(VisualPropertyKeys.MediaSourceId, out var value) ||
+            value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString()))
+            return;
+        var text = value.GetString();
+        if (!Guid.TryParse(text, out var id) || id == Guid.Empty)
+        {
+            issues.Add(new("VISUAL_MEDIA_SOURCE_ID_INVALID", $"Video '{element.Key}' must reference a stable Media Source GUID, not a URL.", kind, entityKey, true));
+            return;
+        }
+        if (!(package.MediaSources ?? Array.Empty<MediaSourceEngineeringDto>()).Any(source => source is not null && source.Id == id) && _mediaSources.Find(id) is null)
+            issues.Add(new("VISUAL_MEDIA_SOURCE_NOT_FOUND", $"Video '{element.Key}' references a Media Source absent from the prospective project.", kind, entityKey, true));
+    }
+
+    private VisualAssetEngineeringDto? FindVisualAsset(Guid id, EngineeringPackage package) =>
+        _visualAssets.FindAsset(id) ??
         (package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>())
-            .Any(x => x is not null && x.Id == id);
+            .FirstOrDefault(x => x is not null && x.Id == id);
 
-    private bool TemplateExists(string key, EngineeringPackage package) =>
-        _assets.FindTemplateByKey(key) is not null ||
+    private PopupEngineeringDto NormalizePopupReferences(PopupEngineeringDto popup)
+    {
+        EquipmentTemplateEngineeringDto? template = null;
+        if (popup.TemplateId.HasValue)
+            template = _assets.FindTemplate(popup.TemplateId.Value);
+        if (template is null && !string.IsNullOrWhiteSpace(popup.TemplateKey))
+            template = _assets.FindTemplateByKey(popup.TemplateKey);
+        if ((popup.TemplateId.HasValue || !string.IsNullOrWhiteSpace(popup.TemplateKey)) &&
+            (template?.Id is null || template.Id == Guid.Empty))
+            throw new InvalidOperationException(
+                $"Popup '{popup.Key}' Template reference could not be normalized to a stable identity.");
+
+        return popup with
+        {
+            TemplateId = template?.Id,
+            TemplateKey = template?.Key ?? popup.TemplateKey,
+            Elements = NormalizeVisualReferences(popup.Elements)
+        };
+    }
+
+    private IReadOnlyCollection<VisualElementEngineeringDto>? NormalizeVisualReferences(
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements)
+    {
+        if (elements is null) return null;
+        return elements.Select(element =>
+        {
+            DynamoEngineeringDto? dynamo = null;
+            if (element.DynamoDefinitionId.HasValue)
+                dynamo = _assets.FindDynamo(element.DynamoDefinitionId.Value);
+            if (dynamo is null && !string.IsNullOrWhiteSpace(element.DynamoKey))
+                dynamo = _assets.FindDynamoByKey(element.DynamoKey);
+            if ((element.DynamoDefinitionId.HasValue || !string.IsNullOrWhiteSpace(element.DynamoKey)) &&
+                (dynamo?.Id is null || dynamo.Id == Guid.Empty))
+                throw new InvalidOperationException(
+                    $"Visual element '{element.Key}' Dynamo reference could not be normalized to a stable identity.");
+
+            EquipmentEngineeringDto? equipment = null;
+            var concreteEquipmentPath = !string.IsNullOrWhiteSpace(element.EquipmentPath) &&
+                !EngineeringHandlerSupport.ContainsPlaceholder(element.EquipmentPath);
+            if (element.EquipmentId.HasValue)
+                equipment = _assets.FindEquipment(element.EquipmentId.Value);
+            if (equipment is null && concreteEquipmentPath)
+                equipment = _assets.FindEquipmentByPath(element.EquipmentPath!);
+            if ((element.EquipmentId.HasValue || concreteEquipmentPath) &&
+                (equipment?.Id is null || equipment.Id == Guid.Empty))
+                throw new InvalidOperationException(
+                    $"Visual element '{element.Key}' Equipment reference could not be normalized to a stable identity.");
+
+            return element with
+            {
+                DynamoDefinitionId = dynamo?.Id,
+                DynamoKey = dynamo?.Key ?? element.DynamoKey,
+                EquipmentId = equipment?.Id,
+                EquipmentPath = equipment?.Path ?? element.EquipmentPath,
+                Children = NormalizeVisualReferences(element.Children)
+            };
+        }).ToArray();
+    }
+
+    private void ValidateTemplateReference(
+        Guid? templateId,
+        string? templateKey,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        if (templateId == Guid.Empty)
+            return;
+        if (!templateId.HasValue && string.IsNullOrWhiteSpace(templateKey))
+            return;
+
+        var byId = templateId.HasValue ? FindTemplate(templateId.Value, package) : null;
+        var byKey = !string.IsNullOrWhiteSpace(templateKey) ? FindTemplate(templateKey!, package) : null;
+        if (templateId.HasValue && byId is null)
+            issues.Add(new(
+                "POPUP_TEMPLATE_ID_NOT_FOUND",
+                $"Template identity '{templateId.Value:D}' referenced by popup '{entityKey}' was not found.",
+                ImportEntityKind.Popup,
+                entityKey,
+                true));
+        if (!templateId.HasValue && !string.IsNullOrWhiteSpace(templateKey) && byKey is null)
+            issues.Add(new(
+                "POPUP_TEMPLATE_NOT_FOUND",
+                $"Template '{templateKey}' referenced by popup '{entityKey}' was not found.",
+                ImportEntityKind.Popup,
+                entityKey,
+                true));
+        if (byId?.Id.HasValue == true && byKey?.Id.HasValue == true && byId.Id != byKey.Id)
+            issues.Add(new(
+                "POPUP_TEMPLATE_REFERENCE_MISMATCH",
+                $"Template identity '{templateId:D}' and alias '{templateKey}' resolve to different Templates for popup '{entityKey}'.",
+                ImportEntityKind.Popup,
+                entityKey,
+                true));
+    }
+
+    private DynamoEngineeringDto? ValidateDynamoReference(
+        VisualElementEngineeringDto element,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        if (element.DynamoDefinitionId == Guid.Empty)
+            return null;
+        if (!element.DynamoDefinitionId.HasValue && string.IsNullOrWhiteSpace(element.DynamoKey))
+            return null;
+
+        var byId = element.DynamoDefinitionId.HasValue
+            ? FindDynamo(element.DynamoDefinitionId.Value, package)
+            : null;
+        var byKey = !string.IsNullOrWhiteSpace(element.DynamoKey)
+            ? FindDynamo(element.DynamoKey, package)
+            : null;
+
+        if (element.DynamoDefinitionId.HasValue && byId is null)
+            issues.Add(new(
+                "VISUAL_DYNAMO_ID_NOT_FOUND",
+                $"Dynamo identity '{element.DynamoDefinitionId.Value:D}' referenced by visual element '{element.Key}' was not found.",
+                kind,
+                entityKey,
+                true));
+        if (!element.DynamoDefinitionId.HasValue && !string.IsNullOrWhiteSpace(element.DynamoKey) && byKey is null)
+            issues.Add(new(
+                "VISUAL_DYNAMO_NOT_FOUND",
+                $"Dynamo '{element.DynamoKey}' referenced by visual element '{element.Key}' was not found.",
+                kind,
+                entityKey,
+                true));
+        if (byId?.Id.HasValue == true && byKey?.Id.HasValue == true && byId.Id != byKey.Id)
+        {
+            issues.Add(new(
+                "VISUAL_DYNAMO_REFERENCE_MISMATCH",
+                $"Dynamo identity '{element.DynamoDefinitionId:D}' and alias '{element.DynamoKey}' resolve to different definitions for visual element '{element.Key}'.",
+                kind,
+                entityKey,
+                true));
+            return null;
+        }
+
+        return byId ?? byKey;
+    }
+
+    private void ValidateEquipmentReference(
+        VisualElementEngineeringDto element,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        if (element.EquipmentId == Guid.Empty)
+            return;
+
+        var hasPath = !string.IsNullOrWhiteSpace(element.EquipmentPath);
+        var placeholderPath = hasPath && EngineeringHandlerSupport.ContainsPlaceholder(element.EquipmentPath!);
+        if (placeholderPath)
+        {
+            if (element.EquipmentId.HasValue)
+                issues.Add(new(
+                    "VISUAL_EQUIPMENT_REFERENCE_MISMATCH",
+                    $"Visual element '{element.Key}' cannot combine stable Equipment identity '{element.EquipmentId.Value:D}' with placeholder path '{element.EquipmentPath}'.",
+                    kind,
+                    entityKey,
+                    true));
+            return;
+        }
+        if (!element.EquipmentId.HasValue && !hasPath)
+            return;
+
+        var byId = element.EquipmentId.HasValue
+            ? FindEquipment(element.EquipmentId.Value, package)
+            : null;
+        var byPath = hasPath ? FindEquipment(element.EquipmentPath!, package) : null;
+
+        if (element.EquipmentId.HasValue && byId is null)
+            issues.Add(new(
+                "VISUAL_EQUIPMENT_ID_NOT_FOUND",
+                $"Equipment identity '{element.EquipmentId.Value:D}' referenced by visual element '{element.Key}' was not found.",
+                kind,
+                entityKey,
+                true));
+        if (!element.EquipmentId.HasValue && hasPath && byPath is null)
+            issues.Add(new(
+                "VISUAL_EQUIPMENT_NOT_FOUND",
+                $"Equipment '{element.EquipmentPath}' referenced by visual element '{element.Key}' was not found.",
+                kind,
+                entityKey,
+                true));
+        if (byId?.Id.HasValue == true && byPath?.Id.HasValue == true && byId.Id != byPath.Id)
+            issues.Add(new(
+                "VISUAL_EQUIPMENT_REFERENCE_MISMATCH",
+                $"Equipment identity '{element.EquipmentId:D}' and path '{element.EquipmentPath}' resolve to different Equipment instances for visual element '{element.Key}'.",
+                kind,
+                entityKey,
+                true));
+    }
+
+    private EquipmentTemplateEngineeringDto? FindTemplate(Guid id, EngineeringPackage package) =>
+        _assets.FindTemplate(id) ??
         (package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>())
-            .Any(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(x => x.Id == id);
 
-    private bool EquipmentExists(string path, EngineeringPackage package) =>
-        _assets.FindEquipmentByPath(path) is not null ||
+    private EquipmentTemplateEngineeringDto? FindTemplate(string key, EngineeringPackage package) =>
+        _assets.FindTemplateByKey(key) ??
+        (package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>())
+            .FirstOrDefault(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+
+    private EquipmentEngineeringDto? FindEquipment(Guid id, EngineeringPackage package) =>
+        _assets.FindEquipment(id) ??
         (package.Equipment ?? Array.Empty<EquipmentEngineeringDto>())
-            .Any(x => x.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(x => x.Id == id);
+
+    private EquipmentEngineeringDto? FindEquipment(string path, EngineeringPackage package) =>
+        _assets.FindEquipmentByPath(path) ??
+        (package.Equipment ?? Array.Empty<EquipmentEngineeringDto>())
+            .FirstOrDefault(x => x.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+
+    private DynamoEngineeringDto? FindDynamo(Guid id, EngineeringPackage package) =>
+        _assets.FindDynamo(id) ??
+        (package.Dynamos ?? Array.Empty<DynamoEngineeringDto>())
+            .FirstOrDefault(x => x.Id == id);
 
     private DynamoEngineeringDto? FindDynamo(string key, EngineeringPackage package) =>
         _assets.FindDynamoByKey(key) ??

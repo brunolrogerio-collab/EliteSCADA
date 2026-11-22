@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { loadCommunicationDiagnostics } from './api';
+import { loadCommunicationDiagnostics, loadDriverHostHealth, probeNetworkReachability } from './api';
 import type { EngineeringLocale } from './i18n';
-import type { CommunicationDriverDiagnostic } from './types';
+import type { CommunicationDriverDiagnostic, DriverHostHealth, NetworkReachabilityProbeResponse } from './types';
 import './communication-diagnostics.css';
 
 type FilterMode = 'all' | 'attention' | 'healthy';
@@ -71,6 +71,27 @@ type Copy = {
   stateReconnecting: string;
   stateFaulted: string;
   stateStopping: string;
+  stateStale: string;
+  stateUnavailable: string;
+  driverHost: string;
+  hostFreshness: string;
+  networkProbe: string;
+  targetHost: string;
+  targetPort: string;
+  probe: string;
+  probing: string;
+  tcp: string;
+  icmp: string;
+  portReachableOnly: string;
+  ladder: string;
+  ladderHost: string;
+  ladderDriver: string;
+  ladderNetwork: string;
+  ladderConnection: string;
+  ladderPointRead: string;
+  ladderLive: string;
+  hostUnavailable: string;
+  hostStale: string;
 };
 
 const copy: Record<EngineeringLocale, Copy> = {
@@ -90,7 +111,9 @@ const copy: Record<EngineeringLocale, Copy> = {
     cycles: 'Ciclos', requests: 'Requests', successes: 'Sucessos', reads: 'Leituras', writes: 'Escritas', published: 'Atualizações publicadas', connections: 'Conexões', disconnections: 'Desconexões', consecutiveFailures: 'Falhas consecutivas',
     quality: 'Qualidade das TAGs', qualityGood: 'Good', qualityBadComm: 'BadCommunication', qualityOther: 'Outras', noSample: 'Sem amostra',
     operational: 'Estado operacional', activity: 'Atividade e contadores', protocol: 'Detalhes do protocolo', noProtocol: 'Nenhum detalhe adicional informado pelo driver.', errorMessage: 'Último erro',
-    stateStopped: 'Parado', stateStarting: 'Iniciando', stateHealthy: 'Saudável', stateDegraded: 'Degradado', stateReconnecting: 'Reconectando', stateFaulted: 'Falha', stateStopping: 'Parando'
+    stateStopped: 'Parado', stateStarting: 'Iniciando', stateHealthy: 'Saudável', stateDegraded: 'Degradado', stateReconnecting: 'Reconectando', stateFaulted: 'Falha', stateStopping: 'Parando', stateStale: 'Desatualizado', stateUnavailable: 'Indisponível',
+    driverHost: 'Host API / DriverHost', hostFreshness: 'Observado', networkProbe: 'Alcance da rede (origem: servidor)', targetHost: 'Host ou IP', targetPort: 'Porta única', probe: 'Testar alcance', probing: 'Testando…', tcp: 'TCP', icmp: 'ICMP', portReachableOnly: 'Porta alcançável não significa protocolo saudável.',
+    ladder: 'Escada de diagnóstico', ladderHost: 'Host', ladderDriver: 'Driver / Data Source', ladderNetwork: 'Rede', ladderConnection: 'Connection Test', ladderPointRead: 'Test Read', ladderLive: 'TAG ativo', hostUnavailable: 'Host indisponível; estado dos drivers não confirmado.', hostStale: 'Sinal do host desatualizado; estado dos drivers não confirmado.'
   },
   en: {
     title: 'Active communication',
@@ -108,7 +131,9 @@ const copy: Record<EngineeringLocale, Copy> = {
     cycles: 'Cycles', requests: 'Requests', successes: 'Successes', reads: 'Reads', writes: 'Writes', published: 'Published updates', connections: 'Connections', disconnections: 'Disconnections', consecutiveFailures: 'Consecutive failures',
     quality: 'TAG quality', qualityGood: 'Good', qualityBadComm: 'BadCommunication', qualityOther: 'Other', noSample: 'No sample',
     operational: 'Operational state', activity: 'Activity and counters', protocol: 'Protocol details', noProtocol: 'The driver reported no additional protocol details.', errorMessage: 'Last error',
-    stateStopped: 'Stopped', stateStarting: 'Starting', stateHealthy: 'Healthy', stateDegraded: 'Degraded', stateReconnecting: 'Reconnecting', stateFaulted: 'Faulted', stateStopping: 'Stopping'
+    stateStopped: 'Stopped', stateStarting: 'Starting', stateHealthy: 'Healthy', stateDegraded: 'Degraded', stateReconnecting: 'Reconnecting', stateFaulted: 'Faulted', stateStopping: 'Stopping', stateStale: 'Stale', stateUnavailable: 'Unavailable',
+    driverHost: 'API / DriverHost host', hostFreshness: 'Observed', networkProbe: 'Network reachability (server-side)', targetHost: 'Host or IP', targetPort: 'Single port', probe: 'Test reachability', probing: 'Testing…', tcp: 'TCP', icmp: 'ICMP', portReachableOnly: 'A reachable port does not mean the protocol is healthy.',
+    ladder: 'Diagnostic ladder', ladderHost: 'Host', ladderDriver: 'Driver / Data Source', ladderNetwork: 'Network', ladderConnection: 'Connection Test', ladderPointRead: 'Test Read', ladderLive: 'Active TAG', hostUnavailable: 'Host unavailable; driver state is unverified.', hostStale: 'Host signal is stale; driver state is unverified.'
   },
   es: {
     title: 'Comunicación activa',
@@ -126,7 +151,9 @@ const copy: Record<EngineeringLocale, Copy> = {
     cycles: 'Ciclos', requests: 'Requests', successes: 'Éxitos', reads: 'Lecturas', writes: 'Escrituras', published: 'Actualizaciones publicadas', connections: 'Conexiones', disconnections: 'Desconexiones', consecutiveFailures: 'Fallos consecutivos',
     quality: 'Calidad de TAGs', qualityGood: 'Good', qualityBadComm: 'BadCommunication', qualityOther: 'Otras', noSample: 'Sin muestra',
     operational: 'Estado operacional', activity: 'Actividad y contadores', protocol: 'Detalles del protocolo', noProtocol: 'El driver no informó detalles adicionales del protocolo.', errorMessage: 'Último error',
-    stateStopped: 'Detenido', stateStarting: 'Iniciando', stateHealthy: 'Saludable', stateDegraded: 'Degradado', stateReconnecting: 'Reconectando', stateFaulted: 'Fallo', stateStopping: 'Deteniendo'
+    stateStopped: 'Detenido', stateStarting: 'Iniciando', stateHealthy: 'Saludable', stateDegraded: 'Degradado', stateReconnecting: 'Reconectando', stateFaulted: 'Fallo', stateStopping: 'Deteniendo', stateStale: 'Desactualizado', stateUnavailable: 'No disponible',
+    driverHost: 'Host API / DriverHost', hostFreshness: 'Observado', networkProbe: 'Alcance de red (desde el servidor)', targetHost: 'Host o IP', targetPort: 'Puerto único', probe: 'Probar alcance', probing: 'Probando…', tcp: 'TCP', icmp: 'ICMP', portReachableOnly: 'Puerto alcanzable no significa protocolo saludable.',
+    ladder: 'Escalera de diagnóstico', ladderHost: 'Host', ladderDriver: 'Driver / Data Source', ladderNetwork: 'Red', ladderConnection: 'Connection Test', ladderPointRead: 'Test Read', ladderLive: 'TAG activo', hostUnavailable: 'Host no disponible; estado de los drivers no confirmado.', hostStale: 'Señal del host desactualizada; estado de los drivers no confirmado.'
   }
 };
 
@@ -144,6 +171,7 @@ const severityOrder: Record<string, number> = {
 export function CommunicationDiagnosticsPanel({ locale }: { locale: EngineeringLocale }) {
   const text = copy[locale];
   const [items, setItems] = useState<CommunicationDriverDiagnostic[]>([]);
+  const [hostHealth, setHostHealth] = useState<DriverHostHealth | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterMode>('all');
@@ -156,13 +184,15 @@ export function CommunicationDiagnosticsPanel({ locale }: { locale: EngineeringL
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const next = await loadCommunicationDiagnostics();
-      setItems(next);
+      const [drivers, host] = await Promise.allSettled([loadCommunicationDiagnostics(), loadDriverHostHealth()]);
+      if (drivers.status === 'rejected') throw drivers.reason;
+      setItems(drivers.value);
+      setHostHealth(host.status === 'fulfilled' ? host.value : null);
       setError(null);
       setLastRefreshAt(new Date());
-      setSelectedKey(current => current && next.some(item => item.dataSourceKey === current)
+      setSelectedKey(current => current && drivers.value.some(item => item.dataSourceKey === current)
         ? current
-        : next[0]?.dataSourceKey ?? null);
+        : drivers.value[0]?.dataSourceKey ?? null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -178,8 +208,13 @@ export function CommunicationDiagnosticsPanel({ locale }: { locale: EngineeringL
     return () => window.clearInterval(timer);
   }, [autoRefresh, refresh]);
 
+  const hostSignal = useMemo(() => classifyHostSignal(hostHealth), [hostHealth, lastRefreshAt]);
+  const driverEvidenceTrusted = hostSignal === 'Healthy';
+  const effectiveState = useCallback((item: CommunicationDriverDiagnostic) =>
+    driverEvidenceTrusted ? normalizeState(item.state) : 'Unavailable', [driverEvidenceTrusted]);
+
   const summary = useMemo(() => {
-    const healthy = items.filter(item => normalizeState(item.state) === 'Healthy').length;
+    const healthy = items.filter(item => driverEvidenceTrusted && normalizeState(item.state) === 'Healthy').length;
     const faulted = items.filter(item => normalizeState(item.state) === 'Faulted').length;
     const goodTags = items.reduce((sum, item) => sum + item.tagQuality.good, 0);
     const totalTags = items.reduce((sum, item) => sum + item.associatedTagCount, 0);
@@ -191,13 +226,13 @@ export function CommunicationDiagnosticsPanel({ locale }: { locale: EngineeringL
       goodTags,
       totalTags
     };
-  }, [items]);
+  }, [driverEvidenceTrusted, items]);
 
   const filteredItems = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
     return [...items]
       .filter(item => {
-        const state = normalizeState(item.state);
+        const state = effectiveState(item);
         if (filter === 'attention' && state === 'Healthy') return false;
         if (filter === 'healthy' && state !== 'Healthy') return false;
         if (!needle) return true;
@@ -205,10 +240,10 @@ export function CommunicationDiagnosticsPanel({ locale }: { locale: EngineeringL
           .some(value => value.toLocaleLowerCase().includes(needle));
       })
       .sort((left, right) => {
-        const severity = (severityOrder[normalizeState(left.state)] ?? 99) - (severityOrder[normalizeState(right.state)] ?? 99);
+        const severity = (severityOrder[effectiveState(left)] ?? 99) - (severityOrder[effectiveState(right)] ?? 99);
         return severity !== 0 ? severity : left.dataSourceName.localeCompare(right.dataSourceName);
       });
-  }, [filter, items, query]);
+  }, [effectiveState, filter, items, query]);
 
   const selected = useMemo(
     () => filteredItems.find(item => item.dataSourceKey === selectedKey) ?? filteredItems[0] ?? null,
@@ -227,7 +262,23 @@ export function CommunicationDiagnosticsPanel({ locale }: { locale: EngineeringL
           <span className={refreshing ? 'eng-comm-live active' : 'eng-comm-live'} aria-hidden="true" />
           <span>{lastRefreshAt ? `${text.refreshed} ${formatMoment(lastRefreshAt.toISOString(), locale)}` : text.loading}</span>
         </div>
+        <div className="eng-comm-host-health" data-testid="driver-host-health">
+          <StatusBadge state={hostSignal} text={text} />
+          <span>{text.driverHost}</span>
+          <small>{hostHealth ? `${text.hostFreshness}: ${formatMoment(hostHealth.observedAtUtc, locale)}` : text.hostUnavailable}</small>
+          {!driverEvidenceTrusted ? <small>{hostSignal === 'Stale' ? text.hostStale : text.hostUnavailable}</small> : null}
+        </div>
       </header>
+
+      <nav className="eng-comm-ladder" aria-label={text.ladder} data-testid="driver-diagnostic-ladder">
+        <strong>{text.ladder}</strong>
+        <span><StatusBadge state={hostSignal} text={text} /> {text.ladderHost}</span>
+        <span><StatusBadge state={driverEvidenceTrusted ? 'Healthy' : 'Unavailable'} text={text} /> {text.ladderDriver}</span>
+        <a href="#communication-network-probe">{text.ladderNetwork}</a>
+        <a href="/engineering/dataSources">{text.ladderConnection}</a>
+        <a href="/engineering/tags">{text.ladderPointRead}</a>
+        <a href="/engineering/diagnostics/tag-monitor">{text.ladderLive}</a>
+      </nav>
 
       <div className="eng-comm-summary">
         <SummaryCard label={text.totalSources} value={summary.total} />
@@ -278,7 +329,7 @@ export function CommunicationDiagnosticsPanel({ locale }: { locale: EngineeringL
             </div>
             <div className="eng-comm-source-list">
               {filteredItems.map(item => {
-                const state = normalizeState(item.state);
+                const state = effectiveState(item);
                 return (
                   <button
                     type="button"
@@ -310,15 +361,14 @@ export function CommunicationDiagnosticsPanel({ locale }: { locale: EngineeringL
             </div>
           </section>
 
-          {selected && <DiagnosticDetail item={selected} locale={locale} text={text} />}
+          {selected && <DiagnosticDetail item={selected} locale={locale} text={text} state={effectiveState(selected)} />}
         </div>
       )}
     </section>
   );
 }
 
-function DiagnosticDetail({ item, locale, text }: { item: CommunicationDriverDiagnostic; locale: EngineeringLocale; text: Copy }) {
-  const state = normalizeState(item.state);
+function DiagnosticDetail({ item, locale, text, state }: { item: CommunicationDriverDiagnostic; locale: EngineeringLocale; text: Copy; state: string }) {
   const totalQuality = Math.max(item.tagQuality.total, item.associatedTagCount, 1);
   const otherQuality = Math.max(0, totalQuality - item.tagQuality.good - item.tagQuality.badCommunication - item.tagQuality.noCurrentSample);
   const protocolEntries = Object.entries(item.protocolDetails ?? {}).sort(([left], [right]) => left.localeCompare(right));
@@ -340,6 +390,8 @@ function DiagnosticDetail({ item, locale, text }: { item: CommunicationDriverDia
           <strong>{item.lastError}</strong>
         </div>
       )}
+
+      <NetworkProbeControls key={item.dataSourceKey} item={item} locale={locale} text={text} />
 
       <section className="eng-comm-detail-section">
         <div className="eng-comm-panel-title"><strong>{text.operational}</strong></div>
@@ -409,12 +461,70 @@ function DiagnosticDetail({ item, locale, text }: { item: CommunicationDriverDia
   );
 }
 
+function NetworkProbeControls({ item, locale, text }: { item: CommunicationDriverDiagnostic; locale: EngineeringLocale; text: Copy }) {
+  const defaults = parseProbeEndpoint(item.endpoint, item.driverType);
+  const [host, setHost] = useState(defaults.host);
+  const [port, setPort] = useState(defaults.port);
+  const [result, setResult] = useState<NetworkReachabilityProbeResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [probing, setProbing] = useState(false);
+
+  useEffect(() => {
+    const next = parseProbeEndpoint(item.endpoint, item.driverType);
+    setHost(next.host);
+    setPort(next.port);
+    setResult(null);
+    setError(null);
+  }, [item.endpoint, item.driverType]);
+
+  const run = async () => {
+    setProbing(true);
+    setError(null);
+    setResult(null);
+    try {
+      setResult(await probeNetworkReachability(host.trim(), Number(port)));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setProbing(false);
+    }
+  };
+
+  return <section id="communication-network-probe" className="eng-comm-network-probe" aria-label={text.networkProbe}>
+    <div className="eng-comm-panel-title"><strong>{text.networkProbe}</strong><span>TCP + ICMP · timeout 3 s</span></div>
+    <div className="eng-comm-probe-form">
+      <label><span>{text.targetHost}</span><input value={host} onChange={event => setHost(event.target.value)} autoComplete="off" /></label>
+      <label><span>{text.targetPort}</span><input type="number" min={1} max={65535} value={port} onChange={event => setPort(event.target.value)} /></label>
+      <button type="button" className="eng-comm-refresh" disabled={probing || !host.trim() || !Number.isInteger(Number(port)) || Number(port) < 1 || Number(port) > 65535} onClick={() => void run()}>
+        {probing ? text.probing : text.probe}
+      </button>
+    </div>
+    {error && <div className="eng-comm-probe-result error" role="status">{error}</div>}
+    {result && <div className="eng-comm-probe-result" data-testid="network-probe-result" role="status">
+      <span><strong>{text.tcp}:</strong> {result.tcp.status}{result.tcp.elapsedMilliseconds != null ? ` · ${result.tcp.elapsedMilliseconds.toFixed(1)} ms` : ''}</span>
+      <span><strong>{text.icmp}:</strong> {result.icmp.status}{result.icmp.elapsedMilliseconds != null ? ` · ${result.icmp.elapsedMilliseconds.toFixed(1)} ms` : ''}</span>
+      <small>{text.portReachableOnly} · {formatMoment(result.observedAtUtc, locale)}</small>
+    </div>}
+  </section>;
+}
+
+function parseProbeEndpoint(endpoint: string | null | undefined, driverType: string) {
+  const defaultPorts: Record<string, string> = { 'modbus.tcp': '502', 's7.iso': '102', 'opc.ua': '4840' };
+  if (!endpoint) return { host: '', port: defaultPorts[driverType] ?? '' };
+  try {
+    const url = new URL(endpoint.includes('://') ? endpoint : `tcp://${endpoint}`);
+    return { host: url.hostname.replace(/^\[|\]$/g, ''), port: url.port || defaultPorts[driverType] || '' };
+  } catch {
+    return { host: '', port: defaultPorts[driverType] ?? '' };
+  }
+}
+
 function SummaryCard({ label, value, tone = 'quiet' }: { label: string; value: string | number; tone?: 'quiet' | 'healthy' | 'warning' | 'danger' }) {
   return <div className={`eng-comm-summary-card ${tone}`}><span>{label}</span><strong>{value}</strong></div>;
 }
 
 function StatusBadge({ state, text, large = false }: { state: string; text: Copy; large?: boolean }) {
-  const tone = state === 'Faulted' ? 'danger' : state === 'Degraded' || state === 'Reconnecting' ? 'warning' : state === 'Healthy' ? 'healthy' : 'quiet';
+  const tone = state === 'Faulted' || state === 'Unavailable' ? 'danger' : state === 'Degraded' || state === 'Reconnecting' || state === 'Stale' ? 'warning' : state === 'Healthy' ? 'healthy' : 'quiet';
   return (
     <span className={`eng-comm-status ${tone} ${large ? 'large' : ''}`}>
       <i aria-hidden="true" />
@@ -452,9 +562,19 @@ function stateLabel(state: string, text: Copy) {
     Degraded: text.stateDegraded,
     Reconnecting: text.stateReconnecting,
     Faulted: text.stateFaulted,
-    Stopping: text.stateStopping
+    Stopping: text.stateStopping,
+    Stale: text.stateStale,
+    Unavailable: text.stateUnavailable
   };
   return labels[state] ?? state;
+}
+
+function classifyHostSignal(host: DriverHostHealth | null): string {
+  if (!host) return 'Unavailable';
+  const observedAt = Date.parse(host.observedAtUtc);
+  if (!Number.isFinite(observedAt) || observedAt > Date.now() + 5_000) return 'Unavailable';
+  if (Date.now() - observedAt > Math.max(0, host.freshForSeconds) * 1000) return 'Stale';
+  return host.status;
 }
 
 function formatMoment(value: string | null | undefined, locale: EngineeringLocale) {

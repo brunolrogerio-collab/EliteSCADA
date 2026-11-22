@@ -15,7 +15,8 @@ public enum DriverEngineeringCapabilities
     Discover = 1 << 1,
     Browse = 1 << 2,
     FileImport = 1 << 3,
-    Reconcile = 1 << 4
+    Reconcile = 1 << 4,
+    PointReadTest = 1 << 5
 }
 
 /// <summary>
@@ -31,6 +32,40 @@ public enum DriverAcquisitionMode
     Hybrid
 }
 
+public enum IntegrationDomain
+{
+    Industrial,
+    Building,
+    Residential,
+    IoT,
+    Cloud
+}
+
+public enum DriverConnectionModel
+{
+    DirectNetwork,
+    HostSerial,
+    HostRadio,
+    LocalBridge,
+    Cloud
+}
+
+public enum DriverExternalDependencyKind
+{
+    BuiltIn,
+    OptionalSidecar,
+    ThirdPartyAccount,
+    ThirdPartySubscription,
+    ExternalGateway,
+    CertifiedHardware,
+    HostResource
+}
+
+public sealed record DriverExternalDependencyDescriptor(
+    DriverExternalDependencyKind Kind,
+    string? Requirement = null,
+    string? Description = null);
+
 public enum DriverConfigurationValueKind
 {
     String,
@@ -40,6 +75,7 @@ public enum DriverConfigurationValueKind
     Duration,
     Host,
     Port,
+    SerialPort,
     Identifier,
     Enum,
     SecretReference,
@@ -115,7 +151,10 @@ public sealed record CommunicationDriverTypeDescriptor(
     string? DisplayNameResourceKey = null,
     string? DescriptionResourceKey = null,
     string? TagBindingSchemaId = null,
-    int? TagBindingSchemaVersion = null);
+    int? TagBindingSchemaVersion = null,
+    IReadOnlyCollection<IntegrationDomain>? IntegrationDomains = null,
+    DriverConnectionModel? ConnectionModel = null,
+    IReadOnlyCollection<DriverExternalDependencyDescriptor>? ExternalDependencies = null);
 
 /// <summary>
 /// Non-authoritative snapshot passed to protected Engineering tooling. Settings
@@ -143,6 +182,130 @@ public sealed record DriverConnectionTestResult(
     IReadOnlyDictionary<string, string>? ObservedProperties = null,
     IReadOnlyCollection<DriverEngineeringIssue>? Issues = null);
 
+public enum DriverPointReadTestStatus
+{
+    Good,
+    Bad,
+    NoData,
+    IntermittentOrUncertain
+}
+
+/// <summary>
+/// Protocol-neutral raw evidence for one transient Engineering point read. Kind
+/// identifies the representation family (for example bytes, registers or scalar),
+/// Hex preserves the contiguous wire view when safe, and Elements allows ordered
+/// protocol units without exposing protocol-library objects.
+/// </summary>
+public sealed record DriverPointReadRawRepresentation(
+    string Kind,
+    string? Hex = null,
+    IReadOnlyCollection<string>? Elements = null,
+    IReadOnlyDictionary<string, string>? Metadata = null);
+
+/// <summary>
+/// One decoded or Engineering value carried by the point-read wire. ValueType is
+/// the stable public representation name chosen by the provider; Value must be a
+/// JSON-serializable scalar/value object and never protected material.
+/// </summary>
+public sealed record DriverPointReadValue(
+    string ValueType,
+    object? Value,
+    string? EngineeringUnit = null);
+
+public sealed record DriverPointReadSample(
+    DriverPointReadTestStatus Status,
+    DateTimeOffset ObservedAtUtc,
+    DateTimeOffset? SourceTimestampUtc,
+    double? LatencyMilliseconds,
+    TagQuality Quality,
+    DriverPointReadRawRepresentation? Raw = null,
+    DriverPointReadValue? Decoded = null,
+    DriverPointReadValue? Engineering = null,
+    TagPhysicalValueTransform? EffectiveValueTransform = null,
+    IReadOnlyCollection<DriverEngineeringIssue>? Issues = null);
+
+public sealed record DriverPointReadSampleSummary(
+    int RequestedSamples,
+    int CompletedSamples,
+    int GoodSamples,
+    int UncertainSamples,
+    int BadSamples,
+    int NoDataSamples,
+    double? MinimumLatencyMilliseconds = null,
+    double? AverageLatencyMilliseconds = null,
+    double? MaximumLatencyMilliseconds = null);
+
+public sealed record DriverPointReadTestResult(
+    DriverPointReadTestStatus Status,
+    string? SanitizedEndpoint,
+    string PortableAddress,
+    DriverPointReadSampleSummary Summary,
+    IReadOnlyCollection<DriverPointReadSample> Samples,
+    IReadOnlyCollection<DriverEngineeringIssue>? Issues = null);
+
+/// <summary>
+/// Transient Engineering-only point-read request. It carries the canonical draft
+/// Data Source context and CommunicationTagBinding directly; it is not a TAG,
+/// does not create persistent Engineering state and grants no Runtime authority.
+/// </summary>
+public sealed record DriverPointReadTestRequest(
+    DriverEngineeringDataSourceContext Context,
+    CommunicationTagBinding Binding,
+    TagDataType DataType,
+    TagValueSelector? AddressSelector = null,
+    string? EngineeringUnit = null,
+    int SampleCount = 1,
+    int SampleIntervalMilliseconds = 0,
+    int TimeoutMilliseconds = 5000)
+{
+    public const int MaximumSampleCount = 10;
+    public const int MaximumSampleIntervalMilliseconds = 2000;
+    public const int MinimumTimeoutMilliseconds = 100;
+    public const int MaximumTimeoutMilliseconds = 30000;
+
+    public void Validate()
+    {
+        ArgumentNullException.ThrowIfNull(Context);
+        ArgumentNullException.ThrowIfNull(Binding);
+        Binding.Validate();
+
+        if (SampleCount < 1 || SampleCount > MaximumSampleCount)
+            throw new ArgumentOutOfRangeException(
+                nameof(SampleCount),
+                $"Point-read sample count must be from 1 to {MaximumSampleCount}.");
+        if (SampleIntervalMilliseconds < 0 || SampleIntervalMilliseconds > MaximumSampleIntervalMilliseconds)
+            throw new ArgumentOutOfRangeException(
+                nameof(SampleIntervalMilliseconds),
+                $"Point-read sample interval must be from 0 to {MaximumSampleIntervalMilliseconds} ms.");
+        if (TimeoutMilliseconds < MinimumTimeoutMilliseconds || TimeoutMilliseconds > MaximumTimeoutMilliseconds)
+            throw new ArgumentOutOfRangeException(
+                nameof(TimeoutMilliseconds),
+                $"Point-read timeout must be from {MinimumTimeoutMilliseconds} to {MaximumTimeoutMilliseconds} ms.");
+
+        if (AddressSelector is not null)
+        {
+            if (!Enum.IsDefined(typeof(TagValueSelectorKind), AddressSelector.Kind) ||
+                AddressSelector.Kind != TagValueSelectorKind.Bit ||
+                AddressSelector.Index < 0)
+            {
+                throw new ArgumentException(
+                    "Point-read address selector must be a non-negative canonical bit selector.",
+                    nameof(AddressSelector));
+            }
+        }
+
+        if (EngineeringUnit is not null &&
+            (EngineeringUnit.IndexOf('\r') >= 0 ||
+             EngineeringUnit.IndexOf('\n') >= 0 ||
+             EngineeringUnit.IndexOf('\0') >= 0))
+        {
+            throw new ArgumentException(
+                "Point-read engineering unit contains invalid control characters.",
+                nameof(EngineeringUnit));
+        }
+    }
+}
+
 public sealed record DriverDiscoveryRequest(
     DriverEngineeringDataSourceContext? Context = null,
     IReadOnlyDictionary<string, string>? Parameters = null,
@@ -153,6 +316,60 @@ public sealed record DriverDiscoveryRequest(
 /// Source candidate, but the result never mutates canonical Engineering by
 /// itself and never carries resolved secrets.
 /// </summary>
+public sealed record DriverMaterializationRoleBinding(
+    string Role,
+    string? TagCandidateId = null,
+    string? CommandCandidateId = null);
+
+public sealed record DriverMaterializationCapabilityCandidate(
+    string CapabilityId,
+    string Kind,
+    IReadOnlyCollection<DriverMaterializationRoleBinding>? Bindings = null,
+    IReadOnlyDictionary<string, string>? Metadata = null,
+    int Version = 1);
+
+public sealed record DriverMaterializationTagCandidate(
+    string CandidateId,
+    string Name,
+    string Path,
+    TagDataType DataType,
+    string? PortableAddress = null,
+    bool ReadOnly = true,
+    string? EngineeringUnit = null,
+    IReadOnlyDictionary<string, string>? Metadata = null);
+
+public sealed record DriverMaterializationCommandCandidate(
+    string CandidateId,
+    string Key,
+    string Name,
+    string Value,
+    string? TargetTagCandidateId = null,
+    IReadOnlyDictionary<string, string>? Metadata = null);
+
+public sealed record DriverMaterializationEquipmentCandidate(
+    string CandidateId,
+    string Path,
+    string Name,
+    string StableDeviceIdentity,
+    string? SourceRole = null,
+    string? LocationPlaceholder = null,
+    IReadOnlyCollection<DriverMaterializationCapabilityCandidate>? Capabilities = null,
+    IReadOnlyDictionary<string, string>? Metadata = null);
+
+/// <summary>
+/// Read-only composite proposal produced by protocol discovery. Candidate-local
+/// identifiers are resolved to canonical Engineering identities only during the
+/// normal preview/apply path. The proposal carries no secrets and never mutates
+/// Working or Active state by itself. Transient button/action events are
+/// deliberately not materialized by this S1 contract: they must not be modeled
+/// as persistent TAG state, and a future event-capability contract requires
+/// separate authorization.
+/// </summary>
+public sealed record DriverMaterializationCandidate(
+    DriverMaterializationEquipmentCandidate Equipment,
+    IReadOnlyCollection<DriverMaterializationTagCandidate>? Tags = null,
+    IReadOnlyCollection<DriverMaterializationCommandCandidate>? Commands = null);
+
 public sealed record DriverDiscoveryCandidate(
     string CandidateId,
     string StableIdentity,
@@ -160,7 +377,8 @@ public sealed record DriverDiscoveryCandidate(
     string? SanitizedEndpoint = null,
     IReadOnlyDictionary<string, string>? SuggestedSettings = null,
     IReadOnlyDictionary<string, string>? Metadata = null,
-    IReadOnlyCollection<DriverEngineeringIssue>? Issues = null);
+    IReadOnlyCollection<DriverEngineeringIssue>? Issues = null,
+    DriverMaterializationCandidate? Materialization = null);
 
 public sealed record DriverBrowseRequest(
     DriverEngineeringDataSourceContext Context,
@@ -241,6 +459,13 @@ public interface ICommunicationDriverConnectionTester : ICommunicationDriverDesc
 {
     ValueTask<DriverConnectionTestResult> TestConnectionAsync(
         DriverEngineeringDataSourceContext context,
+        CancellationToken cancellationToken = default);
+}
+
+public interface ICommunicationDriverPointReadTester : ICommunicationDriverDescriptorProvider
+{
+    ValueTask<DriverPointReadTestResult> TestPointReadAsync(
+        DriverPointReadTestRequest request,
         CancellationToken cancellationToken = default);
 }
 

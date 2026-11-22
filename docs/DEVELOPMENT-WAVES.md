@@ -280,7 +280,7 @@ A Development Wave is complete only when:
 
 On `siga`:
 
-1. reread mandatory current-main documents;
+1. establish the mission baseline or revalidate changed authoritative inputs under `CHAT-COLLABORATION-PROTOCOL.md` section 9;
 2. locate its exact board assignment;
 3. check StartCondition/status;
 4. verify real branch/PR/head/CI;
@@ -291,13 +291,15 @@ On `siga`:
 
 On `siga`:
 
-1. reread mandatory documents;
+1. establish the baseline once; for continuation, revalidate the current pointer/order and changed authoritative inputs under the global protocol;
 2. inspect real GitHub state;
 3. reconcile stale documentation mentally and then in the repository;
 4. identify current wave phase;
 5. review/integrate delivered work;
 6. close the wave before opening the next functional wave;
 7. update assignments and continuity documents promptly.
+
+The coordinator owns the decision to release the next bounded package within Product Owner authorization. Do not turn a requirement for a separate Main order into repeated owner approval or repeated full discovery. Route genuine scope/contract decisions to their authority, and keep unresolved retries under the global protocol's cross-turn limit.
 
 ## Anti-patterns
 

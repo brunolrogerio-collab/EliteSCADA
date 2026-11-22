@@ -1,0 +1,71 @@
+{
+  "syntheticOnly": true,
+  "projectKey": "intelligence-browser-853",
+  "activeRevision": 63,
+  "permitClosedBefore": [
+    {
+      "name": "statistics",
+      "status": 409,
+      "code": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"
+    },
+    {
+      "name": "rate",
+      "status": 409,
+      "code": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"
+    },
+    {
+      "name": "single",
+      "status": 409,
+      "code": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED"
+    }
+  ],
+  "explicitRearm": true,
+  "statistics": {
+    "meanDelta": 1.0000000000000018,
+    "unit": "A"
+  },
+  "rate": {
+    "status": "available",
+    "reasonCodes": [],
+    "value": 0,
+    "unit": "A/s",
+    "elapsedSeconds": 3540,
+    "rawObservationCount": 60,
+    "acceptedSampleCount": 59,
+    "rejectedSampleCount": 1,
+    "qualityCounts": {
+      "Good": 59,
+      "Uncertain": 0,
+      "Bad": 1,
+      "BadCommunication": 0,
+      "BadConfiguration": 0,
+      "BadDevice": 0,
+      "Stale": 0,
+      "Disabled": 0,
+      "Unavailable": 0,
+      "Missing": 0,
+      "Unrecognized": 0
+    },
+    "firstAccepted": {
+      "timestampUtc": "2026-11-02T14:49:00+00:00",
+      "value": 6
+    },
+    "lastAccepted": {
+      "timestampUtc": "2026-11-02T15:48:00+00:00",
+      "value": 6
+    }
+  },
+  "single": {
+    "status": "available",
+    "referenceMedian": 5,
+    "referenceMad": 0,
+    "reasons": [
+      "reference_mad_zero"
+    ],
+    "referencePairs": 58,
+    "evaluationPairs": 58,
+    "returned": 59,
+    "rawDifference": 1,
+    "robustScore": null
+  }
+}

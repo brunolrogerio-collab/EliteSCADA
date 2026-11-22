@@ -5,15 +5,21 @@ test('effective capabilities endpoint projects runtime and workspace grants inde
   expect(response.ok()).toBe(true);
 
   const payload = await response.json() as {
+    authorityPolicy: { schema: string; schemaVersion: number };
     authenticationEnabled: boolean;
     runtime: string[];
     workspace: string[];
   };
 
+  expect(payload.authorityPolicy).toEqual({
+    schema: 'elitescada.authority-policy',
+    schemaVersion: 1
+  });
   expect(payload.authenticationEnabled).toBe(true);
   expect(Array.isArray(payload.runtime)).toBe(true);
   expect(Array.isArray(payload.workspace)).toBe(true);
   expect(payload.workspace).toContain('EngineeringModify');
+  expect(payload.workspace).toContain('EngineeringView');
 
   for (const capabilities of [payload.runtime, payload.workspace]) {
     expect(new Set(capabilities).size).toBe(capabilities.length);

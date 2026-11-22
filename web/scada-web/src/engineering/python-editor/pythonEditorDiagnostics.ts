@@ -23,6 +23,7 @@ export type PythonEditorDiagnosticSnapshot = {
 };
 
 export type PythonEditorDiagnosticState =
+  | { status: 'checking' }
   | { status: 'ready'; diagnostics: readonly PythonSourceDiagnostic[] }
   | { status: 'stale' }
   | { status: 'unavailable'; message?: string };

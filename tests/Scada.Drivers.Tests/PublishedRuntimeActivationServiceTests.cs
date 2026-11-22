@@ -1,16 +1,19 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Scada.Api.Licensing;
 using Scada.Api.Persistence;
 using Scada.Api.Runtime;
 using Scada.Core.Alarms;
+using Scada.Core.Commands;
 using Scada.Core.Events;
+using Scada.Core.Interactions;
+using Scada.Core.Product.Licensing;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
-using Scada.Drivers.Abstractions;
-using Scada.Drivers.Simulation;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Security;
 
@@ -19,7 +22,54 @@ namespace Scada.Drivers.Tests;
 public sealed class PublishedRuntimeActivationServiceTests
 {
     [Fact]
-    public async Task ActivateAsync_CommitsPublishedRevisionStopsFallbackSwitchesFacadeAndRehydratesEngineeringLock()
+    public async Task ActivateActiveRevision_ResumesTheSameStoppedRevisionWithoutRepublishing()
+    {
+        await using var server = new TestModbusTcpServer();
+        server.HoldingRegisters[10] = 321;
+        server.Start();
+        var snapshot = CreateSnapshot(CreatePackage(server.Port, Guid.NewGuid()));
+        var store = new FakeEngineeringProjectStore(snapshot, allowActivation: true);
+        var persistence = CreatePersistence(store, out var exchange);
+        IEngineeringRuntimeCoordinator CreateRuntime() => new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(2));
+        await using var runtime = new ProductLicensedRuntimeCoordinator(
+            CreateRuntime(),
+            CreateRuntime,
+            new DemoProductRunEntitlementProvider());
+        var activation = new PublishedRuntimeActivationService(persistence, exchange, runtime);
+
+        Assert.True((await activation.ActivateAsync(snapshot.ProjectKey, "first-run")).Activated);
+        var persisted = await persistence.GetActivationAsync(snapshot.ProjectKey);
+        var stopped = await runtime.StopForOperatorAsync(
+            snapshot.ProjectKey,
+            snapshot.Revision,
+            async ct =>
+            {
+                var result = await persistence.SetRuntimeStatusAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    EngineeringRuntimeStatus.OperatorStopped,
+                    "operator",
+                    ct);
+                Assert.NotNull(result);
+            });
+        Assert.True(stopped.Stopped);
+        Assert.True(stopped.Complete);
+
+        var resumed = await activation.ActivateActiveRevisionAsync(snapshot.ProjectKey, "operator");
+
+        Assert.True(resumed.Activated);
+        Assert.Equal(snapshot.Revision, resumed.Activation!.ActiveRevision);
+        Assert.Equal(EngineeringRuntimeStatus.Active, resumed.Activation.RuntimeStatus);
+        Assert.Equal(persisted!.ActivatedAtUtc, resumed.Activation.ActivatedAtUtc);
+        Assert.Equal(persisted.DemoStartedAtUtc, resumed.Activation.DemoStartedAtUtc);
+        Assert.Equal(snapshot.Revision, runtime.Describe().Revision);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_CommitsPublishedRevisionSwitchesFacadeAndRehydratesEngineeringLock()
     {
         await using var server = new TestModbusTcpServer();
         server.HoldingRegisters[10] = 321;
@@ -28,6 +78,7 @@ public sealed class PublishedRuntimeActivationServiceTests
         var runtimeTagId = Guid.NewGuid();
         var locked = new EngineeringLockSecretService().Configure("published-lock-secret", locked: true);
         var package = CreatePackage(server.Port, runtimeTagId) with { EngineeringLock = locked };
+        package = WithInteractions(package, out var eventId, out var commandId);
         var snapshot = CreateSnapshot(package);
         var store = new FakeEngineeringProjectStore(snapshot, allowActivation: true);
         var persistence = CreatePersistence(store, out var exchange);
@@ -35,44 +86,46 @@ public sealed class PublishedRuntimeActivationServiceTests
         Assert.False(EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock).Locked);
 
         var externalBus = new InMemoryScadaEventBus();
-        using var fallback = new DemoRuntimeServices(externalBus);
-        var fallbackTag = TagDefinition.Create(
-            "Demo fallback",
-            "Demo.Fallback",
-            TagDataType.Double,
-            "builtin.simulation");
-
-        await using var simulation = new SimulationDriver(
-            fallback.Cache,
-            fallback.Registry,
-            new[] { new SimulationPoint(fallbackTag, SimulationSignalType.Constant, ConstantValue: 12) },
-            TimeSpan.FromMilliseconds(15));
-        await simulation.StartAsync();
-
         await using var runtime = new EngineeringRuntimeCoordinator(
             externalBus,
             new EngineeringDriverCompiler(),
             TimeSpan.FromSeconds(2));
-        var facade = new ScadaRuntimeFacade(fallback, simulation, runtime);
+        var facade = new ScadaRuntimeFacade(runtime);
+        var interactions = new ActiveDriverInteractionRuntimeCatalog();
         var activation = new PublishedRuntimeActivationService(
             persistence,
             exchange,
             runtime,
-            simulation);
+            driverInteractions: interactions);
 
         var outcome = await activation.ActivateAsync("plant-a", "integration-test");
 
         Assert.True(outcome.Activated);
         Assert.Equal(1, outcome.Activation!.ActiveRevision);
-        Assert.Equal(DriverState.Stopped, simulation.Status.State);
         Assert.True(facade.IsEngineeringActive);
         Assert.Equal("engineering", facade.Describe().Mode);
         Assert.Equal(1, facade.Describe().Revision);
         Assert.True(facade.TryGetTag(runtimeTagId, out var runtimeTag));
         Assert.Equal("Plant.Runtime.Value", runtimeTag!.Path);
-        Assert.False(facade.TryGetTag(fallbackTag.Id, out _));
         Assert.True(facade.TryGetCurrent(runtimeTagId, out var current));
         Assert.Equal(321d, Convert.ToDouble(current!.Value));
+        Assert.True(((ITransientEventDefinitionResolver)interactions).TryResolve(eventId, out _));
+        Assert.True(((IRichCommandDefinitionResolver)interactions).TryResolve(commandId, out _));
+        Assert.True(((IRichCommandBindingResolver)interactions).TryResolve(commandId, out _));
+
+        var restoredPublishedPackage = exchange.ParseJson(snapshot.EngineeringJson);
+        Assert.Equal(
+            VisualNavigationActionKind.ExecuteRichCommand,
+            Assert.Single(Assert.Single(Assert.Single(restoredPublishedPackage.Screens!).Elements!).Actions!).Kind);
+        Assert.Equal(
+            VisualNavigationActionVersions.RichCommand,
+            Assert.Single(Assert.Single(Assert.Single(restoredPublishedPackage.Screens!).Elements!).Actions!).Version);
+        Assert.Equal(
+            VisualNavigationActionKind.ExecuteRichCommand,
+            Assert.Single(Assert.Single(Assert.Single(restoredPublishedPackage.Popups!).Elements!).Actions!).Kind);
+        Assert.Equal(
+            VisualNavigationActionVersions.RichCommand,
+            Assert.Single(Assert.Single(Assert.Single(restoredPublishedPackage.Popups!).Elements!).Actions!).Version);
 
         var currentLock = EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
         Assert.True(currentLock.Locked);
@@ -81,7 +134,7 @@ public sealed class PublishedRuntimeActivationServiceTests
     }
 
     [Fact]
-    public async Task ActivateAsync_PersistenceRejectionRestartsSimulationKeepsFacadeOnFallbackAndDoesNotChangeLock()
+    public async Task ActivateAsync_PersistenceRejectionKeepsFacadeNeutralAndDoesNotChangeLock()
     {
         await using var server = new TestModbusTcpServer();
         server.HoldingRegisters[10] = 222;
@@ -89,36 +142,24 @@ public sealed class PublishedRuntimeActivationServiceTests
 
         var incomingLock = new EngineeringLockSecretService().Configure("rejected-lock-secret", locked: true);
         var package = CreatePackage(server.Port, Guid.NewGuid()) with { EngineeringLock = incomingLock };
+        package = WithInteractions(package, out var eventId, out var commandId);
         var snapshot = CreateSnapshot(package);
         var store = new FakeEngineeringProjectStore(snapshot, allowActivation: false);
         var persistence = CreatePersistence(store, out var exchange);
         var currentBefore = EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
 
         var externalBus = new InMemoryScadaEventBus();
-        using var fallback = new DemoRuntimeServices(externalBus);
-        var fallbackTag = TagDefinition.Create(
-            "Demo fallback",
-            "Demo.Fallback",
-            TagDataType.Double,
-            "builtin.simulation");
-
-        await using var simulation = new SimulationDriver(
-            fallback.Cache,
-            fallback.Registry,
-            new[] { new SimulationPoint(fallbackTag, SimulationSignalType.Constant, ConstantValue: 12) },
-            TimeSpan.FromMilliseconds(15));
-        await simulation.StartAsync();
-
         await using var runtime = new EngineeringRuntimeCoordinator(
             externalBus,
             new EngineeringDriverCompiler(),
             TimeSpan.FromSeconds(2));
-        var facade = new ScadaRuntimeFacade(fallback, simulation, runtime);
+        var facade = new ScadaRuntimeFacade(runtime);
+        var interactions = new ActiveDriverInteractionRuntimeCatalog();
         var activation = new PublishedRuntimeActivationService(
             persistence,
             exchange,
             runtime,
-            simulation);
+            driverInteractions: interactions);
 
         var outcome = await activation.ActivateAsync("plant-a", "integration-test");
 
@@ -128,15 +169,170 @@ public sealed class PublishedRuntimeActivationServiceTests
             outcome.Runtime!.RuntimeIssues,
             issue => issue.Code == "RUNTIME_ACTIVATION_COMMIT_FAILED" && issue.IsError);
         Assert.Null(runtime.Describe().Revision);
-        Assert.Equal(DriverState.Running, simulation.Status.State);
         Assert.False(facade.IsEngineeringActive);
-        Assert.Equal("simulation", facade.Describe().Mode);
-        Assert.True(facade.TryGetTag(fallbackTag.Id, out _));
+        Assert.Equal("neutral", facade.Describe().Mode);
+        Assert.False(((ITransientEventDefinitionResolver)interactions).TryResolve(eventId, out _));
+        Assert.False(((IRichCommandDefinitionResolver)interactions).TryResolve(commandId, out _));
+        Assert.False(((IRichCommandBindingResolver)interactions).TryResolve(commandId, out _));
 
         var currentAfter = EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
         Assert.Equal(currentBefore, currentAfter);
         Assert.False(currentAfter.Locked);
         Assert.Null(currentAfter.Verifier);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_InvalidInteractionGraphFailsClosedBeforeRuntimeOrResolverSwap()
+    {
+        var package = CreatePackage(1, Guid.NewGuid());
+        package = WithInteractions(package, out var eventId, out var commandId);
+        package = package with
+        {
+            DriverCommandBindings =
+            [
+                package.DriverCommandBindings!.Single() with
+                {
+                    DataSourceId = Guid.NewGuid()
+                }
+            ]
+        };
+
+        var snapshot = CreateSnapshot(package);
+        var store = new FakeEngineeringProjectStore(snapshot, allowActivation: true);
+        var persistence = CreatePersistence(store, out var exchange);
+        var interactions = new ActiveDriverInteractionRuntimeCatalog();
+
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromMilliseconds(100));
+
+        var activation = new PublishedRuntimeActivationService(
+            persistence,
+            exchange,
+            runtime,
+            driverInteractions: interactions);
+
+        var outcome = await activation.ActivateAsync("plant-a", "integration-test");
+
+        Assert.False(outcome.Activated);
+        Assert.Null(outcome.Activation);
+        Assert.NotNull(outcome.Runtime);
+        Assert.Contains(
+            outcome.Runtime!.RuntimeIssues,
+            issue => issue.Code == "DRIVER_INTERACTION_ACTIVE_GRAPH_INVALID" && issue.IsError);
+        Assert.Null(runtime.Describe().Revision);
+        Assert.False(((ITransientEventDefinitionResolver)interactions).TryResolve(eventId, out _));
+        Assert.False(((IRichCommandDefinitionResolver)interactions).TryResolve(commandId, out _));
+        Assert.False(((IRichCommandBindingResolver)interactions).TryResolve(commandId, out _));
+    }
+
+    [Fact]
+    public async Task ActivateRevisionAsync_ActivatesAndPersistsExactRevisionOnly()
+    {
+        await using var server = new TestModbusTcpServer();
+        server.HoldingRegisters[10] = 456;
+        server.Start();
+
+        var tagId = Guid.NewGuid();
+        var snapshot = CreateSnapshot(CreatePackage(server.Port, tagId));
+        var store = new FakeEngineeringProjectStore(snapshot, allowActivation: true);
+        var persistence = CreatePersistence(store, out var exchange);
+        var bus = new InMemoryScadaEventBus();
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            bus,
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(2));
+        var activation = new PublishedRuntimeActivationService(persistence, exchange, runtime);
+
+        var unavailable = await activation.ActivateRevisionAsync("plant-a", snapshot.Revision + 1, "ha-takeover:node-b");
+        Assert.False(unavailable.Found);
+        Assert.Null(runtime.Describe().Revision);
+
+        var outcome = await activation.ActivateRevisionAsync(
+            "plant-a",
+            snapshot.Revision,
+            "ha-takeover:node-b");
+
+        Assert.True(outcome.Activated);
+        Assert.Equal(snapshot.Revision, outcome.Snapshot!.Revision);
+        Assert.Equal(snapshot.Revision, outcome.Activation!.ActiveRevision);
+        Assert.Equal("ha-takeover:node-b", outcome.Activation.ActivatedBy);
+        Assert.Equal(snapshot.Revision, runtime.Describe().Revision);
+        Assert.True(runtime.TryGetCurrent(tagId, out var value));
+        Assert.Equal(456d, Convert.ToDouble(value!.Value));
+    }
+
+    [Fact]
+    public async Task ActivateRevisionAsync_FencesIntelligencePermitFromPreviousRuntimeRevision()
+    {
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>());
+        var snapshot = CreateSnapshot(package) with { Revision = 2, BasedOnRevision = 1 };
+        var store = new FakeEngineeringProjectStore(snapshot, allowActivation: true);
+        var persistence = CreatePersistence(store, out var exchange);
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(2));
+        var intelligenceGate = new AssetProcessIntelligenceExecutionGate();
+        var scopeId = Guid.NewGuid();
+        intelligenceGate.Activate("plant-a", 1, AssetProcessIntelligenceScopeKind.Equipment, scopeId);
+        Assert.True(intelligenceGate.TryGetToken(
+            "plant-a", 1, AssetProcessIntelligenceScopeKind.Equipment, scopeId, out var priorPermit));
+        var activation = new PublishedRuntimeActivationService(
+            persistence,
+            exchange,
+            runtime,
+            intelligenceGate: intelligenceGate);
+
+        var outcome = await activation.ActivateRevisionAsync("plant-a", 2, "revision-switch-test");
+
+        Assert.True(outcome.Activated);
+        Assert.Equal(2, runtime.Describe().Revision);
+        Assert.True(priorPermit.IsCancellationRequested);
+        Assert.Equal(0, intelligenceGate.ActivePermitCount);
+        Assert.False(intelligenceGate.TryGetToken(
+            "plant-a", 2, AssetProcessIntelligenceScopeKind.Equipment, scopeId, out _));
+    }
+
+    [Fact]
+    public async Task ActivateCurrentActiveRevisionForHaTakeoverAsync_UsesThisNodesPersistedActiveRevision()
+    {
+        await using var server = new TestModbusTcpServer();
+        server.HoldingRegisters[10] = 654;
+        server.Start();
+
+        var tagId = Guid.NewGuid();
+        var snapshot = CreateSnapshot(CreatePackage(server.Port, tagId));
+        var store = new FakeEngineeringProjectStore(snapshot, allowActivation: true);
+        var persistence = CreatePersistence(store, out var exchange);
+        var bus = new InMemoryScadaEventBus();
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            bus,
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(2));
+        var activation = new PublishedRuntimeActivationService(persistence, exchange, runtime);
+
+        var initiallyActive = await activation.ActivateAsync("plant-a", "initial-run");
+        Assert.True(initiallyActive.Activated);
+
+        var recovered = await activation.ActivateCurrentActiveRevisionForHaTakeoverAsync(
+            "plant-a",
+            "ha-takeover:node-a");
+
+        Assert.True(recovered.Activated);
+        Assert.Equal(snapshot.Revision, recovered.Snapshot!.Revision);
+        Assert.Equal(snapshot.Revision, recovered.Activation!.ActiveRevision);
+        Assert.Equal("ha-takeover:node-a", recovered.Activation.ActivatedBy);
+        Assert.Equal(1, store.HaTakeoverActivationCalls);
+        Assert.Equal(snapshot.Revision, runtime.Describe().Revision);
+        Assert.True(runtime.TryGetCurrent(tagId, out var value));
+        Assert.Equal(654d, Convert.ToDouble(value!.Value));
     }
 
     private static EngineeringProjectPersistenceService CreatePersistence(
@@ -182,6 +378,120 @@ public sealed class PublishedRuntimeActivationServiceTests
             new[] { dataSource });
     }
 
+    private static EngineeringPackage WithInteractions(
+        EngineeringPackage package,
+        out Guid eventId,
+        out Guid commandId)
+    {
+        var dataSourceId = Guid.NewGuid();
+        var equipmentId = Guid.NewGuid();
+        eventId = Guid.NewGuid();
+        commandId = Guid.NewGuid();
+
+        var source = package.DataSources!.Single() with { Id = dataSourceId };
+        return package with
+        {
+            DataSources = [source],
+            Equipment =
+            [
+                new EquipmentEngineeringDto(
+                    equipmentId,
+                    "Plant.Cover01",
+                    "Cover 01",
+                    Capabilities:
+                    [
+                        new EquipmentCapabilityEngineeringDto(
+                            "cover.main",
+                            EquipmentCapabilityKinds.Cover)
+                    ])
+            ],
+            TransientEventDefinitions =
+            [
+                new TransientEventDefinitionEngineeringDto(
+                    eventId,
+                    "cover.stopped",
+                    [
+                        new TransientEventFieldDefinition(
+                            "position",
+                            new InteractionScalarSchema(
+                                InteractionScalarKind.Percentage,
+                                Minimum: 0,
+                                Maximum: 100))
+                    ],
+                    equipmentId,
+                    "cover.main")
+            ],
+            CapabilityEventReferences =
+            [
+                new CapabilityEventReferenceEngineeringDto(
+                    equipmentId,
+                    "cover.main",
+                    "stopped",
+                    eventId,
+                    "cover.stopped")
+            ],
+            RichCommandDefinitions =
+            [
+                new RichCommandDefinitionEngineeringDto(
+                    commandId,
+                    "cover.move",
+                    Array.Empty<RichCommandParameterDefinition>())
+            ],
+            DriverCommandBindings =
+            [
+                new DriverCommandBindingEngineeringDto(
+                    commandId,
+                    dataSourceId,
+                    "cover-01",
+                    "cover.move",
+                    EquipmentId: equipmentId,
+                    CapabilityId: "cover.main")
+            ],
+            Screens =
+            [
+                new ScreenEngineeringDto(
+                    Guid.NewGuid(),
+                    "screen.home",
+                    "Home",
+                    Elements:
+                    [
+                        new VisualElementEngineeringDto(
+                            "execute-cover",
+                            "button",
+                            Actions:
+                            [
+                                new VisualNavigationActionEngineeringDto(
+                                    "click",
+                                    VisualNavigationActionKind.ExecuteRichCommand,
+                                    Version: VisualNavigationActionVersions.RichCommand,
+                                    CommandId: commandId)
+                            ])
+                    ])
+            ],
+            Popups =
+            [
+                new PopupEngineeringDto(
+                    Guid.NewGuid(),
+                    "popup.cover",
+                    "Cover",
+                    Elements:
+                    [
+                        new VisualElementEngineeringDto(
+                            "execute-cover",
+                            "button",
+                            Actions:
+                            [
+                                new VisualNavigationActionEngineeringDto(
+                                    "click",
+                                    VisualNavigationActionKind.ExecuteRichCommand,
+                                    Version: VisualNavigationActionVersions.RichCommand,
+                                    CommandId: commandId)
+                            ])
+                    ])
+            ]
+        };
+    }
+
     private static EngineeringProjectSnapshot CreateSnapshot(EngineeringPackage package)
     {
         var json = JsonSerializer.Serialize(package, new JsonSerializerOptions
@@ -206,6 +516,7 @@ public sealed class PublishedRuntimeActivationServiceTests
         bool allowActivation) : IEngineeringProjectStore
     {
         private EngineeringProjectActivation? _activation;
+        public int HaTakeoverActivationCalls { get; private set; }
         private readonly EngineeringProjectPublication _publication = new(
             snapshot.ProjectKey,
             snapshot.Revision,
@@ -269,6 +580,62 @@ public sealed class PublishedRuntimeActivationServiceTests
             CancellationToken cancellationToken = default)
         {
             if (!allowActivation || projectKey != snapshot.ProjectKey || revision != _publication.PublishedRevision)
+                return Task.FromResult<EngineeringProjectActivation?>(null);
+
+            _activation = new EngineeringProjectActivation(
+                projectKey,
+                revision,
+                DateTimeOffset.UtcNow,
+                activatedBy);
+            return Task.FromResult<EngineeringProjectActivation?>(_activation);
+        }
+
+        public Task<EngineeringProjectActivation?> SetRuntimeStatusAsync(
+            string projectKey,
+            long activeRevision,
+            EngineeringRuntimeStatus status,
+            string? changedBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (projectKey != snapshot.ProjectKey || _activation?.ActiveRevision != activeRevision)
+                return Task.FromResult<EngineeringProjectActivation?>(null);
+
+            _activation = _activation with
+            {
+                RuntimeStatus = status,
+                RuntimeStoppedAtUtc = status == EngineeringRuntimeStatus.Active ? null : DateTimeOffset.UtcNow,
+                RuntimeStoppedBy = status == EngineeringRuntimeStatus.Active ? null : changedBy
+            };
+            return Task.FromResult<EngineeringProjectActivation?>(_activation);
+        }
+
+        public Task<EngineeringProjectActivation?> ResumeRuntimeAsync(
+            string projectKey,
+            long activeRevision,
+            CancellationToken cancellationToken = default)
+        {
+            if (projectKey != snapshot.ProjectKey ||
+                _activation?.ActiveRevision != activeRevision ||
+                _activation.RuntimeStatus != EngineeringRuntimeStatus.OperatorStopped)
+                return Task.FromResult<EngineeringProjectActivation?>(null);
+
+            _activation = _activation with
+            {
+                RuntimeStatus = EngineeringRuntimeStatus.Active,
+                RuntimeStoppedAtUtc = null,
+                RuntimeStoppedBy = null
+            };
+            return Task.FromResult<EngineeringProjectActivation?>(_activation);
+        }
+
+        public Task<EngineeringProjectActivation?> RecordActivationForHaTakeoverAsync(
+            string projectKey,
+            long revision,
+            string? activatedBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            HaTakeoverActivationCalls++;
+            if (!allowActivation || projectKey != snapshot.ProjectKey || revision != snapshot.Revision)
                 return Task.FromResult<EngineeringProjectActivation?>(null);
 
             _activation = new EngineeringProjectActivation(

@@ -7,13 +7,21 @@ namespace Scada.Engineering.VisualAssets;
 public static partial class VisualAssetEngineeringValidator
 {
     public const long MaximumPayloadBytes = 16L * 1024L * 1024L;
+    public const long MaximumVideoPayloadBytes = 64L * 1024L * 1024L;
+    public const long MaximumPdfPayloadBytes = 32L * 1024L * 1024L;
     public const int MaximumPixelDimension = 16_384;
 
     private static readonly HashSet<string> SupportedMediaTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "image/png",
         "image/jpeg",
-        "image/bmp"
+        "image/bmp",
+        VisualAssetContentInspector.SvgMediaType,
+        VisualAssetContentInspector.PdfMediaType,
+        VisualAssetContentInspector.Mp4MediaType,
+        VisualAssetContentInspector.WebmMediaType,
+        VisualAssetContentInspector.GlbMediaType,
+        VisualAssetContentInspector.GltfMediaType
     };
 
     public static IReadOnlyCollection<ImportIssue> Validate(
@@ -42,8 +50,9 @@ public static partial class VisualAssetEngineeringValidator
             issues.Add(Error("VISUAL_ASSET_FILENAME_CONTROL", "Visual asset original filename contains unsupported control characters.", key));
         if (!SupportedMediaTypes.Contains(asset.MediaType))
             issues.Add(Error("VISUAL_ASSET_MEDIA_TYPE_UNSUPPORTED", $"Visual asset media type '{asset.MediaType}' is not supported.", key));
-        if (asset.ByteLength <= 0 || asset.ByteLength > MaximumPayloadBytes)
-            issues.Add(Error("VISUAL_ASSET_SIZE_INVALID", $"Visual asset payload size must be between 1 and {MaximumPayloadBytes} bytes.", key));
+        var maximumBytes = MaximumBytesFor(asset.MediaType);
+        if (asset.ByteLength <= 0 || asset.ByteLength > maximumBytes)
+            issues.Add(Error("VISUAL_ASSET_SIZE_INVALID", $"Visual asset payload size must be between 1 and {maximumBytes} bytes for this media type.", key));
         if (string.IsNullOrWhiteSpace(asset.Sha256) || !Sha256Regex().IsMatch(asset.Sha256))
             issues.Add(Error("VISUAL_ASSET_HASH_INVALID", "Visual asset SHA-256 must be exactly 64 hexadecimal characters.", key));
 
@@ -81,18 +90,31 @@ public static partial class VisualAssetEngineeringValidator
 
         try
         {
-            var inspection = RasterImageInspector.Inspect(payload.Content);
+            var inspection = VisualAssetContentInspector.InspectAndCanonicalize(payload.Content);
             if (!inspection.MediaType.Equals(asset.MediaType, StringComparison.OrdinalIgnoreCase) ||
                 !inspection.MediaType.Equals(payload.MediaType, StringComparison.OrdinalIgnoreCase))
             {
                 issues.Add(Error(
                     "VISUAL_ASSET_PAYLOAD_SIGNATURE_MISMATCH",
-                    "Visual asset detected raster format does not match canonical media metadata.",
+                    "Visual asset detected format does not match canonical media metadata.",
                     key));
             }
 
-            if ((asset.PixelWidth.HasValue && asset.PixelWidth.Value != inspection.PixelWidth) ||
-                (asset.PixelHeight.HasValue && asset.PixelHeight.Value != inspection.PixelHeight))
+            if (inspection.MediaType.Equals(VisualAssetContentInspector.SvgMediaType, StringComparison.OrdinalIgnoreCase) &&
+                !inspection.CanonicalContent.AsSpan().SequenceEqual(payload.Content))
+            {
+                issues.Add(Error(
+                    "VISUAL_ASSET_SVG_NOT_CANONICAL",
+                    "SVG payload is safe but is not stored in the canonical sanitized representation.",
+                    key));
+            }
+
+            ValidateSvgMetadata(asset, inspection, issues, key);
+
+            if ((inspection.PixelWidth.HasValue && asset.PixelWidth.HasValue && asset.PixelWidth.Value != inspection.PixelWidth.Value) ||
+                (inspection.PixelHeight.HasValue && asset.PixelHeight.HasValue && asset.PixelHeight.Value != inspection.PixelHeight.Value) ||
+                (!inspection.PixelWidth.HasValue && asset.PixelWidth.HasValue) ||
+                (!inspection.PixelHeight.HasValue && asset.PixelHeight.HasValue))
             {
                 issues.Add(Error(
                     "VISUAL_ASSET_PAYLOAD_DIMENSIONS_MISMATCH",
@@ -104,15 +126,51 @@ public static partial class VisualAssetEngineeringValidator
         {
             issues.Add(Error(
                 "VISUAL_ASSET_PAYLOAD_INVALID",
-                $"Visual asset payload is not a structurally valid supported raster image: {ex.Message}",
+                $"Visual asset payload is not a structurally valid supported image or media file: {ex.Message}",
                 key));
         }
 
         return issues;
     }
 
+    private static void ValidateSvgMetadata(
+        VisualAssetEngineeringDto asset,
+        VisualAssetContentInspection inspection,
+        ICollection<ImportIssue> issues,
+        string key)
+    {
+        var reserved = (asset.Metadata ?? new Dictionary<string, string>(StringComparer.Ordinal))
+            .Where(pair => pair.Key.StartsWith(StaticSvgInspector.MetadataPrefix, StringComparison.Ordinal))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+
+        if (!inspection.MediaType.Equals(VisualAssetContentInspector.SvgMediaType, StringComparison.OrdinalIgnoreCase))
+        {
+            if (reserved.Count > 0)
+                issues.Add(Error("VISUAL_ASSET_SVG_METADATA_ON_RASTER", "Raster assets cannot carry reserved SVG metadata.", key));
+            return;
+        }
+
+        if (reserved.Count == 0)
+            return; // Legacy SVG imported before V2 remains valid.
+
+        var expected = inspection.CanonicalMetadata ?? new Dictionary<string, string>(StringComparer.Ordinal);
+        if (reserved.Count != expected.Count ||
+            expected.Any(pair => !reserved.TryGetValue(pair.Key, out var value) || !value.Equals(pair.Value, StringComparison.Ordinal)))
+            issues.Add(Error("VISUAL_ASSET_SVG_METADATA_MISMATCH", "SVG paint metadata does not match the canonical sanitized payload.", key));
+    }
+
     private static ImportIssue Error(string code, string message, string key) =>
         new(code, message, ImportEntityKind.VisualAsset, key, true);
+
+    public static long MaximumBytesFor(string? mediaType) => mediaType?.ToLowerInvariant() switch
+    {
+        VisualAssetContentInspector.PdfMediaType => MaximumPdfPayloadBytes,
+        VisualAssetContentInspector.Mp4MediaType or VisualAssetContentInspector.WebmMediaType => MaximumVideoPayloadBytes,
+        VisualAssetContentInspector.GlbMediaType or VisualAssetContentInspector.GltfMediaType => MaximumModelPayloadBytes,
+        _ => MaximumPayloadBytes
+    };
+
+    public const long MaximumModelPayloadBytes = 32L * 1024L * 1024L;
 
     [GeneratedRegex("^[A-Fa-f0-9]{64}$", RegexOptions.CultureInvariant)]
     private static partial Regex Sha256Regex();

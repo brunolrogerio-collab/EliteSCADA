@@ -68,6 +68,9 @@ public sealed class HistoricalQueryService : IHistoricalQueryService
                     "Historical authorization returned an unknown decision and failed closed.");
         }
 
+        var fingerprint = request.AlarmView is null ? validated.Fingerprint :
+            validated.Fingerprint + ":" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(request.AlarmView)));
         var now = _utcNow();
         HistoricalResolvedRange range;
         HistoricalQueryPosition? after = null;
@@ -79,7 +82,7 @@ public sealed class HistoricalQueryService : IHistoricalQueryService
         {
             var cursor = _cursorCodec.Decode(validated.Cursor);
             if (!string.Equals(cursor.Dataset, validated.Dataset.Id, StringComparison.Ordinal) ||
-                !string.Equals(cursor.Fingerprint, validated.Fingerprint, StringComparison.Ordinal) ||
+                !string.Equals(cursor.Fingerprint, fingerprint, StringComparison.Ordinal) ||
                 cursor.Sort != validated.Sort)
                 throw new HistoricalQueryCursorException(
                     "Historical cursor does not belong to this dataset/query/sort.");
@@ -96,7 +99,7 @@ public sealed class HistoricalQueryService : IHistoricalQueryService
             validated.Search,
             validated.Sort,
             validated.PageSize,
-            after);
+            after) { AlarmView = request.AlarmView };
 
         HistoricalProviderPage page;
         try
@@ -122,13 +125,13 @@ public sealed class HistoricalQueryService : IHistoricalQueryService
             ? null
             : _cursorCodec.Encode(
                 validated.Dataset.Id,
-                validated.Fingerprint,
+                fingerprint,
                 range,
                 validated.Sort,
                 page.NextPosition);
 
         return new HistoricalQueryResponse(
-            HistoricalQueryContract.Version,
+            validated.Version,
             validated.Dataset.Id,
             validated.Dataset.Columns,
             page.Rows,

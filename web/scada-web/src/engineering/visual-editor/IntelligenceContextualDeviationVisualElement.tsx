@@ -1,0 +1,701 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
+import { useAuth } from '../../auth/AuthGate';
+import type { EngineeringLocale } from '../i18n';
+import { parseWindow, type WindowValue } from '../AssetProcessIntelligencePerformancePanel';
+import { coverageCopy } from '../AssetProcessIntelligenceCoveragePanel';
+import { useIntelligencePerformanceRuntimeContext } from '../../visual-runtime';
+import './IntelligenceRuntimeQuery.css';
+import './IntelligenceContextualDeviationVisualElement.css';
+
+const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const SOURCE_ROOT = '/api/engineering/asset-process-intelligence/analytics/contextual-deviation-vector/v2';
+const OBSERVED_ROOT = '/api/engineering/asset-process-intelligence/analytics/contextual-deviation-observed/v3';
+const RULE_ID = 'contextual-deviation-vector.v2';
+const RULE_VERSION = '2.0.0';
+const OBSERVED_RULE_ID = 'contextual-deviation-observed.v3';
+const OBSERVED_RULE_VERSION = '3.0.0';
+const OBSERVED_TIMESTAMP_BASIS = 'historian_observed';
+type TimestampBasis = 'synchronized_source' | 'historian_observed';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_VISIBLE_VECTORS = 30;
+
+type Catalog = Readonly<{
+  contractVersion: number;
+  catalogVersion: number;
+  ruleId: string;
+  ruleVersion: string;
+  timestampBasis?: string;
+  maximumWindowDays: number;
+  minimumTargetSignals: number;
+  maximumTargetSignals: number;
+  contextSignalCount: number;
+}>;
+
+type Signal = Readonly<{
+  signalId: string;
+  signalKey: string;
+  tagId: string;
+  tagPath: string;
+  engineeringUnit: string | null;
+  controlledUnitCode: string | null;
+  canonicalUnit: string | null;
+}>;
+
+type ContextResult = Readonly<{
+  signal: Signal;
+  lowerInclusiveCanonical: number;
+  upperExclusiveCanonical: number;
+  canonicalUnit: string;
+  completeReferenceVectorCount: number;
+  referenceInRangeVectorCount: number;
+  completeEvaluationVectorCount: number;
+  evaluationInRangeVectorCount: number;
+}>;
+
+type TargetStatistics = Readonly<{
+  signal: Signal;
+  referenceMedian: number | null;
+  referenceMad: number | null;
+  completeReferenceVectorCount: number;
+  jointContextReferenceVectorCount: number;
+  completeEvaluationVectorCount: number;
+  returnedJointContextEvaluationValueCount: number;
+  status: string;
+  scoreUnavailableReason: string | null;
+}>;
+
+type DeviationValue = Readonly<{
+  targetSignalId: string;
+  value: number;
+  rawDifferenceFromReferenceMedian: number | null;
+  robustScore: number | null;
+  scoreUnavailableReason: string | null;
+}>;
+
+type EvaluationVector = Readonly<{
+  sourceTimestampUtc?: string;
+  anchorObservedTimestampUtc?: string;
+  matchedObservedTimestampsUtc?: Readonly<Record<string, string>>;
+  firstContextObservedTimestampUtc: string;
+  firstContextValueCanonical: number;
+  firstContextInRange: boolean;
+  secondContextObservedTimestampUtc: string;
+  secondContextValueCanonical: number;
+  secondContextInRange: boolean;
+  inJointContext: boolean;
+  targets: readonly DeviationValue[];
+}>;
+
+type Provenance = Readonly<{
+  dataset: string;
+  datasetContractVersion: number;
+  queryWindowTimestampBasis: string;
+  vectorTimestampBasis: string;
+  sourceTimestampEvidenceRequirement?: string;
+  timestampEvidenceRequirement?: string;
+  contextQualification: string;
+  regimeEquivalence: string;
+  completeness: string;
+  interpretation: string;
+}>;
+
+type Response = Readonly<{
+  temporalToleranceSeconds?: number;
+  unmatchedReferenceAnchorCount?: number;
+  unmatchedEvaluationAnchorCount?: number;
+  contractVersion: number;
+  catalogVersion: number;
+  ruleId: string;
+  ruleVersion: string;
+  timestampBasis?: string;
+  projectKey: string;
+  activeRevision: number;
+  scopeKind: number;
+  scopeId: string;
+  assignmentId: string;
+  equipmentId: string;
+  profileId: string;
+  targetSignals: readonly Signal[];
+  contexts: readonly ContextResult[];
+  referenceWindow: WindowValue;
+  evaluationWindow: WindowValue;
+  completeReferenceVectorCount: number;
+  jointContextReferenceVectorCount: number;
+  completeEvaluationVectorCount: number;
+  jointContextEvaluationVectorCount: number;
+  returnedEvaluationVectorCount: number;
+  omittedEvaluationVectorCount: number;
+  targetStatistics: readonly TargetStatistics[];
+  evaluationVectors: readonly EvaluationVector[];
+  totalRawObservationCount: number;
+  provenance: Provenance;
+}>;
+
+type Props = Readonly<{
+  scopeId: string;
+  assignmentId: string;
+  profileId: string;
+  targetSignalIdsJson: string;
+  firstContextSignalId: string;
+  firstContextLowerInclusiveCanonical: number;
+  firstContextUpperExclusiveCanonical: number;
+  secondContextSignalId: string;
+  secondContextLowerInclusiveCanonical: number;
+  secondContextUpperExclusiveCanonical: number;
+  style: CSSProperties;
+  runtimeObjectId?: string;
+  locale: EngineeringLocale;
+  title?: string;
+}>;
+
+export function IntelligenceContextualDeviationVisualElement({
+  scopeId,
+  assignmentId,
+  profileId,
+  targetSignalIdsJson,
+  firstContextSignalId,
+  firstContextLowerInclusiveCanonical,
+  firstContextUpperExclusiveCanonical,
+  secondContextSignalId,
+  secondContextLowerInclusiveCanonical,
+  secondContextUpperExclusiveCanonical,
+  style,
+  runtimeObjectId,
+  locale,
+  title
+}: Props) {
+  const runtime = useIntelligencePerformanceRuntimeContext();
+  const { profile: authProfile } = useAuth();
+  const copy = useMemo(() => visualCopy(locale), [locale]);
+  const targetSignalIds = useMemo(() => parseSignalIds(targetSignalIdsJson), [targetSignalIdsJson]);
+  const configValid = UUID_PATTERN.test(scopeId) && UUID_PATTERN.test(assignmentId) && UUID_PATTERN.test(profileId) &&
+    targetSignalIds !== null && UUID_PATTERN.test(firstContextSignalId) && UUID_PATTERN.test(secondContextSignalId) &&
+    !targetSignalIds?.some(id => id.toLowerCase() === firstContextSignalId.toLowerCase() || id.toLowerCase() === secondContextSignalId.toLowerCase()) &&
+    firstContextSignalId.toLowerCase() !== secondContextSignalId.toLowerCase() &&
+    validRange(firstContextLowerInclusiveCanonical, firstContextUpperExclusiveCanonical) &&
+    validRange(secondContextLowerInclusiveCanonical, secondContextUpperExclusiveCanonical);
+  const sessionKey = authProfile
+    ? [authProfile.subjectId, authProfile.identityProvider ?? '', authProfile.expiresAtUtc ?? '', [...authProfile.roles].sort().join(',')].join('|')
+    : 'anonymous';
+  const contextKey = [runtime?.runtimeContextId ?? 'authoring', runtime?.projectKey ?? '', runtime?.activeRevision ?? '', runtime?.enabled ?? false, sessionKey].join('|');
+  const [referenceFromLocal, setReferenceFromLocal] = useState('');
+  const [referenceToLocal, setReferenceToLocal] = useState('');
+  const [evaluationFromLocal, setEvaluationFromLocal] = useState('');
+  const [evaluationToLocal, setEvaluationToLocal] = useState('');
+  const [temporalToleranceSeconds, setTemporalToleranceSeconds] = useState(10);
+  const [timestampBasis, setTimestampBasis] = useState<TimestampBasis>('synchronized_source');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<Response | null>(null);
+  const controller = useRef<AbortController | null>(null);
+  const requestVersion = useRef(0);
+  const referenceWindowResult = parseWindow(referenceFromLocal, referenceToLocal, 31);
+  const evaluationWindowResult = parseWindow(evaluationFromLocal, evaluationToLocal, 31);
+  const windowsChronological = Boolean(referenceWindowResult.window && evaluationWindowResult.window &&
+    new Date(referenceWindowResult.window.toUtc).getTime() < new Date(evaluationWindowResult.window.fromUtc).getTime());
+  const windowsValid = Boolean(referenceWindowResult.window && evaluationWindowResult.window && windowsChronological);
+
+  const invalidate = () => {
+    requestVersion.current += 1;
+    controller.current?.abort();
+    controller.current = null;
+    setLoading(false);
+    setError(null);
+    setResult(null);
+  };
+
+  useEffect(() => {
+    invalidate();
+    return () => controller.current?.abort();
+  }, [contextKey, scopeId, assignmentId, profileId, targetSignalIdsJson, firstContextSignalId,
+    firstContextLowerInclusiveCanonical, firstContextUpperExclusiveCanonical, secondContextSignalId,
+    secondContextLowerInclusiveCanonical, secondContextUpperExclusiveCanonical,
+    referenceFromLocal, referenceToLocal, evaluationFromLocal, evaluationToLocal, temporalToleranceSeconds]);
+
+  const analyze = async () => {
+    if (!runtime?.enabled || !runtime.projectKey || runtime.activeRevision === null || !configValid ||
+        !targetSignalIds || !referenceWindowResult.window || !evaluationWindowResult.window ||
+        !windowsChronological || loading) return;
+
+    requestVersion.current += 1;
+    const version = requestVersion.current;
+    controller.current?.abort();
+    const requestController = new AbortController();
+    controller.current = requestController;
+    setResult(null);
+    setError(null);
+    setLoading(true);
+    try {
+      const contract = contractForTimestampBasis(timestampBasis);
+      const catalogResponse = await fetch(`${API}${contract.root}/catalog`, {
+        credentials: 'include', headers: { accept: 'application/json' }, signal: requestController.signal
+      });
+      if (!catalogResponse.ok) throw new DeviationVisualError(`HTTP_${catalogResponse.status}`);
+      const catalog = await catalogResponse.json() as Catalog;
+      if (!isValidCatalog(catalog, timestampBasis)) throw new DeviationVisualError('INVALID_CATALOG');
+      const request = {
+        scopeKind: 0,
+        scopeId,
+        assignmentId,
+        targetSignalIds,
+        firstContextSignalId,
+        firstContextLowerInclusiveCanonical,
+        firstContextUpperExclusiveCanonical,
+        secondContextSignalId,
+        secondContextLowerInclusiveCanonical,
+        secondContextUpperExclusiveCanonical,
+        referenceWindow: referenceWindowResult.window,
+        evaluationWindow: evaluationWindowResult.window,
+        temporalToleranceSeconds,
+        ...(timestampBasis === 'historian_observed' ? { timestampBasis: OBSERVED_TIMESTAMP_BASIS } : {})
+      } as const;
+      const response = await fetch(`${API}${contract.root}/query`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify(request), signal: requestController.signal
+      });
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        if (response.status === 413) throw new DeviationVisualError('HTTP_413');
+        const errorPayload = isRecord(payload) ? payload : null;
+        const code = errorPayload && typeof errorPayload.code === 'string' ? errorPayload.code : `HTTP_${response.status}`;
+        throw new DeviationVisualError(code);
+      }
+      if (!matchesResponse(payload, {
+        scopeId, assignmentId, profileId, projectKey: runtime.projectKey, activeRevision: runtime.activeRevision,
+        targetSignalIds, firstContextSignalId, firstContextLowerInclusiveCanonical, firstContextUpperExclusiveCanonical,
+        secondContextSignalId, secondContextLowerInclusiveCanonical, secondContextUpperExclusiveCanonical,
+        referenceWindow: referenceWindowResult.window, evaluationWindow: evaluationWindowResult.window,
+        catalogVersion: catalog.catalogVersion, temporalToleranceSeconds, timestampBasis
+      })) throw new DeviationVisualError('INVALID_RESPONSE');
+      if (requestVersion.current === version && !requestController.signal.aborted) setResult(payload);
+    } catch (reason) {
+      if (!requestController.signal.aborted && requestVersion.current === version) {
+        const code = reason instanceof DeviationVisualError ? reason.code
+          : reason instanceof Error ? reason.message : 'NETWORK_ERROR';
+        setError(code === 'HTTP_413' ? coverageCopy(locale).windowTooDense
+          : (copy.errors as Readonly<Record<string, string>>)[code] ?? copy.requestFailed);
+      }
+    } finally {
+      if (requestVersion.current === version) setLoading(false);
+    }
+  };
+
+  const rootStyle: CSSProperties = {
+    ...style, display: style.display === 'none' ? 'none' : 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)', alignItems: 'stretch', justifyContent: 'stretch',
+    whiteSpace: 'normal', boxSizing: 'border-box', overflow: 'auto', padding: 12,
+    border: '1px solid var(--app-border, #475569)', borderRadius: 8,
+    background: 'var(--app-surface, #111827)', color: 'var(--app-text-primary, #E2E8F0)'
+  };
+
+  return <div
+    className="visual-editor-object runtime-intelligence-query runtime-intelligence-contextual-deviation"
+    style={rootStyle}
+    data-object-id={runtimeObjectId}
+    data-runtime-object-id={runtimeObjectId}
+    data-testid="runtime-intelligence-contextual-deviation-v2"
+    data-intelligence-runtime-enabled={runtime?.enabled === true}
+    data-runtime-session-control="intelligence-analytics"
+    title={title}
+  >
+    <header className="runtime-intelligence-contextual-deviation__header">
+      <strong>{title || copy.title}</strong>
+      <span>{copy.transient}</span>
+    </header>
+    {!configValid ? <p className="runtime-intelligence-contextual-deviation__notice" role="alert">{copy.invalidConfig}</p>
+      : !runtime ? <p className="runtime-intelligence-contextual-deviation__notice" role="note">{copy.runtimeOnly}</p>
+        : !runtime.enabled || !runtime.projectKey || runtime.activeRevision === null
+          ? <p className="runtime-intelligence-contextual-deviation__notice" role="note">{copy.runtimeUnavailable}</p>
+          : <>
+            <p className="runtime-intelligence-contextual-deviation__notice">{copy.operatorAction}</p>
+            <form className="runtime-intelligence-contextual-deviation__form" onSubmit={event => { event.preventDefault(); void analyze(); }}>
+              <fieldset>
+                <legend>{copy.reference}</legend>
+                <label>{copy.referenceFrom}<input type="datetime-local" value={referenceFromLocal} disabled={loading} onChange={event => { invalidate(); setReferenceFromLocal(event.currentTarget.value); }}/></label>
+                <label>{copy.referenceTo}<input type="datetime-local" value={referenceToLocal} disabled={loading} onChange={event => { invalidate(); setReferenceToLocal(event.currentTarget.value); }}/></label>
+              </fieldset>
+              <fieldset>
+                <legend>{copy.evaluation}</legend>
+                <label>{copy.evaluationFrom}<input type="datetime-local" value={evaluationFromLocal} disabled={loading} onChange={event => { invalidate(); setEvaluationFromLocal(event.currentTarget.value); }}/></label>
+                <label>{copy.evaluationTo}<input type="datetime-local" value={evaluationToLocal} disabled={loading} onChange={event => { invalidate(); setEvaluationToLocal(event.currentTarget.value); }}/></label>
+              </fieldset>
+              <div className="runtime-intelligence-contextual-deviation__timing">
+                <label>{basisCopy(locale).label}<select aria-label={basisCopy(locale).label} value={timestampBasis} disabled={loading} onChange={event => {
+                  invalidate(); setTimestampBasis(event.currentTarget.value as TimestampBasis);
+                }}>
+                  <option value="synchronized_source">{basisCopy(locale).source}</option>
+                  <option value="historian_observed">{basisCopy(locale).observed}</option>
+                </select></label>
+                <label>{temporalCopy(locale).label}<select value={temporalToleranceSeconds} disabled={loading} onChange={event => { invalidate(); setTemporalToleranceSeconds(Number(event.currentTarget.value)); }}>
+                  <option value={0}>{temporalCopy(locale).exact}</option>
+                  {[10, 30, 60].map(seconds => <option key={seconds} value={seconds}>{seconds} s</option>)}
+                </select></label>
+                <details>
+                  <summary>{copy.timingDetails}</summary>
+                  <p>{timestampBasis === 'historian_observed' ? basisCopy(locale).observedHint : basisCopy(locale).sourceHint}</p>
+                  <p>{temporalCopy(locale).hint}</p>
+                </details>
+              </div>
+              <button type="submit" disabled={loading || !configValid || !windowsValid}>
+                {loading ? copy.loading : copy.analyze}
+              </button>
+            </form>
+            {!(referenceFromLocal && referenceToLocal && evaluationFromLocal && evaluationToLocal) ? null
+              : !referenceWindowResult.window || !evaluationWindowResult.window
+              ? <p className="runtime-intelligence-query__error" role="alert">{copy.windowInvalid}</p>
+              : !windowsChronological
+                ? <p className="runtime-intelligence-query__error" role="alert">{copy.windowsOrder}</p>
+                : null}
+            {error ? <p className="runtime-intelligence-query__error" role="alert">{error}</p> : null}
+            {result ? <DeviationResult result={result} locale={locale} copy={copy}/> : null}
+          </>}
+  </div>;
+}
+
+function DeviationResult({ result, locale, copy }: { result: Response; locale: EngineeringLocale; copy: ReturnType<typeof visualCopy> }) {
+  const formatter = new Intl.NumberFormat(locale === 'pt-BR' ? 'pt-BR' : locale, { maximumFractionDigits: 5 });
+  const targets = new Map(result.targetStatistics.map(statistic => [statistic.signal.signalId, statistic.signal.tagPath]));
+  const visibleVectors = result.evaluationVectors.slice(-MAX_VISIBLE_VECTORS);
+  const latestComparable = [...result.evaluationVectors].reverse().find(vector => vector.inJointContext);
+  return <section className="runtime-intelligence-contextual-deviation__result" data-testid="runtime-intelligence-contextual-deviation-result" aria-live="polite">
+    <section>
+      <h3>{copy.summary}</h3>
+      <dl>
+        <Fact label={copy.referenceVectors} value={formatCount(result.jointContextReferenceVectorCount, locale)}/>
+        <Fact label={copy.inJointContext} value={formatCount(result.jointContextEvaluationVectorCount, locale)}/>
+      </dl>
+      {result.jointContextReferenceVectorCount === 0 || result.jointContextEvaluationVectorCount === 0
+        ? <p>{copy.noComparableSamples}</p> : null}
+    </section>
+    <section>
+      <h3>{copy.perTarget}</h3>
+      {latestComparable ? <p>{copy.latestComparable(formatTimestamp(vectorTime(latestComparable), locale))}</p> : null}
+      <div className="runtime-intelligence-contextual-deviation__targets">
+        {result.targetStatistics.map(statistic => {
+          const value = latestComparable?.targets.find(target => target.targetSignalId === statistic.signal.signalId);
+          const unit = statistic.signal.engineeringUnit;
+          const measurement = (amount: number | null) => amount === null || !unit ? formatOptional(amount, formatter)
+            : `${formatNumber(amount, formatter)} ${unit}`;
+          return <article key={statistic.signal.signalId}>
+            <h4>{statistic.signal.tagPath}</h4>
+            <dl>
+              <Fact label={copy.referenceMedian} value={measurement(statistic.referenceMedian)}/>
+              {value ? <>
+                <Fact label={copy.measuredValue} value={measurement(value.value)}/>
+                <Fact label={copy.difference} value={measurement(value.rawDifferenceFromReferenceMedian)}/>
+              </> : null}
+              <Fact label={copy.referenceMad} value={measurement(statistic.referenceMad)}/>
+              <Fact label={copy.referenceCount} value={formatCount(statistic.jointContextReferenceVectorCount, locale)}/>
+              <Fact label={copy.evaluationCount} value={formatCount(statistic.returnedJointContextEvaluationValueCount, locale)}/>
+              <Fact label={copy.robustScore} value={statistic.status === 'available' ? copy.available : unavailableReason(statistic.scoreUnavailableReason, copy)}/>
+            </dl>
+          </article>;
+        })}
+      </div>
+    </section>
+    <details>
+      <summary>{copy.comparisonDetails}</summary>
+      <dl>
+        <Fact label={basisCopy(locale).label} value={result.timestampBasis === OBSERVED_TIMESTAMP_BASIS ? basisCopy(locale).observed : basisCopy(locale).source}/>
+        <Fact label={temporalCopy(locale).label} value={`${result.temporalToleranceSeconds ?? 0} s`}/>
+        <Fact label={temporalCopy(locale).unmatchedReference} value={formatCount(result.unmatchedReferenceAnchorCount ?? 0, locale)}/>
+        <Fact label={temporalCopy(locale).unmatchedEvaluation} value={formatCount(result.unmatchedEvaluationAnchorCount ?? 0, locale)}/>
+        <Fact label={copy.evaluationVectors} value={formatCount(result.completeEvaluationVectorCount, locale)}/>
+        <Fact label={copy.rawRows} value={formatCount(result.totalRawObservationCount, locale)}/>
+        <Fact label={copy.provenance} value={describeVectorTimestampBasis(result.provenance.vectorTimestampBasis, locale)}/>
+      </dl>
+      <p>{copy.noCombinedDiagnosis}</p>
+    </details>
+    <details>
+      <summary>{copy.evaluationEvidence}</summary>
+      <p>{copy.showingVectors(visibleVectors.length, result.returnedEvaluationVectorCount, result.omittedEvaluationVectorCount)}</p>
+      <div className="runtime-intelligence-contextual-deviation__vectors">
+        {visibleVectors.map(vector => <article key={vectorTime(vector)}>
+          <h4>{formatTimestamp(vectorTime(vector), locale)}</h4>
+          <p>{copy.contextValues}: {formatNumber(vector.firstContextValueCanonical, formatter)} · {formatNumber(vector.secondContextValueCanonical, formatter)} · {vector.inJointContext ? copy.inJointContextLabel : copy.outsideJointContext}</p>
+          <ul>{vector.targets.map(value => <li key={value.targetSignalId}>
+            <strong>{targets.get(value.targetSignalId) ?? value.targetSignalId}</strong>: {formatNumber(value.value, formatter)}
+            {' · '}{copy.difference}: {formatOptional(value.rawDifferenceFromReferenceMedian, formatter)}
+            {' · '}{copy.robustScore}: {value.robustScore === null ? unavailableReason(value.scoreUnavailableReason, copy) : formatNumber(value.robustScore, formatter)}
+          </li>)}</ul>
+        </article>)}
+        {visibleVectors.length === 0 ? <p>{copy.noEvaluationVectors}</p> : null}
+      </div>
+    </details>
+  </section>;
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return <div><dt>{label}</dt><dd>{value}</dd></div>;
+}
+
+function parseSignalIds(value: string): string[] | null {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed) || parsed.length < 2 || parsed.length > 8 ||
+        parsed.some(item => typeof item !== 'string' || !UUID_PATTERN.test(item))) return null;
+    const ids = parsed as string[];
+    return new Set(ids.map(id => id.toLowerCase())).size === ids.length ? ids : null;
+  } catch { return null; }
+}
+
+function validRange(lower: number, upper: number): boolean {
+  return Number.isFinite(lower) && Number.isFinite(upper) && lower < upper;
+}
+
+function contractForTimestampBasis(timestampBasis: TimestampBasis) {
+  return timestampBasis === 'historian_observed'
+    ? { root: OBSERVED_ROOT, contractVersion: 3, ruleId: OBSERVED_RULE_ID, ruleVersion: OBSERVED_RULE_VERSION }
+    : { root: SOURCE_ROOT, contractVersion: 2, ruleId: RULE_ID, ruleVersion: RULE_VERSION };
+}
+
+function isValidCatalog(value: Catalog, timestampBasis: TimestampBasis): boolean {
+  const contract = contractForTimestampBasis(timestampBasis);
+  return Boolean(value && value.contractVersion === contract.contractVersion && value.catalogVersion === contract.contractVersion && value.ruleId === contract.ruleId &&
+    value.ruleVersion === contract.ruleVersion && (timestampBasis !== 'historian_observed' || value.timestampBasis === OBSERVED_TIMESTAMP_BASIS) &&
+    Number.isInteger(value.maximumWindowDays) && value.maximumWindowDays > 0 &&
+    value.maximumWindowDays <= 31 && value.minimumTargetSignals === 2 && value.maximumTargetSignals === 8 && value.contextSignalCount === 2);
+}
+
+function matchesResponse(value: unknown, expected: {
+  scopeId: string; assignmentId: string; profileId: string; projectKey: string; activeRevision: number;
+  targetSignalIds: readonly string[]; firstContextSignalId: string; firstContextLowerInclusiveCanonical: number;
+  firstContextUpperExclusiveCanonical: number; secondContextSignalId: string; secondContextLowerInclusiveCanonical: number;
+  secondContextUpperExclusiveCanonical: number; referenceWindow: WindowValue; evaluationWindow: WindowValue; catalogVersion: number; temporalToleranceSeconds: number; timestampBasis: TimestampBasis;
+}): value is Response {
+  if (!isResponse(value)) return false;
+  if ((value.temporalToleranceSeconds ?? 0) !== expected.temporalToleranceSeconds) return false;
+  const contract = contractForTimestampBasis(expected.timestampBasis);
+  if (value.contractVersion !== contract.contractVersion || value.catalogVersion !== expected.catalogVersion ||
+      value.ruleId !== contract.ruleId || value.ruleVersion !== contract.ruleVersion ||
+      (expected.timestampBasis === 'historian_observed' ? value.timestampBasis !== OBSERVED_TIMESTAMP_BASIS : value.timestampBasis !== undefined) ||
+      value.projectKey !== expected.projectKey ||
+      value.activeRevision !== expected.activeRevision || !sameId(value.scopeId, expected.scopeId) ||
+      value.scopeKind !== 0 ||
+      !sameId(value.equipmentId, expected.scopeId) || !sameId(value.assignmentId, expected.assignmentId) ||
+      !sameId(value.profileId, expected.profileId) || !sameWindow(value.referenceWindow, expected.referenceWindow) ||
+      !sameWindow(value.evaluationWindow, expected.evaluationWindow) ||
+      value.targetSignals?.length !== expected.targetSignalIds.length || value.contexts?.length !== 2 ||
+      value.targetStatistics?.length !== expected.targetSignalIds.length || !Array.isArray(value.evaluationVectors) ||
+      value.evaluationVectors.length > 500 || value.returnedEvaluationVectorCount !== value.evaluationVectors.length) return false;
+  if (!value.targetSignals.every((signal, index) => sameId(signal.signalId, expected.targetSignalIds[index])) ||
+      !value.targetStatistics.every((statistic, index) => sameId(statistic.signal.signalId, expected.targetSignalIds[index]))) return false;
+  const first = value.contexts[0];
+  const second = value.contexts[1];
+  if (!sameId(first.signal.signalId, expected.firstContextSignalId) ||
+      first.lowerInclusiveCanonical !== expected.firstContextLowerInclusiveCanonical ||
+      first.upperExclusiveCanonical !== expected.firstContextUpperExclusiveCanonical ||
+      !sameId(second.signal.signalId, expected.secondContextSignalId) ||
+      second.lowerInclusiveCanonical !== expected.secondContextLowerInclusiveCanonical ||
+      second.upperExclusiveCanonical !== expected.secondContextUpperExclusiveCanonical) return false;
+  const vectors = value.evaluationVectors as readonly EvaluationVector[];
+  return vectors.every(vector => (expected.timestampBasis === 'historian_observed'
+      ? typeof vector.anchorObservedTimestampUtc === 'string' && vector.sourceTimestampUtc === undefined && vector.matchedObservedTimestampsUtc !== undefined
+      : typeof vector.sourceTimestampUtc === 'string' && vector.anchorObservedTimestampUtc === undefined && vector.matchedObservedTimestampsUtc === undefined) &&
+    vector.targets.length === expected.targetSignalIds.length &&
+    vector.targets.every((target: DeviationValue, index: number) => sameId(target.targetSignalId, expected.targetSignalIds[index])));
+}
+
+function sameId(left: string, right: string): boolean { return typeof left === 'string' && left.toLowerCase() === right.toLowerCase(); }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+function isResponse(value: unknown): value is Response {
+  if (!isRecord(value)) return false;
+  return Number.isInteger(value.contractVersion) && Number.isInteger(value.catalogVersion) &&
+    typeof value.ruleId === 'string' && typeof value.ruleVersion === 'string' && typeof value.projectKey === 'string' &&
+    Number.isInteger(value.activeRevision) && value.scopeKind === 0 && typeof value.scopeId === 'string' && typeof value.assignmentId === 'string' &&
+    typeof value.equipmentId === 'string' && typeof value.profileId === 'string' && isWindow(value.referenceWindow) &&
+    isWindow(value.evaluationWindow) && isNonNegativeInteger(value.completeReferenceVectorCount) &&
+    isNonNegativeInteger(value.jointContextReferenceVectorCount) && isNonNegativeInteger(value.completeEvaluationVectorCount) &&
+    isNonNegativeInteger(value.jointContextEvaluationVectorCount) && isNonNegativeInteger(value.returnedEvaluationVectorCount) &&
+    isNonNegativeInteger(value.omittedEvaluationVectorCount) && isNonNegativeInteger(value.totalRawObservationCount) &&
+    Array.isArray(value.targetSignals) && value.targetSignals.length >= 2 && value.targetSignals.length <= 8 &&
+    value.targetSignals.every(isSignal) && Array.isArray(value.contexts) && value.contexts.length === 2 &&
+    value.contexts.every(isContextResult) && Array.isArray(value.targetStatistics) && value.targetStatistics.every(isTargetStatistics) &&
+    Array.isArray(value.evaluationVectors) && value.evaluationVectors.every(isEvaluationVector) &&
+    isProvenance(value.provenance);
+}
+function isProvenance(value: unknown): value is Provenance {
+  return isRecord(value) && typeof value.dataset === 'string' && isNonNegativeInteger(value.datasetContractVersion) &&
+    typeof value.queryWindowTimestampBasis === 'string' && typeof value.vectorTimestampBasis === 'string' &&
+    (typeof value.sourceTimestampEvidenceRequirement === 'string' || typeof value.timestampEvidenceRequirement === 'string') && typeof value.contextQualification === 'string' &&
+    typeof value.regimeEquivalence === 'string' && typeof value.completeness === 'string' && typeof value.interpretation === 'string';
+}
+function isSignal(value: unknown): value is Signal {
+  if (!isRecord(value)) return false;
+  return typeof value.signalId === 'string' && typeof value.signalKey === 'string' && typeof value.tagId === 'string' &&
+    typeof value.tagPath === 'string' && (typeof value.engineeringUnit === 'string' || value.engineeringUnit === null) &&
+    (typeof value.controlledUnitCode === 'string' || value.controlledUnitCode === null) &&
+    (typeof value.canonicalUnit === 'string' || value.canonicalUnit === null);
+}
+function isWindow(value: unknown): value is WindowValue {
+  return isRecord(value) && typeof value.fromUtc === 'string' && typeof value.toUtc === 'string';
+}
+function isContextResult(value: unknown): value is ContextResult {
+  return isRecord(value) && isSignal(value.signal) && isFiniteNumber(value.lowerInclusiveCanonical) &&
+    isFiniteNumber(value.upperExclusiveCanonical) && typeof value.canonicalUnit === 'string' &&
+    isNonNegativeInteger(value.completeReferenceVectorCount) && isNonNegativeInteger(value.referenceInRangeVectorCount) &&
+    isNonNegativeInteger(value.completeEvaluationVectorCount) && isNonNegativeInteger(value.evaluationInRangeVectorCount);
+}
+function isTargetStatistics(value: unknown): value is TargetStatistics {
+  return isRecord(value) && isSignal(value.signal) && isNullableFiniteNumber(value.referenceMedian) &&
+    isNullableFiniteNumber(value.referenceMad) && isNonNegativeInteger(value.completeReferenceVectorCount) &&
+    isNonNegativeInteger(value.jointContextReferenceVectorCount) && isNonNegativeInteger(value.completeEvaluationVectorCount) &&
+    isNonNegativeInteger(value.returnedJointContextEvaluationValueCount) && typeof value.status === 'string' &&
+    (typeof value.scoreUnavailableReason === 'string' || value.scoreUnavailableReason === null);
+}
+function isDeviationValue(value: unknown): value is DeviationValue {
+  return isRecord(value) && typeof value.targetSignalId === 'string' && isFiniteNumber(value.value) &&
+    isNullableFiniteNumber(value.rawDifferenceFromReferenceMedian) && isNullableFiniteNumber(value.robustScore) &&
+    (typeof value.scoreUnavailableReason === 'string' || value.scoreUnavailableReason === null);
+}
+function isEvaluationVector(value: unknown): value is EvaluationVector {
+  return isRecord(value) && (typeof value.sourceTimestampUtc === 'string' || typeof value.anchorObservedTimestampUtc === 'string') &&
+    typeof value.firstContextObservedTimestampUtc === 'string' && isFiniteNumber(value.firstContextValueCanonical) &&
+    typeof value.firstContextInRange === 'boolean' && typeof value.secondContextObservedTimestampUtc === 'string' &&
+    isFiniteNumber(value.secondContextValueCanonical) && typeof value.secondContextInRange === 'boolean' &&
+    typeof value.inJointContext === 'boolean' && Array.isArray(value.targets) && value.targets.every(isDeviationValue);
+}
+function isFiniteNumber(value: unknown): value is number { return typeof value === 'number' && Number.isFinite(value); }
+function isNullableFiniteNumber(value: unknown): value is number | null { return value === null || isFiniteNumber(value); }
+function isNonNegativeInteger(value: unknown): value is number { return Number.isInteger(value) && typeof value === 'number' && value >= 0; }
+function sameWindow(left: WindowValue, right: WindowValue): boolean {
+  return Date.parse(left?.fromUtc ?? '') === Date.parse(right.fromUtc) && Date.parse(left?.toUtc ?? '') === Date.parse(right.toUtc);
+}
+function formatCount(value: number, locale: EngineeringLocale): string {
+  return Number.isInteger(value) && value >= 0 ? new Intl.NumberFormat(locale === 'pt-BR' ? 'pt-BR' : locale).format(value) : '—';
+}
+function formatTimestamp(value: string, locale: EngineeringLocale): string {
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) ? new Intl.DateTimeFormat(locale === 'pt-BR' ? 'pt-BR' : locale, { dateStyle: 'short', timeStyle: 'medium', timeZone: 'UTC' }).format(parsed) : value;
+}
+function vectorTime(vector: EvaluationVector): string { return vector.anchorObservedTimestampUtc ?? vector.sourceTimestampUtc ?? ''; }
+function formatNumber(value: number, formatter: Intl.NumberFormat): string { return Number.isFinite(value) ? formatter.format(value) : '—'; }
+function formatOptional(value: number | null, formatter: Intl.NumberFormat): string { return value === null ? '—' : formatNumber(value, formatter); }
+function unavailableReason(reason: string | null, copy: ReturnType<typeof visualCopy>): string {
+  return reason ? (copy.reasons as Readonly<Record<string, string>>)[reason] ?? copy.unavailable : copy.unavailable;
+}
+
+function describeVectorTimestampBasis(value: string, locale: EngineeringLocale): string {
+  const text = value.toLowerCase();
+  if (text.includes('nearest unused synchronized')) return temporalCopy(locale).hint;
+  if (text.includes('source timestamp match') || text.includes('exact equality of non-null utc source.timestamp')) {
+    return locale === 'pt-BR'
+      ? 'Compara leituras com o mesmo horário de origem sincronizado nas duas condições e em todos os sinais. Isso não comprova que os sensores mediram no mesmo instante.'
+      : locale === 'es'
+        ? 'Compara lecturas con la misma hora de origen sincronizada en ambas condiciones y en todas las señales. Esto no demuestra que los sensores midieran al mismo instante.'
+        : 'Compares readings with the same synchronized source time across both conditions and all signals. This does not prove the sensors measured at the same instant.';
+  }
+  if (text.includes('historian observation')) {
+    return locale === 'pt-BR' ? 'Horário em que o SCADIVO registrou a leitura no Historian; pode haver atraso em relação à medição do equipamento.'
+      : locale === 'es' ? 'Hora en que SCADIVO registró la lectura en Historian; puede haber retraso respecto de la medición del equipo.'
+        : 'Time when SCADIVO recorded the reading in Historian; it may lag behind the equipment measurement.';
+  }
+  return locale === 'pt-BR' ? 'Base de horário definida pelo relatório.' : locale === 'es' ? 'Base temporal definida por el informe.' : 'Time basis defined by the report.';
+}
+
+function temporalCopy(locale: EngineeringLocale) {
+  if (locale === 'pt-BR') return {
+    label: 'Tolerância entre horários', exact: 'Mesmo horário (0 s)',
+    unmatchedReference: 'Leituras-alvo sem conjunto completo na referência', unmatchedEvaluation: 'Leituras-alvo sem conjunto completo na avaliação',
+    hint: 'Associa as leituras válidas mais próximas do primeiro sinal-alvo. A diferença entre o primeiro e o último horário do conjunto não pode superar a tolerância. Não reutiliza leituras nem preenche valores ausentes; empates e conjuntos incompletos são descartados. Escolha uma janela compatível com a velocidade do processo.'
+  };
+  if (locale === 'es') return {
+    label: 'Tolerancia entre horarios', exact: 'Mismo horario (0 s)',
+    unmatchedReference: 'Lecturas objetivo sin conjunto completo en referencia', unmatchedEvaluation: 'Lecturas objetivo sin conjunto completo en evaluación',
+    hint: 'Asocia las lecturas válidas más cercanas a la primera señal objetivo. La separación total no puede superar la tolerancia. No reutiliza lecturas ni rellena valores; descarta empates y conjuntos incompletos. Elija una ventana adecuada a la velocidad del proceso.'
+  };
+  return {
+    label: 'Time matching tolerance', exact: 'Same timestamp (0 s)',
+    unmatchedReference: 'Target readings without a complete reference set', unmatchedEvaluation: 'Target readings without a complete evaluation set',
+    hint: 'Matches the nearest valid readings to the first target signal. The full time span must fit the tolerance. Readings are not reused or imputed; ties and incomplete sets are discarded. Choose a window suited to the process speed.'
+  };
+}
+
+function basisCopy(locale: EngineeringLocale) {
+  if (locale === 'pt-BR') return {
+    label: 'Base de horário', source: 'Horário de origem sincronizado', observed: 'Horário de registro no SCADIVO',
+    sourceHint: 'Use esta opção quando as leituras tiverem horário de origem com evidência explícita de sincronização. Sem essa evidência, elas não formam conjuntos neste modo.',
+    observedHint: 'Usa o horário em que cada leitura foi registrada pelo SCADIVO. Esse horário pode incluir atraso de comunicação ou processamento e não representa o instante exato da medição no equipamento.'
+  };
+  if (locale === 'es') return {
+    label: 'Base horaria', source: 'Hora de origen sincronizada', observed: 'Hora de registro en SCADIVO',
+    sourceHint: 'Use esta opción cuando las lecturas tengan una hora de origen con evidencia explícita de sincronización. Sin esa evidencia, no se forman conjuntos en este modo.',
+    observedHint: 'Usa la hora en que SCADIVO registró cada lectura. Puede incluir retrasos de comunicación o procesamiento y no representa el instante exacto de medición del equipo.'
+  };
+  return {
+    label: 'Timestamp basis', source: 'Synchronized source time', observed: 'SCADIVO recorded time',
+    sourceHint: 'Use this when readings have source times with explicit synchronization evidence. Without that evidence, this mode cannot form complete sets.',
+    observedHint: 'Uses the time when SCADIVO recorded each reading. It may include communication or processing delay and does not represent the exact time the equipment measured it.'
+  };
+}
+
+function visualCopy(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    title: 'Contextual deviation', transient: 'Temporary read-only analysis', runtimeOnly: 'This visual is interactive only in live Runtime. The Engineering editor never queries Historian.',
+    runtimeUnavailable: 'Queries are unavailable during playback or unless Runtime View and TrendUse are effective.', invalidConfig: 'The configured scope, assignment, profile, signals or canonical ranges are invalid. This visual fails closed.',
+    operatorAction: 'Choose a period of normal operation and the later period you want to check. The analysis compares readings under similar conditions.',
+    reference: 'Reference window', evaluation: 'Evaluation window', referenceFrom: 'Reference from (local time)', referenceTo: 'Reference to (local time)', evaluationFrom: 'Evaluation from (local time)', evaluationTo: 'Evaluation to (local time)', analyze: 'Analyze', loading: 'Querying…',
+    windowInvalid: 'Both windows must be valid and no longer than 31 days each.', windowsOrder: 'The reference window must end before the evaluation window begins.',
+    timingDetails: 'How readings are matched', requestFailed: 'Could not run the analysis. Check the periods and try again.',
+    summary: 'Result summary', referenceVectors: 'Reference samples in both selected conditions', evaluationVectors: 'Complete evaluation samples', inJointContext: 'Evaluation samples in the selected conditions', rawRows: 'Historian records checked', provenance: 'How readings are matched',
+    comparisonDetails: 'Comparison details', measuredValue: 'Measured value',
+    latestComparable: (time: string) => `Latest comparable reading in the result (${time})`,
+    noComparableSamples: 'There are not enough comparable readings to draw a conclusion. Check the selected periods, operating conditions and timestamp basis.',
+    noCombinedDiagnosis: 'Each target is described independently against the joint-context reference cohort. No combined anomaly, diagnosis, fault or remaining-life estimate is produced.',
+    perTarget: 'Results by signal', referenceMedian: 'Reference median', referenceMad: 'Reference variation (median absolute deviation, MAD)', referenceCount: 'Samples in both reference conditions', evaluationCount: 'Evaluation samples returned', robustScore: 'Deviation relative to usual variation', available: 'Shown for each sample below', unavailable: 'Not available',
+    evaluationEvidence: 'Evaluation samples', showingVectors: (shown: number, returned: number, omitted: number) => `Showing ${shown} most recent samples out of ${returned}; ${omitted} more were omitted because of the display limit.`,
+    contextValues: 'Condition readings (controlled units)', inJointContextLabel: 'within both selected ranges', outsideJointContext: 'outside the selected conditions', difference: 'difference from reference median', noEvaluationVectors: 'No complete evaluation samples were returned.',
+    errors: {
+      INVALID_CATALOG: 'The active contextual-deviation catalog is unavailable or incompatible.', INVALID_RESPONSE: 'The server response does not match this Screen configuration or active Runtime revision.',
+      INTELLIGENCE_ENTITLEMENT_REQUIRED: 'The Intelligence license is not effective for this Runtime.', INTELLIGENCE_EXECUTION_PERMIT_REQUIRED: 'An active Intelligence execution permit is required.',
+      INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE: 'The selected Intelligence scope is not active in this Runtime revision.',
+      INTELLIGENCE_CONTEXTUAL_DEVIATION_VECTOR_V2_CONTEXT_UNIT_UNSUPPORTED: 'Both context signals need compatible controlled units.',
+      INTELLIGENCE_CONTEXTUAL_DEVIATION_VECTOR_V2_CONTEXT_RANGE_INVALID: 'A declared canonical context range is invalid.'
+    },
+    reasons: { fewer_than_30_complete_joint_context_reference_vectors: 'Fewer than 30 reference samples', reference_mad_zero: 'Reference values do not vary, so a relative score cannot be calculated', no_complete_joint_context_reference_vectors: 'No complete samples match both reference conditions', outside_joint_declared_context: 'Outside the selected conditions', non_finite_raw_difference: 'Could not calculate a valid difference', non_finite_reference_statistic: 'Could not calculate a valid reference range', non_finite_robust_score: 'Could not calculate a valid relative score' }
+  };
+  if (locale === 'es') return {
+    title: 'Desviación contextual', transient: 'Análisis temporal de solo lectura', runtimeOnly: 'Este visual solo es interactivo en Runtime en vivo. Engineering nunca consulta Historian.',
+    runtimeUnavailable: 'No se puede consultar durante la reproducción ni sin Runtime View y TrendUse efectivos.', invalidConfig: 'El alcance, asignación, perfil, señales o rangos canónicos no son válidos. El visual se cierra de forma segura.',
+    operatorAction: 'Elija un período de operación normal y el período posterior que quiere revisar. El análisis compara lecturas en condiciones similares.',
+    reference: 'Ventana de referencia', evaluation: 'Ventana de evaluación', referenceFrom: 'Desde referencia (hora local)', referenceTo: 'Hasta referencia (hora local)', evaluationFrom: 'Desde evaluación (hora local)', evaluationTo: 'Hasta evaluación (hora local)', analyze: 'Analizar', loading: 'Consultando…',
+    windowInvalid: 'Cada ventana debe ser válida y tener como máximo 31 días.', windowsOrder: 'La ventana de referencia debe terminar antes de que comience la de evaluación.',
+    timingDetails: 'Cómo se asocian las lecturas', requestFailed: 'No se pudo realizar el análisis. Revise los períodos e inténtelo de nuevo.',
+    summary: 'Resumen de resultados', referenceVectors: 'Muestras de referencia en ambas condiciones seleccionadas', evaluationVectors: 'Muestras completas de evaluación', inJointContext: 'Muestras de evaluación dentro de las condiciones', rawRows: 'Registros revisados en Historian', provenance: 'Cómo se comparan las lecturas',
+    comparisonDetails: 'Detalles de la comparación', measuredValue: 'Valor medido',
+    latestComparable: (time: string) => `Última lectura comparable del resultado (${time})`,
+    noComparableSamples: 'No hay lecturas comparables suficientes para llegar a una conclusión. Revise los períodos, las condiciones de operación y la base horaria.',
+    noCombinedDiagnosis: 'Cada objetivo se describe por separado frente a la cohorte de referencia. No se genera anomalía combinada, diagnóstico, falla ni vida restante.',
+    perTarget: 'Resultados por señal', referenceMedian: 'Mediana de referencia', referenceMad: 'Variación de referencia (desviación absoluta mediana, MAD)', referenceCount: 'Muestras en ambas condiciones de referencia', evaluationCount: 'Muestras de evaluación devueltas', robustScore: 'Desviación respecto a la variación habitual', available: 'Se muestra para cada muestra abajo', unavailable: 'No disponible',
+    evaluationEvidence: 'Muestras de evaluación', showingVectors: (shown: number, returned: number, omitted: number) => `Se muestran las ${shown} muestras más recientes de ${returned}; se omitieron ${omitted} por el límite de visualización.`,
+    contextValues: 'Lecturas de condición (unidades controladas)', inJointContextLabel: 'dentro de ambos rangos elegidos', outsideJointContext: 'fuera de las condiciones elegidas', difference: 'diferencia frente a la mediana de referencia', noEvaluationVectors: 'No se devolvieron muestras completas de evaluación.',
+    errors: { INVALID_CATALOG: 'El catálogo activo no está disponible o es incompatible.', INVALID_RESPONSE: 'La respuesta no coincide con esta pantalla o revisión Runtime.', INTELLIGENCE_ENTITLEMENT_REQUIRED: 'La licencia Intelligence no está activa para este Runtime.', INTELLIGENCE_EXECUTION_PERMIT_REQUIRED: 'Se requiere un permiso Intelligence activo.', INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE: 'El alcance seleccionado no está activo en esta revisión Runtime.' },
+    reasons: { fewer_than_30_complete_joint_context_reference_vectors: 'Menos de 30 muestras de referencia', reference_mad_zero: 'Los valores de referencia no varían y no permiten calcular una puntuación relativa', no_complete_joint_context_reference_vectors: 'No hay muestras completas en ambas condiciones de referencia', outside_joint_declared_context: 'Fuera de las condiciones elegidas', non_finite_raw_difference: 'No se pudo calcular una diferencia válida', non_finite_reference_statistic: 'No se pudo calcular un intervalo de referencia válido', non_finite_robust_score: 'No se pudo calcular una puntuación relativa válida' }
+  };
+  return {
+    title: 'Desvio contextual', transient: 'Análise temporária somente para leitura', runtimeOnly: 'Este visual só é interativo no Runtime ao vivo. O Engineering nunca consulta o Historian.',
+    runtimeUnavailable: 'Consultas não ficam disponíveis durante reprodução nem sem Runtime View e TrendUse efetivos.', invalidConfig: 'Escopo, associação, perfil, sinais ou faixas canônicas inválidas. O visual falha fechado.',
+    operatorAction: 'Escolha um período de operação normal e o período posterior que você quer verificar. A análise compara as leituras em condições semelhantes.',
+    reference: 'Janela de referência', evaluation: 'Janela de avaliação', referenceFrom: 'Início da referência (horário local)', referenceTo: 'Fim da referência (horário local)', evaluationFrom: 'Início da avaliação (horário local)', evaluationTo: 'Fim da avaliação (horário local)', analyze: 'Analisar', loading: 'Consultando…',
+    windowInvalid: 'Cada janela precisa ser válida e ter no máximo 31 dias.', windowsOrder: 'A janela de referência deve terminar antes do início da janela de avaliação.',
+    timingDetails: 'Como as leituras são associadas', requestFailed: 'Não foi possível analisar. Confira os períodos e tente novamente.',
+    summary: 'Resumo dos resultados', referenceVectors: 'Amostras de referência nas duas condições selecionadas', evaluationVectors: 'Amostras completas de avaliação', inJointContext: 'Amostras de avaliação nas condições selecionadas', rawRows: 'Registros consultados no Historian', provenance: 'Como as leituras são comparadas',
+    comparisonDetails: 'Detalhes da comparação', measuredValue: 'Valor medido',
+    latestComparable: (time: string) => `Última leitura comparável do resultado (${time})`,
+    noComparableSamples: 'Faltam leituras comparáveis para concluir. Confira os períodos, as condições de operação e a base de horário.',
+    noCombinedDiagnosis: 'Cada alvo é descrito individualmente contra a coorte de referência. Não é produzida anomalia combinada, diagnóstico, falha ou estimativa de vida restante.',
+    perTarget: 'Resultados por sinal', referenceMedian: 'Mediana de referência', referenceMad: 'Variação de referência (desvio absoluto mediano, MAD)', referenceCount: 'Amostras nas duas condições de referência', evaluationCount: 'Amostras de avaliação retornadas', robustScore: 'Desvio em relação à variação habitual', available: 'Exibido para cada amostra abaixo', unavailable: 'Indisponível',
+    evaluationEvidence: 'Amostras de avaliação', showingVectors: (shown: number, returned: number, omitted: number) => `Exibindo as ${shown} amostras mais recentes de ${returned}; ${omitted} foram omitidas pelo limite de exibição.`,
+    contextValues: 'Leituras das condições (unidades controladas)', inJointContextLabel: 'dentro das duas faixas escolhidas', outsideJointContext: 'fora das condições escolhidas', difference: 'diferença da mediana de referência', noEvaluationVectors: 'Nenhuma amostra completa de avaliação foi retornada.',
+    errors: { INVALID_CATALOG: 'O catálogo ativo de desvio contextual está indisponível ou incompatível.', INVALID_RESPONSE: 'A resposta do servidor não corresponde à configuração desta tela ou à revisão Runtime ativa.', INTELLIGENCE_ENTITLEMENT_REQUIRED: 'A licença de Intelligence não está efetiva neste Runtime.', INTELLIGENCE_EXECUTION_PERMIT_REQUIRED: 'É necessária uma permissão ativa de execução de Intelligence.', INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE: 'O escopo Intelligence selecionado não está ativo nesta revisão Runtime.' },
+    reasons: { fewer_than_30_complete_joint_context_reference_vectors: 'Menos de 30 amostras de referência', reference_mad_zero: 'Os valores de referência não variam e não permitem calcular um escore relativo', no_complete_joint_context_reference_vectors: 'Não há amostras completas nas duas condições de referência', outside_joint_declared_context: 'Fora das condições escolhidas', non_finite_raw_difference: 'Não foi possível calcular uma diferença válida', non_finite_reference_statistic: 'Não foi possível calcular uma faixa de referência válida', non_finite_robust_score: 'Não foi possível calcular um escore relativo válido' }
+  };
+}
+
+class DeviationVisualError extends Error {
+  constructor(readonly code: string) { super(code); }
+}

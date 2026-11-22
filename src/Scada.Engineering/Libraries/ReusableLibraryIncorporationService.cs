@@ -395,9 +395,11 @@ public sealed class ReusableLibraryIncorporationService
 
         if (byId is null || byKey is null || byId.Id != incoming.Id || byKey.Id != incoming.Id)
             throw Conflict(resource, "stable ID/key collision");
-        if (!SemanticEquals(
-                byId with { Metadata = ReusableLibraryProvenance.WithoutOrigin(byId.Metadata) },
-                incoming with { Metadata = ReusableLibraryProvenance.WithoutOrigin(incoming.Metadata) }))
+        var existingComparable = NormalizeDynamoForComparison(
+            byId with { Metadata = ReusableLibraryProvenance.WithoutOrigin(byId.Metadata) });
+        var incomingComparable = NormalizeDynamoForComparison(
+            incoming with { Metadata = ReusableLibraryProvenance.WithoutOrigin(incoming.Metadata) });
+        if (!SemanticEquals(existingComparable, incomingComparable))
             throw Conflict(resource, "same identity has different canonical content");
         return false;
     }
@@ -415,9 +417,11 @@ public sealed class ReusableLibraryIncorporationService
 
         if (byId is null || byKey is null || byId.Id != incoming.Id || byKey.Id != incoming.Id)
             throw Conflict(resource, "stable ID/key collision");
-        if (!SemanticEquals(
-                byId with { Metadata = ReusableLibraryProvenance.WithoutOrigin(byId.Metadata) },
-                incoming with { Metadata = ReusableLibraryProvenance.WithoutOrigin(incoming.Metadata) }))
+        var existingComparable = NormalizeScreenForComparison(
+            byId with { Metadata = ReusableLibraryProvenance.WithoutOrigin(byId.Metadata) });
+        var incomingComparable = NormalizeScreenForComparison(
+            incoming with { Metadata = ReusableLibraryProvenance.WithoutOrigin(incoming.Metadata) });
+        if (!SemanticEquals(existingComparable, incomingComparable))
             throw Conflict(resource, "same identity has different canonical content");
         return false;
     }
@@ -435,11 +439,90 @@ public sealed class ReusableLibraryIncorporationService
 
         if (byId is null || byKey is null || byId.Id != incoming.Id || byKey.Id != incoming.Id)
             throw Conflict(resource, "stable ID/key collision");
-        if (!SemanticEquals(
-                byId with { Metadata = ReusableLibraryProvenance.WithoutOrigin(byId.Metadata) },
-                incoming with { Metadata = ReusableLibraryProvenance.WithoutOrigin(incoming.Metadata) }))
+        var existingComparable = NormalizePopupForComparison(
+            byId with { Metadata = ReusableLibraryProvenance.WithoutOrigin(byId.Metadata) });
+        var incomingComparable = NormalizePopupForComparison(
+            incoming with { Metadata = ReusableLibraryProvenance.WithoutOrigin(incoming.Metadata) });
+        if (!SemanticEquals(existingComparable, incomingComparable))
             throw Conflict(resource, "same identity has different canonical content");
         return false;
+    }
+
+    private DynamoEngineeringDto NormalizeDynamoForComparison(DynamoEngineeringDto value)
+    {
+        if (!value.TemplateId.HasValue && string.IsNullOrWhiteSpace(value.TemplateKey))
+            return value;
+
+        var byId = value.TemplateId.HasValue
+            ? _assets.FindTemplate(value.TemplateId.Value)
+            : null;
+        var byKey = !string.IsNullOrWhiteSpace(value.TemplateKey)
+            ? _assets.FindTemplateByKey(value.TemplateKey)
+            : null;
+
+        if (byId?.Id.HasValue == true &&
+            byKey?.Id.HasValue == true &&
+            byId.Id != byKey.Id)
+            return value;
+
+        var resolved = byId ?? byKey;
+        return resolved?.Id is { } resolvedId && resolvedId != Guid.Empty
+            ? value with { TemplateId = resolvedId, TemplateKey = resolved.Key }
+            : value;
+    }
+
+    private ScreenEngineeringDto NormalizeScreenForComparison(ScreenEngineeringDto value) =>
+        value with { Elements = NormalizeVisualReferencesForComparison(value.Elements) };
+
+    private PopupEngineeringDto NormalizePopupForComparison(PopupEngineeringDto value)
+    {
+        EquipmentTemplateEngineeringDto? resolvedTemplate = null;
+        if (value.TemplateId.HasValue)
+            resolvedTemplate = _assets.FindTemplate(value.TemplateId.Value);
+        if (resolvedTemplate is null && !string.IsNullOrWhiteSpace(value.TemplateKey))
+            resolvedTemplate = _assets.FindTemplateByKey(value.TemplateKey);
+
+        return value with
+        {
+            TemplateId = resolvedTemplate?.Id ?? value.TemplateId,
+            TemplateKey = resolvedTemplate?.Key ?? value.TemplateKey,
+            Elements = NormalizeVisualReferencesForComparison(value.Elements)
+        };
+    }
+
+    private IReadOnlyCollection<VisualElementEngineeringDto>? NormalizeVisualReferencesForComparison(
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements)
+    {
+        if (elements is null) return null;
+
+        return elements.Select(element =>
+        {
+            DynamoEngineeringDto? resolvedDynamo = null;
+            if (element.DynamoDefinitionId.HasValue)
+                resolvedDynamo = _assets.FindDynamo(element.DynamoDefinitionId.Value);
+            if (resolvedDynamo is null && !string.IsNullOrWhiteSpace(element.DynamoKey))
+                resolvedDynamo = _assets.FindDynamoByKey(element.DynamoKey);
+
+            EquipmentEngineeringDto? resolvedEquipment = null;
+            if (element.EquipmentId.HasValue)
+                resolvedEquipment = _assets.FindEquipment(element.EquipmentId.Value);
+            if (resolvedEquipment is null &&
+                !string.IsNullOrWhiteSpace(element.EquipmentPath) &&
+                !element.EquipmentPath.Contains('{', StringComparison.Ordinal) &&
+                !element.EquipmentPath.Contains('}', StringComparison.Ordinal))
+            {
+                resolvedEquipment = _assets.FindEquipmentByPath(element.EquipmentPath);
+            }
+
+            return element with
+            {
+                DynamoDefinitionId = resolvedDynamo?.Id ?? element.DynamoDefinitionId,
+                DynamoKey = resolvedDynamo?.Key ?? element.DynamoKey,
+                EquipmentId = resolvedEquipment?.Id ?? element.EquipmentId,
+                EquipmentPath = resolvedEquipment?.Path ?? element.EquipmentPath,
+                Children = NormalizeVisualReferencesForComparison(element.Children)
+            };
+        }).ToArray();
     }
 
     private bool ShouldCreateScript(

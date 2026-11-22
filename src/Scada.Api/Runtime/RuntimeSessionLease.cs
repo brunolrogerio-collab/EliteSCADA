@@ -1,11 +1,13 @@
-using System.Collections.Concurrent;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.Runtime;
 
 public enum RuntimeConnectionClass
 {
-    Viewer,
+    // Viewer is retained as the persisted v1 compatibility value. ViewOnly is the public
+    // Wave 15 term and intentionally has the same restrictive semantics.
+    ViewOnly,
+    Viewer = ViewOnly,
     Interactive
 }
 
@@ -35,7 +37,9 @@ public sealed record RuntimeSessionLease(
     string RuntimeMode,
     string? RuntimeProjectKey,
     long? RuntimeRevision,
-    DateTimeOffset? RuntimeActivatedAtUtc);
+    DateTimeOffset? RuntimeActivatedAtUtc,
+    long Generation,
+    long AuthorityRevision);
 
 public sealed record RuntimeSessionLeaseValidation(
     bool IsValid,
@@ -49,35 +53,52 @@ public sealed record RuntimeSessionLeaseValidation(
         new(false, null, failureCode);
 }
 
+public sealed record RuntimeSessionSeatAdmission(
+    bool IsAdmitted,
+    RuntimeSessionLease? Lease,
+    RuntimeSessionSeatReservationReasonCode ReasonCode)
+{
+    public static RuntimeSessionSeatAdmission Rejected(RuntimeSessionSeatReservationReasonCode reasonCode) => new(false, null, reasonCode);
+}
+
 public sealed class RuntimeSessionLeaseRegistry
 {
     public static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromSeconds(60);
     public const int MaximumClientInstanceIdLength = 128;
 
-    private readonly ConcurrentDictionary<Guid, RuntimeSessionLease> _leases = new();
+    private readonly IRuntimeSessionLeaseStore _store;
     private readonly TimeSpan _leaseDuration;
-    private readonly Func<DateTimeOffset> _utcNow;
 
     public RuntimeSessionLeaseRegistry(
         TimeSpan? leaseDuration = null,
         Func<DateTimeOffset>? utcNow = null)
+        : this(new InMemoryRuntimeSessionLeaseStore(utcNow), leaseDuration)
     {
+    }
+
+    public RuntimeSessionLeaseRegistry(
+        IRuntimeSessionLeaseStore store,
+        TimeSpan? leaseDuration = null)
+    {
+        _store = store ?? throw new ArgumentNullException(nameof(store));
         _leaseDuration = leaseDuration ?? DefaultLeaseDuration;
         if (_leaseDuration <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(leaseDuration));
-
-        _utcNow = utcNow ?? (() => DateTimeOffset.UtcNow);
     }
 
     public TimeSpan LeaseDuration => _leaseDuration;
 
-    public RuntimeSessionLease Admit(
+    public Task<RuntimeAuthorityState> GetAuthorityStateAsync(CancellationToken cancellationToken = default) =>
+        _store.GetAuthorityStateAsync(cancellationToken);
+
+    public async Task<RuntimeSessionLease> AdmitAsync(
         string userId,
         string clientInstanceId,
         RuntimeConnectionClass connectionClass,
         ScadaRuntimeDescriptor runtime,
         string? serverNode = null,
-        string? clusterId = null)
+        string? clusterId = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         ArgumentException.ThrowIfNullOrWhiteSpace(clientInstanceId);
@@ -90,99 +111,105 @@ public sealed class RuntimeSessionLeaseRegistry
                 nameof(clientInstanceId),
                 $"Client instance id must not exceed {MaximumClientInstanceIdLength} characters.");
 
-        var now = _utcNow();
-        var lease = new RuntimeSessionLease(
-            Guid.NewGuid(),
-            normalizedUserId,
-            normalizedClientInstanceId,
-            connectionClass,
-            now,
-            now,
-            now.Add(_leaseDuration),
-            NormalizeOptional(serverNode),
-            NormalizeOptional(clusterId),
-            runtime.Mode,
-            runtime.ProjectKey,
-            runtime.Revision,
-            runtime.ActivatedAtUtc);
-
-        _leases[lease.SessionId] = lease;
-        return lease;
+        var lease = await _store.AdmitAsync(
+            new RuntimeSessionLeaseAdmission(
+                normalizedUserId,
+                normalizedClientInstanceId,
+                ToPersistedConnectionClass(connectionClass),
+                ToRuntimeIdentity(runtime),
+                _leaseDuration,
+                serverNode,
+                clusterId),
+            cancellationToken);
+        return FromStore(lease);
     }
 
-    public RuntimeSessionLeaseValidation Validate(
+    public async Task<RuntimeSessionSeatAdmission> AdmitWithCapacityAsync(
+        string userId,
+        string clientInstanceId,
+        RuntimeConnectionClass connectionClass,
+        ScadaRuntimeDescriptor runtime,
+        RuntimeSessionSeatCapacity capacity,
+        long expectedAuthorityRevision,
+        string? serverNode = null,
+        string? clusterId = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientInstanceId);
+        ArgumentNullException.ThrowIfNull(runtime);
+        ArgumentNullException.ThrowIfNull(capacity);
+        if (expectedAuthorityRevision < 1)
+            throw new ArgumentOutOfRangeException(nameof(expectedAuthorityRevision));
+        var normalizedClientInstanceId = clientInstanceId.Trim();
+        if (normalizedClientInstanceId.Length > MaximumClientInstanceIdLength)
+            throw new ArgumentOutOfRangeException(nameof(clientInstanceId));
+
+        var result = await _store.AdmitWithCapacityAsync(
+            new RuntimeSessionLeaseCapacityAdmission(
+                new RuntimeSessionLeaseAdmission(
+                    userId.Trim(),
+                    normalizedClientInstanceId,
+                    ToPersistedConnectionClass(connectionClass),
+                    ToRuntimeIdentity(runtime),
+                    _leaseDuration,
+                    serverNode,
+                    clusterId),
+                capacity,
+                expectedAuthorityRevision),
+            cancellationToken);
+        return result.IsAdmitted && result.Lease is not null
+            ? new RuntimeSessionSeatAdmission(true, FromStore(result.Lease), result.ReasonCode)
+            : RuntimeSessionSeatAdmission.Rejected(result.ReasonCode);
+    }
+
+    public async Task<RuntimeSessionLeaseValidation> ValidateAsync(
         Guid sessionId,
         string userId,
         ScadaRuntimeDescriptor runtime,
-        string? clientInstanceId = null)
+        string? clientInstanceId = null,
+        CancellationToken cancellationToken = default)
     {
-        if (sessionId == Guid.Empty)
-            return RuntimeSessionLeaseValidation.Invalid("invalid-session-id");
-        if (string.IsNullOrWhiteSpace(userId))
-            return RuntimeSessionLeaseValidation.Invalid("missing-user");
         ArgumentNullException.ThrowIfNull(runtime);
-
-        if (!_leases.TryGetValue(sessionId, out var lease))
-            return RuntimeSessionLeaseValidation.Invalid("session-not-found");
-
-        var now = _utcNow();
-        if (lease.ExpiresAtUtc <= now)
-        {
-            _leases.TryRemove(sessionId, out _);
-            return RuntimeSessionLeaseValidation.Invalid("session-expired");
-        }
-
-        if (!lease.UserId.Equals(userId.Trim(), StringComparison.Ordinal))
-            return RuntimeSessionLeaseValidation.Invalid("session-user-mismatch");
-
-        if (clientInstanceId is not null &&
-            !lease.ClientInstanceId.Equals(clientInstanceId.Trim(), StringComparison.Ordinal))
-        {
-            return RuntimeSessionLeaseValidation.Invalid("session-client-mismatch");
-        }
-
-        if (!SameRuntime(lease, runtime))
-        {
-            _leases.TryRemove(sessionId, out _);
-            return RuntimeSessionLeaseValidation.Invalid("runtime-changed");
-        }
-
-        return RuntimeSessionLeaseValidation.Valid(lease);
+        var result = await _store.ValidateAsync(
+            sessionId,
+            userId,
+            ToRuntimeIdentity(runtime),
+            clientInstanceId,
+            cancellationToken);
+        return FromStore(result);
     }
 
-    public RuntimeSessionLeaseValidation Heartbeat(
+    public async Task<RuntimeSessionLeaseValidation> HeartbeatAsync(
         Guid sessionId,
         string userId,
         string clientInstanceId,
-        ScadaRuntimeDescriptor runtime)
+        ScadaRuntimeDescriptor runtime,
+        CancellationToken cancellationToken = default)
     {
-        var validation = Validate(sessionId, userId, runtime, clientInstanceId);
-        if (!validation.IsValid || validation.Lease is null) return validation;
-
-        var now = _utcNow();
-        var renewed = validation.Lease with
-        {
-            LastHeartbeatUtc = now,
-            ExpiresAtUtc = now.Add(_leaseDuration)
-        };
-
-        return _leases.TryUpdate(sessionId, renewed, validation.Lease)
-            ? RuntimeSessionLeaseValidation.Valid(renewed)
-            : RuntimeSessionLeaseValidation.Invalid("session-changed");
+        var result = await _store.HeartbeatAsync(
+            sessionId,
+            userId,
+            clientInstanceId,
+            ToRuntimeIdentity(runtime),
+            cancellationToken);
+        return FromStore(result);
     }
 
-    public RuntimeSessionLeaseValidation Terminate(
+    public async Task<RuntimeSessionLeaseValidation> TerminateAsync(
         Guid sessionId,
         string userId,
         string clientInstanceId,
-        ScadaRuntimeDescriptor runtime)
+        ScadaRuntimeDescriptor runtime,
+        CancellationToken cancellationToken = default)
     {
-        var validation = Validate(sessionId, userId, runtime, clientInstanceId);
-        if (!validation.IsValid || validation.Lease is null) return validation;
-
-        return _leases.TryRemove(sessionId, out _)
-            ? validation
-            : RuntimeSessionLeaseValidation.Invalid("session-changed");
+        var result = await _store.TerminateAsync(
+            sessionId,
+            userId,
+            clientInstanceId,
+            ToRuntimeIdentity(runtime),
+            cancellationToken);
+        return FromStore(result);
     }
 
     public static bool TryParseConnectionClass(
@@ -193,9 +220,11 @@ public sealed class RuntimeSessionLeaseRegistry
         if (string.IsNullOrWhiteSpace(value)) return false;
 
         var normalized = value.Trim();
-        if (normalized.Equals("viewer", StringComparison.OrdinalIgnoreCase))
+        if (normalized.Equals("viewer", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Equals("viewonly", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Equals("view-only", StringComparison.OrdinalIgnoreCase))
         {
-            connectionClass = RuntimeConnectionClass.Viewer;
+            connectionClass = RuntimeConnectionClass.ViewOnly;
             return true;
         }
 
@@ -208,14 +237,42 @@ public sealed class RuntimeSessionLeaseRegistry
         return false;
     }
 
-    private static string? NormalizeOptional(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static RuntimeSessionRuntimeIdentity ToRuntimeIdentity(ScadaRuntimeDescriptor runtime) => new(
+        runtime.Mode,
+        runtime.ProjectKey,
+        runtime.Revision,
+        runtime.ActivatedAtUtc);
 
-    private static bool SameRuntime(RuntimeSessionLease lease, ScadaRuntimeDescriptor runtime) =>
-        lease.RuntimeRevision == runtime.Revision &&
-        lease.RuntimeActivatedAtUtc == runtime.ActivatedAtUtc &&
-        lease.RuntimeMode.Equals(runtime.Mode, StringComparison.Ordinal) &&
-        string.Equals(lease.RuntimeProjectKey, runtime.ProjectKey, StringComparison.OrdinalIgnoreCase);
+    private static RuntimeSessionLeaseValidation FromStore(RuntimeSessionLeaseStoreResult result) =>
+        result.IsValid && result.Lease is not null
+            ? RuntimeSessionLeaseValidation.Valid(FromStore(result.Lease))
+            : RuntimeSessionLeaseValidation.Invalid(result.FailureCode ?? "unknown");
+
+    private static RuntimeSessionLease FromStore(RuntimeSessionLeaseState lease)
+    {
+        if (!TryParseConnectionClass(lease.GrantedConnectionClass, out var connectionClass))
+            throw new InvalidDataException("Persisted Runtime session connection class is incompatible.");
+        return new RuntimeSessionLease(
+            lease.SessionId,
+            lease.SubjectId,
+            lease.ClientInstanceId,
+            connectionClass,
+            lease.IssuedAtUtc,
+            lease.LastHeartbeatUtc,
+            lease.ExpiresAtUtc,
+            lease.ServerNode,
+            lease.ClusterId,
+            lease.Runtime.Mode,
+            lease.Runtime.ProjectKey,
+            lease.Runtime.Revision,
+            lease.Runtime.ActivatedAtUtc,
+            lease.Generation,
+            lease.AuthorityRevision);
+    }
+
+    // Keep v1's "viewer" database value even though the public Wave 15 wire term is ViewOnly.
+    private static string ToPersistedConnectionClass(RuntimeConnectionClass connectionClass) =>
+        connectionClass == RuntimeConnectionClass.Interactive ? "interactive" : "viewer";
 }
 
 public static class RuntimeSessionCapabilityProjection
@@ -243,7 +300,7 @@ public static class RuntimeSessionCapabilityProjection
             ? baseline
             : AuthorizationDecision.Denied(
                 baseline.Capability,
-                "The Runtime Viewer session is deliberately downscoped to read-only operation.");
+                "The Runtime viewOnly session is deliberately downscoped to read-only operation.");
     }
 }
 
@@ -253,13 +310,14 @@ public static class RuntimeSessionAccessEvaluator
     /// Applies the logical lease to a baseline backend Authority decision. This is the common
     /// server-side path used for direct HTTP calls as well as tests that model a modified client.
     /// </summary>
-    public static AuthorizationDecision Apply(
+    public static async Task<AuthorizationDecision> ApplyAsync(
         RuntimeSessionLeaseRegistry sessions,
         Guid sessionId,
         string userId,
         ScadaRuntimeDescriptor runtime,
         AuthorizationDecision baseline,
-        string? clientInstanceId = null)
+        string? clientInstanceId = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sessions);
         ArgumentNullException.ThrowIfNull(runtime);
@@ -267,7 +325,12 @@ public static class RuntimeSessionAccessEvaluator
 
         if (!baseline.Allowed) return baseline;
 
-        var validation = sessions.Validate(sessionId, userId, runtime, clientInstanceId);
+        var validation = await sessions.ValidateAsync(
+            sessionId,
+            userId,
+            runtime,
+            clientInstanceId,
+            cancellationToken);
         if (!validation.IsValid || validation.Lease is null)
         {
             return AuthorizationDecision.Denied(

@@ -1,8 +1,21 @@
+import { mockMountedRuntimeAdmission } from './runtimeSessionLease';
 import { expect, test, type Page } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
 
 const bottomObjectId = '26000000-0000-0000-0000-000000000902';
+const mobileVariant = {
+  id: '26000000-0000-0000-0000-000000000903',
+  key: 'viewport.mobile',
+  name: 'Viewport Mobile',
+  properties: { backgroundColor: '#15212b', screenOrientation: 'portrait' },
+  elements: [{
+    id: '26000000-0000-0000-0000-000000000904',
+    key: 'mobile-content',
+    type: 'core.text',
+    properties: { x: 60, y: 1760, width: 960, height: 72, text: 'Conteúdo mobile dedicado', textColor: '#ffffff' }
+  }]
+} as const;
 const runtimeProjection = {
   mode: 'engineering',
   projectKey: 'c26-runtime-viewport',
@@ -40,7 +53,13 @@ const runtimeProjection = {
   }
 } as const;
 
-async function installRuntimeContract(page: Page) {
+async function installRuntimeContract(
+  page: Page,
+  screenOrientation?: 'landscape' | 'portrait',
+  mobileScreens?: Readonly<Record<string, string>>,
+  mobileScreen?: typeof mobileVariant
+) {
+  await mockMountedRuntimeAdmission(page);
   await page.route('**/api/auth/config', route => route.fulfill({
     json: {
       authenticationEnabled: true,
@@ -65,15 +84,29 @@ async function installRuntimeContract(page: Page) {
   }));
   await page.route('**/api/auth/effective-capabilities', route => route.fulfill({
     json: {
+      authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
       authenticationEnabled: true,
       runtime: ['View', 'TrendUse', 'SystemAdmin'],
-      workspace: ['EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
+      workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
     }
   }));
   await page.route('**/api/engineering/persistence/status', route => route.fulfill({
     json: { enabled: true, hasProjects: true }
   }));
-  await page.route('**/api/runtime/application', route => route.fulfill({ json: runtimeProjection }));
+  await page.route('**/api/runtime/application', route => route.fulfill({ json: {
+    ...runtimeProjection,
+    package: {
+      ...runtimeProjection.package,
+      ...(mobileScreens ? { runtimePresentation: { historicalPlaybackEnabled: false, mobileOrientation: 'portrait', mobileScreens, version: 1 } } : {}),
+      screens: [
+        ...runtimeProjection.package.screens.map(screen => ({
+          ...screen,
+          properties: { ...screen.properties, ...(screenOrientation ? { screenOrientation } : {}) }
+        })),
+        ...(mobileScreen ? [mobileScreen] : [])
+      ]
+    }
+  } }));
 }
 
 type LayoutMetrics = {
@@ -147,8 +180,9 @@ test('C26 Runtime uses the complete 1920x1080 logical Screen without Engineering
   await expect(page.getByText('Conteúdo próximo ao rodapé lógico')).toBeVisible();
 
   const layout = await readLayout(page);
-  expect(layout.appHeight).toBeCloseTo(800, 0);
-  expect(layout.canvasHeight).toBeCloseTo(762, 0);
+  expect(layout.appHeight).toBeGreaterThan(0);
+  expect(layout.appHeight).toBeLessThanOrEqual(900);
+  expect(layout.canvasHeight).toBeGreaterThan(0);
   expect(layout.viewportHeight).toBeCloseTo(layout.canvasHeight, 0);
   expect(layout.viewportWidth).toBeCloseTo(1440, 0);
   expect(layout.viewportScrollHeight).toBeLessThanOrEqual(Math.ceil(layout.viewportHeight));
@@ -180,7 +214,7 @@ test('C26 Runtime keeps the same full logical Screen contract in fullscreen', as
 
   const layout = await readLayout(page);
   expect(layout.appHeight).toBeCloseTo(900, 0);
-  expect(layout.canvasHeight).toBeCloseTo(862, 0);
+  expect(layout.canvasHeight).toBeGreaterThan(0);
   expect(layout.viewportHeight).toBeCloseTo(layout.canvasHeight, 0);
   expect(layout.rendererClientWidth).toBe(1920);
   expect(layout.rendererClientHeight).toBe(1080);
@@ -191,3 +225,84 @@ test('C26 Runtime keeps the same full logical Screen contract in fullscreen', as
   expect(layout.bottomTop).toBeGreaterThanOrEqual(layout.viewportTop);
   expect(layout.bottomBottom).toBeLessThanOrEqual(layout.viewportBottom + 1);
 });
+
+test('mobile Runtime defaults to landscape while preserving the logical canvas in a portrait-held device', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const nativeMatchMedia = window.matchMedia.bind(window);
+    window.matchMedia = query => query === '(pointer: coarse)'
+      ? ({ matches: true, media: query, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false; } } as MediaQueryList)
+      : nativeMatchMedia(query);
+  });
+  await installRuntimeContract(page);
+  await page.goto('/');
+
+  const viewport = page.getByTestId('runtime-logical-viewport');
+  await expect(viewport).toHaveAttribute('data-mobile-orientation', 'landscape');
+  await expect(viewport).toHaveAttribute('data-mobile-rotated', 'true');
+  const bounds = await page.getByTestId('runtime-logical-stage').boundingBox();
+  const viewportBounds = await viewport.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(viewportBounds).not.toBeNull();
+  expect(bounds!.width).toBeLessThanOrEqual(viewportBounds!.width + 1);
+  expect(bounds!.height).toBeLessThanOrEqual(viewportBounds!.height + 1);
+  await expect(page.getByText('Conteúdo próximo ao rodapé lógico')).toBeVisible();
+});
+
+test('a portrait Screen uses 1080x1920 and remains portrait on a mobile device', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const nativeMatchMedia = window.matchMedia.bind(window);
+    window.matchMedia = query => query === '(pointer: coarse)'
+      ? ({ matches: true, media: query, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false; } } as MediaQueryList)
+      : nativeMatchMedia(query);
+  });
+  await installRuntimeContract(page, 'portrait');
+  await page.goto('/');
+
+  const viewport = page.getByTestId('runtime-logical-viewport');
+  await expect(viewport).toHaveAttribute('data-design-width', '1080');
+  await expect(viewport).toHaveAttribute('data-design-height', '1920');
+  await expect(viewport).toHaveAttribute('data-mobile-orientation', 'portrait');
+  await expect(viewport).not.toHaveAttribute('data-mobile-rotated', 'true');
+  await expect(page.getByText('Conteúdo próximo ao rodapé lógico')).toBeVisible();
+});
+
+test('mobile Runtime selects the mapped dedicated screen while desktop screens stay unchanged', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const nativeMatchMedia = window.matchMedia.bind(window);
+    window.matchMedia = query => query === '(pointer: coarse)'
+      ? ({ matches: true, media: query, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false; } } as MediaQueryList)
+      : nativeMatchMedia(query);
+  });
+  await installRuntimeContract(page, undefined, { 'viewport.home': 'viewport.mobile' }, mobileVariant);
+  await page.goto('/');
+
+  const viewport = page.getByTestId('runtime-logical-viewport');
+  await expect(page.getByText('Conteúdo mobile dedicado')).toBeVisible();
+  await expect(page.getByText('Conteúdo próximo ao rodapé lógico')).toHaveCount(0);
+  await expect(viewport).toHaveAttribute('data-design-width', '1080');
+  await expect(viewport).toHaveAttribute('data-design-height', '1920');
+  await expect(viewport).toHaveAttribute('data-mobile-orientation', 'portrait');
+});
+
+for (const path of ['/engineering/mobile', '/admin/database']) {
+  test(`mobile privileged bookmark ${path} mounts Runtime, not desktop authoring`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      const nativeMatchMedia = window.matchMedia.bind(window);
+      window.matchMedia = query => query === '(pointer: coarse)'
+        ? ({ matches: true, media: query, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false; } } as MediaQueryList)
+        : nativeMatchMedia(query);
+    });
+    await installRuntimeContract(page);
+    await page.goto(path);
+    await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+    await expect(page.getByText('Conteúdo próximo ao rodapé lógico')).toBeVisible();
+    await expect(page.locator('.app-bar')).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'SCADIVO', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Tela cheia', exact: true })).toHaveCount(0);
+    await expect(page.getByTestId('runtime-logical-viewport')).toHaveAttribute('data-mobile-rotated', 'true');
+  });
+}

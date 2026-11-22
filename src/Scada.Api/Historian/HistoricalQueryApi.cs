@@ -4,6 +4,7 @@ using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.HistoricalQueries;
 using Scada.Core.Tags;
+using Scada.Engineering.DataQueries;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.Historian;
@@ -11,6 +12,8 @@ namespace Scada.Api.Historian;
 public static class HistoricalQueryApi
 {
     public const string Route = "/api/historical/query";
+    public const string DataQueryRoute = "/api/historical/data-query/{key}";
+    public const string TransientDataQueryRoute = "/api/historical/data-query";
     private const string LoggerCategory = "Scada.Api.Historian.HistoricalQueryApi";
 
     public static void AddHistoricalQueryApiCore(this WebApplicationBuilder builder)
@@ -19,6 +22,9 @@ public static class HistoricalQueryApi
         builder.Services.AddHttpContextAccessor();
         builder.Services.TryAddScoped<IHistoricalQueryAuthorizer, ApiHistoricalQueryAuthorizer>();
         builder.Services.TryAddScoped<IHistoricalQueryService, HistoricalQueryService>();
+        builder.Services.TryAddScoped<IDataQueryExecutionService, DataQueryExecutionService>();
+        builder.Services.TryAddScoped<ITransientDataQueryExecutionService>(services =>
+            (ITransientDataQueryExecutionService)services.GetRequiredService<IDataQueryExecutionService>());
     }
 
     public static RouteHandlerBuilder MapHistoricalQueryEndpoints(this WebApplication app)
@@ -37,9 +43,38 @@ public static class HistoricalQueryApi
                     cancellationToken,
                     loggerFactory.CreateLogger(LoggerCategory)));
 
+        app.MapPost(
+            DataQueryRoute,
+            async (
+                string key,
+                DataQueryExecutionRequest request,
+                IDataQueryExecutionService service,
+                ILoggerFactory loggerFactory,
+                CancellationToken cancellationToken) =>
+                await ExecuteDataQueryAsync(
+                    key,
+                    request,
+                    service,
+                    cancellationToken,
+                    loggerFactory.CreateLogger(LoggerCategory)));
+
+        app.MapPost(
+            TransientDataQueryRoute,
+            async (
+                TransientDataQueryExecutionRequest request,
+                ITransientDataQueryExecutionService service,
+                ILoggerFactory loggerFactory,
+                CancellationToken cancellationToken) =>
+                await ExecuteTransientDataQueryAsync(
+                    request,
+                    service,
+                    cancellationToken,
+                    loggerFactory.CreateLogger(LoggerCategory)));
+
         // Report Preview executes only through the accepted Historical Query service,
         // so it is mounted with the same explicitly enabled historical feature bundle.
         app.MapReportExecutionEndpoints();
+        app.MapRuntimeSavedHistory();
         return historicalQuery;
     }
 
@@ -109,9 +144,136 @@ public static class HistoricalQueryApi
         }
     }
 
+    public static async Task<IResult> ExecuteDataQueryAsync(
+        string key,
+        DataQueryExecutionRequest request,
+        IDataQueryExecutionService service,
+        CancellationToken cancellationToken = default,
+        ILogger? logger = null)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return Results.BadRequest(new HistoricalQueryApiError("invalid_query", "Data Query key is required."));
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(service);
+
+        try
+        {
+            var response = await service.ExecuteAsync(key, request, cancellationToken);
+            return Results.Ok(response);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (DataQueryDefinitionNotFoundException)
+        {
+            return Results.NotFound(
+                new HistoricalQueryApiError("query_not_found", "Data Query definition was not found."));
+        }
+        catch (HistoricalQueryUnauthorizedException)
+        {
+            return Results.Unauthorized();
+        }
+        catch (HistoricalQueryForbiddenException)
+        {
+            return Results.Json(
+                new HistoricalQueryApiError("forbidden", "Forbidden."),
+                statusCode: StatusCodes.Status403Forbidden);
+        }
+        catch (HistoricalQueryCursorException)
+        {
+            return Results.BadRequest(
+                new HistoricalQueryApiError(
+                    "invalid_cursor",
+                    "Historical query cursor is invalid, expired, or does not match this request."));
+        }
+        catch (HistoricalQueryValidationException ex)
+        {
+            return Results.BadRequest(
+                new HistoricalQueryApiError("invalid_query", ex.Message));
+        }
+        catch (HistoricalQueryProviderException ex)
+        {
+            logger?.LogError(
+                ex,
+                "Data Query provider failure for definition {QueryKey}.",
+                key);
+            return Results.Json(
+                new HistoricalQueryApiError(
+                    "historical_unavailable",
+                    "Historical query provider is unavailable."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(
+                ex,
+                "Unexpected Data Query execution failure for definition {QueryKey}.",
+                key);
+            return Results.Json(
+                new HistoricalQueryApiError(
+                    "historical_query_failed",
+                    "Historical query execution failed."),
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    public static async Task<IResult> ExecuteTransientDataQueryAsync(
+        TransientDataQueryExecutionRequest request,
+        ITransientDataQueryExecutionService service,
+        CancellationToken cancellationToken = default,
+        ILogger? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(service);
+
+        try
+        {
+            var response = await service.ExecuteTransientAsync(
+                request.Definition,
+                request.Execution,
+                cancellationToken);
+            return Results.Ok(response);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (HistoricalQueryUnauthorizedException)
+        {
+            return Results.Unauthorized();
+        }
+        catch (HistoricalQueryForbiddenException)
+        {
+            return Results.Json(
+                new HistoricalQueryApiError("forbidden", "Forbidden."),
+                statusCode: StatusCodes.Status403Forbidden);
+        }
+        catch (HistoricalQueryValidationException ex)
+        {
+            return Results.BadRequest(
+                new HistoricalQueryApiError("invalid_query", ex.Message));
+        }
+        catch (HistoricalQueryProviderException ex)
+        {
+            logger?.LogError(ex, "Transient Data Query provider failure.");
+            return Results.Json(
+                new HistoricalQueryApiError("historical_unavailable", "Historical query provider is unavailable."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Unexpected transient Data Query execution failure.");
+            return Results.Json(
+                new HistoricalQueryApiError("historical_query_failed", "Historical query execution failed."),
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
     public static SecurityCapability RequiredCapability(string dataset) => dataset switch
     {
         HistoricalDatasets.HistorianSamples => SecurityCapability.TrendUse,
+        HistoricalDatasets.HistorianSamplesV2 => SecurityCapability.TrendUse,
         HistoricalDatasets.AlarmEvents => SecurityCapability.View,
         HistoricalDatasets.OperationalEvents => SecurityCapability.View,
         _ => throw new ArgumentException(

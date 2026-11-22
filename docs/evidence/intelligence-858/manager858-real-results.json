@@ -1,0 +1,78 @@
+{
+  "syntheticOnly": true,
+  "localLogin": true,
+  "noEngineeringModify": true,
+  "transitions": [
+    {
+      "kind": "equipment",
+      "active": true,
+      "revision": 73,
+      "status": 200
+    },
+    {
+      "kind": "equipment",
+      "active": false,
+      "revision": 74,
+      "status": 200
+    },
+    {
+      "kind": "equipment",
+      "active": true,
+      "revision": 75,
+      "status": 200
+    },
+    {
+      "kind": "location",
+      "active": true,
+      "revision": 76,
+      "status": 200
+    },
+    {
+      "kind": "location",
+      "active": false,
+      "revision": 77,
+      "status": 200
+    },
+    {
+      "kind": "location",
+      "active": true,
+      "revision": 78,
+      "status": 200
+    }
+  ],
+  "configurationDenied": 403,
+  "generalSaveDenied": 403,
+  "outsideResourceDenied": 403,
+  "onlyRequestedActiveFlagsChanged": true,
+  "staleRevisionDenied": 409,
+  "authorDraftPreserved": true,
+  "authorDraftDenied": 409,
+  "concurrentStatuses": [
+    200,
+    409
+  ],
+  "finalRevision": 79,
+  "scopeStates": [
+    {
+      "kind": "Equipment",
+      "scopeId": "85300000-0000-0000-0000-000000000200",
+      "active": false,
+      "armed": false,
+      "canManage": true
+    },
+    {
+      "kind": "Equipment",
+      "scopeId": "85500000-0000-0000-0000-000000000501",
+      "active": false,
+      "armed": false,
+      "canManage": false
+    },
+    {
+      "kind": "Location",
+      "scopeId": "85800000-0000-0000-0000-000000000501",
+      "active": true,
+      "armed": false,
+      "canManage": true
+    }
+  ]
+}

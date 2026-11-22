@@ -15,8 +15,14 @@ const backendSchemasUrl = new URL(
 );
 
 const LEGACY_BACKEND_ONLY_KEYS = new Set(['imageResourceId']);
+const FRONTEND_ONLY_KEYS = new Set([
+  'showCancelButton',
+  'showEngineeringUnit',
+  'showSteppers',
+  'unit'
+]);
 
-test('frontend and backend canonical visual property keys remain in lockstep', async () => {
+test('frontend and backend share the canonical property core while browser-only presentation controls remain explicit', async () => {
   const backendFoundation = await readFile(backendFoundationUrl, 'utf8');
   const backendSchemas = await readFile(backendSchemasUrl, 'utf8');
   const backendKeys = [
@@ -30,7 +36,11 @@ test('frontend and backend canonical visual property keys remain in lockstep', a
     .map(definition => definition.key)
     .sort();
 
-  expect(backendKeys).toEqual(frontendKeys);
+  const sharedFrontendKeys = frontendKeys.filter(key => !FRONTEND_ONLY_KEYS.has(key));
+  const actualFrontendOnlyKeys = frontendKeys.filter(key => !backendKeys.includes(key));
+
+  expect(backendKeys).toEqual(sharedFrontendKeys);
+  expect(actualFrontendOnlyKeys).toEqual([...FRONTEND_ONLY_KEYS].sort());
 });
 
 test('backend schema source declares every frontend builtin object type and extended enum contract', async () => {

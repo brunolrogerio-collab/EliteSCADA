@@ -2,14 +2,32 @@
 
 Plataforma SCADA / Supervisório Industrial.
 
-## Estado atual e handoff de coordenação
+## Estado atual, colaboração e handoff
 
-O ponto de entrada para continuar o desenvolvimento sem reconstruir o histórico é:
+O ponto de entrada para continuar o projeto sem reconstruir o histórico é:
 
-- [`docs/CURRENT-COORDINATOR-HANDOFF.md`](docs/CURRENT-COORDINATOR-HANDOFF.md) — **fonte operacional de handoff**, com branch/PR atual, último CI aceito, estado de cada Driver, bloqueios e próxima ação;
-- [`docs/README.md`](docs/README.md) — mapa de autoridade dos documentos, separando estado operacional, arquitetura, laboratório e registros históricos.
+- [`PROJECT GOAL.md`](PROJECT%20GOAL.md) — norte estável de produto/arquitetura;
+- [`LAST CHANGE.md`](LAST%20CHANGE.md) — resumo operacional mutável;
+- [`docs/CHAT-COLLABORATION-PROTOCOL.md`](docs/CHAT-COLLABORATION-PROTOCOL.md) — **protocolo obrigatório para todos os chats/agentes do projeto**;
+- [`docs/CURRENT-COORDINATOR-HANDOFF.md`](docs/CURRENT-COORDINATOR-HANDOFF.md) — ponteiro operacional conciso;
+- [`docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`](docs/NEXT-COORDINATOR-CHAT-HANDOFF.md) — prompt permanente/state-independent para trocar o Main Coordinator;
+- [`docs/README.md`](docs/README.md) — mapa de autoridade documental;
+- handoff específico da Wave/etapa atual, quando existir.
 
-SHAs escritos em documentos são snapshots. Antes de qualquer mutação, releia o head vivo do GitHub e o Actions daquele SHA exato. PRs de workers e documentos de atribuição antigos não substituem o handoff atual.
+### Regra global dos chats
+
+Todo chat que trabalhe no EliteSCADA, não apenas o Main Coordinator, deve seguir `docs/CHAT-COLLABORATION-PROTOCOL.md`.
+
+Em especial:
+
+- toda interação visível ao usuário termina com a hora local atual de `America/Sao_Paulo`, no formato `Hora: HH:MM`;
+- todo passo material de projeto deve ser persistido na superfície correta do repositório, issue ou PR;
+- decisões/blockers/CI/integrations não podem existir apenas na memória do chat;
+- chats paralelos trabalham sob coordenação e devem evitar sobrescrever estado compartilhado mais novo.
+
+Para estado de execução, branch, SHA, PR, blocker e CI atuais, use os handoffs operacionais e **revalide GitHub live**.
+
+SHAs escritos em documentos são snapshots. Antes de qualquer mutação, releia o head vivo do GitHub, os comentários mais recentes das issues/PRs e o Actions do SHA exato. Documentos/assignments históricos não substituem o estado atual.
 
 ## Princípios do projeto
 
@@ -17,7 +35,10 @@ SHAs escritos em documentos são snapshots. Antes de qualquer mutação, releia 
 - entidades de engenharia serializáveis e versionáveis;
 - Engineering Import/Export como recurso transversal desde as fases iniciais;
 - segredos e credenciais nunca armazenados em texto aberto nos arquivos de engenharia;
-- testes automatizados e integração contínua desde o início.
+- testes automatizados e integração contínua desde o início;
+- stable IDs e contratos públicos versionados acima de nomes/paths de exibição;
+- Runtime/Active deriva do Active persistido e não de Working ou biblioteca mutável;
+- Security Authority, Application package, Historian/database e License permanecem autoridades separadas.
 
 ## Engineering Import/Export
 
@@ -35,45 +56,46 @@ Configurações técnicas podem ser exportadas, mas credenciais, senhas, tokens 
 
 ## Revisões de engenharia e runtime
 
-A persistência de engenharia distingue três estados deliberadamente independentes:
+A persistência de engenharia distingue estados deliberadamente independentes:
 
-- **Working Revision**: última revisão salva, ainda em trabalho;
-- **Published Revision**: revisão aprovada para poder ser ativada;
-- **Active Revision**: revisão que foi efetivamente validada e aplicada ao runtime de comunicação.
+- **Working**: estado editável do desenvolvedor;
+- **Revision**: snapshot persistido/imutável;
+- **Published**: revisão aprovada para poder ser ativada;
+- **Active**: revisão efetivamente validada e aplicada ao runtime.
 
-Publicar uma revisão não altera automaticamente o processo em execução. A ativação monta um runtime candidato isolado, inicia os drivers e somente confirma a troca após a persistência aceitar o novo ponteiro `ActiveRevision`. Na linha de convergência, Drivers já adaptados ao contrato compartilhado usam **readiness do Data Source/protocolo** como gate de ativação; readiness não significa que todas as TAGs já possuam qualidade `Good` ou sequer uma primeira amostra. Caminhos legados ainda não convergidos preservam seu comportamento existente até a integração correspondente. Uma falha de compilação, readiness/comunicação exigida ou persistência mantém o runtime anterior.
+Publicar uma revisão não altera automaticamente o processo em execução. A ativação monta um runtime candidato isolado, valida readiness e somente confirma a troca após o boundary durável aceitar a nova Active Revision. Falha de compilação/readiness/comunicação exigida/persistência mantém o runtime anterior.
 
-A API operacional (`/api/tags`, `/api/alarms`, `/api/drivers` e escrita de TAGs) utiliza o runtime realmente ativo. A simulação embutida funciona como fallback de desenvolvimento enquanto não existe uma revisão industrial ativa.
+A API operacional (`/api/tags`, `/api/alarms`, `/api/drivers` e escrita de TAGs) utiliza o runtime realmente ativo. A simulação embutida permanece uma ferramenta de desenvolvimento e nunca substitui silenciosamente uma Active Revision persistida que deveria existir.
 
 ### Projeto vinculado ao processo
 
-Uma instância do runtime hospeda um projeto persistido por vez. Configure a chave do projeto antes de usar a ativação persistida:
+Uma instância do runtime hospeda um projeto persistido por vez. Configure a chave antes de usar a ativação persistida:
 
 ```text
 EngineeringRuntime__ProjectKey=plant-a
 ```
 
-Com PostgreSQL habilitado, a conexão continua sendo fornecida por:
+Com PostgreSQL habilitado:
 
 ```text
 ConnectionStrings__EliteScada=Host=...;Database=...;Username=...;Password=...
 ```
 
-Opcionalmente, o tempo máximo de preparação do candidato pode ser ajustado em segundos:
+Opcionalmente, o tempo máximo de preparação do candidato pode ser ajustado:
 
 ```text
 EngineeringRuntime__ActivationTimeoutSeconds=10
 ```
 
-No reinício do serviço, o EliteSCADA recupera exatamente a revisão registrada como **Active**, mesmo que uma revisão mais nova já esteja **Published** aguardando ativação. Se houver uma Active Revision persistida e ela não puder ser recuperada, o processo falha de forma fechada em vez de iniciar silenciosamente com valores simulados.
+No reinício, o EliteSCADA recupera a revisão registrada como **Active**, mesmo que exista Published mais nova aguardando ativação. Se houver Active persistida e ela não puder ser recuperada com segurança, o processo falha fechado.
 
-A consistência entre o estado durável e o processo vivo pode ser consultada em:
+Consistência durável/runtime:
 
 ```text
 GET /api/engineering/persistence/{projectKey}/runtime
 ```
 
-A ativação explícita da revisão publicada é feita por:
+Ativação explícita da Published:
 
 ```text
 POST /api/engineering/persistence/{projectKey}/published/activate
@@ -81,4 +103,14 @@ POST /api/engineering/persistence/{projectKey}/published/activate
 
 ## CI
 
-O workflow `.github/workflows/dotnet-ci.yml` executa automaticamente restore, build, testes, smoke test do runtime e validação end-to-end em Chromium.
+Não assuma que um PR para a branch de integração atual dispara automaticamente toda a suíte disponível. Releia os workflows e a política de CI vigente.
+
+A direção arquitetural é validação proporcional por perfil/tier:
+
+- T0 local/focused;
+- T1 DEV PR sanity/profile;
+- T2 integrated broader;
+- T3 checkpoint;
+- T4 final full.
+
+Não ligue todas as suítes pesadas a todo PR apenas para compensar triggers históricos. Seven-Driver, browser e suítes especiais devem ser executados por causalidade/risco e nos checkpoints apropriados.

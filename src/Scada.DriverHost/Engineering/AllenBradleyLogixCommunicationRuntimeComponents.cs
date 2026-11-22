@@ -314,7 +314,7 @@ public sealed class AllenBradleyLogixCommunicationRuntimePlanner : ICommunicatio
             metadata,
             access,
             dto.AddressSelector,
-            dto.CommunicationBinding);
+            dto.CommunicationBinding, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static void Set(Dictionary<string, string> metadata, string key, double? value)

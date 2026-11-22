@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <circle cx="55" cy="64" r="28" fill="#D1D5DB" stroke="#374151" stroke-width="6" data-elitescada-slot="body" />
+  <circle cx="55" cy="64" r="8" fill="none" stroke="#374151" stroke-width="6" />
+  <path d="M 55 36 C 82 38 95 49 105 63 L 105 42 L 116 42 L 116 78 L 105 78 L 105 67 C 91 71 80 84 72 95" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" data-elitescada-slot="outline" />
+  <line x1="12" y1="64" x2="27" y2="64" stroke="#374151" stroke-width="6" stroke-linecap="round" />
+</svg>

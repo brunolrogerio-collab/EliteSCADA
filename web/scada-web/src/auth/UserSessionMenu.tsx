@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useAuth } from './AuthGate';
 import { UserSessionMenuView } from './UserSessionMenuView';
+import { RuntimeSessionClassPanel } from '../runtime/application/RuntimeSessionClassPanel';
 import {
   getUserSessionMenuLabels,
   resolveSessionLocale,
@@ -12,9 +13,11 @@ const localeKey = 'elitescada.engineering.locale';
 
 export type UserSessionMenuProps = {
   locale?: SessionLocale;
+  includeRuntimeSessionControls?: boolean;
+  runtimeFullscreenExit?: { label: string; onActivate: () => void };
 };
 
-export function UserSessionMenu({ locale }: UserSessionMenuProps) {
+export function UserSessionMenu({ locale, includeRuntimeSessionControls = false, runtimeFullscreenExit }: UserSessionMenuProps) {
   const { profile, logout, switchUser, canSwitchUser } = useAuth();
 
   const resolvedLocale = useMemo(
@@ -30,6 +33,8 @@ export function UserSessionMenu({ locale }: UserSessionMenuProps) {
       canSwitchUser={canSwitchUser}
       onSwitchUser={switchUser}
       onLogout={logout}
+      runtimeSessionControls={includeRuntimeSessionControls ? <RuntimeSessionClassPanel locale={resolvedLocale} /> : undefined}
+      runtimeFullscreenExit={runtimeFullscreenExit}
     />
   );
 }

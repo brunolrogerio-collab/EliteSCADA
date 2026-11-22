@@ -1,0 +1,699 @@
+{
+  "evidenceLimits": [
+    "synthetic conditional only for three declared target signals",
+    "no operational, equipment-health, diagnosis, RUL, standards, product or field validation",
+    "overlapping windows and AR observations are not independent trials",
+    "all sensitivity-only cases remain descriptive and cannot satisfy strong-class gates"
+  ],
+  "experimentId": "W15-INTEL-4F-WINDOWED-2026-10-20-01",
+  "frozenConfigurationSha256": "29667F87606DA144C9ABDDFACDBD3D6B9FC990B0B44B19E1B719D652246605A1",
+  "harnessSha256": "87D0BBD7AF6C0F663471352FBB05E1533398FBD18D3528D7444E1335E769973B",
+  "holdoutId": "W15-INTEL-4F-WINDOWED-HOLDOUT-2026-10-20-01",
+  "holdoutMetrics": {
+    "commonNonfaultTargets": {
+      "falseEpisodeRatePass": false,
+      "falseEpisodesPer24ScoredEligibleHours": 1.5824175824175823,
+      "falseEpisodesPer24ScoredEligibleHoursMaximum": 1.0,
+      "pointFalsePositiveMaximum": 0.01,
+      "pointFalsePositivePass": true,
+      "pointFalsePositiveRate": 0.0011904761904761906
+    },
+    "scenarioAggregates": {
+      "all-targets-plus-3-fit-scales": {
+        "availability": 0.7583333333333333,
+        "clusterBootstrap95": {
+          "detectedLatencyP50Seconds": {
+            "lower95": 210.0,
+            "upper95": 230.0,
+            "validReplicates": 2000
+          },
+          "detectedLatencyP95Seconds": {
+            "lower95": 320.0,
+            "upper95": 510.0,
+            "validReplicates": 2000
+          },
+          "episodesPer24ScoredEligibleHours": {
+            "lower95": 121.84615384615384,
+            "upper95": 138.46153846153845,
+            "validReplicates": 2000
+          },
+          "eventRecall": {
+            "lower95": 1.0,
+            "upper95": 1.0,
+            "validReplicates": 2000
+          },
+          "pointExceedanceRate": {
+            "lower95": 0.8388278388278388,
+            "upper95": 0.8856227106227106,
+            "validReplicates": 2000
+          },
+          "timelyFraction600s": {
+            "lower95": 0.9583333333333334,
+            "upper95": 1.0,
+            "validReplicates": 2000
+          }
+        },
+        "detectedLatencySeconds": {
+          "detectedGroupDenominator": 120,
+          "max": 710,
+          "p50": 220.0,
+          "p95": 390.0
+        },
+        "eligibleCohorts": 14400,
+        "episodes": 164,
+        "episodesPer24ScoredEligibleHours": 129.75824175824175,
+        "eventDetectedGroups": 120,
+        "eventRecall": 1.0,
+        "groupsWithEpisodes": 120,
+        "independentEligibleGroups": 120,
+        "ineligibleCohorts": 0,
+        "ineligibleReasonCounts": {},
+        "inputCohorts": 14400,
+        "lateOrMissedGroups": 2,
+        "numericalNoScoreWindows": 0,
+        "pointExceedanceRate": 0.8627289377289378,
+        "preOnsetEpisodes": 0,
+        "rawEligibleSeconds": 144000,
+        "resetCount": 0,
+        "scenario": "all-targets-plus-3-fit-scales",
+        "scoredDecisions": 10920,
+        "scoredEligibleSeconds": 109200,
+        "sourceGroups": 120,
+        "strictExceedances": 9421,
+        "timelyDetectedGroups": 118,
+        "timelyFraction600s": 0.9833333333333333,
+        "warmupCohorts": 3480
+      },
+      "current-linear-ramp-to-3": {
+        "availability": 0.7583333333333333,
+        "clusterBootstrap95": {
+          "detectedLatencyP50Seconds": {
+            "lower95": 710.0,
+            "upper95": 770.0,
+            "validReplicates": 2000
+          },
+          "detectedLatencyP95Seconds": {
+            "lower95": 880.0,
+            "upper95": 980.0,
+            "validReplicates": 2000
+          },
+          "episodesPer24ScoredEligibleHours": {
+            "lower95": 97.31868131868131,
+            "upper95": 110.76923076923077,
+            "validReplicates": 2000
+          },
+          "eventRecall": {
+            "lower95": 0.9166666666666666,
+            "upper95": 0.9916666666666667,
+            "validReplicates": 2000
+          },
+          "pointExceedanceRate": {
+            "lower95": 0.28598901098901097,
+            "upper95": 0.33507326007326005,
+            "validReplicates": 2000
+          },
+          "timelyFraction600s": {
+            "lower95": 0.03333333333333333,
+            "upper95": 0.13333333333333333,
+            "validReplicates": 2000
+          }
+        },
+        "detectedLatencySeconds": {
+          "detectedGroupDenominator": 115,
+          "max": 1060,
+          "p50": 720.0,
+          "p95": 920.0
+        },
+        "eligibleCohorts": 14400,
+        "episodes": 131,
+        "episodesPer24ScoredEligibleHours": 103.64835164835165,
+        "eventDetectedGroups": 115,
+        "eventRecall": 0.9583333333333334,
+        "groupsWithEpisodes": 115,
+        "independentEligibleGroups": 120,
+        "ineligibleCohorts": 0,
+        "ineligibleReasonCounts": {},
+        "inputCohorts": 14400,
+        "lateOrMissedGroups": 110,
+        "numericalNoScoreWindows": 0,
+        "pointExceedanceRate": 0.3101648351648352,
+        "preOnsetEpisodes": 0,
+        "rawEligibleSeconds": 144000,
+        "resetCount": 0,
+        "scenario": "current-linear-ramp-to-3",
+        "scoredDecisions": 10920,
+        "scoredEligibleSeconds": 109200,
+        "sourceGroups": 120,
+        "strictExceedances": 3387,
+        "timelyDetectedGroups": 10,
+        "timelyFraction600s": 0.08333333333333333,
+        "warmupCohorts": 3480
+      },
+      "current-plus-1-fit-scale": {
+        "availability": 0.7583333333333333,
+        "clusterBootstrap95": {
+          "detectedLatencyP50Seconds": {
+            "lower95": 470.0,
+            "upper95": 470.0,
+            "validReplicates": 1731
+          },
+          "detectedLatencyP95Seconds": {
+            "lower95": 470.0,
+            "upper95": 470.0,
+            "validReplicates": 1731
+          },
+          "episodesPer24ScoredEligibleHours": {
+            "lower95": 0.0,
+            "upper95": 3.956043956043956,
+            "validReplicates": 2000
+          },
+          "eventRecall": {
+            "lower95": 0.0,
+            "upper95": 0.041666666666666664,
+            "validReplicates": 2000
+          },
+          "pointExceedanceRate": {
+            "lower95": 0.0,
+            "upper95": 0.0032967032967032967,
+            "validReplicates": 2000
+          },
+          "timelyFraction600s": {
+            "lower95": 0.0,
+            "upper95": 0.041666666666666664,
+            "validReplicates": 2000
+          }
+        },
+        "detectedLatencySeconds": {
+          "detectedGroupDenominator": 2,
+          "max": 470,
+          "p50": 470.0,
+          "p95": 470.0
+        },
+        "eligibleCohorts": 14400,
+        "episodes": 2,
+        "episodesPer24ScoredEligibleHours": 1.5824175824175823,
+        "eventDetectedGroups": 2,
+        "eventRecall": 0.016666666666666666,
+        "groupsWithEpisodes": 2,
+        "independentEligibleGroups": 120,
+        "ineligibleCohorts": 0,
+        "ineligibleReasonCounts": {},
+        "inputCohorts": 14400,
+        "lateOrMissedGroups": 118,
+        "numericalNoScoreWindows": 0,
+        "pointExceedanceRate": 0.0011904761904761906,
+        "preOnsetEpisodes": 0,
+        "rawEligibleSeconds": 144000,
+        "resetCount": 0,
+        "scenario": "current-plus-1-fit-scale",
+        "scoredDecisions": 10920,
+        "scoredEligibleSeconds": 109200,
+        "sourceGroups": 120,
+        "strictExceedances": 13,
+        "timelyDetectedGroups": 2,
+        "timelyFraction600s": 0.016666666666666666,
+        "warmupCohorts": 3480
+      },
+      "current-plus-2-fit-scales": {
+        "availability": 0.7583333333333333,
+        "clusterBootstrap95": {
+          "detectedLatencyP50Seconds": {
+            "lower95": 470.0,
+            "upper95": 680.0,
+            "validReplicates": 2000
+          },
+          "detectedLatencyP95Seconds": {
+            "lower95": 740.0,
+            "upper95": 1070.0,
+            "validReplicates": 2000
+          },
+          "episodesPer24ScoredEligibleHours": {
+            "lower95": 11.076923076923077,
+            "upper95": 26.10989010989011,
+            "validReplicates": 2000
+          },
+          "eventRecall": {
+            "lower95": 0.11666666666666667,
+            "upper95": 0.25833333333333336,
+            "validReplicates": 2000
+          },
+          "pointExceedanceRate": {
+            "lower95": 0.00924908424908425,
+            "upper95": 0.023443223443223443,
+            "validReplicates": 2000
+          },
+          "timelyFraction600s": {
+            "lower95": 0.058333333333333334,
+            "upper95": 0.18333333333333332,
+            "validReplicates": 2000
+          }
+        },
+        "detectedLatencySeconds": {
+          "detectedGroupDenominator": 22,
+          "max": 1070,
+          "p50": 540.0,
+          "p95": 940.0
+        },
+        "eligibleCohorts": 14400,
+        "episodes": 23,
+        "episodesPer24ScoredEligibleHours": 18.197802197802197,
+        "eventDetectedGroups": 22,
+        "eventRecall": 0.18333333333333332,
+        "groupsWithEpisodes": 22,
+        "independentEligibleGroups": 120,
+        "ineligibleCohorts": 0,
+        "ineligibleReasonCounts": {},
+        "inputCohorts": 14400,
+        "lateOrMissedGroups": 106,
+        "numericalNoScoreWindows": 0,
+        "pointExceedanceRate": 0.01575091575091575,
+        "preOnsetEpisodes": 0,
+        "rawEligibleSeconds": 144000,
+        "resetCount": 0,
+        "scenario": "current-plus-2-fit-scales",
+        "scoredDecisions": 10920,
+        "scoredEligibleSeconds": 109200,
+        "sourceGroups": 120,
+        "strictExceedances": 172,
+        "timelyDetectedGroups": 14,
+        "timelyFraction600s": 0.11666666666666667,
+        "warmupCohorts": 3480
+      },
+      "current-plus-3-fit-scales": {
+        "availability": 0.7583333333333333,
+        "clusterBootstrap95": {
+          "detectedLatencyP50Seconds": {
+            "lower95": 240.0,
+            "upper95": 290.0,
+            "validReplicates": 2000
+          },
+          "detectedLatencyP95Seconds": {
+            "lower95": 650.0,
+            "upper95": 830.0,
+            "validReplicates": 2000
+          },
+          "episodesPer24ScoredEligibleHours": {
+            "lower95": 144.0,
+            "upper95": 165.36263736263737,
+            "validReplicates": 2000
+          },
+          "eventRecall": {
+            "lower95": 1.0,
+            "upper95": 1.0,
+            "validReplicates": 2000
+          },
+          "pointExceedanceRate": {
+            "lower95": 0.593956043956044,
+            "upper95": 0.670054945054945,
+            "validReplicates": 2000
+          },
+          "timelyFraction600s": {
+            "lower95": 0.8166666666666667,
+            "upper95": 0.9333333333333333,
+            "validReplicates": 2000
+          }
+        },
+        "detectedLatencySeconds": {
+          "detectedGroupDenominator": 120,
+          "max": 980,
+          "p50": 260.0,
+          "p95": 750.0
+        },
+        "eligibleCohorts": 14400,
+        "episodes": 195,
+        "episodesPer24ScoredEligibleHours": 154.28571428571428,
+        "eventDetectedGroups": 120,
+        "eventRecall": 1.0,
+        "groupsWithEpisodes": 120,
+        "independentEligibleGroups": 120,
+        "ineligibleCohorts": 0,
+        "ineligibleReasonCounts": {},
+        "inputCohorts": 14400,
+        "lateOrMissedGroups": 15,
+        "numericalNoScoreWindows": 0,
+        "pointExceedanceRate": 0.633058608058608,
+        "preOnsetEpisodes": 0,
+        "rawEligibleSeconds": 144000,
+        "resetCount": 0,
+        "scenario": "current-plus-3-fit-scales",
+        "scoredDecisions": 10920,
+        "scoredEligibleSeconds": 109200,
+        "sourceGroups": 120,
+        "strictExceedances": 6913,
+        "timelyDetectedGroups": 105,
+        "timelyFraction600s": 0.875,
+        "warmupCohorts": 3480
+      },
+      "mixed-relationship-and-current-plus-3": {
+        "availability": 0.7583333333333333,
+        "clusterBootstrap95": {
+          "detectedLatencyP50Seconds": {
+            "lower95": 220.0,
+            "upper95": 250.0,
+            "validReplicates": 2000
+          },
+          "detectedLatencyP95Seconds": {
+            "lower95": 310.0,
+            "upper95": 330.0,
+            "validReplicates": 2000
+          },
+          "episodesPer24ScoredEligibleHours": {
+            "lower95": 106.81318681318682,
+            "upper95": 121.84615384615384,
+            "validReplicates": 2000
+          },
+          "eventRecall": {
+            "lower95": 1.0,
+            "upper95": 1.0,
+            "validReplicates": 2000
+          },
+          "pointExceedanceRate": {
+            "lower95": 0.9052197802197802,
+            "upper95": 0.9311355311355312,
+            "validReplicates": 2000
+          },
+          "timelyFraction600s": {
+            "lower95": 1.0,
+            "upper95": 1.0,
+            "validReplicates": 2000
+          }
+        },
+        "detectedLatencySeconds": {
+          "detectedGroupDenominator": 120,
+          "max": 500,
+          "p50": 230.0,
+          "p95": 320.0
+        },
+        "eligibleCohorts": 14400,
+        "episodes": 144,
+        "episodesPer24ScoredEligibleHours": 113.93406593406593,
+        "eventDetectedGroups": 120,
+        "eventRecall": 1.0,
+        "groupsWithEpisodes": 120,
+        "independentEligibleGroups": 120,
+        "ineligibleCohorts": 0,
+        "ineligibleReasonCounts": {},
+        "inputCohorts": 14400,
+        "lateOrMissedGroups": 0,
+        "numericalNoScoreWindows": 0,
+        "pointExceedanceRate": 0.9187728937728937,
+        "preOnsetEpisodes": 0,
+        "rawEligibleSeconds": 144000,
+        "resetCount": 0,
+        "scenario": "mixed-relationship-and-current-plus-3",
+        "scoredDecisions": 10920,
+        "scoredEligibleSeconds": 109200,
+        "sourceGroups": 120,
+        "strictExceedances": 10033,
+        "timelyDetectedGroups": 120,
+        "timelyFraction600s": 1.0,
+        "warmupCohorts": 3480
+      },
+      "nonfault-context": {
+        "availability": 0.7583333333333333,
+        "clusterBootstrap95": {
+          "falseEpisodesPer24ScoredEligibleHours": {
+            "lower95": 0.0,
+            "upper95": 3.956043956043956,
+            "validReplicates": 2000
+          },
+          "pointFalsePositiveRate": {
+            "lower95": 0.0,
+            "upper95": 0.0032967032967032967,
+            "validReplicates": 2000
+          }
+        },
+        "detectedLatencySeconds": null,
+        "eligibleCohorts": 14400,
+        "episodes": 2,
+        "episodesPer24ScoredEligibleHours": 1.5824175824175823,
+        "eventDetectedGroups": null,
+        "eventRecall": null,
+        "falseEpisodesPer24ScoredEligibleHours": 1.5824175824175823,
+        "groupsWithEpisodes": 2,
+        "independentEligibleGroups": 120,
+        "ineligibleCohorts": 0,
+        "ineligibleReasonCounts": {},
+        "inputCohorts": 14400,
+        "lateOrMissedGroups": null,
+        "numericalNoScoreWindows": 0,
+        "pointFalsePositiveRate": 0.0011904761904761906,
+        "preOnsetEpisodes": 0,
+        "rawEligibleSeconds": 144000,
+        "resetCount": 0,
+        "scenario": "nonfault-context",
+        "scoredDecisions": 10920,
+        "scoredEligibleSeconds": 109200,
+        "sourceGroups": 120,
+        "strictExceedances": 13,
+        "timelyDetectedGroups": null,
+        "timelyFraction600s": null,
+        "warmupCohorts": 3480
+      },
+      "relationship-current-flow-flip": {
+        "availability": 0.7583333333333333,
+        "clusterBootstrap95": {
+          "detectedLatencyP50Seconds": {
+            "lower95": 240.0,
+            "upper95": 280.0,
+            "validReplicates": 2000
+          },
+          "detectedLatencyP95Seconds": {
+            "lower95": 330.0,
+            "upper95": 500.0,
+            "validReplicates": 2000
+          },
+          "episodesPer24ScoredEligibleHours": {
+            "lower95": 128.96703296703296,
+            "upper95": 153.4945054945055,
+            "validReplicates": 2000
+          },
+          "eventRecall": {
+            "lower95": 1.0,
+            "upper95": 1.0,
+            "validReplicates": 2000
+          },
+          "pointExceedanceRate": {
+            "lower95": 0.811996336996337,
+            "upper95": 0.8562271062271062,
+            "validReplicates": 2000
+          },
+          "timelyFraction600s": {
+            "lower95": 1.0,
+            "upper95": 1.0,
+            "validReplicates": 2000
+          }
+        },
+        "detectedLatencySeconds": {
+          "detectedGroupDenominator": 120,
+          "max": 580,
+          "p50": 260.0,
+          "p95": 380.0
+        },
+        "eligibleCohorts": 14400,
+        "episodes": 178,
+        "episodesPer24ScoredEligibleHours": 140.83516483516485,
+        "eventDetectedGroups": 120,
+        "eventRecall": 1.0,
+        "groupsWithEpisodes": 120,
+        "independentEligibleGroups": 120,
+        "ineligibleCohorts": 0,
+        "ineligibleReasonCounts": {},
+        "inputCohorts": 14400,
+        "lateOrMissedGroups": 0,
+        "numericalNoScoreWindows": 0,
+        "pointExceedanceRate": 0.8356227106227107,
+        "preOnsetEpisodes": 0,
+        "rawEligibleSeconds": 144000,
+        "resetCount": 0,
+        "scenario": "relationship-current-flow-flip",
+        "scoredDecisions": 10920,
+        "scoredEligibleSeconds": 109200,
+        "sourceGroups": 120,
+        "strictExceedances": 9125,
+        "timelyDetectedGroups": 120,
+        "timelyFraction600s": 1.0,
+        "warmupCohorts": 3480
+      },
+      "residual-dispersion-0.5x": {
+        "availability": 0.7583333333333333,
+        "clusterBootstrap95": {
+          "detectedLatencyP50Seconds": {
+            "lower95": 470.0,
+            "upper95": 470.0,
+            "validReplicates": 1235
+          },
+          "detectedLatencyP95Seconds": {
+            "lower95": 470.0,
+            "upper95": 470.0,
+            "validReplicates": 1235
+          },
+          "episodesPer24ScoredEligibleHours": {
+            "lower95": 0.0,
+            "upper95": 2.3736263736263736,
+            "validReplicates": 2000
+          },
+          "eventRecall": {
+            "lower95": 0.0,
+            "upper95": 0.025,
+            "validReplicates": 2000
+          },
+          "pointExceedanceRate": {
+            "lower95": 0.0,
+            "upper95": 0.0032967032967032967,
+            "validReplicates": 2000
+          },
+          "timelyFraction600s": {
+            "lower95": 0.0,
+            "upper95": 0.025,
+            "validReplicates": 2000
+          }
+        },
+        "detectedLatencySeconds": {
+          "detectedGroupDenominator": 1,
+          "max": 470,
+          "p50": 470.0,
+          "p95": 470.0
+        },
+        "eligibleCohorts": 14400,
+        "episodes": 1,
+        "episodesPer24ScoredEligibleHours": 0.7912087912087912,
+        "eventDetectedGroups": 1,
+        "eventRecall": 0.008333333333333333,
+        "groupsWithEpisodes": 1,
+        "independentEligibleGroups": 120,
+        "ineligibleCohorts": 0,
+        "ineligibleReasonCounts": {},
+        "inputCohorts": 14400,
+        "lateOrMissedGroups": 119,
+        "numericalNoScoreWindows": 0,
+        "pointExceedanceRate": 0.0011904761904761906,
+        "preOnsetEpisodes": 0,
+        "rawEligibleSeconds": 144000,
+        "resetCount": 0,
+        "scenario": "residual-dispersion-0.5x",
+        "scoredDecisions": 10920,
+        "scoredEligibleSeconds": 109200,
+        "sourceGroups": 120,
+        "strictExceedances": 13,
+        "timelyDetectedGroups": 1,
+        "timelyFraction600s": 0.008333333333333333,
+        "warmupCohorts": 3480
+      },
+      "residual-dispersion-2x": {
+        "availability": 0.7583333333333333,
+        "clusterBootstrap95": {
+          "detectedLatencyP50Seconds": {
+            "lower95": 470.0,
+            "upper95": 780.0,
+            "validReplicates": 1908
+          },
+          "detectedLatencyP95Seconds": {
+            "lower95": 470.0,
+            "upper95": 780.0,
+            "validReplicates": 1908
+          },
+          "episodesPer24ScoredEligibleHours": {
+            "lower95": 0.0,
+            "upper95": 5.538461538461538,
+            "validReplicates": 2000
+          },
+          "eventRecall": {
+            "lower95": 0.0,
+            "upper95": 0.058333333333333334,
+            "validReplicates": 2000
+          },
+          "pointExceedanceRate": {
+            "lower95": 0.0,
+            "upper95": 0.004487179487179487,
+            "validReplicates": 2000
+          },
+          "timelyFraction600s": {
+            "lower95": 0.0,
+            "upper95": 0.041666666666666664,
+            "validReplicates": 2000
+          }
+        },
+        "detectedLatencySeconds": {
+          "detectedGroupDenominator": 3,
+          "max": 780,
+          "p50": 470.0,
+          "p95": 780.0
+        },
+        "eligibleCohorts": 14400,
+        "episodes": 3,
+        "episodesPer24ScoredEligibleHours": 2.3736263736263736,
+        "eventDetectedGroups": 3,
+        "eventRecall": 0.025,
+        "groupsWithEpisodes": 3,
+        "independentEligibleGroups": 120,
+        "ineligibleCohorts": 0,
+        "ineligibleReasonCounts": {},
+        "inputCohorts": 14400,
+        "lateOrMissedGroups": 118,
+        "numericalNoScoreWindows": 0,
+        "pointExceedanceRate": 0.0019230769230769232,
+        "preOnsetEpisodes": 0,
+        "rawEligibleSeconds": 144000,
+        "resetCount": 0,
+        "scenario": "residual-dispersion-2x",
+        "scoredDecisions": 10920,
+        "scoredEligibleSeconds": 109200,
+        "sourceGroups": 120,
+        "strictExceedances": 21,
+        "timelyDetectedGroups": 2,
+        "timelyFraction600s": 0.016666666666666666,
+        "warmupCohorts": 3480
+      }
+    },
+    "sensitivityScenarios": {
+      "current-linear-ramp-to-3": "DESCRIPTIVE_ONLY_NOT_A_STRONG_CLASS_TARGET",
+      "current-plus-1-fit-scale": "DESCRIPTIVE_ONLY_NOT_A_STRONG_CLASS_TARGET",
+      "current-plus-2-fit-scales": "DESCRIPTIVE_ONLY_NOT_A_STRONG_CLASS_TARGET"
+    },
+    "strongClassDisposition": {
+      "all-targets-plus-3-fit-scales": "FAIL",
+      "current-plus-3-fit-scales": "FAIL",
+      "mixed-relationship-and-current-plus-3": "FAIL",
+      "relationship-current-flow-flip": "FAIL",
+      "residual-dispersion-0.5x": "FAIL",
+      "residual-dispersion-2x": "FAIL"
+    }
+  },
+  "manifestSha256": "A91F7AD50468CE59B4FBE872C822973F641777255C6DB3F6A2B67AF7050A32EC",
+  "protocolSha256": "ACA2182BF2F0BB3BB104CEB2F39C01693A19D4B8B68A9CE440B4AFCF5F5E5AFD",
+  "resources": {
+    "cpuSeconds": 29.109375,
+    "generatedUniqueScalarTargets": 432000,
+    "generatedUniqueVectors": 144000,
+    "limits": {
+      "cpuSeconds": 900,
+      "peakRssBytes": 536870912,
+      "wallSeconds": 1200
+    },
+    "peakRssBytes": 50528256,
+    "processingPassRows": {
+      "bootstrapReplicates": 2000,
+      "holdoutGeneratedRows": 144000,
+      "holdoutWindowDecisionRows": 144000
+    },
+    "wallSeconds": 32.53793759999826
+  },
+  "runtime": {
+    "imageRef": null,
+    "implementation": "CPython",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.14.6",
+    "system": "Windows"
+  },
+  "schemaVersion": 1,
+  "sourceCommitAtClaim": "27d7a543479e1cdf0b47fa2a11115bdb1a0a934d",
+  "state": "single-holdout-consumed",
+  "testSha256": "FC36623A4D7BC1F50EC2A85DBE9AA825DB1312BC0A4725D7A2362DF097D6E089",
+  "threshold": {
+    "nearestRankIndexZeroBased": 5454,
+    "nonfaultScoreCount": 5460,
+    "quantile": 0.999,
+    "value": 10.959598773199875
+  }
+}

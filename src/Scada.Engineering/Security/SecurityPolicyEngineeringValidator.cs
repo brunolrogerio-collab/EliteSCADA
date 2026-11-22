@@ -1,15 +1,19 @@
 using Scada.Engineering.Contracts;
+using Scada.Security.Authorization;
 
 namespace Scada.Engineering.Security;
 
-internal static class SecurityPolicyEngineeringValidator
+public static class SecurityPolicyEngineeringValidator
 {
     private static readonly string[] SensitiveMetadataFragments =
     {
         "password", "passwordhash", "passwd", "secret", "token", "credential", "privatekey", "apikey"
     };
 
-    public static IReadOnlyCollection<ImportIssue> Validate(SecurityRoleEngineeringDto role)
+    public static IReadOnlyCollection<ImportIssue> Validate(
+        SecurityRoleEngineeringDto role,
+        SecurityScopeGraph? scopeGraph = null,
+        bool requiresStableScopeNode = false)
     {
         var issues = new List<ImportIssue>();
         var key = string.IsNullOrWhiteSpace(role.Key) ? role.Name : role.Key;
@@ -34,17 +38,60 @@ internal static class SecurityPolicyEngineeringValidator
                     $"Capability '{grant.Capability}' contains the same scope more than once.",
                     key));
 
-            ValidateScope(grant.Scope, key, issues);
+            ValidateScope(grant.Scope, key, issues, scopeGraph, requiresStableScopeNode);
+            if (grant.Capability == SecurityCapability.AssetProcessIntelligenceManage)
+                ValidateIntelligenceManagerScope(grant.Scope, key, issues, scopeGraph);
             ValidateMetadata(grant.Metadata, key, $"grant {grant.Capability}", issues);
         }
 
         return issues;
     }
 
+    private static void ValidateIntelligenceManagerScope(
+        AuthorizationScopeEngineeringDto? scope,
+        string roleKey,
+        List<ImportIssue> issues,
+        SecurityScopeGraph? scopeGraph)
+    {
+        // Like other capabilities, a null scope explicitly grants management of all resources.
+        if (scope is null) return;
+
+        if (scope?.ScopeNodeId is not { } scopeNodeId || scopeNodeId == Guid.Empty)
+        {
+            issues.Add(Error(
+                "INTELLIGENCE_MANAGER_SCOPE_REQUIRED",
+                "A scoped AssetProcessIntelligenceManage grant requires a stable Equipment or Location node. Use a null scope for a global grant.",
+                roleKey));
+            return;
+        }
+
+        var node = scopeGraph?.Find(scopeNodeId);
+        if (node is null ||
+            node.Kind is not (SecurityScopeNodeKind.Equipment or SecurityScopeNodeKind.Location) ||
+            !node.ResourceId.HasValue || node.ResourceId == Guid.Empty)
+        {
+            issues.Add(Error(
+                "INTELLIGENCE_MANAGER_SCOPE_KIND_INVALID",
+                "AssetProcessIntelligenceManage may be granted only on a stable Equipment or Location Authority node.",
+                roleKey));
+        }
+
+        if (scope.Area is not null || scope.EquipmentPath is not null || scope.ScreenKey is not null ||
+            scope.TagPath is not null || scope.CommandKey is not null)
+        {
+            issues.Add(Error(
+                "INTELLIGENCE_MANAGER_SCOPE_LEGACY_DIMENSION_FORBIDDEN",
+                "AssetProcessIntelligenceManage must use only its stable Authority scope node.",
+                roleKey));
+        }
+    }
+
     private static void ValidateScope(
         AuthorizationScopeEngineeringDto? scope,
         string roleKey,
-        List<ImportIssue> issues)
+        List<ImportIssue> issues,
+        SecurityScopeGraph? scopeGraph,
+        bool requiresStableScopeNode)
     {
         if (scope is null) return;
 
@@ -53,6 +100,28 @@ internal static class SecurityPolicyEngineeringValidator
         ValidateScopeField(scope.ScreenKey, "screenKey", roleKey, issues);
         ValidateScopeField(scope.TagPath, "tagPath", roleKey, issues);
         ValidateScopeField(scope.CommandKey, "commandKey", roleKey, issues);
+        if (AuthorityScopeEngineeringMigration.HasUnmigratedLegacyText(scope))
+        {
+            issues.Add(Error(
+                "SECURITY_LEGACY_SCOPE_MIGRATION_BLOCKED",
+                "Legacy text scope could not be resolved to exactly one stable Authority scope node. Wildcards, areas and ambiguous references must be migrated explicitly.",
+                roleKey));
+        }
+        if (requiresStableScopeNode && (!scope.ScopeNodeId.HasValue || scope.ScopeNodeId == Guid.Empty))
+        {
+            issues.Add(Error(
+                "SECURITY_SCOPE_NODE_REQUIRED",
+                "A schema-18 security scope must reference a non-empty stable scope node id. Use a null scope for an unscoped grant.",
+                roleKey));
+        }
+        if (scope.ScopeNodeId.HasValue &&
+            (scope.ScopeNodeId == Guid.Empty || scopeGraph is null || !scopeGraph.Contains(scope.ScopeNodeId.Value)))
+        {
+            issues.Add(Error(
+                "SECURITY_SCOPE_NODE_NOT_FOUND",
+                $"Security grant scope node '{scope.ScopeNodeId}' was not found in the canonical hierarchy.",
+                roleKey));
+        }
     }
 
     private static void ValidateScopeField(
@@ -99,7 +168,9 @@ internal static class SecurityPolicyEngineeringValidator
             scope.EquipmentPath ?? string.Empty,
             scope.ScreenKey ?? string.Empty,
             scope.TagPath ?? string.Empty,
-            scope.CommandKey ?? string.Empty
+            scope.CommandKey ?? string.Empty,
+            scope.ScopeNodeId?.ToString("D") ?? string.Empty,
+            scope.IncludeDescendants.ToString()
         });
 
     private static ImportIssue Error(string code, string message, string key) =>

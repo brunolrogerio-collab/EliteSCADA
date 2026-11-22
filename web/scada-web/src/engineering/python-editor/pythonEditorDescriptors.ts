@@ -72,7 +72,7 @@ export function buildEntryPointCompletions(
 
     completions.push({
       label: handler,
-      detail: `EliteSCADA entry point · ${context}`,
+      detail: `SCADIVO entry point · ${context}`,
       documentation: `Canonical Script entry point for ${context}.`,
       insertText: `def ${handler}():\n\t\${1:pass}`
     });

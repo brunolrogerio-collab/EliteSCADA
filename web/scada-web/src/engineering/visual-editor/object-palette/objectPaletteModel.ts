@@ -29,15 +29,31 @@ const PALETTE_ORDER: readonly BuiltinVisualObjectType[] = Object.freeze([
   BUILTIN_VISUAL_OBJECT_TYPES.rectangle,
   BUILTIN_VISUAL_OBJECT_TYPES.ellipse,
   BUILTIN_VISUAL_OBJECT_TYPES.line,
+  BUILTIN_VISUAL_OBJECT_TYPES.arc,
+  BUILTIN_VISUAL_OBJECT_TYPES.bezier,
   BUILTIN_VISUAL_OBJECT_TYPES.polygon,
   BUILTIN_VISUAL_OBJECT_TYPES.text,
   BUILTIN_VISUAL_OBJECT_TYPES.image,
+  BUILTIN_VISUAL_OBJECT_TYPES.model3d,
+  BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer,
+  BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer,
+  BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher,
+  BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol,
   BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,
   BUILTIN_VISUAL_OBJECT_TYPES.trend,
   BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser,
   BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser,
   BUILTIN_VISUAL_OBJECT_TYPES.button,
-  BUILTIN_VISUAL_OBJECT_TYPES.slider
+  BUILTIN_VISUAL_OBJECT_TYPES.checkBox,
+  BUILTIN_VISUAL_OBJECT_TYPES.comboBox,
+  BUILTIN_VISUAL_OBJECT_TYPES.slider,
+  BUILTIN_VISUAL_OBJECT_TYPES.numericInput,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementDial,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementRing,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementBar,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementBands,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget
 ]);
 
 const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
@@ -48,15 +64,42 @@ const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
   [BUILTIN_VISUAL_OBJECT_TYPES.rectangle]: { labelKey: 'rectangle', category: 'shape' },
   [BUILTIN_VISUAL_OBJECT_TYPES.ellipse]: { labelKey: 'ellipse', category: 'shape' },
   [BUILTIN_VISUAL_OBJECT_TYPES.line]: { labelKey: 'line', category: 'shape' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.arc]: { labelKey: 'arc', category: 'shape' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.bezier]: { labelKey: 'bezier', category: 'shape' },
   [BUILTIN_VISUAL_OBJECT_TYPES.polygon]: { labelKey: 'polygon', category: 'shape' },
   [BUILTIN_VISUAL_OBJECT_TYPES.text]: { labelKey: 'text', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.image]: { labelKey: 'image', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.model3d]: { labelKey: 'model3d', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer]: { labelKey: 'videoPlayer', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer]: { labelKey: 'pdfViewer', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher]: { labelKey: 'reportLauncher', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol]: { labelKey: 'svgSymbol', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay]: { labelKey: 'valueDisplay', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.trend]: { labelKey: 'trend', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser]: { labelKey: 'alarmBrowser', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser]: { labelKey: 'eventBrowser', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.button]: { labelKey: 'button', category: 'control' },
-  [BUILTIN_VISUAL_OBJECT_TYPES.slider]: { labelKey: 'slider', category: 'control' }
+  [BUILTIN_VISUAL_OBJECT_TYPES.checkBox]: { labelKey: 'checkBox', category: 'control' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.comboBox]: { labelKey: 'comboBox', category: 'control' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.slider]: { labelKey: 'slider', category: 'control' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.numericInput]: { labelKey: 'numericInput', category: 'control' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementDial]: { labelKey: 'measurementDial', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementRing]: { labelKey: 'measurementRing', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementBar]: { labelKey: 'measurementBar', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer]: { labelKey: 'measurementThermometer', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementBands]: { labelKey: 'measurementBands', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget]: { labelKey: 'measurementTarget', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceCurrentFrequencyComparisonV1]: { labelKey: 'intelligenceCurrentFrequencyComparisonV1', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceSingleTargetDeviationV1]: { labelKey: 'intelligenceSingleTargetDeviationV1', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceExperimentalJointDeviationV1]: { labelKey: 'intelligenceExperimentalJointDeviationV1', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextEligibilityV1]: { labelKey: 'intelligenceContextEligibilityV1', category: 'content' },
+  // Runtime-created Intelligence references are intentionally not in PALETTE_ORDER.
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1]: { labelKey: 'intelligenceReferenceEvidenceV1', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B]: { labelKey: 'intelligencePerformanceV1B', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1]: { labelKey: 'intelligenceProfileCoverageV1', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageCoverageV1]: { labelKey: 'intelligenceProcessStageCoverageV1', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1]: { labelKey: 'intelligenceProcessStageInsightsV1', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2]: { labelKey: 'intelligenceContextualDeviationV2', category: 'content' }
 });
 
 export function listVisualObjectPaletteItems(): readonly VisualObjectPaletteItem[] {
@@ -81,11 +124,36 @@ export function createObjectAddIntent(
 
   const parentObjectId = normalizeOptionalIdentity(options.parentObjectId, 'parentObjectId');
   const at = normalizeOptionalPoint(options.at);
-  const initialProperties = objectType === BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser ||
+  const initialProperties = objectType === BUILTIN_VISUAL_OBJECT_TYPES.bezier
+    ? Object.freeze({
+        [VISUAL_PROPERTY_KEYS.width]: 120,
+        [VISUAL_PROPERTY_KEYS.height]: 80,
+        [VISUAL_PROPERTY_KEYS.bezierPath]: 'M 0 50 C 20 0 80 0 100 50 C 80 100 20 100 0 50 Z'
+      })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser ||
     objectType === BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser
     ? Object.freeze({
         [VISUAL_PROPERTY_KEYS.width]: 720,
         [VISUAL_PROPERTY_KEYS.height]: 320
+      })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementDial
+    ? Object.freeze({ [VISUAL_PROPERTY_KEYS.width]: 150, [VISUAL_PROPERTY_KEYS.height]: 130 })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementRing
+    ? Object.freeze({ [VISUAL_PROPERTY_KEYS.width]: 130, [VISUAL_PROPERTY_KEYS.height]: 130 })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer
+    ? Object.freeze({ [VISUAL_PROPERTY_KEYS.width]: 90, [VISUAL_PROPERTY_KEYS.height]: 190 })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementBar ||
+    objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementBands ||
+    objectType === BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget
+    ? Object.freeze({ [VISUAL_PROPERTY_KEYS.width]: 220, [VISUAL_PROPERTY_KEYS.height]: 90 })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.checkBox
+    ? Object.freeze({ [VISUAL_PROPERTY_KEYS.width]: 180, [VISUAL_PROPERTY_KEYS.height]: 42 })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.comboBox
+    ? Object.freeze({ [VISUAL_PROPERTY_KEYS.width]: 220, [VISUAL_PROPERTY_KEYS.height]: 42 })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher
+    ? Object.freeze({
+        [VISUAL_PROPERTY_KEYS.width]: 190,
+        [VISUAL_PROPERTY_KEYS.height]: 44
       })
     : undefined;
 

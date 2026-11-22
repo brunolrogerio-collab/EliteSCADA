@@ -10,7 +10,9 @@ import {
   scriptMutationMode
 } from '../src/engineering/scripts/ScriptEngineeringWorkspace.logic';
 import { packageContainsOnlyScriptMutation } from '../src/engineering/scripts/scriptEngineeringApi';
+import { buildScriptAssistantVisualValueSnippet } from '../src/engineering/scripts/scriptAssistantModel';
 import type {
+  AuthorityPolicyReferenceEngineering,
   CanonicalScriptPackage,
   ScriptEngineeringDefinition,
   ScriptImportPreview,
@@ -23,17 +25,37 @@ const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
 
 test.describe.configure({ mode: 'serial' });
 
-test('Script workspace consumes Engineering dark-theme tokens without light surface fallbacks', async () => {
+test('Script workspace consumes Engineering semantic theme tokens without independent light/dark fallbacks', async () => {
   const css = await readFile(new URL('../src/engineering/scripts/script-engineering-workspace.css', import.meta.url), 'utf8');
 
   expect(css).toContain('--script-surface: var(--eng-panel, #121922)');
   expect(css).toContain('--script-border: var(--eng-border, #283544)');
   expect(css).toContain('--script-text: var(--eng-text, #e8edf3)');
+  expect(css).toContain('--script-control-surface: var(--eng-input-bg, #0d141a)');
+  expect(css).toContain('--script-hover: var(--eng-hover, #17232d)');
+  expect(css).toContain('--script-focus: var(--eng-focus, #8bd3ff)');
   expect(css).toContain('background: var(--script-control-surface)');
   expect(css).toContain('color: var(--script-text)');
   expect(css).not.toContain('var(--surface, #fff)');
   expect(css).not.toContain('var(--border, #d6dae2)');
   expect(css).not.toContain('var(--border, #c9ced8)');
+});
+
+test('Script TAG dependencies present readable paths while retaining their stable identity binding', async () => {
+  const workspace = await readFile(new URL('../src/engineering/scripts/ScriptEngineeringWorkspace.tsx', import.meta.url), 'utf8');
+  const api = await readFile(new URL('../src/engineering/scripts/scriptEngineeringApi.ts', import.meta.url), 'utf8');
+  const copy = await readFile(new URL('../src/engineering/scripts/ScriptEngineeringWorkspace.copy.ts', import.meta.url), 'utf8');
+
+  expect(workspace).toContain('copy.tagPath');
+  expect(workspace).toContain('stableReference: tag.id!');
+  expect(workspace).toContain('reference: tag.path');
+  expect(workspace).toContain('tag.id === dependency.tagBinding?.expected.tagId');
+  expect(workspace).not.toContain('tag.path === dependency.tagBinding?.reference');
+  expect(workspace).toContain("dependency.kind === 'serverMemoryTag'");
+  expect(api).toContain('loadEngineeringSnapshot()');
+  expect(api).toContain('tags: snapshot.package.tags');
+  expect(copy).toContain('read_server_memory("EEE.Pump01.Running")');
+  expect(copy).toContain('ID estável mantido automaticamente');
 });
 
 test('wire enums normalize and minimal package preserves owned visual references only', () => {
@@ -63,11 +85,27 @@ test('wire enums normalize and minimal package preserves owned visual references
     normalizeVisualEventReference({ visualDefinitionId: id, visualObjectId: null, eventKind: 0, scriptId: otherId, entryPoint: 'initialize' })
   ];
   const packageData = buildCanonicalScriptPackage(script, references, '2026-08-28T00:00:00.000Z');
+  expect(packageData.schemaVersion).toBe(29);
+  expect(packageData).not.toHaveProperty('engineeringLock');
   expect(packageContainsOnlyScriptMutation(packageData)).toBeTruthy();
   expect(packageData.scripts).toHaveLength(1);
   expect(packageData.scripts[0]?.scope).toBe('clientVisual');
   expect(packageData.scriptVisualEventReferences).toHaveLength(1);
   expect(packageData.scriptVisualEventReferences[0]?.scriptId).toBe(id);
+});
+
+test('stable visual property reference survives canonical Script save/reopen package round-trip', () => {
+  const script = makeScript('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'scripts/stable-visual.py');
+  script.source = [
+    'from elite_scada import visual_property_read, visual_property_write',
+    'ref = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/cccccccc-cccc-4ccc-8ccc-cccccccccccc"',
+    'value = await visual_property_read(ref, "visible")',
+    'await visual_property_write(ref, "visible", False)'
+  ].join('\n');
+  const packageData = buildCanonicalScriptPackage(script, [], '2026-09-28T00:00:00.000Z');
+  const reopened = normalizeScriptDefinition(packageData.scripts[0] as unknown as Record<string, unknown>);
+  expect(reopened.source).toBe(script.source);
+  expect(reopened.source).toContain('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/cccccccc-cccc-4ccc-8ccc-cccccccccccc');
 });
 
 test('Preview token is bound to exact Script package and mutation mode', () => {
@@ -95,7 +133,7 @@ test('Script create/update uses Preview and rejects stale Workspace CAS without 
 
   try {
     const before = await workspace(request);
-    const createPackage = buildCanonicalScriptPackage(created, []);
+    const createPackage = buildCanonicalScriptPackage(created, [], undefined, before.authorityPolicyReference);
     const createPreview = await preview(request, createPackage, 'CreateOnly');
     expect(createPreview.canApply).toBeTruthy();
     expect(createPreview.createCount).toBe(1);
@@ -108,7 +146,7 @@ test('Script create/update uses Preview and rejects stale Workspace CAS without 
     expect(afterCreate.changeVersion).toBeGreaterThan(before.changeVersion);
 
     const updated = { ...created, description: 'updated through canonical Preview/Apply' };
-    const updatePackage = buildCanonicalScriptPackage(updated, []);
+    const updatePackage = buildCanonicalScriptPackage(updated, [], undefined, afterCreate.authorityPolicyReference);
     const updatePreview = await preview(request, updatePackage, 'UpdateExisting');
     expect(updatePreview.canApply).toBeTruthy();
     expect(updatePreview.updateCount).toBe(1);
@@ -129,10 +167,40 @@ test('Script create/update uses Preview and rejects stale Workspace CAS without 
   }
 });
 
+
+test('Server Script syntax validation uses isolated real parser without mutating Working', async ({ request }) => {
+  const before = await workspace(request);
+
+  const valid = await request.post('/api/engineering/scripts/python/validate', {
+    data: { source: 'def initialize():\n    return None\n' }
+  });
+  expect(valid.ok()).toBeTruthy();
+  expect(await valid.json()).toEqual({ diagnostics: [] });
+
+  const invalid = await request.post('/api/engineering/scripts/python/validate', {
+    data: { source: 'def broken(:\n    return None\n' }
+  });
+  expect(invalid.ok()).toBeTruthy();
+  const payload = await invalid.json() as {
+    diagnostics: Array<{ severity: string; code: string; line: number; column: number }>;
+  };
+  expect(payload.diagnostics).toEqual([
+    expect.objectContaining({
+      severity: 'error',
+      code: 'PY_SYNTAX',
+      line: 1,
+      column: expect.any(Number)
+    })
+  ]);
+
+  const after = await workspace(request);
+  expect(after.changeVersion).toBe(before.changeVersion);
+});
+
 test('Script mutation preserves backend authorization boundary', async ({ request }) => {
   const script = makeScript(crypto.randomUUID(), `scripts/auth-${Date.now()}.py`);
-  const packageData = buildCanonicalScriptPackage(script, []);
   const current = await workspace(request);
+  const packageData = buildCanonicalScriptPackage(script, [], undefined, current.authorityPolicyReference);
 
   const anonymous = await playwrightRequest.newContext({ baseURL, extraHTTPHeaders: { Authorization: '' } });
   try {
@@ -170,7 +238,7 @@ test('Script delete reports dependent Script and leaves target intact', async ({
 
   try {
     const before = await workspace(request);
-    const packageData = multiScriptPackage([target, dependent]);
+    const packageData = multiScriptPackage([target, dependent], before.authorityPolicyReference);
     const previewResponse = await preview(request, packageData, 'CreateOnly');
     expect(previewResponse.canApply).toBeTruthy();
     expect(previewResponse.createCount).toBe(2);
@@ -218,11 +286,14 @@ function makeScript(id: string, path: string): ScriptEngineeringDefinition {
   };
 }
 
-function multiScriptPackage(scripts: ScriptEngineeringDefinition[]): CanonicalScriptPackage {
-  const first = buildCanonicalScriptPackage(scripts[0]!, []);
+function multiScriptPackage(
+  scripts: ScriptEngineeringDefinition[],
+  authorityPolicyReference: AuthorityPolicyReferenceEngineering
+): CanonicalScriptPackage {
+  const first = buildCanonicalScriptPackage(scripts[0]!, [], undefined, authorityPolicyReference);
   return {
     ...first,
-    scripts: scripts.map(script => buildCanonicalScriptPackage(script, [], first.exportedAt).scripts[0]!)
+    scripts: scripts.map(script => buildCanonicalScriptPackage(script, [], first.exportedAt, authorityPolicyReference).scripts[0]!)
   };
 }
 
@@ -230,10 +301,16 @@ function previewResult(canApply: boolean, createCount: number, updateCount: numb
   return { mode: 0, createCount, updateCount, skipCount: 0, errorCount: canApply ? 0 : 1, items: [], canApply };
 }
 
-async function workspace(request: APIRequestContext): Promise<{ changeVersion: number }> {
+async function workspace(request: APIRequestContext): Promise<{
+  changeVersion: number;
+  authorityPolicyReference: AuthorityPolicyReferenceEngineering;
+}> {
   const response = await request.get('/api/engineering/workspace');
   expect(response.ok()).toBeTruthy();
-  return await response.json() as { changeVersion: number };
+  return await response.json() as {
+    changeVersion: number;
+    authorityPolicyReference: AuthorityPolicyReferenceEngineering;
+  };
 }
 
 async function preview(
@@ -269,3 +346,211 @@ async function bestEffortDelete(request: APIRequestContext, scriptId: string): P
     headers: { 'x-elitescada-workspace-version': String(descriptor.changeVersion) }
   });
 }
+
+
+function rgbChannels(value: string): [number, number, number] {
+  const channels = value.match(/[\d.]+/g)?.slice(0, 3).map(Number);
+  if (!channels || channels.length !== 3) throw new Error(`Expected rgb/rgba color, received ${value}`);
+  return channels as [number, number, number];
+}
+
+function relativeLuminance(value: string): number {
+  const [red, green, blue] = rgbChannels(value).map(channel => {
+    const normalized = channel / 255;
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function contrastRatio(foreground: string, background: string): number {
+  const first = relativeLuminance(foreground);
+  const second = relativeLuminance(background);
+  return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+}
+
+test('mounted R2 generated snippet validates, Preview/Applies and reopens unchanged', async ({ page, request }) => {
+  test.setTimeout(120_000);
+  const unique = crypto.randomUUID();
+  const name = `R2 Authoring ${unique.slice(0, 8)}`;
+  const path = `scripts/r2-authoring-${unique}.py`;
+  const generated = buildScriptAssistantVisualValueSnippet(
+    'core.button',
+    '00000000-0000-4000-8000-000000000001/00000000-0000-4000-8000-000000000002',
+    'visible',
+    'write',
+    'false'
+  );
+  expect(generated.enabled).toBeTruthy();
+  const source = [
+    'async def generated_action():',
+    ...generated.code.split('\n').map(line => `    ${line}`)
+  ].join('\n');
+  // Monaco auto-indents after the function header while keyboard text is entered.
+  // Type the generated snippet without pre-indenting it. Avoid a synthetic trailing
+  // blank line because Monaco correctly leaves the active indentation on that line.
+  const typedSource = [
+    'async def generated_action():',
+    ...generated.code.split('\n')
+  ].join('\n');
+
+  let createdId: string | null = null;
+  try {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('elitescada.engineering.locale', 'pt-BR');
+    });
+    await page.goto('/engineering');
+
+    const navigation = page.locator('.eng-nav');
+    await navigation.getByRole('button', { name: /Scripts/ }).click();
+    await page.getByRole('button', { name: 'Novo Script' }).click();
+
+    const editor = page.locator('main.script-editor');
+    await page.getByRole('textbox', { name: 'Nome de exibição', exact: true }).fill(name);
+    await page.getByRole('textbox', { name: 'Caminho do script', exact: true }).fill(path);
+
+    const pythonEditor = page.getByTestId('python-monaco-editor');
+    await pythonEditor.locator('.monaco-editor').click();
+    await page.keyboard.press('ControlOrMeta+A');
+    await page.keyboard.insertText(typedSource);
+
+    await expect(pythonEditor.getByText(/VALID · sintaxe válida/)).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByTestId('script-reference-diagnostics')).toBeVisible();
+
+    await editor.getByRole('button', { name: 'Verificar alterações' }).click();
+    await expect(editor.getByText(/Verificação concluída/)).toBeVisible({ timeout: 45_000 });
+    await editor.getByRole('button', { name: 'Aplicar ao Workspace' }).click();
+    await expect(page.getByText('Script criado na Área de trabalho.')).toBeVisible({ timeout: 45_000 });
+
+    const listed = await request.get('/api/engineering/scripts');
+    expect(listed.ok()).toBeTruthy();
+    const scripts = (await listed.json() as Array<Record<string, unknown>>).map(normalizeScriptDefinition);
+    const created = scripts.find(script => script.path === path);
+    expect(created).toBeTruthy();
+    createdId = created!.id;
+    expect(created!.source).toBe(source);
+
+    await page.reload();
+    await page.locator('.eng-nav').getByRole('button', { name: /Scripts/ }).click();
+    await page.locator('.script-list').getByRole('button', { name: new RegExp(name) }).click();
+    await expect(page.getByTestId('python-monaco-editor').locator('.view-lines'))
+      .toContainText('async def generated_action()', { timeout: 30_000 });
+    await expect(page.getByTestId('python-monaco-editor').locator('.view-lines'))
+      .toContainText('visual_property_write');
+  } finally {
+    if (createdId) await bestEffortDelete(request, createdId);
+  }
+});
+
+test('mounted specialized Engineering surfaces keep dark/light contrast and Monaco follows active theme', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('elitescada.app.theme', 'dark');
+    window.localStorage.setItem('elitescada.engineering.locale', 'pt-BR');
+  });
+  await page.goto('/engineering');
+
+  const navigation = page.locator('.eng-nav');
+  await navigation.getByRole('button', { name: /Relatórios/ }).click();
+  await expect(page.getByTestId('report-designer-workspace')).toBeVisible();
+
+  await navigation.getByRole('button', { name: /Scripts/ }).click();
+  await page.getByRole('button', { name: /Novo Script/ }).click();
+  const pythonEditor = page.getByTestId('python-monaco-editor');
+  const monaco = pythonEditor.locator('.monaco-editor');
+  await expect(monaco).toBeVisible();
+
+  const shell = page.locator('.eng-shell');
+  await shell.evaluate(element => {
+    const fixture = document.createElement('div');
+    fixture.dataset.testid = 'theme-state-fixture';
+    fixture.style.cssText = 'position:fixed;left:8px;bottom:8px;width:360px;max-height:70vh;overflow:auto;z-index:9999;padding:8px';
+    fixture.innerHTML = `
+      <section class="eng-editor-section">
+        <div class="eng-editor-form-panel">
+          <label class="eng-editor-field"><span>Structured</span><input data-testid="theme-structured" value="value" /></label>
+        </div>
+      </section>
+      <section class="eng-mutation-panel">
+        <div class="eng-mutation-grid">
+          <article class="eng-mutation-card">
+            <button data-testid="theme-disabled" disabled>Disabled</button>
+            <div class="eng-mutation-warning" data-testid="theme-warning">Warning</div>
+            <div class="eng-bulk-preview valid" data-testid="theme-success">Success</div>
+            <div class="eng-bulk-preview invalid" data-testid="theme-error">Error</div>
+            <button class="gateway-route-row" data-testid="theme-hover"><span>Hover</span></button>
+            <button class="gateway-route-row active" data-testid="theme-selected"><span>Selected</span></button>
+          </article>
+        </div>
+      </section>
+      <section class="report-designer-workspace">
+        <div class="report-designer-shell" data-testid="theme-report-chrome">
+          <main class="report-designer-main">
+            <div class="report-page" data-testid="theme-report-paper">Paper</div>
+          </main>
+        </div>
+      </section>
+    `;
+    element.append(fixture);
+  });
+
+  const theme = page.getByRole('combobox', { name: 'Tema' });
+  const pythonBackgrounds: string[] = [];
+
+  for (const mode of ['dark', 'light'] as const) {
+    await theme.selectOption(mode);
+    await expect(page.locator('html')).toHaveAttribute('data-app-theme', mode);
+    await expect.poll(() => monaco.evaluate(element => element.classList.contains('vs-dark')))
+      .toBe(mode === 'dark');
+
+    const pythonColors = await pythonEditor.evaluate(element => {
+      const editor = getComputedStyle(element);
+      const path = getComputedStyle(element.querySelector('.python-editor__path')!);
+      return { foreground: editor.color, background: editor.backgroundColor, muted: path.color };
+    });
+    expect(contrastRatio(pythonColors.foreground, pythonColors.background)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(pythonColors.muted, pythonColors.background)).toBeGreaterThanOrEqual(4.5);
+    pythonBackgrounds.push(pythonColors.background);
+
+    for (const testId of ['theme-disabled', 'theme-warning', 'theme-success', 'theme-error', 'theme-selected', 'theme-report-chrome']) {
+      const colors = await page.getByTestId(testId).evaluate(element => {
+        const style = getComputedStyle(element);
+        return { foreground: style.color, background: style.backgroundColor };
+      });
+      expect(contrastRatio(colors.foreground, colors.background), `${mode} ${testId}`).toBeGreaterThanOrEqual(4.5);
+    }
+
+    const structured = page.getByTestId('theme-structured');
+    await structured.focus();
+    const focus = await structured.evaluate(element => {
+      const style = getComputedStyle(element);
+      return { outline: style.outlineColor, token: getComputedStyle(element.closest('.eng-shell')!).getPropertyValue('--eng-focus').trim() };
+    });
+    const resolvedFocus = await page.evaluate(value => {
+      const probe = document.createElement('span');
+      probe.style.color = value;
+      document.body.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    }, focus.token);
+    expect(focus.outline).toBe(resolvedFocus);
+
+    const hover = page.getByTestId('theme-hover');
+    await page.mouse.move(0, 0);
+    const beforeHover = await hover.evaluate(element => getComputedStyle(element).backgroundColor);
+    await hover.scrollIntoViewIfNeeded();
+    await hover.hover();
+    const afterHover = await hover.evaluate(element => getComputedStyle(element).backgroundColor);
+    expect(afterHover).not.toBe(beforeHover);
+
+    const paper = await page.getByTestId('theme-report-paper').evaluate(element => {
+      const style = getComputedStyle(element);
+      return { foreground: style.color, background: style.backgroundColor };
+    });
+    expect(paper.background).toBe('rgb(255, 255, 255)');
+    expect(contrastRatio(paper.foreground, paper.background)).toBeGreaterThanOrEqual(4.5);
+  }
+
+  expect(pythonBackgrounds[0]).not.toBe(pythonBackgrounds[1]);
+});

@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
@@ -7,6 +8,11 @@ using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Modbus;
+using Scada.Drivers.Mitsubishi;
+using Scada.Drivers.Panasonic;
+using Scada.Drivers.Serial;
+using Scada.Drivers.Zigbee2Mqtt;
+using Scada.Drivers.HostResources;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.Validation;
@@ -26,25 +32,84 @@ public sealed record ModbusTagAddressBuildRequest(
 
 public static class EngineeringDriverCatalogApi
 {
+    internal const string MatterWifiPreviewConfigurationKey = "Engineering:DeveloperPreviews:MatterWifiV1";
+
     public static void AddEngineeringDriverCatalog(this WebApplicationBuilder builder)
     {
-        builder.Services.TryAddSingleton<ICommunicationDriverProtectedMaterialResolver>(_ =>
-            EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment());
+        var matterWifiPreviewEnabled = IsMatterWifiPreviewEnabled(builder.Environment.EnvironmentName, builder.Configuration);
+        builder.AddManagedProtocolHost();
+        builder.Services.TryAddSingleton<ICommunicationDriverProtectedMaterialResolver>(sp =>
+        {
+            var fallback = new HostAuthorityDriverMaterialResolver(sp.GetRequiredService<IProtectedMaterialAuthority>(),
+                sp.GetRequiredService<IntegrationProtectedMaterialService>(),
+                EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment());
+            return matterWifiPreviewEnabled
+                ? new MatterWifiProtectedMaterialResolver(
+                    sp.GetRequiredService<MatterWifiProtectedMaterialService>(),
+                    fallback,
+                    () => !sp.GetRequiredService<RuntimeHighAvailabilityService>().Enabled)
+                : fallback;
+        });
+        builder.Services.TryAddSingleton<IHostSerialPortProvider, SystemHostSerialPortProvider>();
+        builder.Services.TryAddSingleton<HostSerialBusCoordinator>();
         builder.Services.AddSingleton(sp => CommunicationDriverRuntimeComposition.BuildForCurrentSchema(
-            hostProtectedMaterialResolver: sp.GetRequiredService<ICommunicationDriverProtectedMaterialResolver>()));
+            hostProtectedMaterialResolver: sp.GetRequiredService<ICommunicationDriverProtectedMaterialResolver>(),
+            serialBusCoordinator: sp.GetRequiredService<HostSerialBusCoordinator>(),
+            hostResources: sp.GetRequiredService<HostResourceRegistry>(),
+            hostResourceLeases: sp.GetRequiredService<HostResourceLeaseCoordinator>(),
+            zigbeeDeployment: sp.GetRequiredService<ZigbeeNativeSidecarDeploymentOptions>(),
+            knxIpDeployment: sp.GetRequiredService<KnxIpSidecarDeploymentOptions>(),
+            zwaveJsDeployment: sp.GetRequiredService<ZWaveJsSidecarDeploymentOptions>(),
+            highAvailabilityEnabled: () => sp.GetRequiredService<RuntimeHighAvailabilityService>().Enabled,
+            matterWifiPreviewEnabled: matterWifiPreviewEnabled));
         builder.Services.AddSingleton<EngineeringDataSourceTypeCatalog>(sp =>
             EngineeringDataSourceTypeCatalog.BuildForCurrentSchema(
                 sp.GetRequiredService<CommunicationDriverRuntimeComponentRegistry>()));
         builder.Services.AddSingleton<IDataSourceConfigurationValidator>(sp =>
             sp.GetRequiredService<EngineeringDataSourceTypeCatalog>());
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ModbusEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ModbusRtuEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ModbusTcpServerEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ModbusRtuServerEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, S7IsoEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, MitsubishiMelsecEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory>(sp =>
+            new PanasonicMewtocolEngineeringDriverToolProviderFactory(
+                PanasonicMewtocolDriverDescriptorProvider.TcpDriverTypeId,
+                sp.GetRequiredService<HostSerialBusCoordinator>()));
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory>(sp =>
+            new PanasonicMewtocolEngineeringDriverToolProviderFactory(
+                PanasonicMewtocolDriverDescriptorProvider.SerialDriverTypeId,
+                sp.GetRequiredService<HostSerialBusCoordinator>()));
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, OpcUaEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, EspHomeEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, HomeAssistantEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ShellyEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, Zigbee2MqttEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<EngineeringDriverToolProviderFactoryRegistry>();
+        builder.Services.AddSingleton<NetworkReachabilityProbe>();
+    }
+
+    internal static bool IsMatterWifiPreviewEnabled(string environmentName, IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        var isolatedDevelopmentEnvironment = string.Equals(environmentName, "Development", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(environmentName, "Test", StringComparison.OrdinalIgnoreCase);
+        return isolatedDevelopmentEnvironment && configuration.GetValue<bool>(MatterWifiPreviewConfigurationKey);
     }
 
     public static void MapEngineeringDriverCatalogEndpoints(this WebApplication app)
     {
         app.MapGet("/api/engineering/data-source-types", (EngineeringDataSourceTypeCatalog catalog) =>
             Results.Ok(catalog.Describe()))
+            .RequireWorkspaceEngineeringRead();
+
+        app.MapGet("/api/engineering/host/serial-ports", (IHostSerialPortProvider serialPorts) =>
+            Results.Ok(new
+            {
+                authority = "eliteScadaServer",
+                ports = serialPorts.ListVisiblePorts()
+            }))
             .RequireWorkspaceEngineeringRead();
 
         app.MapPost("/api/engineering/tag-address/modbus/build", (ModbusTagAddressBuildRequest request) =>
@@ -143,6 +208,32 @@ public static class EngineeringDriverCatalogApi
         })
         .RequireWorkspaceEngineeringRead();
 
+        app.MapPost("/api/engineering/driver-tools/point-read-test", async (
+            DriverEngineeringDraftPointReadTestApiRequest request,
+            EngineeringWorkspace workspace,
+            EngineeringDriverToolProviderFactoryRegistry factories,
+            CancellationToken cancellationToken) =>
+        {
+            var dataSource = ToDraftDataSource(request.DataSource);
+            if (dataSource is null)
+                return Results.BadRequest(new { error = "SourceKey and DriverType are required." });
+
+            return await ExecutePointReadTestAsync(
+                workspace.Describe().ProjectKey,
+                dataSource,
+                new DriverEngineeringPointReadTestApiRequest(
+                    request.Binding,
+                    request.DataType,
+                    request.AddressSelector,
+                    request.EngineeringUnit,
+                    request.SampleCount,
+                    request.SampleIntervalMilliseconds,
+                    request.TimeoutMilliseconds),
+                factories,
+                cancellationToken);
+        })
+        .RequireWorkspaceEngineeringRead();
+
         app.MapPost("/api/engineering/driver-tools/discover", async (
             DriverEngineeringDraftDiscoveryApiRequest request,
             EngineeringWorkspace workspace,
@@ -215,6 +306,27 @@ public static class EngineeringDriverCatalogApi
             {
                 return DriverToolFailure(ex);
             }
+        })
+        .RequireWorkspaceEngineeringRead();
+
+        app.MapPost("/api/engineering/data-sources/{id:guid}/driver-tools/point-read-test", async (
+            Guid id,
+            DriverEngineeringPointReadTestApiRequest request,
+            EngineeringWorkspace workspace,
+            IDataSourceEngineeringRegistry dataSources,
+            EngineeringDriverToolProviderFactoryRegistry factories,
+            CancellationToken cancellationToken) =>
+        {
+            var dataSource = dataSources.Find(id);
+            if (dataSource is null)
+                return Results.NotFound(new { error = $"Engineering Data Source '{id}' was not found." });
+
+            return await ExecutePointReadTestAsync(
+                workspace.Describe().ProjectKey,
+                dataSource,
+                request,
+                factories,
+                cancellationToken);
         })
         .RequireWorkspaceEngineeringRead();
 
@@ -302,6 +414,68 @@ public static class EngineeringDriverCatalogApi
             }
         })
         .RequireWorkspaceEngineeringRead();
+    }
+
+    private static async Task<IResult> ExecutePointReadTestAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        DriverEngineeringPointReadTestApiRequest request,
+        EngineeringDriverToolProviderFactoryRegistry factories,
+        CancellationToken cancellationToken)
+    {
+        if (!factories.TryGet(dataSource.Driver, out var factory) || factory is null)
+            return UnsupportedTooling(dataSource.Driver);
+
+        DriverPointReadTestRequest driverRequest;
+        try
+        {
+            driverRequest = new DriverPointReadTestRequest(
+                ToDriverContext(dataSource),
+                request.Binding,
+                request.DataType,
+                request.AddressSelector,
+                request.EngineeringUnit,
+                request.SampleCount,
+                request.SampleIntervalMilliseconds,
+                request.TimeoutMilliseconds);
+            driverRequest.Validate();
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
+        {
+            var safeDetail = new string(ex.Message.Where(character => !char.IsControl(character)).Take(512).ToArray());
+            return Results.BadRequest(new
+            {
+                error = "Point-read test request is invalid.",
+                code = "POINT_READ_REQUEST_INVALID",
+                fieldKey = (ex as ArgumentException)?.ParamName,
+                detail = string.IsNullOrWhiteSpace(safeDetail) ? "Review the binding, selector, transform, sample count and timeout." : safeDetail
+            });
+        }
+
+        using var bounded = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        bounded.CancelAfter(TimeSpan.FromMilliseconds(driverRequest.TimeoutMilliseconds));
+
+        try
+        {
+            await using var lease = await factory.CreateAsync(projectKey, dataSource, bounded.Token);
+            var tester = lease.Registration.PointReadTester;
+            if (tester is null)
+                return UnsupportedCapability(dataSource.Driver, DriverEngineeringCapabilities.PointReadTest);
+
+            var result = await tester.TestPointReadAsync(driverRequest, bounded.Token);
+            return Results.Ok(result);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return Results.Problem(
+                title: "Driver Engineering point-read test timed out.",
+                detail: "The bounded Engineering point-read test timed out. Working and Runtime state were not changed.",
+                statusCode: StatusCodes.Status504GatewayTimeout);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            return DriverToolFailure(ex);
+        }
     }
 
     private static DataSourceEngineeringDto? ToDraftDataSource(DriverEngineeringDraftDataSourceApiRequest request)

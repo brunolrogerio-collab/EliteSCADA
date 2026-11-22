@@ -5,7 +5,7 @@ import {
   CLIENT_VISUAL_PYTHON_CAPABILITIES,
   CLIENT_VISUAL_PYTHON_PROTOCOL_CAPABILITIES
 } from '../src/python-runtime/pythonRuntimeContracts';
-import { buildScriptAssistantCatalog } from '../src/engineering/scripts/scriptAssistantModel';
+import { buildScriptAssistantCatalog, buildScriptAssistantVisualValueSnippet } from '../src/engineering/scripts/scriptAssistantModel';
 
 const writableTagId = '11111111-1111-1111-1111-111111111111';
 const readOnlyTagId = '22222222-2222-2222-2222-222222222222';
@@ -122,22 +122,31 @@ const clientMemorySources: ClientMemorySourceDefinition[] = [
   }
 ];
 
-test('Script Assistant consumes stable TAG identity and Source GUID metadata without generating free-text TAG references', () => {
+test('Script Assistant keeps stable TAG identity separate from its readable canonical reference', () => {
   const catalog = buildScriptAssistantCatalog(engineeringPackage, clientMemorySources);
   const writable = catalog.tags.find(tag => tag.id === writableTagId)!;
   const readOnly = catalog.tags.find(tag => tag.id === readOnlyTagId)!;
 
-  expect(writable.canonicalReference).toBe(writableTagId);
+  expect(writable.canonicalReference).toBe('Plant.Tank.Level');
   expect(writable.dataSourceId).toBe(dataSourceId);
   expect(writable.sourceIdentityStatus).toBe('stable');
   expect(writable.driver).toBe('OpcUa');
-  expect(writable.snippets.find(snippet => snippet.kind === 'tag-read')?.code).toContain(writableTagId);
-  expect(writable.snippets.find(snippet => snippet.kind === 'tag-read')?.code).not.toContain('Plant.Tank.Level');
+  expect(writable.snippets.find(snippet => snippet.kind === 'tag-read')?.code).not.toContain(writableTagId);
+  expect(writable.snippets.find(snippet => snippet.kind === 'tag-read')?.code).toContain('Plant.Tank.Level');
   expect(writable.snippets.find(snippet => snippet.kind === 'tag-write')).toMatchObject({ enabled: true });
   expect(readOnly.snippets.find(snippet => snippet.kind === 'tag-write')).toMatchObject({
     enabled: false,
     reason: 'TAG is read-only.'
   });
+});
+
+test('RED-1: Script Assistant generates readable canonical TAG paths instead of GUID literals', () => {
+  const catalog = buildScriptAssistantCatalog(engineeringPackage, clientMemorySources);
+  const writable = catalog.tags.find(tag => tag.id === writableTagId)!;
+  const code = writable.snippets.find(snippet => snippet.kind === 'tag-read')!.code;
+
+  expect(code).toContain('Plant.Tank.Level');
+  expect(code).not.toContain(writableTagId);
 });
 
 test('visual object browser exposes only canonical schema properties and keeps Dynamo internals encapsulated', () => {
@@ -191,4 +200,119 @@ test('capability catalog advertises only official product capabilities while res
   expect(catalog.capabilities.find(item => item.capability === 'tag.write')?.pythonApi).toBe('elite_scada.tag_write');
   expect(advertised).not.toContain('backendOperation.request');
   expect(CLIENT_VISUAL_PYTHON_PROTOCOL_CAPABILITIES).toContain('backendOperation.request');
+});
+
+test('known persisted legacy visual objects retain their bounded compatibility schema in Script Assistant', () => {
+  const catalog = buildScriptAssistantCatalog({
+    ...engineeringPackage,
+    screens: [{
+      id: 'legacy-screen', key: 'legacy', name: 'Legacy', route: '/legacy',
+      elements: [{ id: 'legacy-tank', key: 'LegacyTank', type: 'tank', properties: { x: 12, y: 24 } }]
+    }]
+  } as unknown as EngineeringPackageView);
+
+  const object = catalog.screens[0].objects[0];
+  expect(object.schemaStatus).toBe('compatible');
+  expect(object.properties.map(property => property.key)).toEqual(expect.arrayContaining(['x', 'y', 'width', 'height', 'visible']));
+  expect(object.properties.some(property => property.key === 'text')).toBe(false);
+});
+
+
+test('visual authoring uses definition/object stable identity for Screen and Popup and survives Key rename/reuse', () => {
+  const before = buildScriptAssistantCatalog(engineeringPackage, clientMemorySources);
+  const screenObject = before.screens[0].objects.find(object => object.id === 'button-1')!;
+  const popupObject = before.popups[0].objects.find(object => object.id === 'detail-text')!;
+
+  expect(screenObject.canonicalReference).toBe('screen-main/button-1');
+  expect(popupObject.canonicalReference).toBe('popup-detail/detail-text');
+  const visible = screenObject.properties.find(property => property.key === 'visible')!;
+  expect(visible.snippets).toEqual(expect.arrayContaining([
+    expect.objectContaining({ kind: 'visual-property-read', enabled: true })
+  ]));
+  expect(JSON.stringify(visible.snippets)).not.toContain('"StartButton"');
+
+  const renamedPackage = {
+    ...engineeringPackage,
+    screens: [{
+      ...engineeringPackage.screens![0],
+      elements: [
+        { ...engineeringPackage.screens![0].elements![0], key: 'StartButtonRenamed' },
+        { id: 'button-2', key: 'StartButton', type: 'core.button', properties: { visible: true } }
+      ]
+    }]
+  } as unknown as EngineeringPackageView;
+  const after = buildScriptAssistantCatalog(renamedPackage, clientMemorySources);
+  const renamed = after.screens[0].objects.find(object => object.id === 'button-1')!;
+  const reused = after.screens[0].objects.find(object => object.id === 'button-2')!;
+
+  expect(renamed.canonicalReference).toBe('screen-main/button-1');
+  expect(reused.canonicalReference).toBe('screen-main/button-2');
+  expect(reused.canonicalReference).not.toBe(renamed.canonicalReference);
+});
+
+test('typed property assistance validates against canonical registry metadata', () => {
+  const catalog = buildScriptAssistantCatalog(engineeringPackage, clientMemorySources);
+  const button = catalog.screens[0].objects.find(object => object.id === 'button-1')!;
+
+  const visible = buildScriptAssistantVisualValueSnippet(button.type, button.canonicalReference, 'visible', 'write', 'false');
+  expect(visible).toMatchObject({ enabled: true });
+  expect(visible.code).toContain('screen-main/button-1');
+  expect(visible.code).toContain('False');
+
+  const invalidOpacity = buildScriptAssistantVisualValueSnippet(button.type, button.canonicalReference, 'opacity', 'write', '2');
+  expect(invalidOpacity.enabled).toBe(false);
+
+  const tween = buildScriptAssistantVisualValueSnippet(button.type, button.canonicalReference, 'x', 'tween', '42');
+  expect(tween).toMatchObject({ enabled: true });
+  expect(tween.code).toContain('visual_tween_request');
+
+  const invalidTween = buildScriptAssistantVisualValueSnippet(button.type, button.canonicalReference, 'visible', 'tween', 'true');
+  expect(invalidTween).toMatchObject({ enabled: false, reason: 'Property is not animatable.' });
+});
+
+
+test('R2 guided authoring emits type-safe Toggle and visibility convenience snippets through public capabilities', () => {
+  const booleanPackage = {
+    ...engineeringPackage,
+    tags: [
+      {
+        ...(engineeringPackage.tags![0] as any),
+        dataType: 'Boolean',
+        readOnly: false
+      }
+    ]
+  } as unknown as EngineeringPackageView;
+  const booleanMemory: ClientMemorySourceDefinition[] = [{
+    ...clientMemorySources[0],
+    tags: [{
+      ...clientMemorySources[0].tags[0],
+      dataType: 'Boolean',
+      readOnly: false,
+      initialValue: false
+    }]
+  }];
+
+  const catalog = buildScriptAssistantCatalog(booleanPackage, booleanMemory);
+  const tagToggle = catalog.tags[0].snippets.find(snippet => snippet.kind === 'tag-toggle')!;
+  const memoryToggle = catalog.clientMemory[0].snippets.find(snippet => snippet.kind === 'client-memory-toggle')!;
+  const visible = catalog.screens[0].objects.find(object => object.id === 'button-1')!
+    .properties.find(property => property.key === 'visible')!;
+  const show = visible.snippets.find(snippet => snippet.kind === 'visual-show')!;
+  const hide = visible.snippets.find(snippet => snippet.kind === 'visual-hide')!;
+
+  expect(tagToggle).toMatchObject({ enabled: true });
+  expect(tagToggle.code).toContain('from elite_scada import tag_read, tag_write');
+  expect(tagToggle.code).toContain('not bool(_current)');
+  expect(memoryToggle).toMatchObject({ enabled: true });
+  expect(memoryToggle.code).toContain('from elite_scada import client_memory_read, client_memory_write');
+  expect(show).toMatchObject({ enabled: true });
+  expect(show.code).toContain('visual_property_write');
+  expect(show.code).toContain('True');
+  expect(hide).toMatchObject({ enabled: true });
+  expect(hide.code).toContain('False');
+
+  const nonBooleanToggle = buildScriptAssistantCatalog(engineeringPackage, clientMemorySources)
+    .tags.find(tag => tag.id === writableTagId)!
+    .snippets.find(snippet => snippet.kind === 'tag-toggle')!;
+  expect(nonBooleanToggle).toMatchObject({ enabled: false });
 });

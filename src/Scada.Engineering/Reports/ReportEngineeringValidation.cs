@@ -13,6 +13,7 @@ public static class ReportEngineeringValidation
     public const int MaximumControls = 512;
     public const int MaximumGroups = 16;
     public const int MaximumAggregates = 64;
+    public const int MaximumVariables = 256;
 
     public static IReadOnlyList<ReportEngineeringProblem> Validate(ReportEngineeringDto report)
     {
@@ -49,6 +50,8 @@ public static class ReportEngineeringValidation
 
         foreach (var query in queries)
             ValidateQuery(query, parameterMap, problems);
+
+        ValidateReportingV3(report, problems);
 
         var groups = report.Groups ?? Array.Empty<ReportGroupEngineeringDto>();
         if (groups.Count > MaximumGroups)
@@ -262,6 +265,99 @@ public static class ReportEngineeringValidation
         }
         if (!CanBind(parameter.Type, values[binding.ValueIndex.Value].Kind))
             problems.Add(new("REPORT_QUERY_BINDING_TYPE_MISMATCH", $"Report parameter '{parameter.Key}' type {parameter.Type} cannot bind Historical Query value kind {values[binding.ValueIndex.Value].Kind}."));
+    }
+
+    private static void ValidateReportingV3(
+        ReportEngineeringDto report,
+        List<ReportEngineeringProblem> problems)
+    {
+        var variables = report.Variables ?? Array.Empty<ReportVariableEngineeringDto>();
+        if (variables.Count > MaximumVariables)
+            problems.Add(new("REPORT_VARIABLE_LIMIT", $"Report cannot contain more than {MaximumVariables} variables."));
+
+        foreach (var duplicate in variables
+                     .Where(variable => variable.TagId != Guid.Empty)
+                     .GroupBy(variable => variable.TagId)
+                     .Where(group => group.Count() > 1))
+            problems.Add(new("REPORT_VARIABLE_DUPLICATE", $"TAG '{duplicate.Key:D}' appears more than once in Report variables."));
+
+        foreach (var variable in variables)
+        {
+            if (variable.TagId == Guid.Empty)
+                problems.Add(new("REPORT_VARIABLE_TAG_ID_EMPTY", "Report variable TAG identity cannot be empty."));
+            Required(variable.Path, "REPORT_VARIABLE_PATH_REQUIRED", "Report variable path is required.", problems);
+            Required(variable.Name, "REPORT_VARIABLE_NAME_REQUIRED", "Report variable name is required.", problems);
+            Required(variable.DataType, "REPORT_VARIABLE_DATA_TYPE_REQUIRED", "Report variable data type is required.", problems);
+            if (variable.Order < 0)
+                problems.Add(new("REPORT_VARIABLE_ORDER_INVALID", $"Report variable '{variable.Path}' order cannot be negative."));
+            if (variable.DecimalPlaces is < 0 or > 15)
+                problems.Add(new("REPORT_VARIABLE_DECIMALS_INVALID", $"Report variable '{variable.Path}' decimal places must be between 0 and 15."));
+            if (variable.UnitMode == ReportUnitMode.LabelOverride && string.IsNullOrWhiteSpace(variable.UnitLabel))
+                problems.Add(new("REPORT_VARIABLE_UNIT_LABEL_REQUIRED", $"Report variable '{variable.Path}' requires UnitLabel when unit mode is LabelOverride."));
+        }
+
+        if (report.TimeRange is { } time)
+        {
+            if (!time.AllowRelative && !time.AllowAbsolute)
+                problems.Add(new("REPORT_TIME_RANGE_DISABLED", "Report time range must allow at least relative or absolute generation."));
+            if (time.DefaultRelativeDurationSeconds <= 0)
+                problems.Add(new("REPORT_RELATIVE_DURATION_INVALID", "Default relative report duration must be positive."));
+            if (time.DefaultKind == HistoricalTimeRangeKind.Relative && !time.AllowRelative)
+                problems.Add(new("REPORT_TIME_RANGE_DEFAULT_INVALID", "Relative cannot be the default when relative generation is disabled."));
+            if (time.DefaultKind == HistoricalTimeRangeKind.Absolute)
+            {
+                if (!time.AllowAbsolute)
+                    problems.Add(new("REPORT_TIME_RANGE_DEFAULT_INVALID", "Absolute cannot be the default when absolute generation is disabled."));
+                if (time.DefaultFromUtc.HasValue != time.DefaultToUtc.HasValue)
+                    problems.Add(new("REPORT_ABSOLUTE_RANGE_INCOMPLETE", "Default absolute range requires both From and To."));
+                if (time.DefaultFromUtc.HasValue && time.DefaultToUtc.HasValue)
+                {
+                    if (time.DefaultFromUtc.Value.Offset != TimeSpan.Zero || time.DefaultToUtc.Value.Offset != TimeSpan.Zero)
+                        problems.Add(new("REPORT_ABSOLUTE_RANGE_NOT_UTC", "Default absolute report range must be stored in UTC."));
+                    if (time.DefaultFromUtc.Value >= time.DefaultToUtc.Value)
+                        problems.Add(new("REPORT_ABSOLUTE_RANGE_INVALID", "Default report From must be earlier than To."));
+                }
+            }
+        }
+
+        if (report.Resolution is { } resolution)
+        {
+            switch (resolution.Mode)
+            {
+                case ReportDataResolutionMode.Raw:
+                    if (report.TableLayout == ReportTableLayout.Wide)
+                        problems.Add(new("REPORT_WIDE_RAW_UNSUPPORTED", "Wide report layout requires fixed-interval or aggregate retrieval."));
+                    break;
+                case ReportDataResolutionMode.SampledFixedStep:
+                    if (!resolution.IntervalMilliseconds.HasValue || resolution.IntervalMilliseconds <= 0)
+                        problems.Add(new("REPORT_SAMPLE_INTERVAL_INVALID", "Fixed interval resolution requires a positive interval."));
+                    if (!resolution.MaximumGapMilliseconds.HasValue || resolution.MaximumGapMilliseconds <= 0)
+                        problems.Add(new("REPORT_SAMPLE_GAP_INVALID", "Fixed interval resolution requires a positive maximum gap."));
+                    break;
+                case ReportDataResolutionMode.Aggregate:
+                    if (!resolution.BucketMilliseconds.HasValue || resolution.BucketMilliseconds <= 0)
+                        problems.Add(new("REPORT_AGGREGATE_BUCKET_INVALID", "Aggregate resolution requires a positive bucket duration."));
+                    if (!resolution.AggregateFunction.HasValue)
+                        problems.Add(new("REPORT_AGGREGATE_FUNCTION_REQUIRED", "Aggregate resolution requires an aggregate function."));
+                    break;
+                default:
+                    problems.Add(new("REPORT_RESOLUTION_INVALID", "Report resolution mode is unsupported."));
+                    break;
+            }
+
+            if (!string.Equals(resolution.BucketAlignment, "utcDuration", StringComparison.Ordinal))
+                problems.Add(new(
+                    "REPORT_BUCKET_ALIGNMENT_UNSUPPORTED",
+                    "Only deterministic UTC-duration bucket alignment is currently supported. Local calendar day/week requires a shared Data Query contract extension."));
+        }
+
+        foreach (var query in report.Queries ?? Array.Empty<ReportQueryEngineeringDto>())
+        {
+            if (query.DataQueryId == Guid.Empty)
+                problems.Add(new("REPORT_DATA_QUERY_ID_EMPTY", $"Report query '{query.Key}' saved Data Query ID cannot be empty."));
+            if (query.DataQueryKey is not null && string.IsNullOrWhiteSpace(query.DataQueryKey))
+                problems.Add(new("REPORT_DATA_QUERY_KEY_EMPTY", $"Report query '{query.Key}' saved Data Query key cannot be blank."));
+        }
     }
 
     private static void ValidateGroup(

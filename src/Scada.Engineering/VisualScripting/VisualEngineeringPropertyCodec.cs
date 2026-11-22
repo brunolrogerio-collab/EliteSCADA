@@ -295,6 +295,9 @@ public static class VisualEngineeringPropertyMigration
         BuiltinVisualObjectSchemas.TrendType => BuiltinVisualObjectSchemas.TrendPensProperty,
         BuiltinVisualObjectSchemas.AlarmBrowserType => BuiltinVisualObjectSchemas.BrowserConfigProperty,
         BuiltinVisualObjectSchemas.EventBrowserType => BuiltinVisualObjectSchemas.BrowserConfigProperty,
+        BuiltinVisualObjectSchemas.SvgSymbolType => BuiltinVisualObjectSchemas.SvgPaintOverridesProperty,
+        BuiltinVisualObjectSchemas.CheckBoxType => BuiltinVisualObjectSchemas.CheckBoxConfigProperty,
+        BuiltinVisualObjectSchemas.ComboBoxType => BuiltinVisualObjectSchemas.ComboBoxOptionsProperty,
         _ => null
     };
 }

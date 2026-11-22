@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Scada.Api.Runtime;
+using Scada.Core.Commands;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
@@ -45,22 +46,45 @@ public sealed record RuntimeReadableTagsResult(
     }
 }
 
-public sealed class ApiAuthorizationService(
-    IServiceProvider services,
-    EngineeringWorkspace workspace,
-    IEngineeringExchangeService exchange,
-    IConfiguration configuration)
+public sealed class ApiAuthorizationService
 {
+    private readonly IServiceProvider services;
+    private readonly IAuthorityPolicyStore authorityPolicies;
+
+    public ApiAuthorizationService(
+        IServiceProvider services,
+        IAuthorityPolicyStore authorityPolicies,
+        IConfiguration configuration,
+        IRuntimeSessionLeaseStore? runtimeSessionStore = null)
+    {
+        this.services = services;
+        this.authorityPolicies = authorityPolicies;
+        _authenticationEnabled = configuration.GetValue<bool>("Authentication:Enabled");
+        RuntimeSessions = new RuntimeSessionLeaseRegistry(runtimeSessionStore ?? new InMemoryRuntimeSessionLeaseStore());
+    }
+
+    // Compatibility constructor for isolated legacy callers. Production DI supplies IAuthorityPolicyStore.
+    public ApiAuthorizationService(
+        IServiceProvider services,
+        EngineeringWorkspace workspace,
+        IEngineeringExchangeService exchange,
+        IConfiguration configuration)
+        : this(services, new WorkspacePolicyReadAdapter(workspace), configuration)
+    {
+    }
+
     public const string RuntimeSessionHeaderName = "X-EliteSCADA-Runtime-Session";
+    public const string RuntimeSessionClientInstanceHeaderName = "X-EliteSCADA-Runtime-Client-Instance";
 
     private readonly object _activeCacheGate = new();
-    private readonly bool _authenticationEnabled = configuration.GetValue<bool>("Authentication:Enabled");
+    private readonly bool _authenticationEnabled;
     private string? _cachedProjectKey;
     private long? _cachedRevision;
-    private InMemoryCapabilityAuthorizationService? _cachedActivePolicies;
+    private long? _cachedAuthorityVersion;
+    private RuntimeSecurityPolicyContext? _cachedActivePolicies;
 
     public bool AuthenticationEnabled => _authenticationEnabled;
-    public RuntimeSessionLeaseRegistry RuntimeSessions { get; } = new();
+    public RuntimeSessionLeaseRegistry RuntimeSessions { get; }
 
     public SecurityPrincipal GetPrincipal(HttpContext context) =>
         ClaimsPrincipalMapper.Map(context.User);
@@ -68,16 +92,97 @@ public sealed class ApiAuthorizationService(
     public ApiAuthorizationCheck CheckWorkspace(
         HttpContext context,
         SecurityCapability capability,
+        AuthorizationResource? resource = null) =>
+        CheckWorkspace(GetPrincipal(context), capability, resource);
+
+    public ApiAuthorizationCheck CheckWorkspace(
+        SecurityPrincipal principal,
+        SecurityCapability capability,
         AuthorizationResource? resource = null)
     {
-        var principal = GetPrincipal(context);
         if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
             return new ApiAuthorizationCheck(principal, null);
 
-        var policies = new InMemoryCapabilityAuthorizationService(
-            SecurityPolicyCompiler.Compile(workspace.SecurityPolicies.SnapshotRoles()));
-        return new ApiAuthorizationCheck(principal, policies.Evaluate(principal, capability, resource));
+        var authority = authorityPolicies.Snapshot();
+        var roles = authority.Roles;
+        if (AuthorityScopeEngineeringMigration.HasUnmigratedLegacyScopes(roles) ||
+            !SecurityScopeGraph.TryCreate(authority.Scopes, out var scopes, out _))
+        {
+            return new ApiAuthorizationCheck(
+                principal,
+                AuthorizationDecision.Denied(
+                    capability,
+                    "The workspace authorization scope hierarchy is not valid for runtime use."));
+        }
+
+        var policies = new InMemoryCapabilityAuthorizationService(SecurityPolicyCompiler.Compile(roles));
+        var target = scopes!.Enrich(resource ?? new AuthorizationResource());
+        return new ApiAuthorizationCheck(
+            principal,
+            policies.Evaluate(principal, capability, target));
     }
+
+    /// <summary>
+    /// Authorizes one active Server Script identity for one Rich Command. Only an
+    /// explicit CommandExecute grant on that command's exact Authority node is accepted.
+    /// </summary>
+    public ApiAuthorizationCheck CheckServerScriptCommand(
+        string projectKey,
+        long revision,
+        Guid scriptId,
+        Guid commandId)
+    {
+        var principal = ServerScriptCommandIdentity.CreatePrincipal(projectKey, revision, scriptId);
+        if (commandId == Guid.Empty)
+        {
+            return Denied("Rich Command identity is invalid.");
+        }
+
+        var authority = authorityPolicies.Snapshot();
+        if (!SecurityScopeGraph.TryCreate(authority.Scopes, out var scopes, out _))
+            return Denied("Security Authority scope hierarchy is invalid.");
+
+        var roleKey = ServerScriptCommandIdentity.RoleKey(projectKey, scriptId);
+        var role = authority.Roles.SingleOrDefault(candidate =>
+            string.Equals(candidate.Key, roleKey, StringComparison.OrdinalIgnoreCase));
+        var commandScope = authority.Scopes.SingleOrDefault(scope =>
+            scope.Kind == SecurityScopeNodeKind.Command && scope.ResourceId == commandId);
+        if (role is null || commandScope is null)
+            return Denied("Server Script has no explicit grant for this Rich Command.");
+
+        var exactGrants = (role.Grants ?? Array.Empty<CapabilityGrantEngineeringDto>())
+            .Where(grant => grant.Capability == SecurityCapability.CommandExecute &&
+                IsExactCommandScope(grant.Scope, commandScope.Id))
+            .ToArray();
+        if (exactGrants.Length == 0)
+            return Denied("Server Script has no explicit grant for this Rich Command.");
+
+        // Evaluate through the existing Authority compiler/evaluator, narrowed to
+        // the already-verified exact grant so inherited or global grants cannot widen it.
+        var restrictedRole = role with { Grants = exactGrants };
+        var evaluator = new InMemoryCapabilityAuthorizationService(
+            [SecurityPolicyCompiler.Compile(restrictedRole)]);
+        var resource = scopes!.Enrich(new AuthorizationResource(
+            ResourceKind: AuthorizationResourceKind.Command,
+            ResourceId: commandId));
+        return new ApiAuthorizationCheck(
+            principal,
+            evaluator.Evaluate(principal, SecurityCapability.CommandExecute, resource));
+
+        ApiAuthorizationCheck Denied(string reason) => new(
+            principal,
+            AuthorizationDecision.Denied(SecurityCapability.CommandExecute, reason));
+    }
+
+    private static bool IsExactCommandScope(AuthorizationScopeEngineeringDto? scope, Guid commandScopeId) =>
+        scope is not null &&
+        scope.ScopeNodeId == commandScopeId &&
+        !scope.IncludeDescendants &&
+        scope.Area is null &&
+        scope.EquipmentPath is null &&
+        scope.ScreenKey is null &&
+        scope.TagPath is null &&
+        scope.CommandKey is null;
 
     public async Task<ApiAuthorizationCheck> CheckRuntimeAsync(
         HttpContext context,
@@ -86,13 +191,16 @@ public sealed class ApiAuthorizationService(
         AuthorizationResource? resource = null,
         CancellationToken cancellationToken = default)
     {
+        if (PublicRuntimeSessionSecurity.TryRead(context.User, out var publicVisitor))
+            return await CheckPublicRuntimeViewAsync(context, runtime, capability, publicVisitor, cancellationToken);
+
         var baseline = await CheckRuntimeAsync(
             GetPrincipal(context),
             runtime,
             capability,
             resource,
             cancellationToken);
-        return ApplyRuntimeSessionDownscope(context, runtime, baseline);
+        return await ApplyRuntimeSessionDownscopeAsync(context, runtime, baseline, cancellationToken);
     }
 
     public async Task<ApiAuthorizationCheck> CheckRuntimeAsync(
@@ -117,7 +225,9 @@ public sealed class ApiAuthorizationService(
                     "The active runtime authorization policy could not be resolved safely."));
         }
 
-        return new ApiAuthorizationCheck(principal, policies.Evaluate(principal, capability, resource));
+        return new ApiAuthorizationCheck(
+            principal,
+            policies.Capabilities.Evaluate(principal, capability, policies.Enrich(resource)));
     }
 
     public async Task<ApiAuthorizationCheck> CheckRuntimeTagAsync(
@@ -127,13 +237,16 @@ public sealed class ApiAuthorizationService(
         TagAccessOperation operation,
         CancellationToken cancellationToken = default)
     {
+        if (PublicRuntimeSessionSecurity.TryRead(context.User, out var publicVisitor))
+            return await CheckPublicRuntimeTagAsync(context, runtime, tag, operation, publicVisitor, cancellationToken);
+
         var baseline = await CheckRuntimeTagAsync(
             GetPrincipal(context),
             runtime,
             tag,
             operation,
             cancellationToken);
-        return ApplyRuntimeSessionDownscope(context, runtime, baseline);
+        return await ApplyRuntimeSessionDownscopeAsync(context, runtime, baseline, cancellationToken);
     }
 
     public async Task<ApiAuthorizationCheck> CheckRuntimeTagAsync(
@@ -177,7 +290,9 @@ public sealed class ApiAuthorizationService(
                     "The active runtime authorization policy could not be resolved safely."));
         }
 
-        var decision = new TagAccessAuthorization(policies).Evaluate(principal, runtimeTag, operation);
+        var decision = new TagAccessAuthorization(
+            policies.Capabilities,
+            policies.TagResource).Evaluate(principal, runtimeTag, operation);
         return new ApiAuthorizationCheck(principal, decision);
     }
 
@@ -204,6 +319,22 @@ public sealed class ApiAuthorizationService(
         if (!_authenticationEnabled)
             return new RuntimeReadableTagsResult(principal, false, true, tags);
 
+        if (PublicRuntimeSessionSecurity.TryRead(context.User, out var publicVisitor))
+        {
+            context.Response.Headers.CacheControl = "private, no-store";
+            if (!IsPublicRuntimeTagReadRequest(context))
+                return new RuntimeReadableTagsResult(principal, true, false, Array.Empty<TagDefinition>());
+
+            var publicPolicySnapshot = authorityPolicies.Snapshot();
+            if (!await ValidatePublicRuntimeSessionAsync(runtime, publicVisitor, cancellationToken) ||
+                publicPolicySnapshot.Version != publicVisitor.PolicyVersion ||
+                publicPolicySnapshot.PublicRuntime is null)
+                return new RuntimeReadableTagsResult(principal, true, false, Array.Empty<TagDefinition>());
+            var publicTagIds = publicPolicySnapshot.PublicRuntime.TagIds.ToHashSet();
+            var publicTags = tags.Where(tag => publicTagIds.Contains(tag.Id)).ToArray();
+            return new RuntimeReadableTagsResult(principal, true, true, publicTags);
+        }
+
         if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
         {
             return new RuntimeReadableTagsResult(
@@ -224,7 +355,7 @@ public sealed class ApiAuthorizationService(
                 Array.Empty<TagDefinition>());
         }
 
-        var tagReadLeaseCheck = ApplyRuntimeSessionDownscope(
+        var tagReadLeaseCheck = await ApplyRuntimeSessionDownscopeAsync(
             context,
             runtime,
             new ApiAuthorizationCheck(
@@ -233,7 +364,8 @@ public sealed class ApiAuthorizationService(
                     true,
                     SecurityCapability.TagRead,
                     "Baseline Runtime TAG read authority will be evaluated per TAG.",
-                    Array.Empty<string>())));
+                    Array.Empty<string>())),
+            cancellationToken);
         if (!tagReadLeaseCheck.Allowed)
         {
             return new RuntimeReadableTagsResult(
@@ -243,7 +375,7 @@ public sealed class ApiAuthorizationService(
                 Array.Empty<TagDefinition>());
         }
 
-        var access = new TagAccessAuthorization(policies);
+        var access = new TagAccessAuthorization(policies.Capabilities, policies.TagResource);
         var readable = tags
             .Where(tag => access.Evaluate(principal, tag, TagAccessOperation.Read).Allowed)
             .ToArray();
@@ -281,30 +413,273 @@ public sealed class ApiAuthorizationService(
         return check.Allowed;
     }
 
-    public RuntimeSessionLeaseValidation ValidateRuntimeSession(
+    public async Task<bool> CanReadPublicRuntimeTagAsync(
+        PublicRuntimeSessionIdentity visitor,
+        ScadaRuntimeFacade runtime,
+        TagDefinition tag,
+        CancellationToken cancellationToken = default)
+    {
+        var snapshot = authorityPolicies.Snapshot();
+        if (visitor.PolicyVersion != snapshot.Version ||
+            snapshot.PublicRuntime?.TagIds.Contains(tag.Id) != true ||
+            !RuntimePublicSessionApi.MatchesActiveRuntime(snapshot.PublicRuntime, runtime.Describe()))
+            return false;
+        return await ValidatePublicRuntimeSessionAsync(runtime, visitor, cancellationToken);
+    }
+
+    public bool IsPublicRuntimePolicyCurrent(PublicRuntimeSessionIdentity visitor, ScadaRuntimeFacade runtime)
+    {
+        var snapshot = authorityPolicies.Snapshot();
+        return visitor.PolicyVersion == snapshot.Version &&
+            RuntimePublicSessionApi.MatchesActiveRuntime(snapshot.PublicRuntime, runtime.Describe());
+    }
+
+    private async Task<ApiAuthorizationCheck> CheckPublicRuntimeViewAsync(
+        HttpContext context,
+        ScadaRuntimeFacade runtime,
+        SecurityCapability capability,
+        PublicRuntimeSessionIdentity visitor,
+        CancellationToken cancellationToken)
+    {
+        var principal = GetPrincipal(context);
+        context.Response.Headers.CacheControl = "private, no-store";
+        if (!IsPublicRuntimeViewRequest(context))
+            return new ApiAuthorizationCheck(principal, AuthorizationDecision.Denied(
+                capability,
+                "This endpoint is not part of the explicitly exposed public Runtime surface."));
+        if (capability != SecurityCapability.View)
+            return new ApiAuthorizationCheck(principal, AuthorizationDecision.Denied(capability, "Public Runtime sessions are limited to explicitly exposed read-only Runtime content."));
+        var allowed = await ValidatePublicRuntimeSessionAsync(runtime, visitor, cancellationToken);
+        return new ApiAuthorizationCheck(principal, allowed
+            ? new AuthorizationDecision(true, capability, "Public Runtime read-only policy and View Only lease are current.", Array.Empty<string>())
+            : AuthorizationDecision.Denied(capability, "Public Runtime policy or View Only lease is unavailable or revoked."));
+    }
+
+    private async Task<ApiAuthorizationCheck> CheckPublicRuntimeTagAsync(
+        HttpContext context,
+        ScadaRuntimeFacade runtime,
+        TagDefinition tag,
+        TagAccessOperation operation,
+        PublicRuntimeSessionIdentity visitor,
+        CancellationToken cancellationToken)
+    {
+        var principal = new SecurityPrincipal(visitor.SubjectId, "Public Runtime visitor", Array.Empty<string>(), true);
+        context.Response.Headers.CacheControl = "private, no-store";
+        var capability = operation switch
+        {
+            TagAccessOperation.Read => SecurityCapability.TagRead,
+            TagAccessOperation.Write => SecurityCapability.ProcessValueWrite,
+            TagAccessOperation.Configure => SecurityCapability.EngineeringModify,
+            _ => throw new ArgumentOutOfRangeException(nameof(operation))
+        };
+        var snapshot = authorityPolicies.Snapshot();
+        var allowed = IsPublicRuntimeTagReadRequest(context) &&
+            operation == TagAccessOperation.Read &&
+            visitor.PolicyVersion == snapshot.Version &&
+            snapshot.PublicRuntime?.TagIds.Contains(tag.Id) == true &&
+            runtime.TryGetTag(tag.Id, out var currentTag) && currentTag is not null &&
+            currentTag.Path.Equals(tag.Path, StringComparison.OrdinalIgnoreCase) &&
+            RuntimePublicSessionApi.MatchesActiveRuntime(snapshot.PublicRuntime, runtime.Describe()) &&
+            await ValidatePublicRuntimeSessionAsync(runtime, visitor, cancellationToken);
+        return new ApiAuthorizationCheck(principal, allowed
+            ? new AuthorizationDecision(true, capability, "TAG is explicitly exposed to the current public Runtime session.", Array.Empty<string>())
+            : AuthorizationDecision.Denied(capability, "Public Runtime TAG access is not explicitly allowed or its lease has been revoked."));
+    }
+
+    internal static bool IsPublicRuntimeViewRequest(HttpContext context)
+    {
+        if (!HttpMethods.IsGet(context.Request.Method)) return false;
+        var path = context.Request.Path;
+        if (path.Equals("/api/runtime/application", StringComparison.OrdinalIgnoreCase) ||
+            path.Equals("/api/auth/effective-capabilities", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var segments = path.Value?.Split('/', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
+        return segments.Length == 5 &&
+            segments[0].Equals("api", StringComparison.OrdinalIgnoreCase) &&
+            segments[1].Equals("runtime", StringComparison.OrdinalIgnoreCase) &&
+            segments[2].Equals("visual-assets", StringComparison.OrdinalIgnoreCase) &&
+            Guid.TryParse(segments[3], out _) &&
+            segments[4].Equals("content", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static bool IsPublicRuntimeTagReadRequest(HttpContext context)
+    {
+        if (!HttpMethods.IsGet(context.Request.Method)) return false;
+        var path = context.Request.Path;
+        if (path.Equals("/api/tags", StringComparison.OrdinalIgnoreCase) ||
+            path.Equals("/api/tags/current", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return path.StartsWithSegments("/api/tags/by-path", out var remaining) &&
+            !string.IsNullOrWhiteSpace(remaining.Value?.Trim('/'));
+    }
+
+    private async Task<bool> ValidatePublicRuntimeSessionAsync(
+        ScadaRuntimeFacade runtime,
+        PublicRuntimeSessionIdentity visitor,
+        CancellationToken cancellationToken)
+    {
+        var authorityLifecycle = services.GetService<IAuthorityLifecycleStore>();
+        if (authorityLifecycle is null || !await PublicRuntimeJwtSessionValidator.IsCurrentAsync(
+                visitor,
+                authorityLifecycle,
+                cancellationToken))
+            return false;
+
+        var snapshot = authorityPolicies.Snapshot();
+        var descriptor = runtime.Describe();
+        if (visitor.PolicyVersion != snapshot.Version ||
+            !RuntimePublicSessionApi.MatchesActiveRuntime(snapshot.PublicRuntime, descriptor))
+            return false;
+        var lease = await RuntimeSessions.ValidateAsync(
+            visitor.SessionId,
+            visitor.SubjectId,
+            descriptor,
+            visitor.ClientInstanceId,
+            cancellationToken);
+        var latestPolicy = authorityPolicies.Snapshot();
+        return lease.IsValid &&
+            lease.Lease?.ConnectionClass == RuntimeConnectionClass.ViewOnly &&
+            latestPolicy.Version == visitor.PolicyVersion &&
+            RuntimePublicSessionApi.MatchesActiveRuntime(latestPolicy.PublicRuntime, runtime.Describe()) &&
+            await PublicRuntimeJwtSessionValidator.IsCurrentAsync(visitor, authorityLifecycle, cancellationToken);
+    }
+
+    public async Task<RuntimeSessionLeaseValidation> ValidateRuntimeSessionAsync(
         SecurityPrincipal principal,
         ScadaRuntimeFacade runtime,
         Guid sessionId,
-        string? clientInstanceId = null)
+        string? clientInstanceId = null,
+        CancellationToken cancellationToken = default)
     {
         if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
             return RuntimeSessionLeaseValidation.Invalid("unauthenticated");
 
-        return RuntimeSessions.Validate(
+        return await RuntimeSessions.ValidateAsync(
             sessionId,
             principal.SubjectId,
             runtime.Describe(),
-            clientInstanceId);
+            clientInstanceId,
+            cancellationToken);
     }
 
-    private ApiAuthorizationCheck ApplyRuntimeSessionDownscope(
+    /// <summary>
+    /// Resolves the server-owned Runtime session class without creating a second Authority
+    /// pipeline. The result is eligibility only: it never reserves a commercial seat.
+    /// </summary>
+    public async Task<(ApiAuthorizationCheck ViewAuthorization, RuntimeSessionAdmissionDecision? Decision)>
+        ResolveRuntimeSessionAdmissionAsync(
+            SecurityPrincipal principal,
+            ScadaRuntimeFacade runtime,
+            RuntimeConnectionClass requestedClass,
+            CancellationToken cancellationToken = default)
+    {
+        var view = await CheckRuntimeAsync(
+            principal,
+            runtime,
+            SecurityCapability.View,
+            cancellationToken: cancellationToken);
+        if (!view.Allowed) return (view, null);
+
+        if (requestedClass == RuntimeConnectionClass.ViewOnly)
+        {
+            return (
+                view,
+                RuntimeSessionAdmissionPolicy.Resolve(requestedClass, Array.Empty<AuthorizationDecision>()));
+        }
+
+        var decisions = new List<AuthorizationDecision>();
+
+        // Command and TAG grants may be hierarchy-scoped. Evaluate concrete Runtime resources so
+        // an Operator with a narrow command/write grant is not mistaken for a read-only subject.
+        foreach (var command in runtime.Commands())
+        {
+            var commandCheck = await CheckRuntimeAsync(
+                principal,
+                runtime,
+                SecurityCapability.CommandExecute,
+                ToCommandResource(command),
+                cancellationToken);
+            if (commandCheck.Decision is not null) decisions.Add(commandCheck.Decision);
+        }
+
+        var writableTags = runtime.Tags().Where(tag => !tag.ReadOnly).ToArray();
+        if (writableTags.Length > 0)
+        {
+            var globalWriteCheck = await CheckRuntimeAsync(
+                principal,
+                runtime,
+                SecurityCapability.ProcessValueWrite,
+                cancellationToken: cancellationToken);
+            if (globalWriteCheck.Decision is not null) decisions.Add(globalWriteCheck.Decision);
+
+            // A global capability grant covers all writable TAGs without explicit TAG-level
+            // restrictions. Avoid reloading/evaluating the same Runtime policy thousands of
+            // times for large projects; retain per-TAG evaluation for scoped grants and explicit
+            // WriteRoles restrictions.
+            var hasUnrestrictedTag = writableTags.Any(tag => tag.AccessPolicy?.WriteRoles is null);
+            if (!globalWriteCheck.Allowed || !hasUnrestrictedTag)
+            {
+                foreach (var tag in writableTags)
+                {
+                    var writeCheck = await CheckRuntimeTagAsync(
+                        principal,
+                        runtime,
+                        tag,
+                        TagAccessOperation.Write,
+                        cancellationToken);
+                    if (writeCheck.Decision is not null) decisions.Add(writeCheck.Decision);
+                    if (writeCheck.Allowed) break;
+                }
+            }
+        }
+
+        foreach (var capability in new[]
+                 {
+                     SecurityCapability.AlarmAcknowledge,
+                     SecurityCapability.AlarmShelve,
+                     SecurityCapability.TrendSave
+                 })
+        {
+            var check = await CheckRuntimeAsync(
+                principal,
+                runtime,
+                capability,
+                cancellationToken: cancellationToken);
+            if (check.Decision is not null) decisions.Add(check.Decision);
+        }
+
+        return (view, RuntimeSessionAdmissionPolicy.Resolve(requestedClass, decisions));
+    }
+
+    private static AuthorizationResource ToCommandResource(CommandDefinition command) => new(
+        Area: command.Area,
+        EquipmentPath: command.EquipmentPath,
+        TagPath: command.TargetTagPath,
+        CommandKey: command.Key,
+        ResourceKind: AuthorizationResourceKind.Command,
+        ResourceId: command.Id);
+
+    private async Task<ApiAuthorizationCheck> ApplyRuntimeSessionDownscopeAsync(
         HttpContext context,
         ScadaRuntimeFacade runtime,
-        ApiAuthorizationCheck baseline)
+        ApiAuthorizationCheck baseline,
+        CancellationToken cancellationToken)
     {
         if (!baseline.Allowed || baseline.Decision is null) return baseline;
         if (!context.Request.Headers.TryGetValue(RuntimeSessionHeaderName, out var values))
-            return baseline;
+        {
+            // Read-only Runtime access retains its existing compatibility path. A Runtime
+            // mutation, however, must never recover baseline Authority by deleting the
+            // logical lease headers from a ViewOnly client request.
+            return RuntimeSessionAdmissionPolicy.IsRuntimeMutation(baseline.Decision.Capability)
+                ? new ApiAuthorizationCheck(
+                    baseline.Principal,
+                    AuthorizationDecision.Denied(
+                        baseline.Decision.Capability,
+                        "A Runtime mutation requires a logical Runtime session lease."))
+                : baseline;
+        }
 
         if (values.Count != 1 || !Guid.TryParse(values.ToString(), out var sessionId) || sessionId == Guid.Empty)
         {
@@ -315,32 +690,62 @@ public sealed class ApiAuthorizationService(
                     "The Runtime session header is invalid."));
         }
 
-        var decision = RuntimeSessionAccessEvaluator.Apply(
+        if (!context.Request.Headers.TryGetValue(RuntimeSessionClientInstanceHeaderName, out var clientValues) ||
+            clientValues.Count != 1 ||
+            string.IsNullOrWhiteSpace(clientValues.ToString()) ||
+            clientValues.ToString().Trim().Length > RuntimeSessionLeaseRegistry.MaximumClientInstanceIdLength)
+        {
+            return new ApiAuthorizationCheck(
+                baseline.Principal,
+                AuthorizationDecision.Denied(
+                    baseline.Decision.Capability,
+                    "The Runtime session client instance header is invalid."));
+        }
+
+        var decision = await RuntimeSessionAccessEvaluator.ApplyAsync(
             RuntimeSessions,
             sessionId,
             baseline.Principal.SubjectId,
             runtime.Describe(),
-            baseline.Decision);
+            baseline.Decision,
+            clientValues.ToString().Trim(),
+            cancellationToken: cancellationToken);
         return new ApiAuthorizationCheck(baseline.Principal, decision);
     }
 
-    private async Task<InMemoryCapabilityAuthorizationService?> ResolveRuntimePoliciesAsync(
+    private async Task<RuntimeSecurityPolicyContext?> ResolveRuntimePoliciesAsync(
         ScadaRuntimeFacade runtime,
         CancellationToken cancellationToken)
     {
         var descriptor = runtime.Describe();
         if (!descriptor.Revision.HasValue)
         {
-            return new InMemoryCapabilityAuthorizationService(
-                SecurityPolicyCompiler.Compile(workspace.SecurityPolicies.SnapshotRoles()));
+            var authority = authorityPolicies.Snapshot();
+            var roles = authority.Roles;
+            if (AuthorityScopeEngineeringMigration.HasUnmigratedLegacyScopes(roles) ||
+                !SecurityScopeGraph.TryCreate(authority.Scopes, out var workspaceScopes, out _))
+            {
+                return null;
+            }
+
+            return new RuntimeSecurityPolicyContext(
+                new InMemoryCapabilityAuthorizationService(
+                    SecurityPolicyCompiler.Compile(roles)),
+                workspaceScopes);
         }
 
         if (string.IsNullOrWhiteSpace(descriptor.ProjectKey)) return null;
+
+        // Authority policy can change independently of an activated Engineering revision.
+        // Include its canonical version in the cache key so runtime authorization reflects
+        // role edits immediately instead of retaining capabilities from the old policy.
+        var cachedAuthority = authorityPolicies.Snapshot();
 
         lock (_activeCacheGate)
         {
             if (_cachedActivePolicies is not null &&
                 _cachedRevision == descriptor.Revision &&
+                _cachedAuthorityVersion == cachedAuthority.Version &&
                 string.Equals(_cachedProjectKey, descriptor.ProjectKey, StringComparison.OrdinalIgnoreCase))
             {
                 return _cachedActivePolicies;
@@ -351,11 +756,41 @@ public sealed class ApiAuthorizationService(
         if (persistence is null) return null;
 
         var snapshot = await persistence.LoadActiveAsync(descriptor.ProjectKey, cancellationToken);
-        if (snapshot is null || snapshot.Revision != descriptor.Revision) return null;
+        var passiveProjection = false;
+        if (!MatchesRuntime(snapshot, descriptor))
+        {
+            var highAvailability = services.GetService<RuntimeHighAvailabilityService>();
+            if (highAvailability?.HasReadyPassiveRuntimeProjection(descriptor) != true)
+                return null;
 
-        var package = exchange.ParseJson(snapshot.EngineeringJson);
-        var compiled = new InMemoryCapabilityAuthorizationService(
-            SecurityPolicyCompiler.Compile(package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>()));
+            // A Standby materializes the authoritative Active Runtime as a read-only
+            // projection; it must not acquire a local Active revision. Resolve the
+            // matching published copy when available. Nodes may keep separate project
+            // databases, so a ReadyStandby node may instead use its authenticated
+            // in-memory peer projection while HA confirms the exact runtime identity,
+            // synchronization, license, and passive fencing.
+            snapshot = await persistence.LoadPublishedAsync(descriptor.ProjectKey, cancellationToken);
+            if (!MatchesRuntime(snapshot, descriptor))
+            {
+                var coordinator = services.GetService<IRuntimeApplicationProjectionProvider>();
+                if (coordinator?.CaptureApplication() is null)
+                    return null;
+                passiveProjection = true;
+            }
+        }
+
+        if (!passiveProjection && !MatchesRuntime(snapshot, descriptor)) return null;
+
+        var activeAuthority = authorityPolicies.Snapshot();
+        if (AuthorityScopeEngineeringMigration.HasUnmigratedLegacyScopes(activeAuthority.Roles) ||
+            !SecurityScopeGraph.TryCreate(activeAuthority.Scopes, out var scopes, out _))
+        {
+            return null;
+        }
+        var compiled = new RuntimeSecurityPolicyContext(
+            new InMemoryCapabilityAuthorizationService(
+                SecurityPolicyCompiler.Compile(activeAuthority.Roles)),
+            scopes);
 
         // Fail closed if the live runtime changed while the persisted policy was being resolved.
         var afterLoad = runtime.Describe();
@@ -366,15 +801,59 @@ public sealed class ApiAuthorizationService(
         {
             _cachedProjectKey = descriptor.ProjectKey;
             _cachedRevision = descriptor.Revision;
+            _cachedAuthorityVersion = activeAuthority.Version;
             _cachedActivePolicies = compiled;
         }
 
         return compiled;
     }
 
+    private static bool MatchesRuntime(
+        EngineeringProjectSnapshot? snapshot,
+        ScadaRuntimeDescriptor runtime) =>
+        snapshot is not null &&
+        snapshot.Revision == runtime.Revision &&
+        !string.IsNullOrWhiteSpace(runtime.ProjectKey) &&
+        snapshot.ProjectKey.Equals(runtime.ProjectKey, StringComparison.OrdinalIgnoreCase);
+
     private static bool SameRuntime(ScadaRuntimeDescriptor left, ScadaRuntimeDescriptor right) =>
         left.Revision == right.Revision &&
         left.ActivatedAtUtc == right.ActivatedAtUtc &&
         left.Mode.Equals(right.Mode, StringComparison.Ordinal) &&
         string.Equals(left.ProjectKey, right.ProjectKey, StringComparison.OrdinalIgnoreCase);
+
+    private sealed class WorkspacePolicyReadAdapter(EngineeringWorkspace workspace) : IAuthorityPolicyStore
+    {
+        public AuthorityPolicySnapshot Snapshot() => new(
+            0,
+            workspace.SecurityPolicies.SnapshotRoles(),
+            workspace.SecurityPolicies.SnapshotScopes());
+
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<AuthorityPolicyWriteResult> TryReplaceAsync(
+            long expectedVersion,
+            IReadOnlyCollection<SecurityRoleEngineeringDto> roles,
+            IReadOnlyCollection<SecurityScopeEngineeringDto> scopes,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Legacy workspace adapter is read-only.");
+    }
+
+    private sealed record RuntimeSecurityPolicyContext(
+        InMemoryCapabilityAuthorizationService Capabilities,
+        SecurityScopeGraph? Scopes)
+    {
+        public AuthorizationResource? Enrich(AuthorizationResource? resource) =>
+            resource is null ? null : Scopes?.Enrich(resource) ?? resource;
+
+        public AuthorizationResource TagResource(TagDefinition tag) =>
+            Scopes?.Enrich(new AuthorizationResource(
+                TagPath: tag.Path,
+                ResourceKind: AuthorizationResourceKind.Tag,
+                ResourceId: tag.Id))
+            ?? new AuthorizationResource(
+                TagPath: tag.Path,
+                ResourceKind: AuthorizationResourceKind.Tag,
+                ResourceId: tag.Id);
+    }
 }

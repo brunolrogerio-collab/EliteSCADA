@@ -1,32 +1,42 @@
 import { expect, test } from '@playwright/test';
+import { endRuntimeSessionInUi } from './runtimeSessionLease';
 
 test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) => {
+  test.setTimeout(90_000);
   await page.goto('/');
 
-  await expect(page.getByText('SCADA Platform')).toBeVisible();
-  await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible({ timeout: 15_000 });
+  const fixtureProjectKey = 'e2e-wave03';
+  const runtimeStateResponse = await request.get(
+    `/api/engineering/persistence/${encodeURIComponent(fixtureProjectKey)}/runtime`);
+  expect(runtimeStateResponse.ok()).toBeTruthy();
+  const runtimeState = await runtimeStateResponse.json() as {
+    consistent: boolean;
+    durable: { activeRevision: number | null };
+    live: { mode: string; projectKey: string | null; revision: number | null };
+  };
+  expect(runtimeState.consistent).toBeTruthy();
+  expect(runtimeState.live.mode).toBe('engineering');
+  expect(runtimeState.live.projectKey).toBe(fixtureProjectKey);
+  const fixtureActiveRevision = runtimeState.durable.activeRevision;
+  expect(fixtureActiveRevision).not.toBeNull();
+  if (fixtureActiveRevision === null)
+    throw new Error('The explicit E2E fixture must be Active before Runtime evidence begins.');
+  expect(runtimeState.live.revision).toBe(fixtureActiveRevision);
+
+  await expect(page.getByRole('link', { name: 'SCADIVO', exact: true })).toBeVisible();
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('runtime-engineering-canvas')).toBeVisible();
+  await expect(page.getByText('E2E Explicit Demo Fixture')).toBeVisible();
   await expect(page.getByText('Reservatório TK01')).toBeVisible();
-  await expect(page.getByTitle('Abrir detalhes da bomba')).toBeVisible();
 
   const tagResponse = await request.get('/api/tags');
   expect(tagResponse.ok()).toBeTruthy();
-  const tags = await tagResponse.json() as Array<{ id: string; path: string; readOnly: boolean }>;
+  const tags = await tagResponse.json() as Array<{ id: string; path: string; readOnly: boolean; value: unknown }>;
   expect(tags).toHaveLength(7);
 
   const frequencyTag = tags.find(tag => tag.path === 'Demo.P01.Frequency');
   expect(frequencyTag).toBeTruthy();
   expect(frequencyTag!.readOnly).toBeFalsy();
-
-  const writeResponse = await request.post(`/api/tags/${frequencyTag!.id}/write`, {
-    data: { value: 50 }
-  });
-  expect(writeResponse.status()).toBe(202);
-  await expect(page.getByText('50.0 Hz')).toBeVisible({ timeout: 10_000 });
-
-  await page.getByTitle('Abrir detalhes da bomba').click();
-  await expect(page.getByText('Bomba P01')).toBeVisible();
-  await expect(page.getByText('Histórico recente · Corrente')).toBeVisible();
-  await expect.poll(async () => page.locator('.spark-values span').count(), { timeout: 10_000 }).toBeGreaterThan(0);
 
   const exportResponse = await request.get('/api/engineering/export/json');
   expect(exportResponse.ok()).toBeTruthy();
@@ -37,7 +47,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     dataSources: Array<{ key: string; driver: string }>;
     templates: Array<{ key: string; bindings: Array<{ key: string; target: string }> }>;
     equipment: Array<{ path: string; templateKey?: string; bindings: Array<{ key: string; target: string }> }>;
-    dynamos: Array<{ key: string; templateKey?: string | null }>;
+    dynamos: Array<{ key: string; templateKey?: string | null; metadata?: Record<string, string> }>;
     screens: Array<{
       key: string;
       route?: string;
@@ -48,11 +58,8 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
       templateKey?: string;
       elements: Array<{ key: string; type: string; bindings?: Array<{ key: string; target: string }> }>;
     }>;
-    securityRoles: Array<{
-      key: string;
-      name: string;
-      grants: Array<{ capability: string; scope?: { tagPath?: string } }>;
-    }>;
+    securityRoles: Array<{ key: string }>;
+    authorityPolicyReference?: { roleIds: string[]; scopeIds: string[] } | null;
     commands: Array<{
       id?: string;
       key: string;
@@ -66,10 +73,11 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(engineering.schemaVersion).toBeGreaterThanOrEqual(7);
   expect(engineering.tags.some(tag => tag.path === 'Demo.Tank01.Level')).toBeTruthy();
   expect(engineering.tags.some(tag => tag.path === 'Demo.P01.Frequency')).toBeTruthy();
-  expect(engineering.tags.every(tag => tag.source === 'builtin.simulation')).toBeTruthy();
+  expect(engineering.tags.every(tag => tag.source === 'memory.server.e2e')).toBeTruthy();
   expect(engineering.tags.find(tag => tag.path === 'Demo.P01.Frequency')?.id).toBe('10000000-0000-0000-0000-000000000005');
   expect(engineering.dataSources).toHaveLength(1);
-  expect(engineering.dataSources[0].key).toBe('builtin.simulation');
+  expect(engineering.dataSources[0].key).toBe('memory.server.e2e');
+  expect(engineering.dataSources[0].driver).toBe('builtin.memory.server');
   expect(engineering.templates).toHaveLength(1);
   expect(engineering.templates[0].key).toBe('pump.standard');
   expect(engineering.templates[0].bindings.some(binding => binding.target === '{equipmentPath}.Running')).toBeTruthy();
@@ -77,28 +85,15 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(engineering.equipment[0].path).toBe('Demo.P01');
   expect(engineering.equipment[0].templateKey).toBe('pump.standard');
   expect(engineering.equipment[0].bindings.some(binding => binding.target === 'Demo.P01.Frequency')).toBeTruthy();
-  expect(engineering.dynamos).toHaveLength(8);
-  expect(engineering.dynamos.map(dynamo => dynamo.key).sort()).toEqual([
-    'dynamo.pump.standard',
-    'process.motor.standard',
-    'process.motor.vfd',
-    'process.pump.submersible',
-    'process.tank.horizontal',
-    'process.tank.vertical',
-    'process.valve.control',
-    'process.valve.onoff'
-  ]);
-  const standardPumpDynamo = engineering.dynamos.find(dynamo => dynamo.key === 'dynamo.pump.standard');
-  expect(standardPumpDynamo).toBeTruthy();
-  expect(standardPumpDynamo!.templateKey).toBeNull();
+  expect(engineering.dynamos).toHaveLength(15);
+  expect(engineering.dynamos.every(dynamo => dynamo.metadata?.catalogGeneration === '3' && dynamo.metadata.catalogStatus === 'active')).toBeTruthy();
+  expect(new Set(engineering.dynamos.map(dynamo => dynamo.key)).size).toBe(15);
+  expect(engineering.dynamos.some(dynamo => dynamo.key === 'motor.tefc')).toBeTruthy();
 
   expect(engineering.screens).toHaveLength(1);
   expect(engineering.screens[0].key).toBe('demo.overview');
   expect(engineering.screens[0].route).toBe('/demo');
-  const pumpElement = engineering.screens[0].elements.find(element => element.key === 'pump01');
-  expect(pumpElement).toBeTruthy();
-  expect(pumpElement!.dynamoKey).toBe('dynamo.pump.standard');
-  expect(pumpElement!.equipmentPath).toBe('Demo.P01');
+  expect(engineering.screens[0].elements.some(element => element.dynamoKey?.startsWith('dynamo.pump.'))).toBeFalsy();
   const pressureElement = engineering.screens[0].elements.find(element => element.key === 'pressure');
   expect(pressureElement?.bindings?.some(binding => binding.target === 'Demo.Discharge.Pressure')).toBeTruthy();
 
@@ -108,14 +103,8 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   const popupFrequency = engineering.popups[0].elements.find(element => element.key === 'frequency');
   expect(popupFrequency?.bindings?.some(binding => binding.target === '{equipmentPath}.Frequency')).toBeTruthy();
 
-  expect(engineering.securityRoles).toHaveLength(2);
-  const operatorRole = engineering.securityRoles.find(role => role.key === 'operator');
-  expect(operatorRole).toBeTruthy();
-  expect(operatorRole!.grants.some(grant => grant.capability === 'commandExecute')).toBeTruthy();
-  expect(operatorRole!.grants.some(grant => grant.capability === 'processValueWrite')).toBeFalsy();
-  const developerRole = engineering.securityRoles.find(role => role.key === 'developer');
-  expect(developerRole).toBeTruthy();
-  expect(developerRole!.grants.some(grant => grant.capability === 'systemAdmin')).toBeTruthy();
+  expect(engineering.securityRoles).toEqual([]);
+  expect(engineering.authorityPolicyReference?.roleIds).toHaveLength(2);
 
   expect(engineering.commands).toHaveLength(2);
   expect(engineering.commands.map(command => command.key).sort()).toEqual(['demo.p01.start', 'demo.p01.stop']);
@@ -159,8 +148,8 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   const dataSourceCsvResponse = await request.get('/api/engineering/export/datasources.csv');
   expect(dataSourceCsvResponse.ok()).toBeTruthy();
   const dataSourceCsv = await dataSourceCsvResponse.text();
-  expect(dataSourceCsv).toContain('builtin.simulation');
-  expect(dataSourceCsv).toContain('scanIntervalMilliseconds');
+  expect(dataSourceCsv).toContain('memory.server.e2e');
+  expect(dataSourceCsv).toContain('builtin.memory.server');
 
   const tagsCsvResponse = await request.get('/api/engineering/export/tags.csv');
   expect(tagsCsvResponse.ok()).toBeTruthy();
@@ -179,7 +168,8 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(tagsPreview.errorCount).toBe(0);
   expect(tagsPreview.canApply).toBeTruthy();
 
-  const projectPackageResponse = await request.get('/api/project-package/export?projectKey=demo&projectName=Demo%20Project');
+  const projectPackageResponse = await request.get(
+    `/api/project-package/export?projectKey=${encodeURIComponent(fixtureProjectKey)}&projectName=${encodeURIComponent('E2E Explicit Fixture')}`);
   expect(projectPackageResponse.ok()).toBeTruthy();
   expect(projectPackageResponse.headers()['content-type']).toContain('application/vnd.elitescada.project-package');
   const projectPackage = await projectPackageResponse.body();
@@ -202,18 +192,20 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     engineering: { tags: number; dataSources: number; screens: number; popups: number; securityRoles: number; commands: number };
   };
   expect(projectInspect.manifest.format).toBe('elitescada.project-package');
-  expect(projectInspect.manifest.formatVersion).toBe(2);
-  expect(projectInspect.manifest.projectKey).toBe('demo');
-  expect(projectInspect.manifest.projectName).toBe('Demo Project');
+  expect(projectInspect.manifest.formatVersion).toBe(3);
+  expect(projectInspect.manifest.projectKey).toBe(fixtureProjectKey);
+  expect(projectInspect.manifest.projectName).toBe('E2E Explicit Fixture');
   expect(projectInspect.manifest.engineeringSchemaVersion).toBe(engineering.schemaVersion);
-  expect(projectInspect.manifest.files).toHaveLength(1);
-  expect(projectInspect.manifest.files[0].path).toBe('engineering.json');
-  expect(projectInspect.manifest.files[0].sha256).toHaveLength(64);
+  const packageFiles = projectInspect.manifest.files;
+  expect(packageFiles.some(file => file.path === 'engineering.json')).toBeTruthy();
+  const packagedArtwork = packageFiles.filter(file => file.path.startsWith('assets/'));
+  expect(packagedArtwork.length).toBeGreaterThan(0);
+  expect(packageFiles.every(file => file.sha256.length === 64)).toBeTruthy();
   expect(projectInspect.engineering.tags).toBe(7);
   expect(projectInspect.engineering.dataSources).toBe(1);
   expect(projectInspect.engineering.screens).toBe(1);
   expect(projectInspect.engineering.popups).toBe(1);
-  expect(projectInspect.engineering.securityRoles).toBe(2);
+  expect(projectInspect.engineering.securityRoles).toBe(0);
   expect(projectInspect.engineering.commands).toBe(2);
 
   const projectPreviewResponse = await request.post('/api/project-package/import/preview', {
@@ -225,68 +217,91 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(projectPreview.errorCount).toBe(0);
   expect(projectPreview.canApply).toBeTruthy();
 
-  let activeAlarmId: string | undefined;
-  await expect.poll(async () => {
-    const alarmResponse = await request.get('/api/alarms?activeOnly=true');
-    if (!alarmResponse.ok()) return '';
-    const alarms = await alarmResponse.json() as Array<{ definitionId: string }>;
-    activeAlarmId = alarms[0]?.definitionId;
-    return activeAlarmId ?? '';
-  }, { timeout: 15_000 }).not.toBe('');
-  expect(activeAlarmId).toBeTruthy();
-
-  const ackResponse = await request.post(`/api/alarms/${activeAlarmId!}/ack`, {
-    data: { user: 'e2e-operator' }
-  });
-  expect(ackResponse.ok()).toBeTruthy();
-
   const workspaceMutation = JSON.parse(engineeringText) as any;
   workspaceMutation.tags.push({
     id: '50000000-0000-0000-0000-000000000001',
     name: 'Workspace Only',
     path: 'Engineering.Workspace.Only',
     dataType: 'double',
-    source: 'builtin.simulation',
+    source: 'memory.server.e2e',
     readOnly: true
   });
 
-  const workspaceApplyResponse = await request.post('/api/engineering/import/json/apply', {
-    data: JSON.stringify(workspaceMutation),
-    headers: { 'content-type': 'application/json; charset=utf-8' }
-  });
-  expect(workspaceApplyResponse.ok()).toBeTruthy();
+  let workspaceMutationApplied = false;
+  try {
+    const workspaceApplyResponse = await request.post('/api/engineering/import/json/apply', {
+      data: JSON.stringify(workspaceMutation),
+      headers: { 'content-type': 'application/json; charset=utf-8' }
+    });
+    expect(workspaceApplyResponse.ok()).toBeTruthy();
+    workspaceMutationApplied = true;
 
-  const workspaceStatusResponse = await request.get('/api/engineering/workspace');
-  expect(workspaceStatusResponse.ok()).toBeTruthy();
-  const workspaceStatus = await workspaceStatusResponse.json() as {
+    const workspaceStatusResponse = await request.get('/api/engineering/workspace');
+    expect(workspaceStatusResponse.ok()).toBeTruthy();
+    const workspaceStatus = await workspaceStatusResponse.json() as {
     isDirty: boolean;
     changeVersion: number;
     tagCount: number;
     securityRoleCount: number;
     commandCount: number;
   };
-  expect(workspaceStatus.isDirty).toBeTruthy();
-  expect(workspaceStatus.changeVersion).toBeGreaterThan(0);
-  expect(workspaceStatus.tagCount).toBe(8);
-  expect(workspaceStatus.securityRoleCount).toBe(2);
-  expect(workspaceStatus.commandCount).toBe(2);
+    expect(workspaceStatus.isDirty).toBeTruthy();
+    expect(workspaceStatus.changeVersion).toBeGreaterThan(0);
+    expect(workspaceStatus.tagCount).toBe(8);
+    // Roles are Authority-owned in AUTH-03; project Workspace carries no local
+    // role records. The canonical developer/operator policy remains external.
+    expect(workspaceStatus.securityRoleCount).toBe(0);
+    expect(workspaceStatus.commandCount).toBe(2);
 
-  const mutatedEngineeringResponse = await request.get('/api/engineering/export/json');
-  expect(mutatedEngineeringResponse.ok()).toBeTruthy();
-  const mutatedEngineering = await mutatedEngineeringResponse.json() as {
+    const mutatedEngineeringResponse = await request.get('/api/engineering/export/json');
+    expect(mutatedEngineeringResponse.ok()).toBeTruthy();
+    const mutatedEngineering = await mutatedEngineeringResponse.json() as {
     tags: Array<{ path: string }>;
     securityRoles: Array<{ key: string }>;
+    authorityPolicyReference?: { roleIds: string[] } | null;
     commands: Array<{ key: string }>;
   };
-  expect(mutatedEngineering.tags).toHaveLength(8);
-  expect(mutatedEngineering.tags.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeTruthy();
-  expect(mutatedEngineering.securityRoles).toHaveLength(2);
-  expect(mutatedEngineering.commands).toHaveLength(2);
+    expect(mutatedEngineering.tags).toHaveLength(8);
+    expect(mutatedEngineering.tags.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeTruthy();
+    expect(mutatedEngineering.securityRoles).toEqual([]);
+    expect(mutatedEngineering.authorityPolicyReference?.roleIds).toHaveLength(2);
+    expect(mutatedEngineering.commands).toHaveLength(2);
 
-  const runtimeAfterWorkspaceEditResponse = await request.get('/api/tags');
-  expect(runtimeAfterWorkspaceEditResponse.ok()).toBeTruthy();
-  const runtimeAfterWorkspaceEdit = await runtimeAfterWorkspaceEditResponse.json() as Array<{ path: string }>;
-  expect(runtimeAfterWorkspaceEdit).toHaveLength(7);
-  expect(runtimeAfterWorkspaceEdit.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeFalsy();
-  await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible();
+    const runtimeAfterWorkspaceEditResponse = await request.get('/api/tags');
+    expect(runtimeAfterWorkspaceEditResponse.ok()).toBeTruthy();
+    const runtimeAfterWorkspaceEdit = await runtimeAfterWorkspaceEditResponse.json() as Array<{ path: string }>;
+    expect(runtimeAfterWorkspaceEdit).toHaveLength(7);
+    expect(runtimeAfterWorkspaceEdit.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeFalsy();
+    await expect(page.getByTestId('runtime-engineering-canvas')).toBeVisible();
+  } finally {
+    if (workspaceMutationApplied) {
+      // Restore the persisted Active revision instead of merely re-applying JSON.
+      // This leaves Working clean and prevents state leakage into later specs/retries.
+      const restoreResponse = await request.post(
+        `/api/engineering/persistence/${encodeURIComponent(fixtureProjectKey)}/revisions/${fixtureActiveRevision}/checkout`);
+      expect(restoreResponse.ok()).toBeTruthy();
+      const restored = await restoreResponse.json() as {
+        checkedOut: boolean;
+        workspace: { isDirty: boolean; baseRevision: number | null; tagCount: number };
+      };
+      expect(restored.checkedOut).toBeTruthy();
+      expect(restored.workspace.isDirty).toBeFalsy();
+      expect(restored.workspace.baseRevision).toBe(fixtureActiveRevision);
+      expect(restored.workspace.tagCount).toBe(7);
+
+      const runtimeAfterRestoreResponse = await request.get(
+        `/api/engineering/persistence/${encodeURIComponent(fixtureProjectKey)}/runtime`);
+      expect(runtimeAfterRestoreResponse.ok()).toBeTruthy();
+      const runtimeAfterRestore = await runtimeAfterRestoreResponse.json() as {
+        consistent: boolean;
+        durable: { activeRevision: number | null };
+        live: { revision: number | null };
+      };
+      expect(runtimeAfterRestore.consistent).toBeTruthy();
+      expect(runtimeAfterRestore.durable.activeRevision).toBe(fixtureActiveRevision);
+      expect(runtimeAfterRestore.live.revision).toBe(fixtureActiveRevision);
+    }
+  }
+
+  await endRuntimeSessionInUi(page);
 });

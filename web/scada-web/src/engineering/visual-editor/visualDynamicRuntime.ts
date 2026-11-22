@@ -13,9 +13,11 @@ import type {
   VisualElementEngineering,
   VisualExpressionDependencyEngineering,
   VisualExpressionEngineering,
+  VisualPropertyMapEngineering,
   VisualValueSourceEngineering
 } from '../types';
-import type { VisualPropertyValue } from '../../visual-runtime';
+import { getVisualSchemaForEngineering, type VisualPropertyValue } from '../../visual-runtime';
+import { parseSvgSemanticDynamicPropertyKey } from './svgSymbolModel';
 import {
   computeAnalogFillPresentation,
   type AnalogFillPresentation
@@ -79,15 +81,24 @@ export function resolveVisualDynamicState(
   for (const binding of element.bindings ?? []) {
     const kind = binding.kind?.trim().toLowerCase();
     if (kind !== 'tag' && kind !== 'clientmemory') continue;
-    if (binding.key === 'text' || !(binding.key in values)) continue;
+    const semantic = element.type === 'core.svgSymbol'
+      ? parseSvgSemanticDynamicPropertyKey(binding.key)
+      : null;
+    if (binding.key === 'text' || (!(binding.key in values) && !semantic)) continue;
 
-    const resolved = resolveBinding(binding, values[binding.key], samples);
+    const fallback = binding.key in values
+      ? values[binding.key]
+      : semantic?.type === 'number' ? 1 : '#000000';
+    const resolved = resolveBinding(binding, fallback, samples);
     if (resolved.ok) values[binding.key] = resolved.value;
     else diagnostics.push(Object.freeze({ propertyKey: binding.key, sourceKind: 'Binding', message: resolved.message }));
   }
 
   for (const configured of element.propertyExpressions ?? []) {
-    if (!(configured.propertyKey in values)) continue;
+    const semantic = element.type === 'core.svgSymbol'
+      ? parseSvgSemanticDynamicPropertyKey(configured.propertyKey)
+      : null;
+    if (!(configured.propertyKey in values) && !semantic) continue;
     const resolved = resolveExpression(configured.expression, samples);
     if (resolved.ok) values[configured.propertyKey] = resolved.value;
     else diagnostics.push(Object.freeze({ propertyKey: configured.propertyKey, sourceKind: 'Expression', message: resolved.message }));
@@ -98,6 +109,16 @@ export function resolveVisualDynamicState(
     const resolved = resolveBooleanCondition(condition, samples);
     if (resolved.ok) values[condition.propertyKey] = resolved.value;
     else diagnostics.push(Object.freeze({ propertyKey: condition.propertyKey, sourceKind: 'BooleanCondition', message: resolved.message }));
+  }
+
+  for (const propertyMap of element.propertyMaps ?? []) {
+    const semantic = element.type === 'core.svgSymbol'
+      ? parseSvgSemanticDynamicPropertyKey(propertyMap.propertyKey)
+      : null;
+    if (!(propertyMap.propertyKey in values) && !semantic) continue;
+    const resolved = resolvePropertyMap(element, propertyMap, samples);
+    if (resolved.ok) values[propertyMap.propertyKey] = resolved.value;
+    else diagnostics.push(Object.freeze({ propertyKey: propertyMap.propertyKey, sourceKind: 'PropertyMap', message: resolved.message }));
   }
 
   let analogFill: VisualDynamicResolution['analogFill'] = null;
@@ -112,6 +133,20 @@ export function resolveVisualDynamicState(
     analogFill,
     diagnostics: Object.freeze(diagnostics)
   });
+}
+
+function validateSvgSemanticDynamicValue(
+  type: 'color' | 'number',
+  value: unknown
+): Readonly<{ ok: true; value: VisualPropertyValue }> | Readonly<{ ok: false; code: string }> {
+  if (type === 'number') {
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 10_000
+      ? Object.freeze({ ok: true as const, value })
+      : Object.freeze({ ok: false as const, code: 'svg.slot.strokeWidth.invalid' });
+  }
+  return typeof value === 'string' && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(value)
+    ? Object.freeze({ ok: true as const, value: value.toUpperCase() })
+    : Object.freeze({ ok: false as const, code: 'svg.slot.color.invalid' });
 }
 
 function resolveBinding(
@@ -194,6 +229,61 @@ function resolveBooleanCondition(
   return Object.freeze({ ok: true, value, valueType: 'boolean' });
 }
 
+function resolvePropertyMap(
+  element: VisualElementEngineering,
+  map: VisualPropertyMapEngineering,
+  samples: ReadonlyMap<string, VisualDynamicSample>
+): Readonly<{ ok: true; value: VisualPropertyValue }> | Readonly<{ ok: false; message: string }> {
+  const source = resolveValueSource(map.source, samples);
+  if (!source.ok) return source;
+  if (source.valueType !== 'number' || typeof source.value !== 'number') {
+    return Object.freeze({ ok: false, message: 'Visual property map requires a Number source.' });
+  }
+
+  const numericValue = source.value;
+  const rule = map.rules.find(candidate => rangeContains(numericValue, candidate));
+  const candidate = rule?.value ?? map.fallback;
+  if (candidate === undefined || candidate === null) {
+    return Object.freeze({ ok: false, message: `No property-map rule matched '${map.propertyKey}' and no fallback is configured.` });
+  }
+
+  try {
+    const semantic = element.type === 'core.svgSymbol'
+      ? parseSvgSemanticDynamicPropertyKey(map.propertyKey)
+      : null;
+    if (semantic) {
+      const validation = validateSvgSemanticDynamicValue(semantic.type, candidate);
+      if (!validation.ok) {
+        return Object.freeze({ ok: false, message: `Mapped value for '${map.propertyKey}' is invalid (${validation.code}).` });
+      }
+      return Object.freeze({ ok: true, value: validation.value });
+    }
+
+    const schema = getVisualSchemaForEngineering(element.type);
+    const validation = schema.validate(map.propertyKey, candidate);
+    if (!validation.ok) {
+      return Object.freeze({ ok: false, message: `Mapped value for '${map.propertyKey}' is invalid (${validation.code}).` });
+    }
+    return Object.freeze({ ok: true, value: validation.value });
+  } catch (reason) {
+    return Object.freeze({ ok: false, message: reason instanceof Error ? reason.message : String(reason) });
+  }
+}
+
+function rangeContains(
+  value: number,
+  rule: VisualPropertyMapEngineering['rules'][number]
+): boolean {
+  const minimum = rule.minimum ?? null;
+  const maximum = rule.maximum ?? null;
+  if (minimum === null && maximum === null) return false;
+  if (minimum !== null && (!Number.isFinite(minimum) ||
+      (rule.minimumInclusive === false ? value <= minimum : value < minimum))) return false;
+  if (maximum !== null && (!Number.isFinite(maximum) ||
+      (rule.maximumInclusive === true ? value > maximum : value >= maximum))) return false;
+  return true;
+}
+
 function resolveAnalogFill(
   config: VisualAnalogFillEngineering,
   samples: ReadonlyMap<string, VisualDynamicSample>
@@ -231,6 +321,14 @@ function resolveValueSource(
   source: VisualValueSourceEngineering,
   samples: ReadonlyMap<string, VisualDynamicSample>
 ): SourceResult {
+  if (source.projectedValue !== undefined) {
+    return typedSourceValue(
+      source.projectedValue,
+      source.valueType,
+      source.target ?? '{dynamoParameter}'
+    );
+  }
+
   const kind = normalizeVisualValueSourceKind(source.kind);
   if (!kind.ok) return kind;
 

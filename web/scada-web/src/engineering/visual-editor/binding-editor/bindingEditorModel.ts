@@ -3,8 +3,9 @@ import type {
   TagValueReferenceEngineering,
   VisualElementEngineering
 } from '../../types';
-import { getBuiltinVisualObjectSchema } from '../../../visual-runtime/builtinVisualObjectSchemas';
+import { getVisualSchemaForEngineering } from '../../../visual-runtime';
 import type { VisualPropertyDefinition, VisualPropertyType } from '../../../visual-runtime/visualPropertyTypes';
+import { parseSvgSemanticDynamicPropertyKey } from '../svgSymbolModel';
 import type {
   VisualEditorBindingSelectorCapability,
   VisualEditorBindingSourceCatalogItem,
@@ -83,6 +84,7 @@ export function normalizeBindingSourceCatalog(
       ...(item.family !== undefined ? { family: item.family } : {}),
       ...(tagReference !== undefined ? { tagReference } : {}),
       ...(selectorCapability !== undefined ? { selectorCapability } : {}),
+      ...(item.dynamoParameterKey !== undefined ? { dynamoParameterKey: item.dynamoParameterKey } : {}),
       bindable: true
     }));
   }
@@ -108,6 +110,9 @@ export function isBindingSourceCompatible(
   const destinationKey = typeof destination === 'string' ? '' : destination.key;
 
   if (source.dataType === undefined || source.dataType === null || !source.dataType.trim()) {
+    if (source.dynamoParameterKey?.trim() && source.kind === 'Tag') {
+      return destinationType !== 'assetRef';
+    }
     return source.kind !== 'Tag' && source.kind !== 'ClientMemory';
   }
 
@@ -218,6 +223,11 @@ export function findBindingSourceForBinding(
   sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[]
 ): VisualEditorBindingSourceCatalogItem | undefined {
   const normalized = normalizeBindingSourceCatalog(sourceCatalog);
+  const parameterKey = binding.metadata?.dynamoParameter?.trim();
+  if (parameterKey) {
+    const normalizedKey = parameterKey.toLocaleLowerCase('en-US');
+    return normalized.find(source => source.dynamoParameterKey?.trim().toLocaleLowerCase('en-US') === normalizedKey);
+  }
   if (binding.kind === 'Tag' && binding.tagReference?.tagId) {
     const tagId = binding.tagReference.tagId.toLocaleLowerCase();
     return normalized.find(source =>
@@ -243,39 +253,46 @@ export function createBindingSetIntent(
   element: Pick<VisualElementEngineering, 'id' | 'type'>,
   propertyKey: string,
   source: VisualEditorBindingSourceCatalogItem,
-  direction?: string | null
+  direction?: string | null,
+  presentationMetadata?: Readonly<Record<string, string>>
 ): Extract<VisualEditorMutationIntent, { kind: 'binding.set' }> {
   const objectId = requireElementIdentity(element.id);
   const destination = requireBindableDestination(element.type, propertyKey);
   const kind = requireCanonicalKind(source.kind);
   const target = requireStableReference(source.target, 'binding source target');
   const tagReference = normalizeTagValueReference(source, kind);
-  if (!isBindingSourceCompatible({ key: propertyKey, type: destination.type }, source)) {
+  if (!isBindingSourceCompatibleForObject(element.type, { key: propertyKey, type: destination.type }, source)) {
     throw new VisualBindingEditorError(
       'binding.source.typeMismatch',
       `Binding source '${target}' data type '${source.dataType ?? 'unknown'}' is not compatible with visual property '${propertyKey}' type '${destination.type}'.`,
       propertyKey
     );
   }
-  const normalizedDirection = normalizeDirection(
-    direction ?? (element.type === 'core.slider' && propertyKey === 'value'
-      ? source.writable === true ? 'readWrite' : 'read'
-      : undefined)
-  );
+  const numericControl = (element.type === 'core.slider' || element.type === 'core.numericInput') && propertyKey === 'value';
+  const booleanControl = element.type === 'core.checkBox' && propertyKey === 'checked';
+  const choiceControl = element.type === 'core.comboBox' && propertyKey === 'text';
+  const isControlBinding = numericControl || booleanControl || choiceControl;
+  const booleanOrChoiceControl = booleanControl || choiceControl;
+  const canWriteThroughControl = source.writable === true && (!booleanOrChoiceControl || kind === 'Tag');
+  const controlDirection = isControlBinding ? canWriteThroughControl ? 'readWrite' : 'read' : undefined;
+  const normalizedDirection = normalizeDirection(direction ?? controlDirection);
   const scalarText = propertyKey === 'text' && source.dataType != null;
+  const metadata = {
+    ...(scalarText ? {
+      presentationMode: 'scalar-text',
+      sourceDataType: source.dataType!,
+      ...(source.engineeringUnit ? { engineeringUnit: source.engineeringUnit } : {})
+    } : {}),
+    ...(source.dynamoParameterKey?.trim() ? { dynamoParameter: source.dynamoParameterKey.trim() } : {}),
+    ...(presentationMetadata ?? {})
+  };
 
   const binding: BindingEngineering = {
     key: propertyKey,
     kind,
     target,
     ...(normalizedDirection !== undefined ? { direction: normalizedDirection } : {}),
-    ...(scalarText ? {
-      metadata: {
-        presentationMode: 'scalar-text',
-        sourceDataType: source.dataType!,
-        ...(source.engineeringUnit ? { engineeringUnit: source.engineeringUnit } : {})
-      }
-    } : {}),
+    ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
     ...(tagReference !== undefined ? { tagReference } : {})
   };
 
@@ -284,6 +301,21 @@ export function createBindingSetIntent(
     objectId,
     binding: Object.freeze(binding)
   });
+}
+
+export function isBindingSourceCompatibleForObject(
+  objectType: string,
+  destination: Pick<BindableVisualProperty, 'key' | 'type'>,
+  source: VisualEditorBindingSourceCatalogItem
+): boolean {
+  const dataType = source.dataType?.trim().toLowerCase();
+  if (objectType === 'core.checkBox' && destination.key === 'checked') {
+    return dataType === 'boolean' && isBindingSourceCompatible(destination, source);
+  }
+  if (objectType === 'core.comboBox' && destination.key === 'text') {
+    return source.kind === 'Tag' && (dataType === 'string' || dataType === 'enum');
+  }
+  return isBindingSourceCompatible(destination, source);
 }
 
 export function createBindingRemoveIntent(
@@ -374,6 +406,23 @@ function normalizeSelectorCapability(
 }
 
 function requireBindableDestination(objectType: string, propertyKey: string): VisualPropertyDefinition {
+  const semantic = objectType === 'core.svgSymbol'
+    ? parseSvgSemanticDynamicPropertyKey(propertyKey)
+    : null;
+  if (semantic) {
+    return Object.freeze({
+      key: semantic.key,
+      type: semantic.type,
+      defaultValue: semantic.type === 'number' ? 1 : '#000000',
+      engineeringEditable: false,
+      runtimeReadable: true,
+      runtimeWritable: false,
+      supportsBinding: true,
+      animatable: true,
+      category: 'svg-semantic-slot'
+    }) as unknown as VisualPropertyDefinition;
+  }
+
   const schema = requireBuiltinSchema(objectType);
   if (!schema.declares(propertyKey)) {
     throw new VisualBindingEditorError(
@@ -396,7 +445,7 @@ function requireBindableDestination(objectType: string, propertyKey: string): Vi
 
 function requireBuiltinSchema(objectType: string) {
   try {
-    return getBuiltinVisualObjectSchema(objectType);
+    return getVisualSchemaForEngineering(objectType);
   } catch {
     throw new VisualBindingEditorError(
       'binding.objectType.unsupported',

@@ -1,21 +1,29 @@
 using Scada.Api.Security;
+using Scada.Core.Product.Licensing;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.Runtime;
 
 public static class DistributedRuntimeFoundationApi
 {
+    private const int MaximumAuthorityAdmissionAttempts = 3;
     public const string ContractSchema = "elitescada.server-runtime-contract";
-    public const int ContractSchemaVersion = 1;
+    // v4 adds atomic signed/demo shared-seat reservation to server-calculated admission.
+    // v2 clients may still submit the legacy "viewer" request value, but responses
+    // advertise the explicit granted-class semantics through this new schema version.
+    public const int ContractSchemaVersion = 4;
 
     public static IEndpointRouteBuilder MapDistributedRuntimeFoundationEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapRuntimePublicSessionEndpoints();
         endpoints.MapPost("/api/runtime/sessions", async (
             RuntimeSessionAdmissionRequest request,
             HttpContext context,
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
+            IProductLicenseService licensing,
+            RuntimeHighAvailabilityService highAvailability,
             CancellationToken cancellationToken) =>
         {
             var principal = security.GetPrincipal(context);
@@ -32,7 +40,7 @@ public static class DistributedRuntimeFoundationApi
             {
                 return Results.BadRequest(new
                 {
-                    error = "Runtime connectionClass must be 'viewer' or 'interactive'."
+                    error = "Runtime connectionClass must be 'viewOnly' or 'interactive'."
                 });
             }
 
@@ -45,36 +53,89 @@ public static class DistributedRuntimeFoundationApi
                 });
             }
 
-            // Admission is evaluated against canonical Runtime Authority before any requested
-            // connection-class reduction. A Runtime lease can never manufacture View authority.
-            var admission = await security.CheckRuntimeAsync(
+            // The requested class is client input. Canonical Authority determines whether it can
+            // remain Interactive; this is eligibility only and does not reserve a license seat.
+            var (admission, decision) = await security.ResolveRuntimeSessionAdmissionAsync(
                 principal,
                 runtime,
-                SecurityCapability.View,
+                connectionClass,
                 cancellationToken: cancellationToken);
             var admissionFailure = admission.FailureResult();
             if (admissionFailure is not null) return admissionFailure;
+            if (decision is null) return Results.Forbid();
 
-            var before = runtime.Describe();
-            var lease = security.RuntimeSessions.Admit(
-                principal.SubjectId,
-                request.ClientInstanceId,
-                connectionClass,
-                before);
-            var after = runtime.Describe();
-            if (!SameRuntime(before, after))
+            if (highAvailability.Enabled && !highAvailability.CanOwnIndustrialEffects())
             {
-                _ = security.RuntimeSessions.Terminate(
-                    lease.SessionId,
-                    lease.UserId,
-                    lease.ClientInstanceId,
-                    before);
-                return RuntimeChanged();
+                if (!highAvailability.HasReadyPassiveRuntimeProjection(runtime.Describe()))
+                    return HaAuthorityRequired(highAvailability);
+                decision = RuntimeSessionAdmissionPolicy.DownscopeForHighAvailabilityStandby(decision);
             }
 
-            return Results.Created(
-                $"/api/runtime/sessions/{lease.SessionId}",
-                ProjectLease(lease));
+            for (var attempt = 0; attempt < MaximumAuthorityAdmissionAttempts; attempt++)
+            {
+                var authority = await security.RuntimeSessions.GetAuthorityStateAsync(cancellationToken);
+                if (authority.TransitionPending)
+                    return CapacityFailure(RuntimeSessionSeatReservationReasonCode.AuthorityTransitionPending);
+
+                var capacity = RuntimeSessionSeatCapacityPolicy.Resolve(licensing.CurrentVerification);
+                if (!capacity.IsAvailable || capacity.Capacity is null)
+                    return CapacityFailure(capacity.ReasonCode);
+
+                var before = runtime.Describe();
+                highAvailability.RefreshLocalReadiness(before, licensing.CurrentVerification);
+                var seatAdmission = await security.RuntimeSessions.AdmitWithCapacityAsync(
+                    principal.SubjectId,
+                    request.ClientInstanceId,
+                    decision.GrantedClass,
+                    before,
+                    capacity.Capacity,
+                    authority.AuthorityRevision,
+                    serverNode: highAvailability.LocalNodeId,
+                    clusterId: highAvailability.ClusterId,
+                    cancellationToken: cancellationToken);
+
+                if (!seatAdmission.IsAdmitted)
+                {
+                    if (seatAdmission.ReasonCode == RuntimeSessionSeatReservationReasonCode.AuthorityRevisionChanged &&
+                        attempt + 1 < MaximumAuthorityAdmissionAttempts)
+                    {
+                        continue;
+                    }
+                    return CapacityFailure(seatAdmission.ReasonCode);
+                }
+
+                if (seatAdmission.Lease is null)
+                    return CapacityFailure(seatAdmission.ReasonCode);
+
+                var lease = seatAdmission.Lease;
+                var after = runtime.Describe();
+                if (!SameRuntime(before, after))
+                {
+                    _ = await security.RuntimeSessions.TerminateAsync(
+                        lease.SessionId,
+                        lease.UserId,
+                        lease.ClientInstanceId,
+                        before,
+                        cancellationToken);
+                    return RuntimeChanged();
+                }
+
+                if (highAvailability.Enabled &&
+                    highAvailability.ClusterId is { } clusterId &&
+                    highAvailability.LocalNodeId is { } localNodeId)
+                {
+                    _ = highAvailability.SessionContinuity.CaptureOrRetain(
+                        lease,
+                        clusterId,
+                        localNodeId);
+                }
+
+                return Results.Created(
+                    $"/api/runtime/sessions/{lease.SessionId}",
+                    ProjectLease(lease, decision, seatAdmission.ReasonCode));
+            }
+
+            return CapacityFailure(RuntimeSessionSeatReservationReasonCode.AuthorityRevisionChanged);
         });
 
         endpoints.MapPost("/api/runtime/sessions/{sessionId:guid}/heartbeat", async (
@@ -83,6 +144,7 @@ public static class DistributedRuntimeFoundationApi
             HttpContext context,
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
+            RuntimeHighAvailabilityService highAvailability,
             CancellationToken cancellationToken) =>
         {
             var principal = security.GetPrincipal(context);
@@ -101,22 +163,54 @@ public static class DistributedRuntimeFoundationApi
             var authorityFailure = currentAuthority.FailureResult();
             if (authorityFailure is not null) return authorityFailure;
 
-            var validation = security.RuntimeSessions.Heartbeat(
+            if (highAvailability.Enabled && !highAvailability.CanOwnIndustrialEffects())
+            {
+                var existingLease = await security.ValidateRuntimeSessionAsync(
+                    principal,
+                    runtime,
+                    sessionId,
+                    request.ClientInstanceId,
+                    cancellationToken);
+                if (!existingLease.IsValid || existingLease.Lease is null)
+                    return LeaseFailure(existingLease);
+                if (existingLease.Lease.ConnectionClass != RuntimeConnectionClass.ViewOnly ||
+                    !highAvailability.HasReadyPassiveRuntimeProjection(runtime.Describe()))
+                {
+                    return HaAuthorityRequired(highAvailability);
+                }
+            }
+
+            var validation = await security.RuntimeSessions.HeartbeatAsync(
                 sessionId,
                 principal.SubjectId,
                 request.ClientInstanceId,
-                runtime.Describe());
+                runtime.Describe(),
+                cancellationToken);
+            if (validation.IsValid &&
+                validation.Lease is not null &&
+                highAvailability.Enabled &&
+                highAvailability.ClusterId is { } clusterId &&
+                highAvailability.LocalNodeId is { } localNodeId)
+            {
+                _ = highAvailability.SessionContinuity.CaptureOrRetain(
+                    validation.Lease,
+                    clusterId,
+                    localNodeId);
+            }
+
             return validation.IsValid && validation.Lease is not null
                 ? Results.Ok(ProjectLease(validation.Lease))
                 : LeaseFailure(validation);
         });
 
-        endpoints.MapPost("/api/runtime/sessions/{sessionId:guid}/terminate", (
+        endpoints.MapPost("/api/runtime/sessions/{sessionId:guid}/terminate", async (
             Guid sessionId,
             RuntimeSessionTerminationRequest request,
             HttpContext context,
             ScadaRuntimeFacade runtime,
-            ApiAuthorizationService security) =>
+            ApiAuthorizationService security,
+            RuntimeHighAvailabilityService highAvailability,
+            CancellationToken cancellationToken) =>
         {
             var principal = security.GetPrincipal(context);
             if (!security.AuthenticationEnabled ||
@@ -126,11 +220,23 @@ public static class DistributedRuntimeFoundationApi
                 return Results.Unauthorized();
             }
 
-            var validation = security.RuntimeSessions.Terminate(
+            var validation = await security.RuntimeSessions.TerminateAsync(
                 sessionId,
                 principal.SubjectId,
                 request.ClientInstanceId,
-                runtime.Describe());
+                runtime.Describe(),
+                cancellationToken);
+            if (validation.IsValid &&
+                highAvailability.Enabled &&
+                highAvailability.ClusterId is { } clusterId)
+            {
+                _ = highAvailability.SessionContinuity.Terminate(
+                    clusterId,
+                    principal.SubjectId,
+                    request.ClientInstanceId,
+                    sessionId);
+            }
+
             return validation.IsValid
                 ? Results.NoContent()
                 : LeaseFailure(validation);
@@ -159,7 +265,7 @@ public static class DistributedRuntimeFoundationApi
             {
                 if (!security.AuthenticationEnabled)
                 {
-                    effectiveCapabilities.Add(capability.ToString());
+                    effectiveCapabilities.Add(AuthorityPolicyContract.GetCapabilityId(capability));
                     continue;
                 }
 
@@ -168,7 +274,8 @@ public static class DistributedRuntimeFoundationApi
                     runtime,
                     capability,
                     cancellationToken: cancellationToken);
-                if (check.Allowed) effectiveCapabilities.Add(capability.ToString());
+                if (check.Allowed)
+                    effectiveCapabilities.Add(AuthorityPolicyContract.GetCapabilityId(capability));
             }
 
             var after = runtime.Describe();
@@ -178,6 +285,12 @@ public static class DistributedRuntimeFoundationApi
             {
                 schema = ContractSchema,
                 schemaVersion = ContractSchemaVersion,
+                authorityPolicy = new
+                {
+                    schema = AuthorityPolicyContract.Schema,
+                    schemaVersion = AuthorityPolicyContract.SchemaVersion,
+                    capabilityIds = AuthorityPolicyContract.CapabilityIds
+                },
                 applicationAuthority = "backend-active-revision",
                 runtime = new
                 {
@@ -208,7 +321,15 @@ public static class DistributedRuntimeFoundationApi
                     supported = security.AuthenticationEnabled,
                     header = ApiAuthorizationService.RuntimeSessionHeaderName,
                     leaseDurationSeconds = (int)security.RuntimeSessions.LeaseDuration.TotalSeconds,
-                    connectionClasses = new[] { "viewer", "interactive" }
+                    connectionClasses = new[] { "viewOnly", "interactive" },
+                    admission = new
+                    {
+                        serverCalculated = true,
+                        capacityReservation = true,
+                        authorityReasonCodes = Enum.GetNames<RuntimeSessionAdmissionReasonCode>(),
+                        capacityReasonCodes = Enum.GetNames<RuntimeSessionCapacityReasonCode>(),
+                        capacityReservationReasonCodes = Enum.GetNames<RuntimeSessionSeatReservationReasonCode>()
+                    }
                 },
                 effectiveCapabilities
             });
@@ -217,12 +338,21 @@ public static class DistributedRuntimeFoundationApi
         return endpoints;
     }
 
-    private static object ProjectLease(RuntimeSessionLease lease) => new
+    private static object ProjectLease(
+        RuntimeSessionLease lease,
+        RuntimeSessionAdmissionDecision? admission = null,
+        RuntimeSessionSeatReservationReasonCode? capacityReasonCode = null) => new
     {
         lease.SessionId,
         lease.UserId,
         lease.ClientInstanceId,
-        connectionClass = lease.ConnectionClass.ToString().ToLowerInvariant(),
+        // connectionClass is retained for v1 clients and is always the granted class.
+        connectionClass = ToWireClass(lease.ConnectionClass),
+        requestedClass = admission is null ? null : ToWireClass(admission.RequestedClass),
+        grantedClass = ToWireClass(lease.ConnectionClass),
+        admissionReasonCode = admission?.ReasonCode.ToString(),
+        capacityReasonCode = capacityReasonCode?.ToString(),
+        capacityReserved = true,
         lease.IssuedAtUtc,
         lease.LastHeartbeatUtc,
         lease.ExpiresAtUtc,
@@ -236,6 +366,9 @@ public static class DistributedRuntimeFoundationApi
             activatedAtUtc = lease.RuntimeActivatedAtUtc
         }
     };
+
+    private static string ToWireClass(RuntimeConnectionClass connectionClass) =>
+        connectionClass == RuntimeConnectionClass.Interactive ? "interactive" : "viewOnly";
 
     private static IResult LeaseFailure(RuntimeSessionLeaseValidation validation)
     {
@@ -254,6 +387,24 @@ public static class DistributedRuntimeFoundationApi
                 code = validation.FailureCode ?? "unknown"
             },
             statusCode: statusCode);
+    }
+
+    private static IResult CapacityFailure(object reasonCode) => Results.Json(
+        new { error = "Runtime session capacity is unavailable.", capacityReasonCode = reasonCode.ToString() },
+        statusCode: StatusCodes.Status409Conflict);
+
+    private static IResult HaAuthorityRequired(RuntimeHighAvailabilityService highAvailability)
+    {
+        var topology = highAvailability.Snapshot();
+        return Results.Conflict(new
+        {
+            error = "Runtime Session admission/heartbeat requires the effective HA Active authority.",
+            code = "ha-effective-active-required",
+            topology.ClusterId,
+            topology.AuthorityEpoch,
+            topology.EffectiveActiveNodeId,
+            topology.AmbiguousAuthority
+        });
     }
 
     private static bool SameRuntime(ScadaRuntimeDescriptor left, ScadaRuntimeDescriptor right) =>

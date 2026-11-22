@@ -1,0 +1,56 @@
+{
+  "manifestVersion": 1,
+  "assignment": "#662",
+  "createdDate": "2026-10-20",
+  "license": "UCI record declares CC BY 4.0; preserve attribution and DOI in derived research notes.",
+  "sources": [
+    {
+      "studyRole": "required hydraulic pump-like test-rig pilot",
+      "record": "UCI Machine Learning Repository dataset 447",
+      "recordUrl": "https://archive.ics.uci.edu/dataset/447/condition%2Bmonitoring%2Bof%2Bhydraulic%2Bsystems",
+      "doi": "10.24432/C5CW21",
+      "downloadUrl": "https://archive.ics.uci.edu/static/public/447/condition%2Bmonitoring%2Bof%2Bhydraulic%2Bsystems.zip",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "archiveName": "hydraulic-uci-447.zip",
+      "bytes": 76601704,
+      "sha256": "24128AAD2EE45EEA7E6B63EBBD9992CDF25D0483A2CEBEFBFC13BC69079AF1F2",
+      "retrievedAt": "2026-10-20T00:03:22-03:00",
+      "localPath": "C:\\Users\\Bruno Rogerio\\AppData\\Local\\Temp\\EliteSCADA-4F-UCI-659\\hydraulic-uci-447.zip",
+      "archiveContentsUsed": [
+        "profile.txt",
+        "EPS1.txt",
+        "PS1.txt",
+        "PS2.txt",
+        "PS3.txt",
+        "PS4.txt",
+        "PS5.txt",
+        "PS6.txt"
+      ],
+      "archiveNotices": "description.txt and documentation.txt request citation; no standalone license file was present.",
+      "requiredAttribution": "Helwig, N., Pignanelli, E., & Schütze, A. (2015). Condition Monitoring of a Complex Hydraulic System Using Multivariate Statistics. I2MTC-2015. DOI: 10.1109/I2MTC.2015.7151267.",
+      "scopeLimit": "Offline research coordinates only. No canonical UTC source.timestamp, quality=Good, Synchronized state, or certified healthy exposure is inferred."
+    },
+    {
+      "studyRole": "context from completed #659 source audit; no model study in #662",
+      "record": "UCI Machine Learning Repository dataset 791",
+      "recordUrl": "https://archive.ics.uci.edu/dataset/791/metropt%2B3%2Bdataset",
+      "doi": "10.24432/C5VW3R",
+      "downloadUrl": "https://archive.ics.uci.edu/static/public/791/metropt%2B3%2Bdataset.zip",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "archiveName": "metropt3-uci-791.zip",
+      "bytes": 218381995,
+      "sha256": "AAB991A970E58210DE853BB8078CE0E63ABB4D9412FDC5C79792DAE3D8E1721A",
+      "retrievedAt": "2026-10-20T00:02:58-03:00",
+      "localPath": "C:\\Users\\Bruno Rogerio\\AppData\\Local\\Temp\\EliteSCADA-4F-UCI-659\\metropt3-uci-791.zip",
+      "usageIn662": "No new read, full model study, or download; reuse only the limitations recorded in #659.",
+      "scopeLimit": "UCI 2020 release only. Do not conflate with the separate 2022 MetroPT Zenodo record."
+    }
+  ],
+  "rawDataPolicy": {
+    "gitOrGithub": "forbidden",
+    "scratchDirectory": "C:\\Users\\Bruno Rogerio\\AppData\\Local\\Temp\\EliteSCADA-4F-UCI-659",
+    "retentionReviewDue": "2027-01-11",
+    "maximumExpiry": "2027-01-18",
+    "recordLevelScores": "keep outside Git/GitHub"
+  }
+}

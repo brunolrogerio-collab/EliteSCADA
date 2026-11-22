@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Globalization;
+using System.Text.Json;
 using Scada.Core.Tags;
 
 namespace Scada.Drivers.Modbus;
@@ -56,7 +57,7 @@ public static class ModbusValueCodec
         point.Validate();
         if (point.ValueType != ModbusValueType.Boolean)
             throw new ArgumentException("Bit encoding requires a Boolean Modbus point.", nameof(point));
-        return Convert.ToBoolean(engineeringValue, CultureInfo.InvariantCulture);
+        return Convert.ToBoolean(NormalizeEngineeringValue(engineeringValue), CultureInfo.InvariantCulture);
     }
 
     public static ushort ApplyRegisterBit(ModbusPoint point, ushort registerValue, object? engineeringValue)
@@ -65,7 +66,7 @@ public static class ModbusValueCodec
         if (point.Area != ModbusDataArea.HoldingRegister || point.AddressSelector is null)
             throw new ArgumentException("Register bit mutation requires a selected HoldingRegister point.", nameof(point));
 
-        var bit = Convert.ToBoolean(engineeringValue, CultureInfo.InvariantCulture);
+        var bit = Convert.ToBoolean(NormalizeEngineeringValue(engineeringValue), CultureInfo.InvariantCulture);
         var mask = checked((ushort)(1 << point.AddressSelector.Index));
         return bit
             ? checked((ushort)(registerValue | mask))
@@ -82,10 +83,10 @@ public static class ModbusValueCodec
         {
             if (point.AddressSelector is not null)
                 throw new InvalidOperationException("Selected register bits require read-modify-write and cannot be encoded as a whole register value.");
-            return new[] { Convert.ToBoolean(engineeringValue, CultureInfo.InvariantCulture) ? (ushort)1 : (ushort)0 };
+            return new[] { Convert.ToBoolean(NormalizeEngineeringValue(engineeringValue), CultureInfo.InvariantCulture) ? (ushort)1 : (ushort)0 };
         }
 
-        var engineering = Convert.ToDouble(engineeringValue, CultureInfo.InvariantCulture);
+        var engineering = Convert.ToDouble(NormalizeEngineeringValue(engineeringValue), CultureInfo.InvariantCulture);
         if (!double.IsFinite(engineering))
             throw new ArgumentOutOfRangeException(nameof(engineeringValue), "Engineering value must be finite.");
         var raw = (engineering - point.Offset) / point.Scale;
@@ -128,6 +129,22 @@ public static class ModbusValueCodec
         if (point.WordOrder == ModbusWordOrder.LowWordFirst)
             Array.Reverse(registers);
         return registers;
+    }
+
+    internal static object? NormalizeEngineeringValue(object? value)
+    {
+        if (value is not JsonElement element)
+            return value;
+
+        return element.ValueKind switch
+        {
+            JsonValueKind.Number => element.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Null => null,
+            _ => throw new ArgumentException("Modbus writes require a JSON scalar value.", nameof(value))
+        };
     }
 
     private static ushort[] OrderForDecode(ReadOnlySpan<ushort> registers, ModbusWordOrder order)

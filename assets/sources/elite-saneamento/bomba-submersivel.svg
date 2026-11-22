@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 400 450"
+     width="100%"
+     height="100%">
+
+  <!-- Fundo transparente: não há nenhum rect de fundo. -->
+  <!-- Grupo Principal da Bomba -->
+  <g fill="#FFFF00" stroke="#000000" stroke-width="6"
+     stroke-linejoin="round" stroke-linecap="round">
+    <!-- Olhal/Alça Superior -->
+    <circle cx="200" cy="50" r="12" fill="none" />
+    <path d="M 200 62 L 200 70" />
+    <!-- Corpo Superior: largura aumentada em 50% -->
+    <path d="
+      M 140 70
+      L 260 70
+      A 22.5 15 0 0 1 282.5 85
+      L 290 250
+      L 110 250
+      L 117.5 85
+      A 22.5 15 0 0 1 140 70
+      Z" />
+    <!-- Flange / Divisória Central -->
+    <path d="M 87.5 250 L 312.5 250 L 312.5 265 L 87.5 265 Z" />
+    <!-- Corpo Inferior: largura aumentada em 50% -->
+    <path d="M 95 265 L 305 265 L 305 370 L 95 370 Z" />
+    <!-- Bocal lateral e flange da conexão com comprimento reduzido pela metade -->
+    <path d="
+      M 305 300
+      L 340 300
+      L 340 285
+      L 350 285
+      L 350 385
+      L 340 385
+      L 340 370
+      L 305 370
+      Z" />
+    <!-- Pé Esquerdo -->
+    <path d="M 117.5 370 L 117.5 395 L 140 395 L 140 370" />
+    <!-- Pé Central -->
+    <path d="M 192.5 370 L 192.5 385 L 207.5 385 L 207.5 370" />
+    <!-- Pé Direito -->
+    <path d="M 260 370 L 260 395 L 282.5 395 L 282.5 370" />
+  </g>
+</svg>

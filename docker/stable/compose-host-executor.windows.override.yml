@@ -1,0 +1,14 @@
+# Opt-in only. Linux API container -> Windows Docker Desktop host via pinned HTTPS.
+# Do not mount docker.sock or Windows Docker Engine named pipes.
+services:
+  api:
+    environment:
+      InstallationNetwork__HostExecutorHttpsHost: host.docker.internal
+      InstallationNetwork__HostExecutorHttpsPort: "${SCADIVO_HOST_EXECUTOR_HTTPS_PORT:?Set the dedicated Windows host TLS port}"
+      InstallationNetwork__HostExecutorServerCertificateSha256: "${SCADIVO_HOST_EXECUTOR_CERT_SHA256:?Set the SHA256 of the registered host TLS certificate}"
+      InstallationNetwork__HostExecutorTokenFile: /run/scadivo-windows-host-secrets/token
+    volumes:
+      - type: bind
+        source: ${SCADIVO_HOST_EXECUTOR_API_SECRET_DIRECTORY:?Set host-only shared directory with restricted API token copy}
+        target: /run/scadivo-windows-host-secrets
+        read_only: true

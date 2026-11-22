@@ -1,3 +1,5 @@
+import type { PythonEditorDiagnosticSnapshot } from '../python-editor/pythonEditorDiagnostics';
+import { loadEngineeringSnapshot } from '../api';
 import {
   buildCanonicalScriptPackage,
   canonicalScriptPackageFingerprint,
@@ -31,21 +33,41 @@ export class ScriptEngineeringApiError extends Error {
 }
 
 export async function loadScriptEngineeringContext(): Promise<ScriptEngineeringContext> {
-  const [workspace, rawScripts, rawReferences] = await Promise.all([
-    loadScriptEngineeringWorkspace(),
+  const [snapshot, rawScripts, rawReferences] = await Promise.all([
+    loadEngineeringSnapshot(),
     requestJson<unknown[]>('/api/engineering/scripts'),
     requestJson<unknown[]>('/api/engineering/script-visual-event-references')
   ]);
 
   return {
-    workspace,
+    workspace: snapshot.workspace,
     scripts: rawScripts.map(item => normalizeScriptDefinition((item ?? {}) as Record<string, unknown>)),
-    visualEventReferences: rawReferences.map(item => normalizeVisualEventReference((item ?? {}) as Record<string, unknown>))
+    visualEventReferences: rawReferences.map(item => normalizeVisualEventReference((item ?? {}) as Record<string, unknown>)),
+    tags: snapshot.package.tags ?? [],
+    dataSources: snapshot.package.dataSources ?? []
   };
 }
 
 export async function loadScriptEngineeringWorkspace(): Promise<ScriptEngineeringWorkspaceDescriptor> {
   return await requestJson<ScriptEngineeringWorkspaceDescriptor>('/api/engineering/workspace');
+}
+
+export async function validateServerScriptPython(
+  source: string
+): Promise<PythonEditorDiagnosticSnapshot> {
+  const result = await requestJson<{ diagnostics: PythonEditorDiagnosticSnapshot['diagnostics'] }>(
+    '/api/engineering/scripts/python/validate',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ source })
+    }
+  );
+
+  return {
+    source,
+    diagnostics: result.diagnostics ?? []
+  };
 }
 
 export async function previewScriptMutation(
@@ -54,7 +76,11 @@ export async function previewScriptMutation(
   mode: ScriptImportMode
 ): Promise<ScriptMutationPreviewToken> {
   const workspace = await loadScriptEngineeringWorkspace();
-  const packageData = buildCanonicalScriptPackage(script, visualEventReferences);
+  const packageData = buildCanonicalScriptPackage(
+    script,
+    visualEventReferences,
+    undefined,
+    workspace.authorityPolicyReference);
   const preview = await requestJson<ScriptImportPreview>(
     `/api/engineering/import/json/preview?mode=${encodeURIComponent(mode)}`,
     {

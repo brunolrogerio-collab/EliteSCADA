@@ -1,16 +1,19 @@
 import React, { createContext, useContext } from 'react';
-import type { DynamoEngineering, TagEngineering, VisualAssetEngineering } from '../types';
+import type { CommandEngineering, DynamoEngineering, TagEngineering, VisualAssetEngineering } from '../types';
 import { normalizeDynamoDefinitionParameterContract } from '../../runtime/visual-navigation/dynamoParameterWireContract';
 
 export type DynamoAuthoringCatalog = Readonly<{
   definitions: readonly DynamoEngineering[];
   tags: readonly TagEngineering[];
+  commands: readonly CommandEngineering[];
   visualAssets: readonly VisualAssetEngineering[];
+  onApplied?: () => Promise<void>;
 }>;
 
 const EMPTY_CATALOG: DynamoAuthoringCatalog = Object.freeze({
   definitions: Object.freeze([]),
   tags: Object.freeze([]),
+  commands: Object.freeze([]),
   visualAssets: Object.freeze([])
 });
 
@@ -19,14 +22,18 @@ const DynamoAuthoringCatalogContext = createContext<DynamoAuthoringCatalog>(EMPT
 export function DynamoAuthoringCatalogProvider({
   definitions,
   tags,
+  commands,
   visualAssets,
+  onApplied,
   children
 }: DynamoAuthoringCatalog & Readonly<{ children: React.ReactNode }>) {
   const value = React.useMemo<DynamoAuthoringCatalog>(() => Object.freeze({
     definitions: Object.freeze(definitions.map(normalizeDynamoDefinitionParameterContract)),
     tags: Object.freeze([...tags]),
-    visualAssets: Object.freeze([...visualAssets])
-  }), [definitions, tags, visualAssets]);
+    commands: Object.freeze([...commands]),
+    visualAssets: Object.freeze([...visualAssets]),
+    onApplied
+  }), [definitions, tags, commands, visualAssets, onApplied]);
   return <DynamoAuthoringCatalogContext.Provider value={value}>{children}</DynamoAuthoringCatalogContext.Provider>;
 }
 

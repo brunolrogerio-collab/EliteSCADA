@@ -1,8 +1,10 @@
 import { useId, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
+import type { ReactNode } from 'react';
 import type { AuthProfile } from './AuthGate';
 import {
   buildUserSessionPresentation,
+  canCloseUserInterface,
   type UserSessionMenuLabels
 } from './sessionMenuModel';
 
@@ -12,6 +14,8 @@ export type UserSessionMenuViewProps = {
   canSwitchUser: boolean;
   onSwitchUser: () => Promise<void>;
   onLogout: () => Promise<void>;
+  runtimeSessionControls?: ReactNode;
+  runtimeFullscreenExit?: { label: string; onActivate: () => void };
 };
 
 type SessionAction = 'switch' | 'logout' | null;
@@ -21,12 +25,15 @@ export function UserSessionMenuView({
   labels,
   canSwitchUser,
   onSwitchUser,
-  onLogout
+  onLogout,
+  runtimeSessionControls,
+  runtimeFullscreenExit
 }: UserSessionMenuViewProps) {
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
   const summaryRef = useRef<HTMLElement | null>(null);
   const [activeAction, setActiveAction] = useState<SessionAction>(null);
   const [failedAction, setFailedAction] = useState<SessionAction>(null);
+  const [closeBlocked, setCloseBlocked] = useState(false);
   const rolesHeadingId = useId();
   const presentation = buildUserSessionPresentation(profile);
 
@@ -34,6 +41,7 @@ export function UserSessionMenuView({
 
   const { displayName, secondaryIdentity, initials, roles } = presentation;
   const busy = activeAction !== null;
+  const showCloseInterface = canCloseUserInterface(roles);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDetailsElement>) => {
     if (event.key !== 'Escape' || !detailsRef.current?.open) return;
@@ -56,6 +64,19 @@ export function UserSessionMenuView({
     } finally {
       setActiveAction(null);
     }
+  };
+
+  const closeInterface = () => {
+    setCloseBlocked(false);
+    try {
+      window.close();
+    } catch {
+      setCloseBlocked(true);
+      return;
+    }
+    window.setTimeout(() => {
+      if (!window.closed) setCloseBlocked(true);
+    }, 150);
   };
 
   return (
@@ -101,14 +122,25 @@ export function UserSessionMenuView({
           )}
         </div>
 
+        {runtimeSessionControls ? <div className="user-session-menu__runtime-controls">{runtimeSessionControls}</div> : null}
+
         {failedAction === 'switch' && (
           <p className="user-session-menu__error" role="alert">{labels.switchUserFailed}</p>
         )}
         {failedAction === 'logout' && (
           <p className="user-session-menu__error" role="alert">{labels.logoutFailed}</p>
         )}
+        {closeBlocked && (
+          <p className="user-session-menu__notice" role="status" data-testid="session-close-blocked">{labels.closeBlocked}</p>
+        )}
 
         <div className="user-session-menu__actions">
+          {runtimeFullscreenExit ? <button
+            type="button"
+            className="user-session-menu__action"
+            onClick={runtimeFullscreenExit.onActivate}
+            data-testid="session-exit-fullscreen"
+          >{runtimeFullscreenExit.label}</button> : null}
           {canSwitchUser && (
             <button
               type="button"
@@ -129,6 +161,16 @@ export function UserSessionMenuView({
           >
             {activeAction === 'logout' ? labels.loggingOut : labels.logout}
           </button>
+          {showCloseInterface && (
+            <button
+              type="button"
+              className="user-session-menu__action user-session-menu__action--danger"
+              onClick={closeInterface}
+              data-testid="session-close-interface"
+            >
+              {labels.closeInterface}
+            </button>
+          )}
         </div>
       </div>
     </details>

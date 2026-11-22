@@ -5,6 +5,7 @@ import {
   normalizeVisualEventReference
 } from '../src/engineering/scripts/ScriptEngineeringWorkspace.logic';
 import type {
+  AuthorityPolicyReferenceEngineering,
   CanonicalScriptPackage,
   ScriptEngineeringDefinition,
   ScriptImportPreview,
@@ -17,12 +18,13 @@ type VisualElement = {
   id?: string | null;
   key: string;
   type: string;
+  actions?: Array<{ eventKey: string; kind: string; targetKey?: string; parameters?: Record<string, unknown> }>;
   children?: VisualElement[] | null;
 };
 
 type EngineeringPackage = {
   screens?: Array<{ id?: string | null; key: string; elements?: VisualElement[] | null }>;
-  tags?: Array<{ id?: string | null; path: string; dataType: string }>;
+  tags?: Array<{ id?: string | null; path: string; dataType: string; readOnly?: boolean }>;
   [key: string]: unknown;
 };
 
@@ -30,7 +32,7 @@ test.use({ locale: 'pt-BR' });
 test.describe.configure({ mode: 'serial' });
 
 test('mounted Events editor persists click and canonical timer/TAG-bit associations through Preview/Apply and reload', async ({ page, request }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(180_000);
 
   const exported = await request.get('/api/engineering/export/json');
   expect(exported.ok()).toBeTruthy();
@@ -38,7 +40,7 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
   const screen = originalProject.screens?.find(candidate => Boolean(candidate.id));
   expect(screen, 'seeded demo must expose one persisted Screen for Wave 10 acceptance').toBeTruthy();
 
-  const tag = originalProject.tags?.find(candidate => Boolean(candidate.id) && ['int16', 'int32', 'int64'].includes(candidate.dataType.toLowerCase()));
+  const tag = originalProject.tags?.find(candidate => Boolean(candidate.id) && candidate.readOnly !== true && ['int16', 'int32', 'int64'].includes(candidate.dataType.toLowerCase()));
   expect(tag, 'seeded demo must expose one stable-ID integral TAG for bit selector acceptance').toBeTruthy();
 
   const originalObjectIds = new Set(
@@ -53,7 +55,7 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
     await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: screen!.key }).click();
 
-    await page.locator('[data-object-type="core.rectangle"]').click();
+    await page.locator('[data-insert-object-type="core.rectangle"]').click();
     const rectangle = page.locator('[data-canvas-object-type="core.rectangle"]').last();
     await expect(rectangle).toBeVisible();
     await rectangle.click();
@@ -83,7 +85,7 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
     });
 
     const before = await workspace(request);
-    const createPackage = buildCanonicalScriptPackage(script, []);
+    const createPackage = buildCanonicalScriptPackage(script, [], undefined, before.authorityPolicyReference);
     const createPreview = await preview(request, createPackage, 'CreateOnly');
     expect(createPreview.canApply).toBeTruthy();
     expect((await apply(request, createPackage, 'CreateOnly', before.changeVersion)).ok()).toBeTruthy();
@@ -92,10 +94,39 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
     await page.reload();
     await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: screen!.key }).click();
-    await page.locator(`[data-canvas-object-id="${visualObject.id}"]`).click();
+    await page.locator('.visual-editor-outliner__select').filter({ hasText: visualObject.key }).first().click();
 
+    await page.getByTestId('visual-editor-inspector-tab-events').click();
     const editor = page.getByTestId('visual-events-editor');
     await expect(editor).toBeVisible();
+
+    // Automatic events are authored as visual draft mutations, without requiring a Python Script.
+    await editor.getByTestId('visual-events-quick-kind').selectOption('setValue');
+    await editor.getByTestId('visual-events-quick-target').selectOption(tag!.id!);
+    await editor.getByTestId('visual-events-quick-value').fill('1');
+    const quickAdd = editor.getByTestId('visual-events-quick-add');
+    await expect(quickAdd).toBeEnabled();
+    await quickAdd.click();
+    await expect(editor.locator('.visual-editor-events__configured')).toContainText('Set');
+
+    await page.getByTestId('visual-editor-preview').click();
+    await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+    await expect(visualApply).toBeEnabled();
+    page.once('dialog', dialog => dialog.accept());
+    await visualApply.click();
+    await expect.poll(async () => {
+      const response = await request.get('/api/engineering/export/json');
+      if (!response.ok()) return false;
+      const project = await response.json() as EngineeringPackage;
+      const persistedScreen = project.screens?.find(candidate => candidate.id === screen!.id);
+      const persistedObject = flatten(persistedScreen?.elements ?? []).find(element => element.id === visualObject.id);
+      return Boolean(persistedObject?.actions?.some(action => action.eventKey.toLocaleLowerCase('en-US') === 'click'));
+    }).toBe(true);
+
+    await page.locator('.visual-editor-outliner__select').filter({ hasText: visualObject.key }).first().click();
+    await page.getByTestId('visual-editor-inspector-tab-events').click();
+    await expect(editor).toBeVisible();
+    await editor.locator('.visual-editor-events__scripts > summary').click();
 
     await editor.getByTestId('visual-events-event').selectOption('click');
     await editor.getByTestId('visual-events-script').selectOption(script.id);
@@ -148,7 +179,11 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
     };
 
     const updateVersion = await workspace(request);
-    const updatePackage = buildCanonicalScriptPackage(updatedScript, [clickReference!, timerReference, tagReference]);
+    const updatePackage = buildCanonicalScriptPackage(
+      updatedScript,
+      [clickReference!, timerReference, tagReference],
+      undefined,
+      updateVersion.authorityPolicyReference);
     const updatePreview = await preview(request, updatePackage, 'UpdateExisting');
     expect(updatePreview.canApply).toBeTruthy();
     expect((await apply(request, updatePackage, 'UpdateExisting', updateVersion.changeVersion)).ok()).toBeTruthy();
@@ -156,7 +191,8 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
     await page.reload();
     await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: screen!.key }).click();
-    await page.locator(`[data-canvas-object-id="${visualObject.id}"]`).click();
+    await page.locator('.visual-editor-outliner__select').filter({ hasText: visualObject.key }).first().click();
+    await page.getByTestId('visual-editor-inspector-tab-events').click();
     await expect(page.getByTestId('visual-events-editor')).toBeVisible();
 
     const persistedScript = await loadScript(request, script.id);
@@ -240,10 +276,16 @@ function flatten(elements: readonly VisualElement[]): VisualElement[] {
   return elements.flatMap(element => [element, ...flatten(element.children ?? [])]);
 }
 
-async function workspace(request: APIRequestContext): Promise<{ changeVersion: number }> {
+async function workspace(request: APIRequestContext): Promise<{
+  changeVersion: number;
+  authorityPolicyReference: AuthorityPolicyReferenceEngineering;
+}> {
   const response = await request.get('/api/engineering/workspace');
   expect(response.ok()).toBeTruthy();
-  return await response.json() as { changeVersion: number };
+  return await response.json() as {
+    changeVersion: number;
+    authorityPolicyReference: AuthorityPolicyReferenceEngineering;
+  };
 }
 
 async function loadScript(request: APIRequestContext, scriptId: string): Promise<ScriptEngineeringDefinition> {
@@ -290,7 +332,7 @@ async function removeScriptAndOwnedReferences(request: APIRequestContext, script
   const current = await loadScript(request, script.id).catch(() => null);
   if (!current) return;
   const version = await workspace(request);
-  const clearPackage = buildCanonicalScriptPackage(current, []);
+  const clearPackage = buildCanonicalScriptPackage(current, [], undefined, version.authorityPolicyReference);
   const clearPreview = await preview(request, clearPackage, 'UpdateExisting');
   if (clearPreview.canApply) await apply(request, clearPackage, 'UpdateExisting', version.changeVersion);
   const afterClear = await workspace(request);

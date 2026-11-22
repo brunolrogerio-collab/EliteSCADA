@@ -1,0 +1,79 @@
+// Derived from ESPHome esphome/components/api/api.proto (MIT portion of the mixed-license repository).
+// Checkpoint 1 intentionally carries only base messages required for Hello/DeviceInfo negotiation.
+// Wire field numbers and message IDs follow the official Native API contract.
+syntax = "proto3";
+option csharp_namespace = "Scada.Drivers.ESPHome.Protocol.Generated";
+package esphome.api;
+
+message HelloRequest {
+  string client_info = 1;
+  uint32 api_version_major = 2;
+  uint32 api_version_minor = 3;
+}
+message HelloResponse {
+  uint32 api_version_major = 1;
+  uint32 api_version_minor = 2;
+  string server_info = 3;
+  string name = 4;
+}
+message DisconnectRequest { int32 reason = 1; }
+message DisconnectResponse {}
+message PingRequest {}
+message PingResponse {}
+message DeviceInfoRequest {}
+message AreaInfo {
+  uint32 area_id = 1;
+  string name = 2;
+}
+message DeviceInfo {
+  uint32 device_id = 1;
+  string name = 2;
+  uint32 area_id = 3;
+}
+message DeviceInfoResponse {
+  bool uses_password = 1 [deprecated = true];
+  string name = 2;
+  string mac_address = 3;
+  string esphome_version = 4;
+  string compilation_time = 5;
+  string model = 6;
+  bool has_deep_sleep = 7;
+  string project_name = 8;
+  string project_version = 9;
+  uint32 webserver_port = 10;
+  string manufacturer = 12;
+  string friendly_name = 13;
+  string suggested_area = 16;
+  string bluetooth_mac_address = 18;
+  bool api_encryption_supported = 19;
+  repeated DeviceInfo devices = 20;
+  repeated AreaInfo areas = 21;
+  AreaInfo area = 22;
+  bool api_encryption_provisionable = 26;
+}
+message DeviceCapabilitiesRequest {}
+message BluetoothProxyCapabilities {
+  uint32 feature_flags = 1;
+  string mac_address = 2;
+}
+message VoiceAssistantCapabilities { uint32 feature_flags = 1; }
+message ZWaveProxyCapabilities {
+  uint32 feature_flags = 1;
+  uint32 home_id = 2;
+}
+enum SerialProxyPortType {
+  SERIAL_PROXY_PORT_TYPE_TTL = 0;
+  SERIAL_PROXY_PORT_TYPE_RS232 = 1;
+  SERIAL_PROXY_PORT_TYPE_RS485 = 2;
+}
+message SerialProxyInfo {
+  string name = 1;
+  SerialProxyPortType port_type = 2;
+  uint32 configured_line_states = 3;
+}
+message DeviceCapabilitiesResponse {
+  BluetoothProxyCapabilities bluetooth_proxy = 1;
+  VoiceAssistantCapabilities voice_assistant = 2;
+  ZWaveProxyCapabilities zwave_proxy = 3;
+  repeated SerialProxyInfo serial_proxies = 4;
+}

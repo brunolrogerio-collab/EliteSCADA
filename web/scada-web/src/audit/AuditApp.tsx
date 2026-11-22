@@ -380,9 +380,8 @@ export function AuditApp() {
     <main className="audit-shell">
       <header className="audit-header">
         <div>
-          <span className="audit-kicker">EliteSCADA</span>
           <h1>{t.title}</h1>
-          <p>{t.subtitle}</p>
+          <details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{t.subtitle}</p><a href="/help?topic=audit.query-diagnostics">{locale === 'pt-BR' ? 'Como consultar e interpretar a auditoria' : locale === 'es' ? 'Cómo consultar e interpretar la auditoría' : 'How to query and interpret Audit'}</a></details>
         </div>
         <button type="button" className="audit-secondary" onClick={refresh} disabled={loading || diagnosticsLoading}>
           {t.refresh}
@@ -452,7 +451,7 @@ export function AuditApp() {
         </div>
       </section>
 
-      <section className="audit-panel" aria-labelledby="audit-events-title" aria-live="polite">
+      <section className="audit-panel audit-events-panel" aria-labelledby="audit-events-title" aria-live="polite">
         <div className="audit-section-heading">
           <div><h2 id="audit-events-title">{t.events}</h2></div>
           <span>{events.length} {t.eventsOnPage} · {t.page} {pageIndex + 1}</span>

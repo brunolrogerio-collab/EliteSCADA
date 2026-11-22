@@ -7,13 +7,13 @@
   gap: 10px;
   margin-top: 12px;
   padding: 12px;
-  border: 1px solid var(--border-color, #3b4350);
+  border: 1px solid var(--script-border, var(--eng-border, #283544));
   border-radius: 8px;
 }
 
 .python-preview-test > span,
 .python-preview-test__muted {
-  opacity: 0.78;
+  color: var(--script-muted, var(--eng-muted, #9eacb8));
 }
 
 .python-preview-test__inputs {
@@ -43,7 +43,8 @@
   gap: 6px;
   padding: 10px;
   border-radius: 6px;
-  background: rgba(127, 127, 127, 0.08);
+  background: var(--script-surface-soft, var(--eng-panel-soft, #17212c));
+  color: var(--script-text, var(--eng-text, #e8edf3));
 }
 
 .python-preview-test__result code {

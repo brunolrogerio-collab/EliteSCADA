@@ -1,4 +1,14 @@
 import {
+  applyHistoricalPreset,
+  createHistoricalTimeRangeState,
+  historicalDurationSeconds,
+  localTimeZoneLabel,
+  validateHistoricalTimeRange,
+  type HistoricalTimeRangeMode,
+  type HistoricalTimeRangeState,
+  type HistoricalTimeRangeUnit
+} from '../historicalTimeRange';
+import {
   historicalBrowserCopy,
   type HistoricalBrowserLocale
 } from './historicalBrowserI18n';
@@ -9,16 +19,15 @@ export const HISTORICAL_BROWSER_DATASET_KEYS = [
   'operational.events'
 ] as const;
 
-export type HistoricalBrowserDatasetKey = typeof HISTORICAL_BROWSER_DATASET_KEYS[number];
-export type HistoricalBrowserTimeMode = 'relative' | 'absolute';
-
 export const HISTORICAL_BROWSER_RELATIVE_PRESETS = Object.freeze([
   Object.freeze({ seconds: 15 * 60, label: '15 min' }),
   Object.freeze({ seconds: 60 * 60, label: '1 h' }),
   Object.freeze({ seconds: 8 * 60 * 60, label: '8 h' }),
-  Object.freeze({ seconds: 24 * 60 * 60, label: '24 h' }),
-  Object.freeze({ seconds: 7 * 24 * 60 * 60, label: '7 d' })
+  Object.freeze({ seconds: 24 * 60 * 60, label: '24 h' })
 ] as const);
+
+export type HistoricalBrowserDatasetKey = typeof HISTORICAL_BROWSER_DATASET_KEYS[number];
+export type HistoricalBrowserTimeMode = Exclude<HistoricalTimeRangeMode, 'live'>;
 
 /**
  * Transient view state only. It is deliberately not a Historical Query DTO and
@@ -28,7 +37,8 @@ export const HISTORICAL_BROWSER_RELATIVE_PRESETS = Object.freeze([
 export type HistoricalBrowserDraft = Readonly<{
   datasetKey: HistoricalBrowserDatasetKey;
   timeMode: HistoricalBrowserTimeMode;
-  relativeDurationSeconds: number;
+  relativeAmount: number;
+  relativeUnit: HistoricalTimeRangeUnit;
   absoluteFromLocal: string;
   absoluteToLocal: string;
 }>;
@@ -49,18 +59,54 @@ export type HistoricalScalarType =
   | 'DateTime';
 
 export function createHistoricalBrowserDraft(): HistoricalBrowserDraft {
+  const range = createHistoricalTimeRangeState({ mode: 'relative', durationSeconds: 60 * 60 });
   return Object.freeze({
     datasetKey: 'historian.samples',
     timeMode: 'relative',
-    relativeDurationSeconds: 60 * 60,
-    absoluteFromLocal: '',
-    absoluteToLocal: ''
+    relativeAmount: range.relativeAmount,
+    relativeUnit: range.relativeUnit,
+    absoluteFromLocal: range.absoluteFromLocal,
+    absoluteToLocal: range.absoluteToLocal
   });
 }
 
-/**
- * UI preflight only. Server-side Historical Query validation remains authoritative.
- */
+export function historicalBrowserTimeRange(draft: HistoricalBrowserDraft): HistoricalTimeRangeState {
+  return Object.freeze({
+    mode: draft.timeMode,
+    relativeAmount: draft.relativeAmount,
+    relativeUnit: draft.relativeUnit,
+    absoluteFromLocal: draft.absoluteFromLocal,
+    absoluteToLocal: draft.absoluteToLocal
+  });
+}
+
+export function applyHistoricalBrowserPreset(
+  draft: HistoricalBrowserDraft,
+  seconds: number
+): HistoricalBrowserDraft {
+  const range = applyHistoricalPreset(
+    Object.freeze({ ...historicalBrowserTimeRange(draft), mode: 'relative' }),
+    seconds
+  );
+  return Object.freeze({
+    ...draft,
+    timeMode: 'relative',
+    relativeAmount: range.relativeAmount,
+    relativeUnit: range.relativeUnit
+  });
+}
+
+export function historicalBrowserPresetSeconds(draft: HistoricalBrowserDraft): number | null {
+  if (draft.timeMode !== 'relative') return null;
+  const seconds = historicalBrowserDurationSeconds(draft);
+  return HISTORICAL_BROWSER_RELATIVE_PRESETS.some(item => item.seconds === seconds) ? seconds : null;
+}
+
+export function historicalBrowserDurationSeconds(draft: HistoricalBrowserDraft): number {
+  return historicalDurationSeconds(historicalBrowserTimeRange(draft));
+}
+
+/** UI preflight only. Server-side Historical Query validation remains authoritative. */
 export function validateHistoricalBrowserDraft(
   draft: HistoricalBrowserDraft,
   locale: HistoricalBrowserLocale = 'en'
@@ -68,19 +114,15 @@ export function validateHistoricalBrowserDraft(
   const text = historicalBrowserCopy(locale);
   const diagnostics: string[] = [];
 
-  if (!HISTORICAL_BROWSER_DATASET_KEYS.includes(draft.datasetKey)) {
-    diagnostics.push(text.unknownDataset);
-  }
+  if (!HISTORICAL_BROWSER_DATASET_KEYS.includes(draft.datasetKey)) diagnostics.push(text.unknownDataset);
 
-  if (draft.timeMode === 'relative') {
-    if (!Number.isSafeInteger(draft.relativeDurationSeconds) || draft.relativeDurationSeconds <= 0) {
-      diagnostics.push(text.relativePositive);
-    }
-  } else {
-    const from = parseLocalDateTime(draft.absoluteFromLocal);
-    const to = parseLocalDateTime(draft.absoluteToLocal);
-    if (from === null || to === null) diagnostics.push(text.absoluteRequired);
-    else if (from >= to) diagnostics.push(text.absoluteOrder);
+  const validation = validateHistoricalTimeRange(historicalBrowserTimeRange(draft));
+  for (const issue of validation.issues) {
+    if (issue === 'relative-invalid') diagnostics.push(text.relativePositive);
+    else if (issue === 'range-too-large') diagnostics.push(text.rangeTooLarge);
+    else if (issue === 'absolute-required') diagnostics.push(text.absoluteRequired);
+    else if (issue === 'absolute-order') diagnostics.push(text.absoluteOrder);
+    else if (issue === 'absolute-ambiguous') diagnostics.push(text.absoluteAmbiguous);
   }
 
   return Object.freeze({ ok: diagnostics.length === 0, diagnostics: Object.freeze(diagnostics) });
@@ -104,9 +146,7 @@ export function formatHistoricalScalar(
       if (typeof value !== 'string' || !/^-?\d+$/.test(value)) return text.unavailable;
       return value;
     case 'Boolean':
-      return typeof value === 'boolean'
-        ? (value ? text.trueLabel : text.falseLabel)
-        : text.unavailable;
+      return typeof value === 'boolean' ? (value ? text.trueLabel : text.falseLabel) : text.unavailable;
     case 'Int16':
     case 'Int32':
       return typeof value === 'number' && Number.isSafeInteger(value) ? String(value) : text.unavailable;
@@ -116,8 +156,23 @@ export function formatHistoricalScalar(
     case 'String':
       return typeof value === 'string' ? value : text.unavailable;
     case 'DateTime':
-      return typeof value === 'string' && value.trim() ? value : text.unavailable;
+      return typeof value === 'string' ? formatHistoricalDateTime(value, locale) || text.unavailable : text.unavailable;
   }
+}
+
+/** Compact operator-facing local timestamp; the query contract retains the UTC instant. */
+export function formatHistoricalDateTime(value: string, locale: HistoricalBrowserLocale = 'en'): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23'
+  }).format(date);
 }
 
 export function historicalDatasetLabel(
@@ -138,17 +193,22 @@ export function historicalTimeSummary(
 ): string {
   const text = historicalBrowserCopy(locale);
   if (draft.timeMode === 'relative') {
-    const preset = HISTORICAL_BROWSER_RELATIVE_PRESETS.find(item => item.seconds === draft.relativeDurationSeconds);
-    return `${text.last} ${preset?.label ?? `${draft.relativeDurationSeconds} s`}`;
+    const seconds = historicalBrowserDurationSeconds(draft);
+    const preset = HISTORICAL_BROWSER_RELATIVE_PRESETS.find(item => item.seconds === seconds);
+    const duration = preset?.label ?? String(draft.relativeAmount) + ' ' + unitLabel(draft.relativeUnit, text);
+    return text.last + ' ' + duration;
   }
 
-  return draft.absoluteFromLocal && draft.absoluteToLocal
-    ? `${draft.absoluteFromLocal} → ${draft.absoluteToLocal}`
-    : text.absoluteNotSelected;
+  if (!draft.absoluteFromLocal || !draft.absoluteToLocal) return text.absoluteNotSelected;
+  const from = new Date(draft.absoluteFromLocal);
+  const to = new Date(draft.absoluteToLocal);
+  const formatter = new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'medium' });
+  return formatter.format(from) + ' → ' + formatter.format(to) + ' · ' + localTimeZoneLabel();
 }
 
-function parseLocalDateTime(value: string): number | null {
-  if (!value.trim()) return null;
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : null;
+function unitLabel(unit: HistoricalTimeRangeUnit, text: ReturnType<typeof historicalBrowserCopy>): string {
+  if (unit === 'seconds') return text.seconds;
+  if (unit === 'minutes') return text.minutes;
+  if (unit === 'hours') return text.hours;
+  return text.days;
 }

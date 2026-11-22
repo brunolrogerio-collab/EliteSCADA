@@ -1,5 +1,6 @@
 import { expect, request as playwrightRequest, test } from '@playwright/test';
 import { createE2eJwt } from './jwt';
+import { endRuntimeSessionInUi } from './runtimeSessionLease';
 import {
   annotateReadinessIssue,
   E2E_BASE_URL,
@@ -12,21 +13,18 @@ const localeExpectations = [
   {
     locale: 'pt-BR' as const,
     subtitle: 'Plataforma industrial',
-    currentArea: 'Área atual',
     overview: 'Visão geral',
     audit: 'Auditoria'
   },
   {
     locale: 'en' as const,
     subtitle: 'Industrial platform',
-    currentArea: 'Current area',
     overview: 'Overview',
     audit: 'Audit'
   },
   {
     locale: 'es' as const,
     subtitle: 'Plataforma industrial',
-    currentArea: 'Área actual',
     overview: 'Vista general',
     audit: 'Auditoría'
   }
@@ -41,27 +39,30 @@ test('Wave 03 readiness: local session survives Runtime -> Engineering -> Audit 
   try {
     await loginLocalDeveloper(page);
 
-    const navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+    const navigation = page.getByRole('navigation', { name: 'SCADIVO' });
     await expect(navigation.getByRole('link', { name: /Runtime/ })).toHaveAttribute('aria-current', 'page');
-    await expect(page.getByTestId('runtime-simulation-fallback')).toBeVisible();
+    await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
     await expect(page.locator('.eng-shell')).toHaveCount(0);
     await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
 
+    // Release the Runtime seat before this scenario navigates into Engineering.
+    await endRuntimeSessionInUi(page);
+
     const account = page.locator('.user-session-menu');
     await expect(account).toBeVisible();
-    await expect(account.locator('summary')).toHaveAttribute('aria-label', /Conta: Local Developer/);
+    await expect(page.getByTestId('session-menu-toggle')).toHaveAttribute('aria-label', /Conta: Local Developer/);
 
-    await navigation.getByRole('link', { name: /Engineering/ }).click();
+    await navigation.locator('a[href="/engineering"]').click();
     await expect(page).toHaveURL(/\/engineering$/);
     await expect(page.locator('.eng-shell')).toBeVisible();
     await expect(page.locator('.user-session-menu')).toBeVisible();
 
-    await page.getByRole('navigation', { name: 'EliteSCADA' }).getByRole('link', { name: /Auditoria/ }).click();
+    await page.getByRole('navigation', { name: 'SCADIVO' }).getByRole('link', { name: /Auditoria/ }).click();
     await expect(page).toHaveURL(/\/audit$/);
     await expect(page.getByRole('heading', { name: 'Auditoria' })).toBeVisible();
     await expect(page.locator('.user-session-menu')).toBeVisible();
 
-    await page.locator('.user-session-menu summary').click();
+    await page.getByTestId('session-menu-toggle').click();
     await page.getByRole('button', { name: 'Sair' }).click();
     await expect(page.locator('.auth-card')).toBeVisible();
     await expect.poll(async () => page.evaluate(async () => (await fetch('/api/auth/me')).status)).toBe(401);
@@ -73,9 +74,11 @@ test('Wave 03 readiness: local session survives Runtime -> Engineering -> Audit 
 test('Wave 03 readiness: Runtime stays operational while TAG/history diagnostics live in Engineering', async ({ page, request }) => {
   await page.goto('/');
 
-  await expect(page.getByTestId('runtime-simulation-fallback')).toBeVisible();
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
   await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
-  await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible({ timeout: 15_000 });
+  // The persisted explicit-Demo fixture deliberately renders the application
+  // identity and revision instead of the retired aggregate "ONLINE" counter.
+  await expect(page.getByText('E2E Explicit Demo Fixture')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('Reservatório TK01')).toBeVisible();
 
   const tagsResponse = await request.get('/api/tags');
@@ -90,7 +93,18 @@ test('Wave 03 readiness: Runtime stays operational while TAG/history diagnostics
   const currentResponse = await request.get('/api/tags/current');
   expect(currentResponse.ok()).toBeTruthy();
 
-  const historyResponse = await request.get(`/api/history/${currentTag!.id}?limit=5`);
+  // Keep the read-only Pump Current assertion above, but obtain Historian
+  // evidence from the deterministic post-activation sample seeded for Frequency.
+  const historyTag = tags.find(tag => tag.path === 'Demo.P01.Frequency');
+  expect(historyTag).toBeTruthy();
+  expect(historyTag!.readOnly).toBeFalsy();
+  // The explicit Historian sample is seeded by the Chromium prerequisite near
+  // suite startup. Broad E2E can reach this read-only check more than 15 minutes
+  // later, so bound the query explicitly without changing product defaults.
+  const historyFrom = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const historyTo = new Date().toISOString();
+  const historyResponse = await request.get(
+    `/api/history/${historyTag!.id}?from=${encodeURIComponent(historyFrom)}&to=${encodeURIComponent(historyTo)}&limit=5`);
   expect(historyResponse.ok()).toBeTruthy();
   const history = await historyResponse.json() as Array<{ timestamp: string; quality: unknown }>;
   expect(Array.isArray(history)).toBeTruthy();
@@ -98,6 +112,9 @@ test('Wave 03 readiness: Runtime stays operational while TAG/history diagnostics
   expect(history[0].timestamp).toBeTruthy();
   expect(history[0]).toHaveProperty('quality');
   expect(history[0].quality).not.toBeNull();
+
+  // End the Runtime lease before opening the Engineering diagnostic route.
+  await endRuntimeSessionInUi(page);
 
   await page.goto('/engineering/diagnostics/tag-monitor');
   const tagMonitor = page.getByTestId('engineering-tag-monitor');
@@ -126,15 +143,21 @@ test('Wave 03 readiness: Engineering exposes the configured domains, Gateway, di
 
   const engineeringNavigation = page.locator('.eng-nav');
 
-  await engineeringNavigation.getByRole('button', { name: /Data Sources/ }).click();
-  await expect(page.getByRole('heading', { name: 'Editor de Data Source' })).toBeVisible();
+  await engineeringNavigation.getByRole('button', { name: /Fontes de dados|Data Sources/ }).click();
+  await expect(page.getByRole('heading', { name: /Editor.*Fonte[s]? de dados|Data Source editor/ })).toBeVisible();
   await expect(page.getByTestId('schema-data-source-editor')).toBeVisible();
   await expect(page.getByTestId('data-source-type')).toBeVisible();
+  await expect(page.getByTestId('gateway-engineering-panel')).toHaveCount(0);
+
+  // Gateway is a first-class Engineering section; it is no longer nested in
+  // Data Sources. Follow the same current navigation proved by gateway-engineering.spec.ts.
+  await engineeringNavigation.getByRole('button', { name: /TAG Gateway/ }).click();
   await expect(page.getByTestId('gateway-engineering-panel')).toBeVisible();
 
   await engineeringNavigation.getByRole('button', { name: /TAGs/ }).click();
   await expect(page.getByRole('heading', { name: 'Editor estruturado de TAGs' })).toBeVisible();
-  await expect(page.locator('.engineering-entity-browser').getByRole('searchbox')).toBeVisible();
+  await expect(page.locator('.eng-editor-picker').getByRole('searchbox')).toBeVisible();
+  await expect(page.locator('.eng-editor-picker')).toHaveCount(1);
 
   const memoryResponse = await request.get('/api/internal-memory/client/definitions');
   expect(memoryResponse.ok()).toBeTruthy();
@@ -162,9 +185,13 @@ test('Wave 03 readiness: Engineering exposes the configured domains, Gateway, di
   };
 
   expect(persistenceStatus.enabled).toBeTruthy();
-  expect(persistenceStatus.configuredProjectKey).toBeTruthy();
-  const lifecycleResponse = await request.get(`/api/engineering/persistence/${encodeURIComponent(persistenceStatus.configuredProjectKey!)}/lifecycle`);
-  expect(lifecycleResponse.ok()).toBeTruthy();
+  // A generic application instance deliberately has no runtime project binding.
+  // That binding is deployment configuration, not a project created by E2E.
+  // When one is supplied, it must still expose the durable lifecycle endpoint.
+  if (persistenceStatus.configuredProjectKey) {
+    const lifecycleResponse = await request.get(`/api/engineering/persistence/${encodeURIComponent(persistenceStatus.configuredProjectKey)}/lifecycle`);
+    expect(lifecycleResponse.ok()).toBeTruthy();
+  }
 });
 
 test('Wave 03 readiness: Audit and user administration remain backend-authorized', async ({ request }) => {
@@ -202,21 +229,29 @@ for (const expected of localeExpectations) {
     await setProductLocale(page, expected.locale);
     await page.goto('/');
 
-    const runtimeNavigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+    const runtimeNavigation = page.getByRole('navigation', { name: 'SCADIVO' });
     await expect(page.getByText(expected.subtitle, { exact: true })).toBeVisible();
-    await expect(page.locator('.app-context')).toContainText(expected.currentArea);
-    await expect(page.getByTestId('runtime-simulation-fallback')).toBeVisible();
-    await expect(page.getByRole('navigation', { name: 'Runtime views' }).getByRole('link', { name: expected.overview, exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('.app-context')).toHaveCount(0);
+    await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+    await expect(page.locator('.runtime-operator-toolbar').getByRole('button', { name: expected.overview, exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.user-session-menu')).toBeVisible();
 
-    const engineeringLink = runtimeNavigation.getByRole('link', { name: /Engineering/ });
+    // These locale journeys run consecutively in one CI database; do not leave
+    // a 60-second lease behind when the next journey starts.
+    await endRuntimeSessionInUi(page);
+
+    const engineeringLink = runtimeNavigation.locator('a[href="/engineering"]');
     await expect(engineeringLink).toHaveAttribute('href', '/engineering');
     await engineeringLink.click();
     await expect(page).toHaveURL(/\/engineering$/);
     await expect(page.locator('.eng-shell')).toBeVisible();
     await expect(page.locator('#engineering-locale')).toHaveValue(expected.locale);
+    const databaseTopology = page.locator('.eng-nav')
+      .getByRole('link', { name: /Banco de dados|Database|Base de datos/ });
+    await expect(databaseTopology).toHaveAttribute('href', '/engineering/database-topology');
+    await expect(page.getByRole('navigation', { name: 'SCADIVO' }).getByRole('link', { name: /Topologia de Banco|Database Topology|Topología de Base/ })).toHaveCount(0);
 
-    const engineeringNavigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+    const engineeringNavigation = page.getByRole('navigation', { name: 'SCADIVO' });
     const auditLink = engineeringNavigation.getByRole('link', { name: new RegExp(expected.audit) });
     await expect(auditLink).toHaveAttribute('href', '/audit');
     await auditLink.click();

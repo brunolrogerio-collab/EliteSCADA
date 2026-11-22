@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.VisualScripting;
 
 namespace Scada.Engineering.Validation;
 
@@ -15,7 +16,166 @@ public static class VisualCompositionEngineeringValidation
         var key = string.IsNullOrWhiteSpace(dynamo.Key) ? dynamo.Name : dynamo.Key;
         ValidateParameterDefinitions(dynamo.Parameters, ImportEntityKind.Dynamo, key, issues);
         ValidateDefinitionElements(dynamo.Elements, key, issues, new HashSet<Guid>());
+        ValidateParameterizedDynamoStateSources(dynamo.Elements, dynamo.Parameters, key, issues);
+        ValidateParameterizedCommandActions(dynamo.Elements, dynamo.Parameters, key, issues);
+        ValidateDynamoParameterSources(dynamo.Elements, dynamo.Parameters, key, issues);
         return issues;
+    }
+
+    private static void ValidateDynamoParameterSources(
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements,
+        IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto>? parameters,
+        string entityKey,
+        List<ImportIssue> issues)
+    {
+        var definitions = (parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>())
+            .Where(parameter => parameter is not null && !string.IsNullOrWhiteSpace(parameter.Key))
+            .ToDictionary(parameter => parameter.Key, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
+        {
+            if (element is null) continue;
+
+            foreach (var binding in element.Bindings ?? Array.Empty<EngineeringBindingDto>())
+            {
+                if (binding is null) continue;
+                var metadataKey = binding.Metadata?.TryGetValue("dynamoParameter", out var declaredKey) == true
+                    ? declaredKey
+                    : null;
+                var targetKey = VisualDynamicEngineeringValidation.TryDynamoParameterTarget(binding.Target, out var parsedBindingKey)
+                    ? parsedBindingKey
+                    : null;
+                var parameterKey = !string.IsNullOrWhiteSpace(metadataKey) ? metadataKey : targetKey;
+                if (string.IsNullOrWhiteSpace(parameterKey)) continue;
+
+                if (!definitions.ContainsKey(parameterKey))
+                {
+                    issues.Add(Error(
+                        "DYNAMO_DYNAMIC_PARAMETER_NOT_FOUND",
+                        $"Dynamo binding '{binding.Key}' on '{element.Key}' references undeclared public parameter '{parameterKey}'.",
+                        ImportEntityKind.Dynamo,
+                        entityKey));
+                }
+            }
+
+            foreach (var source in DynamicSources(element))
+            {
+                if (!VisualDynamicEngineeringValidation.TryDynamoParameterTarget(source.Target, out var parameterKey))
+                    continue;
+
+                if (!definitions.TryGetValue(parameterKey, out var parameter))
+                {
+                    issues.Add(Error(
+                        "DYNAMO_DYNAMIC_PARAMETER_NOT_FOUND",
+                        $"Dynamo visual source on '{element.Key}' references undeclared public parameter '{parameterKey}'.",
+                        ImportEntityKind.Dynamo,
+                        entityKey));
+                    continue;
+                }
+
+                var valueSourceType = parameter.ValueSourceType ?? parameter.DefaultValueSource?.ValueType;
+                var compatible = source.ValueType switch
+                {
+                    VisualExpressionValueType.Boolean =>
+                        parameter.Kind is DynamoParameterKind.Boolean or DynamoParameterKind.TagReference ||
+                        parameter.Kind == DynamoParameterKind.ValueSource &&
+                            (valueSourceType is null || valueSourceType == VisualExpressionValueType.Boolean),
+                    VisualExpressionValueType.Number =>
+                        parameter.Kind is DynamoParameterKind.Number or DynamoParameterKind.TagReference ||
+                        parameter.Kind == DynamoParameterKind.ValueSource &&
+                            (valueSourceType is null || valueSourceType == VisualExpressionValueType.Number),
+                    _ => false
+                };
+                if (!compatible)
+                {
+                    issues.Add(Error(
+                        "DYNAMO_DYNAMIC_PARAMETER_TYPE_MISMATCH",
+                        $"Dynamo visual source on '{element.Key}' expects {source.ValueType} but public parameter '{parameter.Key}' is {parameter.Kind}.",
+                        ImportEntityKind.Dynamo,
+                        entityKey));
+                }
+            }
+
+            ValidateDynamoParameterSources(element.Children, parameters, entityKey, issues);
+        }
+    }
+
+    private static IEnumerable<VisualValueSourceEngineeringDto> DynamicSources(VisualElementEngineeringDto element)
+    {
+        foreach (var condition in element.BooleanConditions ?? Array.Empty<VisualBooleanConditionEngineeringDto>())
+            if (condition?.Source is not null)
+                yield return condition.Source;
+        foreach (var map in element.PropertyMaps ?? Array.Empty<VisualPropertyMapEngineeringDto>())
+            if (map?.Source is not null)
+                yield return map.Source;
+        if (element.AnalogFill?.Source is not null)
+            yield return element.AnalogFill.Source;
+    }
+
+    private static void ValidateParameterizedCommandActions(
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements,
+        IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto>? parameters,
+        string entityKey,
+        List<ImportIssue> issues)
+    {
+        var declared = (parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>())
+            .Where(parameter => parameter is not null && !string.IsNullOrWhiteSpace(parameter.Key))
+            .ToDictionary(parameter => parameter.Key, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
+        {
+            if (element is null) continue;
+            foreach (var action in element.Actions ?? Array.Empty<VisualNavigationActionEngineeringDto>())
+            {
+                if (action is null || action.Kind != VisualNavigationActionKind.ExecuteCommand ||
+                    string.IsNullOrWhiteSpace(action.CommandParameterKey))
+                    continue;
+
+                if (action.CommandId.HasValue)
+                    issues.Add(Error(
+                        "DYNAMO_COMMAND_ACTION_ID_NOT_PORTABLE",
+                        $"Dynamo action '{action.EventKey}' must not combine CommandParameterKey with a concrete CommandId.",
+                        ImportEntityKind.Dynamo,
+                        entityKey));
+
+                if (!declared.TryGetValue(action.CommandParameterKey, out var parameter) ||
+                    parameter.Kind != DynamoParameterKind.Command)
+                    issues.Add(Error(
+                        "DYNAMO_COMMAND_PARAMETER_NOT_FOUND",
+                        $"Dynamo action '{action.EventKey}' references Command parameter '{action.CommandParameterKey}', which is not declared as Command.",
+                        ImportEntityKind.Dynamo,
+                        entityKey));
+            }
+
+            ValidateParameterizedCommandActions(element.Children, parameters, entityKey, issues);
+        }
+    }
+
+    private static void ValidateParameterizedDynamoStateSources(
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements,
+        IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto>? parameters,
+        string entityKey,
+        List<ImportIssue> issues)
+    {
+        foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
+        {
+            if (element is null) continue;
+            if (element.Metadata?.TryGetValue("dynamoStateColorParameter", out var parameterKey) == true &&
+                !string.IsNullOrWhiteSpace(parameterKey) &&
+                !(parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>()).Any(parameter =>
+                    parameter is not null &&
+                    parameter.Kind is DynamoParameterKind.TagReference or DynamoParameterKind.ValueSource &&
+                    parameter.Key.Equals(parameterKey, StringComparison.OrdinalIgnoreCase)))
+            {
+                issues.Add(Error(
+                    "DYNAMO_STATE_COLOR_PARAMETER_NOT_FOUND",
+                    $"Dynamo state-color source '{parameterKey}' must reference a declared TagReference parameter.",
+                    ImportEntityKind.Dynamo,
+                    entityKey));
+            }
+
+            ValidateParameterizedDynamoStateSources(element.Children, parameters, entityKey, issues);
+        }
     }
 
     public static IReadOnlyCollection<ImportIssue> ValidateElement(
@@ -65,11 +225,22 @@ public static class VisualCompositionEngineeringValidation
                 definition.Kind,
                 definition.DefaultValue,
                 definition.DefaultTagReference,
+                commandId: null,
+                valueSource: definition.DefaultValueSource,
                 allowMissing: true,
                 kind,
                 entityKey,
                 issues,
                 "definition");
+
+            if (definition.ValueSourceType.HasValue && definition.Kind != DynamoParameterKind.ValueSource)
+                issues.Add(Error("DYNAMO_PARAMETER_VALUE_SOURCE_TYPE_UNEXPECTED", $"Dynamo parameter '{definition.Key}' declares a value-source result type but is not ValueSource.", kind, entityKey));
+            if (definition.Kind == DynamoParameterKind.ValueSource && definition.ValueSourceType.HasValue &&
+                !Enum.IsDefined(definition.ValueSourceType.Value))
+                issues.Add(Error("DYNAMO_PARAMETER_VALUE_SOURCE_TYPE_INVALID", $"Dynamo parameter '{definition.Key}' declares an unsupported value-source result type.", kind, entityKey));
+            if (definition.Kind == DynamoParameterKind.ValueSource && definition.ValueSourceType.HasValue && definition.DefaultValueSource is not null &&
+                definition.DefaultValueSource.ValueType != definition.ValueSourceType.Value)
+                issues.Add(Error("DYNAMO_PARAMETER_VALUE_SOURCE_TYPE_MISMATCH", $"Dynamo parameter '{definition.Key}' default source does not match its declared result type.", kind, entityKey));
         }
     }
 
@@ -81,8 +252,8 @@ public static class VisualCompositionEngineeringValidation
     {
         var values = element.DynamoParameters;
         if (values is null) return;
-        if (string.IsNullOrWhiteSpace(element.DynamoKey))
-            issues.Add(Error("VISUAL_DYNAMO_PARAMETERS_REQUIRE_DYNAMO", $"Visual element '{element.Key}' declares Dynamo parameters without a DynamoKey.", kind, entityKey));
+        if (string.IsNullOrWhiteSpace(element.DynamoKey) && !element.DynamoDefinitionId.HasValue)
+            issues.Add(Error("VISUAL_DYNAMO_PARAMETERS_REQUIRE_DYNAMO", $"Visual element '{element.Key}' declares Dynamo parameters without a Dynamo definition reference.", kind, entityKey));
         if (values.Count > MaximumParameters)
             issues.Add(Error("VISUAL_DYNAMO_PARAMETER_LIMIT", $"Visual element '{element.Key}' exceeds the {MaximumParameters} Dynamo parameter limit.", kind, entityKey));
 
@@ -112,6 +283,8 @@ public static class VisualCompositionEngineeringValidation
                 value.Kind,
                 value.Value,
                 value.TagReference,
+                value.CommandId,
+                value.ValueSource,
                 allowMissing: false,
                 kind,
                 entityKey,
@@ -125,12 +298,47 @@ public static class VisualCompositionEngineeringValidation
         DynamoParameterKind parameterKind,
         JsonElement? value,
         Scada.Core.Tags.TagValueReference? tagReference,
+        Guid? commandId,
+        VisualValueSourceEngineeringDto? valueSource,
         bool allowMissing,
         ImportEntityKind kind,
         string entityKey,
         List<ImportIssue> issues,
         string role)
     {
+        if (parameterKind == DynamoParameterKind.Command)
+        {
+            if (value.HasValue || tagReference is not null || valueSource is not null)
+                issues.Add(Error("DYNAMO_PARAMETER_SHAPE_INVALID", $"Dynamo parameter {role} '{key}' of kind Command cannot carry a scalar, TAG reference, or value source.", kind, entityKey));
+            if (!commandId.HasValue || commandId == Guid.Empty)
+            {
+                if (!allowMissing)
+                    issues.Add(Error("DYNAMO_PARAMETER_COMMAND_REQUIRED", $"Dynamo parameter {role} '{key}' requires a stable Command identity.", kind, entityKey));
+                return;
+            }
+            return;
+        }
+
+        if (commandId.HasValue)
+            issues.Add(Error("DYNAMO_PARAMETER_SHAPE_INVALID", $"Dynamo parameter {role} '{key}' of kind {parameterKind} cannot carry a Command identity.", kind, entityKey));
+
+        if (parameterKind == DynamoParameterKind.ValueSource)
+        {
+            if (value.HasValue || tagReference is not null)
+                issues.Add(Error("DYNAMO_PARAMETER_SHAPE_INVALID", $"Dynamo parameter {role} '{key}' of kind ValueSource cannot carry a scalar value or direct TAG payload.", kind, entityKey));
+            if (valueSource is null)
+            {
+                if (!allowMissing)
+                    issues.Add(Error("DYNAMO_PARAMETER_VALUE_SOURCE_REQUIRED", $"Dynamo parameter {role} '{key}' requires a typed visual value source.", kind, entityKey));
+                return;
+            }
+            Scada.Engineering.VisualScripting.VisualDynamicEngineeringValidation.ValidateSource(valueSource, kind, entityKey, issues);
+            return;
+        }
+
+        if (valueSource is not null)
+            issues.Add(Error("DYNAMO_PARAMETER_SHAPE_INVALID", $"Dynamo parameter {role} '{key}' of kind {parameterKind} cannot carry a typed value source.", kind, entityKey));
+
         if (parameterKind == DynamoParameterKind.TagReference)
         {
             if (value.HasValue)
@@ -192,21 +400,104 @@ public static class VisualCompositionEngineeringValidation
                 issues.Add(Error("VISUAL_ACTION_NULL", $"Visual element '{elementKey}' contains a null navigation action.", kind, entityKey));
                 continue;
             }
-            if (action.Version != VisualCompositionEngineeringVersions.Current)
-                issues.Add(Error("VISUAL_COMPOSITION_VERSION_UNSUPPORTED", $"Navigation action '{action.EventKey}' uses unsupported version {action.Version}.", kind, entityKey));
+            if (!Enum.IsDefined(typeof(VisualNavigationActionKind), action.Kind))
+            {
+                issues.Add(Error(
+                    "VISUAL_ACTION_KIND_UNSUPPORTED",
+                    $"Visual action '{action.EventKey}' uses unsupported kind '{action.Kind}'.",
+                    kind,
+                    entityKey));
+                continue;
+            }
+            var expectedVersion = action.Kind == VisualNavigationActionKind.ExecuteRichCommand
+                ? VisualNavigationActionVersions.RichCommand
+                : VisualCompositionEngineeringVersions.Current;
+            if (action.Version != expectedVersion)
+                issues.Add(Error(
+                    action.Kind == VisualNavigationActionKind.ExecuteRichCommand
+                        ? "VISUAL_RICH_COMMAND_ACTION_VERSION_UNSUPPORTED"
+                        : "VISUAL_COMPOSITION_VERSION_UNSUPPORTED",
+                    $"Navigation action '{action.EventKey}' uses unsupported version {action.Version}.",
+                    kind,
+                    entityKey));
             if (string.IsNullOrWhiteSpace(action.EventKey))
                 issues.Add(Error("VISUAL_ACTION_EVENT_REQUIRED", $"Visual element '{elementKey}' navigation action requires an event key.", kind, entityKey));
             else if (duplicates.Contains(action.EventKey))
                 issues.Add(Error("VISUAL_ACTION_EVENT_DUPLICATE", $"Visual element '{elementKey}' has more than one navigation action for event '{action.EventKey}'.", kind, entityKey));
 
-            if (action.Kind is VisualNavigationActionKind.NavigateScreen or VisualNavigationActionKind.OpenPopup)
+            if (action.Kind is VisualNavigationActionKind.NavigateScreen or VisualNavigationActionKind.OpenPopup or
+                VisualNavigationActionKind.SetTagValue or VisualNavigationActionKind.ToggleTagBoolean)
             {
                 if (string.IsNullOrWhiteSpace(action.TargetKey))
-                    issues.Add(Error("VISUAL_ACTION_TARGET_REQUIRED", $"Navigation action '{action.EventKey}' requires a target key.", kind, entityKey));
+                    issues.Add(Error("VISUAL_ACTION_TARGET_REQUIRED", $"Visual action '{action.EventKey}' requires a target key.", kind, entityKey));
             }
             else if (action.Kind == VisualNavigationActionKind.ClosePopup && !string.IsNullOrWhiteSpace(action.TargetKey))
             {
                 issues.Add(Error("VISUAL_ACTION_TARGET_NOT_ALLOWED", $"ClosePopup action '{action.EventKey}' cannot declare a target key.", kind, entityKey));
+            }
+
+            if (action.Kind == VisualNavigationActionKind.ExecuteCommand)
+            {
+                var hasCommandId = action.CommandId.HasValue && action.CommandId != Guid.Empty;
+                var hasParameter = !string.IsNullOrWhiteSpace(action.CommandParameterKey);
+                if (hasCommandId == hasParameter)
+                    issues.Add(Error(
+                        "VISUAL_ACTION_COMMAND_REFERENCE_INVALID",
+                        $"ExecuteCommand action '{action.EventKey}' requires exactly one CommandId or CommandParameterKey.",
+                        kind,
+                        entityKey));
+            }
+            else if (action.Kind == VisualNavigationActionKind.ExecuteRichCommand)
+            {
+                if (!action.CommandId.HasValue || action.CommandId == Guid.Empty)
+                    issues.Add(Error(
+                        "VISUAL_RICH_COMMAND_ID_REQUIRED",
+                        $"ExecuteRichCommand action '{action.EventKey}' requires a stable Rich Command identity.",
+                        kind,
+                        entityKey));
+                if (kind is not (ImportEntityKind.Screen or ImportEntityKind.Popup))
+                    issues.Add(Error(
+                        "VISUAL_RICH_COMMAND_ACTION_KIND_UNSUPPORTED",
+                        "ExecuteRichCommand actions are supported only by Screen and Popup visual definitions.",
+                        kind,
+                        entityKey));
+                if (!string.IsNullOrWhiteSpace(action.TargetKey))
+                    issues.Add(Error(
+                        "VISUAL_RICH_COMMAND_TARGET_NOT_ALLOWED",
+                        $"ExecuteRichCommand action '{action.EventKey}' cannot declare a target key.",
+                        kind,
+                        entityKey));
+                if (action.Parameters is not null)
+                    issues.Add(Error(
+                        "VISUAL_RICH_COMMAND_PARAMETERS_NOT_ALLOWED",
+                        $"ExecuteRichCommand action '{action.EventKey}' cannot persist parameter values.",
+                        kind,
+                        entityKey));
+                if (!string.IsNullOrWhiteSpace(action.CommandParameterKey))
+                    issues.Add(Error(
+                        "VISUAL_RICH_COMMAND_PARAMETER_KEY_NOT_ALLOWED",
+                        $"ExecuteRichCommand action '{action.EventKey}' cannot use Dynamo Command indirection.",
+                        kind,
+                        entityKey));
+            }
+            else if (!string.IsNullOrWhiteSpace(action.CommandParameterKey))
+            {
+                issues.Add(Error(
+                    "VISUAL_ACTION_COMMAND_PARAMETER_NOT_ALLOWED",
+                    $"Visual action '{action.EventKey}' of kind {action.Kind} cannot carry CommandParameterKey.",
+                    kind,
+                    entityKey));
+            }
+
+            if (action.Kind == VisualNavigationActionKind.SetTagValue &&
+                (action.Parameters is not { Count: 1 } || !action.Parameters.TryGetValue("value", out var value) ||
+                 value.ValueKind is not (JsonValueKind.True or JsonValueKind.False or JsonValueKind.Number or JsonValueKind.String)))
+            {
+                issues.Add(Error("VISUAL_ACTION_TAG_VALUE_REQUIRED", $"SetTagValue action '{action.EventKey}' requires one primitive 'value' parameter.", kind, entityKey));
+            }
+            if (action.Kind == VisualNavigationActionKind.ToggleTagBoolean && action.Parameters is { Count: > 0 })
+            {
+                issues.Add(Error("VISUAL_ACTION_TAG_TOGGLE_PARAMETERS_NOT_ALLOWED", $"ToggleTagBoolean action '{action.EventKey}' cannot declare parameters.", kind, entityKey));
             }
         }
     }
@@ -242,8 +533,13 @@ public static class VisualCompositionEngineeringValidation
                 issues.Add(Error("DYNAMO_VISUAL_ELEMENT_ID_EMPTY", $"Dynamo visual element '{element.Key}' cannot use an empty Id.", ImportEntityKind.Dynamo, entityKey));
             else if (element.Id.HasValue && !ids.Add(element.Id.Value))
                 issues.Add(Error("DYNAMO_VISUAL_ELEMENT_ID_DUPLICATE", $"Dynamo visual element Id '{element.Id.Value:D}' appears more than once.", ImportEntityKind.Dynamo, entityKey));
-            if (!string.IsNullOrWhiteSpace(element.DynamoKey))
-                issues.Add(Error("DYNAMO_NESTING_NOT_SUPPORTED", $"Dynamo definition '{entityKey}' cannot nest Dynamo '{element.DynamoKey}' in composition version 1.", ImportEntityKind.Dynamo, entityKey));
+            if (!string.IsNullOrWhiteSpace(element.DynamoKey) || element.DynamoDefinitionId.HasValue)
+            {
+                var nestedReference = !string.IsNullOrWhiteSpace(element.DynamoKey)
+                    ? element.DynamoKey
+                    : element.DynamoDefinitionId!.Value.ToString("D");
+                issues.Add(Error("DYNAMO_NESTING_NOT_SUPPORTED", $"Dynamo definition '{entityKey}' cannot nest Dynamo '{nestedReference}' in composition version 1.", ImportEntityKind.Dynamo, entityKey));
+            }
 
             issues.AddRange(ValidateElement(element, ImportEntityKind.Dynamo, entityKey));
             ValidateDefinitionElements(element.Children, entityKey, issues, ids);

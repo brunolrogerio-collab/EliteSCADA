@@ -1,0 +1,843 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Xml.Linq;
+using Scada.Engineering.Contracts;
+using Scada.Engineering.VisualAssets;
+
+namespace Scada.Api.Runtime;
+
+/// <summary>
+/// First replacement-generation catalog. The discarded 72-definition factory
+/// has been purged; project-authored definitions remain project-owned.
+/// New artwork is canonical editable vector geometry, not a second renderer.
+/// </summary>
+public static class BuiltinDynamoCatalogV1
+{
+    public const string Version = "1.5.0";
+    private const string Outline = "#263746";
+    private const string Steel = "#A9BAC5";
+    private const string Light = "#E7EEF2";
+    private const string Dark = "#526879";
+
+    public static IReadOnlyCollection<DynamoEngineeringDto> Create() =>
+        CreateGeometryDefinitions()
+            // Contact blades need independent visibility/rotation bindings; keep
+            // their canonical child geometry instead of flattening it to one SVG.
+            .Select(definition => definition.Key.StartsWith("electrical.", StringComparison.Ordinal)
+                ? definition
+                : ComposeSvgArtwork(definition))
+            .ToArray();
+
+    public static IReadOnlyCollection<(VisualAssetEngineeringDto Asset, VisualAssetPayload Payload)> CreateArtworkAssets()
+    {
+        return CreateGeometryDefinitions().Select(definition =>
+        {
+            var content = Encoding.UTF8.GetBytes(BuildArtworkSvg(definition));
+            var inspection = VisualAssetContentInspector.InspectAndCanonicalize(content);
+            var payload = VisualAssetPayload.Create(inspection.MediaType, inspection.CanonicalContent);
+            var asset = new VisualAssetEngineeringDto(
+                StableElementId("asset:" + definition.Key),
+                AssetKey(definition.Key), definition.Name, $"{AssetKey(definition.Key)}.svg", payload.MediaType,
+                payload.ByteLength, payload.Sha256, Description: "Original EliteSCADA Dynamo vector artwork generated from editable geometry.",
+                Metadata: new Dictionary<string, string>(inspection.CanonicalMetadata ?? new Dictionary<string, string>(), StringComparer.Ordinal)
+                {
+                    ["assetRole"] = "dynamoArtwork",
+                    ["catalogGeneration"] = "3", ["assetOrigin"] = "original-elitescada-vector-factory",
+                    ["reviewStatus"] = "first-party-product-artwork"
+                });
+            return (asset, payload);
+        }).ToArray();
+    }
+
+    private static IReadOnlyCollection<DynamoEngineeringDto> CreateGeometryDefinitions()
+    {
+        var result = new List<DynamoEngineeringDto>(15);
+        result.AddRange(new[] { "round", "square", "rectangular" }.Select((shape, i) => Lamp(shape, i)));
+        result.AddRange(new[] { "raised", "flush", "illuminated" }.Select((shape, i) => Button(shape, i)));
+        result.AddRange(new[] { "tefc", "vertical" }
+            .Select((shape, i) => Equipment("motor", shape, $"Motor {MotorName(shape)}", i)));
+        result.AddRange(new[] { "gate", "globe", "ball" }
+            .Select((shape, i) => Equipment("valve", shape, $"Válvula {ValveName(shape)}", i)));
+        result.Add(Equipment("pump", "submersible", "Bomba submersível", 0));
+        result.AddRange(new[] { "contact-mono-horizontal", "contact-mono-vertical", "contact-tri-horizontal" }
+            .Select((shape, i) => Equipment("electrical", shape, $"Contato elétrico {ContactName(shape)}", i)));
+        return result;
+    }
+
+    private static DynamoEngineeringDto ComposeSvgArtwork(DynamoEngineeringDto definition)
+    {
+        var geometry = definition.Elements ?? Array.Empty<VisualElementEngineeringDto>();
+        var stateElement = geometry.FirstOrDefault(element => element.PropertyMaps?.Any(map => map.PropertyKey == "fillColor") == true);
+        var svgProperties = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
+        {
+            ["x"] = JsonSerializer.SerializeToElement(0d), ["y"] = JsonSerializer.SerializeToElement(0d),
+            ["width"] = JsonSerializer.SerializeToElement(double.Parse(definition.Properties!["defaultWidth"], System.Globalization.CultureInfo.InvariantCulture)),
+            ["height"] = JsonSerializer.SerializeToElement(double.Parse(definition.Properties["defaultHeight"], System.Globalization.CultureInfo.InvariantCulture)),
+            ["assetRef"] = JsonSerializer.SerializeToElement(new { assetId = StableElementId("asset:" + definition.Key).ToString("D") }),
+            ["svgPaintOverrides"] = JsonSerializer.SerializeToElement(new { version = 1, palette = new { }, slots = new { } })
+        };
+        var maps = stateElement?.PropertyMaps?.Select(map => map with { PropertyKey = "svg.slot.state.fill" }).ToArray();
+        var metadata = stateElement?.Metadata is null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(stateElement.Metadata, StringComparer.Ordinal);
+        foreach (var parameterKey in new[] { "dynamoOutlineColorParameter", "dynamo3dEffectParameter" })
+        {
+            if (definition.Metadata?.TryGetValue(parameterKey, out var parameter) == true)
+                metadata[parameterKey] = parameter;
+        }
+        var symbol = new VisualElementEngineeringDto(
+            "artwork", "core.svgSymbol", Properties: svgProperties,
+            Metadata: metadata, PropertyMaps: maps,
+            Actions: geometry.SelectMany(element => element.Actions ?? []).ToArray(),
+            Id: StableElementId(definition.Key + ":svg-artwork"));
+        var labels = geometry.Where(element => element.Type == "core.text").ToArray();
+        return definition with { Elements = [symbol, .. labels] };
+    }
+
+    private static string BuildArtworkSvg(DynamoEngineeringDto definition)
+    {
+        if (definition.Metadata?.TryGetValue("dynamoArtworkSource", out var artworkSource) == true)
+            return BuildReferenceArtworkSvg(definition, artworkSource);
+
+        var width = double.Parse(definition.Properties!["defaultWidth"], System.Globalization.CultureInfo.InvariantCulture);
+        var height = double.Parse(definition.Properties["defaultHeight"], System.Globalization.CultureInfo.InvariantCulture);
+        XNamespace svgNamespace = "http://www.w3.org/2000/svg";
+        var root = new XElement(svgNamespace + "svg",
+            new XAttribute("viewBox", FormattableString.Invariant($"0 0 {width} {height}")),
+            new XAttribute("width", FormattableString.Invariant($"{width}px")),
+            new XAttribute("height", FormattableString.Invariant($"{height}px")));
+        foreach (var element in definition.Elements ?? [])
+        {
+            if (element.Type == "core.text" || element.Properties is null) continue;
+            var p = element.Properties;
+            if (!Number(p, "x", out var x) || !Number(p, "y", out var y) ||
+                !Number(p, "width", out var w) || !Number(p, "height", out var h)) continue;
+            var fill = String(p, "fillColor", "none");
+            var stroke = String(p, "strokeColor", "none");
+            var strokeWidth = Number(p, "strokeWidth", out var sw) ? sw : 0;
+            var rotated = Number(p, "rotation", out var angle) && Math.Abs(angle) > 0.001;
+            var cx = x + w / 2;
+            var cy = y + h / 2;
+            var attributes = new List<object>
+            {
+                new XAttribute("fill", fill), new XAttribute("stroke", stroke), new XAttribute("stroke-width", FormattableString.Invariant($"{strokeWidth:0.###}")),
+                new XAttribute("vector-effect", "non-scaling-stroke")
+            };
+            if (stateElementKey(definition) == element.Key)
+                attributes.Add(new XAttribute("data-elitescada-slot", "state"));
+            else if (element.Key is "bezel" or "lens" or "red-lens" or "amber-lens" or "green-lens")
+                attributes.Add(new XAttribute("data-elitescada-slot", "bezel"));
+            if (rotated) attributes.Add(new XAttribute("transform", FormattableString.Invariant($"rotate({angle:0.###} {cx:0.###} {cy:0.###})")));
+            XElement? shape = element.Type switch
+            {
+                "core.rectangle" => new XElement(svgNamespace + "rect", new XAttribute("x", x), new XAttribute("y", y), new XAttribute("width", w), new XAttribute("height", h), new XAttribute("rx", Number(p, "cornerRadius", out var radius) ? radius : 0), attributes),
+                "core.ellipse" => new XElement(svgNamespace + "ellipse", new XAttribute("cx", cx), new XAttribute("cy", cy), new XAttribute("rx", w / 2), new XAttribute("ry", h / 2), attributes),
+                "core.polygon" when p.TryGetValue("points", out var points) && points.ValueKind == JsonValueKind.Array => new XElement(svgNamespace + "polygon",
+                    new XAttribute("points", string.Join(" ", points.EnumerateArray().Select(point => FormattableString.Invariant($"{x + point.GetProperty("x").GetDouble():0.###},{y + point.GetProperty("y").GetDouble():0.###}")))), attributes),
+                _ => null
+            };
+            if (shape is not null) root.Add(shape);
+        }
+        return root.ToString(SaveOptions.DisableFormatting);
+    }
+
+    private static string BuildReferenceArtworkSvg(DynamoEngineeringDto definition, string sourceFile)
+    {
+        const string resourcePrefix = "EliteSCADA.StaticArtwork.elite-saneamento/";
+        var assembly = typeof(BuiltinDynamoCatalogV1).Assembly;
+        var resourceName = assembly.GetManifestResourceNames().FirstOrDefault(name =>
+            name.Replace('\\', '/').Equals(resourcePrefix + sourceFile, StringComparison.Ordinal));
+        using var stream = resourceName is null ? null : assembly.GetManifestResourceStream(resourceName);
+        using (stream)
+        {
+            if (stream is null)
+                throw new InvalidDataException($"Missing Dynamo reference artwork '{sourceFile}'.");
+            return BuildReferenceArtworkSvg(definition, sourceFile, stream);
+        }
+    }
+
+    private static string BuildReferenceArtworkSvg(DynamoEngineeringDto definition, string sourceFile, Stream stream)
+    {
+        var source = XDocument.Load(stream, LoadOptions.None);
+        XNamespace svg = "http://www.w3.org/2000/svg";
+        var sourceRoot = source.Root ?? throw new InvalidDataException("Dynamo reference artwork has no SVG root.");
+        var crop = ReferenceArtworkCrop(sourceFile);
+        var vfdPackage = definition.Metadata?.GetValueOrDefault("visualVariant") == "vfd-package";
+        var equipmentWidth = vfdPackage ? 91d : 118d;
+        var scale = Math.Min(equipmentWidth / crop.Width, 72d / crop.Height);
+        var scaledWidth = crop.Width * scale;
+        var scaledHeight = crop.Height * scale;
+        var offsetX = vfdPackage ? 3d : (132d - scaledWidth) / 2d;
+        var offsetY = (77d - scaledHeight) / 2d;
+        var root = new XElement(svg + "svg",
+            new XAttribute("viewBox", "0 0 132 100"),
+            new XAttribute("width", "132px"), new XAttribute("height", "100px"));
+
+        foreach (var defs in sourceRoot.Elements(svg + "defs")) root.Add(new XElement(defs));
+        var stateShapes = ReferenceArtworkStateShapes(sourceFile, sourceRoot).ToArray();
+        if (stateShapes.Length == 0)
+            throw new InvalidDataException($"Dynamo reference artwork '{sourceFile}' has no state-color shape.");
+        foreach (var shape in stateShapes)
+        {
+            shape.SetAttributeValue("data-elitescada-slot", "state");
+            if (sourceFile == "motor-vertical.svg")
+                shape.SetAttributeValue("fill", "#93B99A");
+            // A flat base color leaves the mapped state color writable; the SVG's
+            // cooling ribs, hardware, outlines and highlights retain their detail.
+            if (shape.Attribute("fill")?.Value.StartsWith("url(", StringComparison.OrdinalIgnoreCase) == true)
+                shape.SetAttributeValue("fill", "#93B99A");
+        }
+        RefineReferenceArtworkPalette(sourceFile, sourceRoot);
+
+        var content = new XElement(svg + "g",
+            new XAttribute("transform", FormattableString.Invariant(
+                $"translate({offsetX:0.###} {offsetY:0.###}) scale({scale:0.######}) translate({-crop.X:0.###} {-crop.Y:0.###})")));
+        foreach (var node in sourceRoot.Nodes().Where(node => node is not XElement element || element.Name != svg + "defs"))
+            content.Add(CloneNode(node));
+        root.Add(content);
+
+        AddReferenceArtworkFinish(root, definition, svg);
+        return root.ToString(SaveOptions.DisableFormatting);
+    }
+
+    private static XNode CloneNode(XNode node) => node switch
+    {
+        XElement element => new XElement(element),
+        XText text => new XText(text.Value),
+        _ => new XComment("Reference artwork")
+    };
+
+    private static (double X, double Y, double Width, double Height) ReferenceArtworkCrop(string file) => file switch
+    {
+        "motor-horizontal-vermelho.svg" => (5, 20, 330, 200),
+        "motor-inclinado-amarelo.svg" => (20, 10, 310, 300),
+        "motor-vertical.svg" => (15, 12, 220, 375),
+        "valvula-manual-volante.svg" => (25, 12, 250, 225),
+        "corpo-esferico-dourado.svg" => (20, 8, 260, 220),
+        "valvula-vertical.svg" => (50, 20, 230, 170),
+        "bomba-submersivel.svg" => (70, 28, 300, 380),
+        _ => throw new InvalidDataException($"Unknown Dynamo reference artwork '{file}'.")
+    };
+
+    private static IEnumerable<XElement> ReferenceArtworkStateShapes(string file, XElement root)
+    {
+        XNamespace svg = "http://www.w3.org/2000/svg";
+        var shapes = root.Descendants().ToArray();
+        return file switch
+        {
+            "motor-horizontal-vermelho.svg" => shapes.Where(element => element.Name == svg + "path" &&
+                element.Attribute("d")?.Value.TrimStart().StartsWith("M 40 40", StringComparison.Ordinal) == true),
+            "motor-inclinado-amarelo.svg" => shapes.Where(element => element.Name == svg + "rect" &&
+                element.Attribute("x")?.Value == "40" && element.Attribute("y")?.Value == "30"),
+            // Housing, cooling ribs and terminal box are painted together. Keep
+            // the metallic shaft separate; neutral overlays retain tonal detail.
+            "motor-vertical.svg" => shapes.Where(element => element.Name == svg + "rect" &&
+                element.Attribute("fill")?.Value is "#E6D319" or "#D4C214" or "#EBF01D"),
+            "valvula-manual-volante.svg" => shapes.Where(element => element.Name == svg + "rect" &&
+                element.Attribute("x")?.Value == "65" && element.Attribute("y")?.Value == "100"),
+            "corpo-esferico-dourado.svg" => shapes.Where(element =>
+                element.Attribute("fill")?.Value == "url(#gold-metallic)"),
+            "valvula-vertical.svg" => shapes.Where(element => element.Name == svg + "rect" &&
+                (element.Attribute("x")?.Value == "165" && element.Attribute("y")?.Value == "65") ||
+                (element.Attribute("x")?.Value == "187" && element.Attribute("y")?.Value == "75") ||
+                (element.Attribute("x")?.Value == "73" && element.Attribute("y")?.Value == "70")),
+            "bomba-submersivel.svg" => root.Elements(svg + "g").Take(1),
+            _ => []
+        };
+    }
+
+    private static void RefineReferenceArtworkPalette(string file, XElement root)
+    {
+        XNamespace svg = "http://www.w3.org/2000/svg";
+        if (file == "motor-vertical.svg")
+        {
+            foreach (var part in root.Descendants(svg + "rect").Where(element =>
+                         element.Attribute("data-elitescada-slot")?.Value == "state" &&
+                         element.Attribute("y")?.Value is "55" or "110").ToArray())
+            {
+                var highlight = part.Attribute("y")?.Value == "110";
+                var tone = new XElement(part);
+                tone.SetAttributeValue("data-elitescada-slot", null);
+                tone.SetAttributeValue("fill", highlight ? "#FFFFFF" : "#000000");
+                tone.SetAttributeValue("fill-opacity", highlight ? "0.12" : "0.18");
+                tone.SetAttributeValue("stroke", "none");
+                part.AddAfterSelf(tone);
+            }
+        }
+        if (file == "motor-horizontal-vermelho.svg")
+        {
+            foreach (var finGroup in root.Descendants(svg + "g").Where(element =>
+                         element.Attribute("fill")?.Value.Equals("#B31912", StringComparison.OrdinalIgnoreCase) == true))
+                finGroup.SetAttributeValue("fill", "#71818B");
+            foreach (var fin in root.Descendants(svg + "rect").Where(element =>
+                         element.Attribute("fill")?.Value.Equals("#B31912", StringComparison.OrdinalIgnoreCase) == true))
+                fin.SetAttributeValue("fill", "#71818B");
+            foreach (var junctionBox in root.Descendants(svg + "rect").Where(element =>
+                         element.Attribute("x")?.Value == "85" && element.Attribute("y")?.Value == "100"))
+                junctionBox.SetAttributeValue("fill", "#D7E0E5");
+        }
+    }
+
+    private static void AddReferenceArtworkFinish(XElement root, DynamoEngineeringDto definition, XNamespace svg)
+    {
+        var family = definition.Metadata?.GetValueOrDefault("familyKey");
+        var variant = definition.Metadata?.GetValueOrDefault("visualVariant");
+        if (family == "equipment.motor" && variant == "large-frame")
+        {
+            root.Add(new XElement(svg + "path", new XAttribute("d", "M 17 69 L 115 69 L 121 76 L 11 76 Z"),
+                new XAttribute("fill", "#526879"), new XAttribute("stroke", Outline), new XAttribute("stroke-width", "1.5")));
+        }
+        if (variant == "vfd-package")
+        {
+            root.Add(
+                new XElement(svg + "rect", new XAttribute("x", "101"), new XAttribute("y", "19"),
+                    new XAttribute("width", "27"), new XAttribute("height", "48"), new XAttribute("rx", "3"),
+                    new XAttribute("fill", "#D7E0E5"), new XAttribute("stroke", Outline), new XAttribute("stroke-width", "1.5")),
+                new XElement(svg + "rect", new XAttribute("x", "106"), new XAttribute("y", "25"),
+                    new XAttribute("width", "17"), new XAttribute("height", "11"), new XAttribute("rx", "1"),
+                    new XAttribute("fill", "#263746"), new XAttribute("stroke", Outline), new XAttribute("stroke-width", "0.5")),
+                new XElement(svg + "circle", new XAttribute("cx", "110"), new XAttribute("cy", "43"),
+                    new XAttribute("r", "1.8"), new XAttribute("fill", "#16A34A")),
+                new XElement(svg + "circle", new XAttribute("cx", "118"), new XAttribute("cy", "43"),
+                    new XAttribute("r", "1.8"), new XAttribute("fill", "#EAB308")),
+                new XElement(svg + "path", new XAttribute("d", "M 96 43 L 100 43"),
+                    new XAttribute("fill", "none"), new XAttribute("stroke", Dark), new XAttribute("stroke-width", "1.5")));
+        }
+        if (family == "equipment.valve" && variant == "butterfly")
+        {
+            root.Add(
+                new XElement(svg + "path", new XAttribute("d", "M 66 19 L 66 31"),
+                    new XAttribute("fill", "none"), new XAttribute("stroke", Dark), new XAttribute("stroke-width", "3")),
+                new XElement(svg + "rect", new XAttribute("x", "55"), new XAttribute("y", "15"),
+                    new XAttribute("width", "22"), new XAttribute("height", "4"), new XAttribute("rx", "2"),
+                    new XAttribute("fill", Steel), new XAttribute("stroke", Outline), new XAttribute("stroke-width", "1")));
+        }
+        if (family == "equipment.valve" && variant == "control")
+            root.Add(
+                new XElement(svg + "circle", new XAttribute("cx", "66"), new XAttribute("cy", "15"),
+                    new XAttribute("r", "8"), new XAttribute("fill", "#D7E0E5"),
+                    new XAttribute("stroke", Outline), new XAttribute("stroke-width", "1.5")),
+                new XElement(svg + "path", new XAttribute("d", "M 66 15 L 70 12"),
+                    new XAttribute("fill", "none"), new XAttribute("stroke", "#B42318"), new XAttribute("stroke-width", "1.5")));
+    }
+
+    private static string? stateElementKey(DynamoEngineeringDto definition) =>
+        definition.Elements?.FirstOrDefault(element => element.PropertyMaps?.Any(map => map.PropertyKey == "fillColor") == true)?.Key;
+
+    private static string ReferenceArtworkFor(string family, string variant) => (family, variant) switch
+    {
+        ("motor", "tefc") => "motor-horizontal-vermelho.svg",
+        ("motor", "finned") => "motor-inclinado-amarelo.svg",
+        ("motor", "vertical") => "motor-vertical.svg",
+        ("motor", "large-frame") => "motor-horizontal-vermelho.svg",
+        ("motor", "vfd-package") => "motor-horizontal-vermelho.svg",
+        ("valve", "gate") => "valvula-manual-volante.svg",
+        ("valve", "globe") => "valvula-vertical.svg",
+        ("valve", "ball") => "corpo-esferico-dourado.svg",
+        ("valve", "butterfly") => "valvula-vertical.svg",
+        ("valve", "control") => "valvula-vertical.svg",
+        ("pump", "submersible") => "bomba-submersivel.svg",
+        _ => throw new InvalidDataException($"No reference artwork is assigned for {family}.{variant}.")
+    };
+
+    private static bool Number(IReadOnlyDictionary<string, JsonElement> values, string key, out double number) =>
+        values.TryGetValue(key, out var value) && value.TryGetDouble(out number) || SetZero(out number);
+
+    private static bool SetZero(out double number) { number = 0; return false; }
+    private static string String(IReadOnlyDictionary<string, JsonElement> values, string key, string fallback) =>
+        values.TryGetValue(key, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() ?? fallback : fallback;
+    private static string AssetKey(string key) => $"builtin.dynamo.v1.{key.Replace('.', '-')}";
+
+    private static DynamoEngineeringDto Lamp(string shape, int index)
+    {
+        const int w = 110, h = 84;
+        var x = new List<VisualElementEngineeringDto>();
+        var square = shape is "square" or "rectangular";
+        var sx = shape == "rectangular" ? 16d : 28d;
+        var sy = shape == "rectangular" ? 26d : 18d;
+        var sw = shape == "rectangular" ? 78d : 54d;
+        var sh = shape == "rectangular" ? 34d : 54d;
+        x.Add(Shape("bezel", square ? "core.rectangle" : "core.ellipse", sx, sy, sw, sh, "#D6E0E6", Outline, square ? 5 : 1));
+        x.Add(Shape("lens", square ? "core.rectangle" : "core.ellipse", sx + 7, sy + 7, sw - 14, sh - 14, "#16A34A", Outline, square ? 3 : 1));
+        const bool stateful = true;
+        var parameters = new List<DynamoParameterDefinitionEngineeringDto>
+        {
+            new("state", DynamoParameterKind.ValueSource),
+            new("invertBoolean", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(false)),
+            new("offColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#46535C")),
+            new("runningColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#16A34A")),
+            new("faultColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#EAB308")),
+            new("communicationBadColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#DC2626")),
+            new("inhibitedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#1687C9")),
+            new("enableRunning", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
+            new("enableFault", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
+            new("enableCommunicationBad", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
+            new("enableInhibited", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
+            new("bezelColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement(Outline)),
+            new("bezel3d", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(false)),
+            new("animationEnabled", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
+            new("fixedState", DynamoParameterKind.Number, DefaultValue: JsonSerializer.SerializeToElement(1))
+        };
+        var metadata = Metadata("indicator.lamp", shape);
+        metadata["stateProfile"] = "0=off;1..4=user-configurable";
+        metadata["implementedSourceModes"] = stateful ? "numeric-tag-or-expression-or-boolean-tag-or-expression-state" : "fixed-artwork";
+        metadata["outlineIndependent"] = "true";
+        metadata["dynamoOutlineColorParameter"] = "bezelColor";
+        metadata["dynamo3dEffectParameter"] = "bezel3d";
+        var mapped = x.LastOrDefault(e => e.Key == "lens") ?? x.LastOrDefault(e => e.Key == "green-lens");
+        if (mapped is not null)
+        {
+            var stateMapped = WithStateMap(mapped, "{equipmentPath}.State", ["#46535C", "#16A34A", "#EAB308", "#DC2626", "#1687C9"], "state", "off,running,fault,communicationBad,inhibited");
+            var stateMetadata = new Dictionary<string, string>(stateMapped.Metadata ?? new Dictionary<string, string>(), StringComparer.Ordinal)
+            {
+                ["dynamoBooleanStateInvertParameter"] = "invertBoolean",
+                ["dynamoStateEnableParameterProfile"] = "always,enableRunning,enableFault,enableCommunicationBad,enableInhibited"
+            };
+            x[x.IndexOf(mapped)] = stateMapped with { Metadata = stateMetadata };
+        }
+        foreach (var outlineElement in x.Where(element => element.Key is "bezel" or "lens" or "red-lens" or "amber-lens" or "green-lens").ToArray())
+        {
+            var elementMetadata = new Dictionary<string, string>(outlineElement.Metadata ?? new Dictionary<string, string>(), StringComparer.Ordinal)
+            {
+                ["dynamoOutlineColorParameter"] = "bezelColor",
+                ["dynamo3dEffectParameter"] = "bezel3d"
+            };
+            x[x.IndexOf(outlineElement)] = outlineElement with { Metadata = elementMetadata };
+        }
+        return Definition($"indicator.lamp.{shape}", $"Sinalizador {LampName(shape)}", "indicators", w, h, x, parameters, metadata);
+    }
+
+    private static DynamoEngineeringDto Button(string style, int index)
+    {
+        var x = new List<VisualElementEngineeringDto>();
+        var square = style is "flush" or "illuminated";
+        x.Add(Shape("panel", "core.rectangle", 10, 9, 90, 66, "#D6E0E6", Outline, 3, 8));
+        var buttonType = square ? "core.rectangle" : "core.ellipse";
+        x.Add(Shape("button", buttonType, 30, 20, 50, 44, style == "illuminated" ? "#1687C9" : "#7B8E9B", Outline, 3, square ? 5 : 1, raised: style is "raised" or "illuminated"));
+        x.Add(Shape("button-face", buttonType, 36, 25, 38, 32, style == "illuminated" ? "#73C9ED" : "#C9D7DF", "#F8FAFC", 1, square ? 3 : 1));
+        x.Add(Text("caption", "PB", 38, 33, 34, 14));
+        var metadata = Metadata("operator.button", style);
+        metadata["interactionContract"] = "instance-configurable-canonical-authorized-visual-action";
+        metadata["pressFeedback"] = "tag-state-mapped-released/pressed";
+        metadata["stateSourceModes"] = "numeric-or-boolean-tag-or-expression";
+        var parameters = new[]
+        {
+            new DynamoParameterDefinitionEngineeringDto("equipmentPath", DynamoParameterKind.EquipmentPath),
+            new DynamoParameterDefinitionEngineeringDto("actionMode", DynamoParameterKind.String,
+                DefaultValue: JsonSerializer.SerializeToElement(index switch { 0 => "command", 1 => "set-analog", 2 => "toggle-bool", _ => "set-bool" })),
+            new DynamoParameterDefinitionEngineeringDto("commandsEnabled", DynamoParameterKind.Boolean,
+                DefaultValue: JsonSerializer.SerializeToElement(true)),
+            new DynamoParameterDefinitionEngineeringDto("targetTag", DynamoParameterKind.TagReference),
+            new DynamoParameterDefinitionEngineeringDto("command", DynamoParameterKind.Command),
+            new DynamoParameterDefinitionEngineeringDto("state", DynamoParameterKind.ValueSource),
+            new DynamoParameterDefinitionEngineeringDto("invertBoolean", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(false)),
+            new DynamoParameterDefinitionEngineeringDto("releasedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#7B8E9B")),
+            new DynamoParameterDefinitionEngineeringDto("pressedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#1687C9")),
+            new DynamoParameterDefinitionEngineeringDto("analogValue", DynamoParameterKind.Number),
+            new DynamoParameterDefinitionEngineeringDto("booleanValue", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
+            new DynamoParameterDefinitionEngineeringDto("animationEnabled", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
+            new DynamoParameterDefinitionEngineeringDto("fixedState", DynamoParameterKind.Number, DefaultValue: JsonSerializer.SerializeToElement(0))
+        };
+        var buttonElement = x.Single(element => element.Key == "button");
+        x[x.IndexOf(buttonElement)] = WithStateMap(buttonElement, "{equipmentPath}.State", ["#7B8E9B", "#1687C9"], "state", "released,pressed");
+        var clickAction = index switch
+        {
+            0 => new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.ExecuteCommand, CommandParameterKey: "command"),
+            1 => new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.SetTagValue, "{targetTag}",
+                new Dictionary<string, JsonElement> { ["value"] = JsonSerializer.SerializeToElement("{analogValue}") }),
+            2 => new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.ToggleTagBoolean, "{targetTag}"),
+            _ => new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.SetTagValue, "{targetTag}",
+                new Dictionary<string, JsonElement> { ["value"] = JsonSerializer.SerializeToElement("{booleanValue}") })
+        };
+        buttonElement = x.Single(element => element.Key == "button");
+        var buttonMetadata = buttonElement.Metadata is null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(buttonElement.Metadata, StringComparer.Ordinal);
+        buttonMetadata["dynamoInteraction"] = "momentary-button";
+        buttonMetadata["dynamoActionModeParameter"] = "actionMode";
+        buttonMetadata["dynamoCommandsEnabledParameter"] = "commandsEnabled";
+        buttonMetadata["dynamoOptionalActionTarget"] = "true";
+        buttonMetadata["dynamoBooleanStateInvertParameter"] = "invertBoolean";
+        x[x.IndexOf(buttonElement)] = buttonElement with { Actions = [clickAction], Metadata = buttonMetadata };
+        return Definition($"operator.button.{style}", $"Botão {ButtonName(style)}", "controls", 110, 84, x, parameters, metadata);
+    }
+
+    private static DynamoEngineeringDto Equipment(string family, string variant, string name, int index)
+    {
+        var isStatefulEquipment = family is "motor" or "valve" or "pump";
+        var isValve = family == "valve";
+        var x = family == "motor" ? MotorArtwork(variant) : isValve ? ValveArtwork(variant) :
+            family == "pump" ? PumpArtwork() : ContactArtwork(variant);
+        var key = $"{family}.{variant}";
+        var category = family switch { "motor" => "motors", "valve" => "valves", "pump" => "pump", _ => "electrical-contacts" };
+        var metadata = Metadata($"equipment.{family}", variant);
+        metadata["analogProcessValues"] = "not-displayed";
+        metadata["stateProfile"] = isValve ? "0=closed;1=open;2=fault;3=communication-failure;4=inhibited" : "0=stopped;1=running;2=fault;3=communication-failure;4=inhibited";
+        if (isStatefulEquipment)
+        {
+            var target = x.FirstOrDefault(e => e.Key == "state-body");
+            if (target is not null)
+            {
+                var stateMapped = WithStateMap(target, "{equipmentPath}.State",
+                    ["#93B99A", "#16A34A", "#DC2626", "#EAB308", "#76838B"], "state",
+                    isValve ? "closed,open,fault,communicationBad,inhibited" : "stopped,running,fault,communicationBad,inhibited");
+                var stateMetadata = new Dictionary<string, string>(stateMapped.Metadata ?? new Dictionary<string, string>(), StringComparer.Ordinal)
+                {
+                    ["dynamoStateColorParameter"] = "state",
+                    ["dynamoDiscreteStateModeParameter"] = "useDiscreteSignals",
+                    ["dynamoDiscreteStateSignalProfile"] = isValve
+                        ? "openSignal,faultSignal,communicationBadSignal,inhibitedSignal"
+                        : "runningSignal,faultSignal,communicationBadSignal,inhibitedSignal",
+                    ["dynamoStateEnableParameterProfile"] = isValve
+                        ? "always,enableOpen,enableFault,enableCommunicationBad,enableInhibited"
+                        : "always,enableRunning,enableFault,enableCommunicationBad,enableInhibited"
+                };
+                x[x.IndexOf(target)] = stateMapped with { Metadata = stateMetadata };
+            }
+            x.AddRange(CreateStateLabels(isValve ? "valve" : "motor"));
+        }
+        var parameters = new List<DynamoParameterDefinitionEngineeringDto>
+        {
+            new("equipmentPath", DynamoParameterKind.EquipmentPath),
+            new("state", DynamoParameterKind.ValueSource, ValueSourceType: VisualExpressionValueType.Number),
+            new(isValve ? "closedColor" : family == "electrical" ? "openColor" : "stoppedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement(family == "electrical" ? "#526879" : "#93B99A")),
+            new(isValve ? "openColor" : family == "electrical" ? "closedColor" : "runningColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#16A34A")),
+            new("faultColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#DC2626")),
+            new("communicationBadColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#EAB308")),
+            new("inhibitedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#76838B")),
+            new("animationEnabled", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
+            new("fixedState", DynamoParameterKind.Number, DefaultValue: JsonSerializer.SerializeToElement(0)),
+            new(isValve ? "closedText" : "stoppedText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement(isValve ? "FECHADA" : "PARADO")),
+            new(isValve ? "openText" : "runningText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement(isValve ? "ABERTA" : "LIGADO")),
+            new("faultText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("FALHA")),
+            new("communicationBadText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("SEM COMUNICAÇÃO")),
+            new("inhibitedText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("BLOQUEADO")),
+            new("labelPosition", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("below")),
+            new("command", DynamoParameterKind.Command)
+        };
+        if (isStatefulEquipment)
+        {
+            parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                "commandsEnabled",
+                DynamoParameterKind.Boolean,
+                DefaultValue: JsonSerializer.SerializeToElement(true)));
+            parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                "offColor",
+                DynamoParameterKind.String,
+                DefaultValue: JsonSerializer.SerializeToElement("#93B99A")));
+            var activeState = isValve ? "Open" : "Running";
+            parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                "useDiscreteSignals",
+                DynamoParameterKind.Boolean,
+                DefaultValue: JsonSerializer.SerializeToElement(false)));
+            foreach (var signalKey in new[]
+                     {
+                         isValve ? "openSignal" : "runningSignal",
+                         "faultSignal",
+                         "communicationBadSignal",
+                         "inhibitedSignal"
+                     })
+                parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                    signalKey,
+                    DynamoParameterKind.ValueSource,
+                    ValueSourceType: VisualExpressionValueType.Boolean));
+            foreach (var stateName in new[] { activeState, "Fault", "CommunicationBad", "Inhibited" })
+                parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                    $"enable{stateName}",
+                    DynamoParameterKind.Boolean,
+                    DefaultValue: JsonSerializer.SerializeToElement(true)));
+
+            var bodyIndex = x.FindIndex(element => element.Key == "state-body");
+            if (bodyIndex >= 0)
+                x[bodyIndex] = x[bodyIndex] with
+                {
+                    Metadata = new Dictionary<string, string>(x[bodyIndex].Metadata ?? new Dictionary<string, string>())
+                    {
+                        ["dynamoOptionalActionTarget"] = "true",
+                        ["dynamoCommandsEnabledParameter"] = "commandsEnabled"
+                    },
+                    Actions = [new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.ExecuteCommand, CommandParameterKey: "command")]
+                };
+            metadata["stateSource"] = "numeric-value-source-enum";
+            metadata["statePriority"] = "one-exclusive-state-per-enum-value; invalid-or-missing-sample-uses-base-state";
+            metadata["dynamoStateEnableParameterProfile"] = isValve
+                ? "always,enableOpen,enableFault,enableCommunicationBad,enableInhibited"
+                : "always,enableRunning,enableFault,enableCommunicationBad,enableInhibited";
+            metadata["dynamoArtworkSource"] = ReferenceArtworkFor(family, variant);
+        }
+        else
+        {
+            var profile = "open,closed";
+            foreach (var element in x.Where(element => element.Key.EndsWith("-moving", StringComparison.Ordinal)).ToArray())
+            {
+                var geometryIndex = x.IndexOf(element);
+                x[geometryIndex] = WithStateMap(element, "{dynamoParameter:state}", ["#526879", "#16A34A"], "state", profile);
+                var existing = x[geometryIndex];
+                var properties = existing.PropertyMaps?.ToList() ?? [];
+                var rotation = Number(existing.Properties!, "rotation", out var initialRotation) ? initialRotation : 0;
+                properties.Add(new VisualPropertyMapEngineeringDto(
+                    "rotation",
+                    new(VisualValueSourceKind.Tag, VisualExpressionValueType.Number, Target: "{dynamoParameter:state}"),
+                    [
+                        new(JsonSerializer.SerializeToElement(rotation), Minimum: 0, Maximum: 1),
+                        new(JsonSerializer.SerializeToElement(0d), Minimum: 1, Maximum: 2)
+                    ],
+                    JsonSerializer.SerializeToElement(rotation)));
+                var elementMetadata = existing.Metadata is null
+                    ? new Dictionary<string, string>(StringComparer.Ordinal)
+                    : new Dictionary<string, string>(existing.Metadata, StringComparer.Ordinal);
+                elementMetadata["dynamoFixedStateProperty"] = "rotation";
+                elementMetadata["dynamoFixedStatePropertyValues"] = FormattableString.Invariant($"{rotation:0.###},0");
+                elementMetadata["dynamoNumericStateInvertParameter"] = "invertState";
+                elementMetadata["dynamoContactDiscreteStateModeParameter"] = "useIndependentPoleSignals";
+                elementMetadata["dynamoContactPoleSignalParameter"] = $"pole{ContactPoleIndex(element.Key) + 1}ClosedSignal";
+                x[geometryIndex] = existing with { PropertyMaps = properties, Metadata = elementMetadata };
+            }
+            metadata["stateProfile"] = "0=open;1=closed";
+            metadata["stateSource"] = "numeric-value-source-enum";
+            metadata["statePriority"] = "0=open;1=closed;invertState-swaps-binary-input;invalid-or-bad-quality-preserves-open-artwork";
+            metadata["animationContract"] = "canonical numeric PropertyMaps for contact color and blade rotation";
+            parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                "invertState",
+                DynamoParameterKind.Boolean,
+                DefaultValue: JsonSerializer.SerializeToElement(false)));
+            var poleCount = x.Count(element => element.Key.EndsWith("-moving", StringComparison.Ordinal));
+            parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                "useIndependentPoleSignals",
+                DynamoParameterKind.Boolean,
+                DefaultValue: JsonSerializer.SerializeToElement(false)));
+            for (var pole = 1; pole <= poleCount; pole++)
+                parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                    $"pole{pole}ClosedSignal",
+                    DynamoParameterKind.ValueSource,
+                    ValueSourceType: VisualExpressionValueType.Boolean));
+        }
+        return Definition(key, name, category, 132, 100, x, parameters, metadata);
+    }
+
+    private static IEnumerable<VisualElementEngineeringDto> CreateStateLabels(string family)
+    {
+        var labels = family == "valve"
+            ? new[] { "closedText", "openText", "faultText", "communicationBadText", "inhibitedText" }
+            : new[] { "stoppedText", "runningText", "faultText", "communicationBadText", "inhibitedText" };
+        for (var state = 0; state < labels.Length; state++)
+        {
+            var key = $"state-label-{state}";
+            var text = Text(key, "", 0, 82, 132, 16, 10);
+            var properties = new Dictionary<string, JsonElement>(text.Properties!, StringComparer.Ordinal)
+            {
+                ["text"] = JsonSerializer.SerializeToElement("{" + labels[state] + "}"),
+                ["visible"] = JsonSerializer.SerializeToElement(false),
+                ["textColor"] = JsonSerializer.SerializeToElement("#E6F2F7")
+            };
+            var metadata = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["dynamoStateLabelIndex"] = state.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["dynamoFixedStateParameter"] = "fixedState",
+                ["dynamoAnimationEnabledParameter"] = "animationEnabled",
+                ["dynamoStateColorParameter"] = "state",
+                ["dynamoDiscreteStateModeParameter"] = "useDiscreteSignals",
+                ["dynamoStateEnableParameterProfile"] = family == "valve"
+                    ? "always,enableOpen,enableFault,enableCommunicationBad,enableInhibited"
+                    : "always,enableRunning,enableFault,enableCommunicationBad,enableInhibited",
+                ["dynamoDiscreteStateSignalProfile"] = family == "valve"
+                    ? "openSignal,faultSignal,communicationBadSignal,inhibitedSignal"
+                    : "runningSignal,faultSignal,communicationBadSignal,inhibitedSignal"
+            };
+            yield return text with
+            {
+                Properties = properties,
+                Metadata = metadata,
+                BooleanConditions = [new VisualBooleanConditionEngineeringDto(
+                    "visible", VisualBooleanConditionKind.NumericInterval,
+                    new VisualValueSourceEngineeringDto(VisualValueSourceKind.Tag, VisualExpressionValueType.Number,
+                        Target: "{dynamoParameter:state}"),
+                    Minimum: state, Maximum: state + 1, MaximumInclusive: false)]
+            };
+        }
+    }
+
+    private static List<VisualElementEngineeringDto> MotorArtwork(string kind)
+    {
+        var x = new List<VisualElementEngineeringDto>();
+        if (kind == "vertical")
+        {
+            x.Add(Shape("base", "core.rectangle", 36, 72, 60, 9, Dark, Outline, 1));
+            x.Add(Shape("state-body", "core.rectangle", 45, 20, 42, 55, "#93B99A", Outline, 2, 12));
+            x.Add(Shape("terminal", "core.rectangle", 54, 10, 24, 14, Steel, Outline, 1, 2));
+        }
+        else
+        {
+            x.Add(Shape("foot", "core.rectangle", 30, 68, 70, 8, Dark, Outline, 1));
+            x.Add(Shape("state-body", "core.rectangle", 26, 24, 76, 46, "#93B99A", Outline, 2, kind == "large-frame" ? 5 : 18, raised: kind == "tefc"));
+            x.Add(Shape("end-left", "core.ellipse", 19, 29, 18, 36, Steel, Outline, 2));
+            x.Add(Shape("end-right", "core.ellipse", 91, 29, 18, 36, Steel, Outline, 2));
+            x.Add(Shape("shaft", "core.rectangle", 106, 42, 19, 9, Light, Outline, 1));
+            if (kind is "finned" or "large-frame")
+                for (var i = 0; i < 5; i++) x.Add(Shape($"fin-{i}", "core.rectangle", 38 + i * 10, 29, 2, 36, Dark, Dark, 0));
+            if (kind == "vfd-package")
+            {
+                x.Add(Shape("drive", "core.rectangle", 88, 5, 34, 24, Light, Outline, 2, 3));
+                x.Add(Text("drive-label", "VFD", 91, 11, 28, 12));
+            }
+        }
+        if (kind == "vfd-package")
+            x.Add(Shape("drive-state-body", "core.rectangle", 96, 13, 25, 49, Light, Outline, 1.5, 3));
+        return x;
+    }
+
+    private static List<VisualElementEngineeringDto> ValveArtwork(string kind)
+    {
+        var x = new List<VisualElementEngineeringDto>();
+        x.Add(Shape("pipe-left", "core.rectangle", 6, 45, 32, 10, Steel, Outline, 2));
+        x.Add(Shape("pipe-right", "core.rectangle", 94, 45, 32, 10, Steel, Outline, 2));
+        x.Add(Shape("state-body", "core.rectangle", 34, 34, 64, 32, "#93B99A", Outline, 2, kind == "ball" ? 16 : 3));
+        switch (kind)
+        {
+            case "gate":
+                x.Add(Shape("stem", "core.rectangle", 63, 14, 6, 24, Dark, Outline, 1));
+                x.Add(Shape("wheel", "core.ellipse", 50, 4, 32, 16, Light, Outline, 2)); break;
+            case "globe":
+                x.Add(Poly("body-left", [(38, 36), (63, 50), (38, 64)], Light));
+                x.Add(Poly("body-right", [(94, 36), (69, 50), (94, 64)], Light));
+                x.Add(Shape("stem", "core.rectangle", 63, 15, 6, 23, Dark, Outline, 1)); break;
+            case "ball":
+                x.Add(Shape("ball", "core.ellipse", 49, 40, 34, 20, Light, Outline, 2));
+                x.Add(Shape("bore", "core.rectangle", 58, 47, 17, 6, "#1687C9", Outline, 1)); break;
+            case "butterfly":
+                x.Add(Shape("disc", "core.rectangle", 61, 36, 8, 28, Light, Outline, 2, rotation: -18));
+                x.Add(Shape("stem", "core.rectangle", 63, 13, 5, 23, Dark, Outline, 1)); break;
+            default:
+                x.Add(Poly("body-left", [(38, 35), (66, 50), (38, 65)], Light));
+                x.Add(Poly("body-right", [(94, 35), (66, 50), (94, 65)], Light));
+                x.Add(Shape("actuator", "core.rectangle", 53, 10, 26, 22, Steel, Outline, 2, 4)); break;
+        }
+        return x;
+    }
+
+    private static List<VisualElementEngineeringDto> PumpArtwork() =>
+    [
+        Shape("state-body", "core.rectangle", 45, 10, 42, 58, "#93B99A", Outline, 1.5)
+    ];
+
+    private static List<VisualElementEngineeringDto> ContactArtwork(string kind)
+    {
+        var vertical = kind.EndsWith("vertical", StringComparison.Ordinal);
+        var triple = kind.Contains("tri", StringComparison.Ordinal);
+        var x = new List<VisualElementEngineeringDto>();
+        var poles = triple ? 3 : 1;
+        for (var pole = 0; pole < poles; pole++)
+        {
+            var closed = kind.StartsWith("isolator-", StringComparison.Ordinal);
+            var bladeColor = closed ? "#16A34A" : Dark;
+            if (vertical)
+            {
+                var offset = triple ? pole * 31d : 0d;
+                x.Add(Shape($"contact-{pole}-fixed", "core.rectangle", 52 + offset, 6, 8, 28, Steel, Outline, 1));
+                x.Add(Shape($"contact-{pole}-moving", "core.rectangle", 51 + offset, 40, 10, 32, bladeColor, Outline, 1, rotation: closed ? 0 : 14));
+            }
+            else
+            {
+                var row = triple ? 10 + pole * 24d : 38d;
+                x.Add(Shape($"contact-{pole}-fixed", "core.rectangle", 10, row, 38, 8, Steel, Outline, 1));
+                x.Add(Shape($"contact-{pole}-moving", "core.rectangle", 54, row - 1, 58, 10, bladeColor, Outline, 1, rotation: closed ? 0 : 14));
+            }
+        }
+        var labelX = vertical ? triple ? 64 : 35 : 39;
+        x.Add(Text("equipment-label", triple ? "3~" : "1~", labelX, 83, 44, 14, 10));
+        return x;
+    }
+
+    private static VisualElementEngineeringDto WithStateMap(VisualElementEngineeringDto element, string target, string[] colors, string parameter, string profile)
+    {
+        var map = new VisualPropertyMapEngineeringDto("fillColor",
+            new(VisualValueSourceKind.Tag, VisualExpressionValueType.Number, Target: target),
+            colors.Select((color, state) => new VisualPropertyMapRuleEngineeringDto(JsonSerializer.SerializeToElement(color), Minimum: state, Maximum: state + 1)).ToArray(),
+            JsonSerializer.SerializeToElement(colors[0]));
+        var metadata = element.Metadata is null ? new Dictionary<string, string>() : new(element.Metadata);
+        metadata["dynamoStateColorParameter"] = parameter;
+        metadata["dynamoStateColorProfile"] = profile;
+        metadata["dynamoAnimationEnabledParameter"] = "animationEnabled";
+        metadata["dynamoFixedStateParameter"] = "fixedState";
+        return element with { PropertyMaps = [.. element.PropertyMaps ?? [], map], Metadata = metadata };
+    }
+
+    private static DynamoEngineeringDto Definition(string key, string name, string category, int width, int height,
+        List<VisualElementEngineeringDto> elements, IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto> parameters,
+        Dictionary<string, string> metadata)
+    {
+        var idBytes = MD5.HashData(Encoding.UTF8.GetBytes("elitescada:" + key));
+        elements = elements.Select(element => element with { Id = StableElementId(key + ":" + element.Key) }).ToList();
+        return new(new Guid(idBytes), key, name, Properties: new Dictionary<string, string>
+        {
+            ["category"] = category, ["defaultWidth"] = width.ToString(), ["defaultHeight"] = height.ToString(),
+            ["libraryVersion"] = Version, ["visualStyle"] = "svg-composed", ["visualFinish"] = "reference-artwork-v2",
+            ["catalogGeneration"] = "3", ["catalogStatus"] = "active"
+        }, Context: new Dictionary<string, string> { ["usage"] = "process-screen", ["view"] = "front-orthographic" },
+            Metadata: metadata, Parameters: parameters, Elements: elements);
+    }
+
+    private static Dictionary<string, string> Metadata(string family, string variant) => new(StringComparer.Ordinal)
+    {
+        ["builtinLibrary"] = "true", ["assetOrigin"] = "original-elitescada-vector", ["catalogGeneration"] = "3",
+        ["catalogStatus"] = "active", ["libraryVersion"] = Version, ["familyKey"] = family,
+        ["visualVariant"] = variant, ["visualReferencePolicy"] = "editable-original-vector; no third-party art embedded"
+    };
+
+    private static VisualElementEngineeringDto Shape(string key, string type, double x, double y, double w, double h,
+        string fill, string stroke, double sw, double radius = 0, double rotation = 0, bool raised = false)
+    {
+        var props = new Dictionary<string, JsonElement>
+        {
+            ["x"] = JsonSerializer.SerializeToElement(x), ["y"] = JsonSerializer.SerializeToElement(y),
+            ["width"] = JsonSerializer.SerializeToElement(w), ["height"] = JsonSerializer.SerializeToElement(h),
+            ["fillStyle"] = JsonSerializer.SerializeToElement(raised ? "gradient" : "solid"),
+            ["fillColor"] = JsonSerializer.SerializeToElement(fill), ["strokeColor"] = JsonSerializer.SerializeToElement(stroke),
+            ["strokeWidth"] = JsonSerializer.SerializeToElement(sw), ["rotation"] = JsonSerializer.SerializeToElement(rotation)
+        };
+        if (type == "core.rectangle") props["cornerRadius"] = JsonSerializer.SerializeToElement(radius);
+        if (raised) { props["fillSecondaryColor"] = JsonSerializer.SerializeToElement("#F8FAFC"); props["gradientDirection"] = JsonSerializer.SerializeToElement("vertical"); }
+        return new(key, type, Properties: props, Id: StableElementId(key));
+    }
+
+    private static VisualElementEngineeringDto Poly(string key, (double X, double Y)[] points, string fill)
+    {
+        var left = points.Min(point => point.X);
+        var top = points.Min(point => point.Y);
+        var right = points.Max(point => point.X);
+        var bottom = points.Max(point => point.Y);
+        return new(key, "core.polygon", Properties: new Dictionary<string, JsonElement>
+        {
+            ["x"] = JsonSerializer.SerializeToElement(left), ["y"] = JsonSerializer.SerializeToElement(top),
+            ["width"] = JsonSerializer.SerializeToElement(right - left), ["height"] = JsonSerializer.SerializeToElement(bottom - top),
+            ["points"] = JsonSerializer.SerializeToElement(points.Select(p => new { x = p.X - left, y = p.Y - top })),
+            ["fillColor"] = JsonSerializer.SerializeToElement(fill), ["strokeColor"] = JsonSerializer.SerializeToElement(Outline),
+            ["strokeWidth"] = JsonSerializer.SerializeToElement(2d)
+        }, Id: StableElementId(key));
+    }
+
+    private static VisualElementEngineeringDto Text(string key, string text, double x, double y, double w, double h, double size = 12) =>
+        new(key, "core.text", Properties: new Dictionary<string, JsonElement>
+        {
+            ["x"] = JsonSerializer.SerializeToElement(x), ["y"] = JsonSerializer.SerializeToElement(y),
+            ["width"] = JsonSerializer.SerializeToElement(w), ["height"] = JsonSerializer.SerializeToElement(h),
+            ["text"] = JsonSerializer.SerializeToElement(text), ["fontSize"] = JsonSerializer.SerializeToElement(size),
+            ["fontWeight"] = JsonSerializer.SerializeToElement(700), ["horizontalAlignment"] = JsonSerializer.SerializeToElement("center"),
+            ["verticalAlignment"] = JsonSerializer.SerializeToElement("middle"), ["textColor"] = JsonSerializer.SerializeToElement("#14212B")
+        }, Id: StableElementId(key));
+
+    private static Guid StableElementId(string key) => new(MD5.HashData(Encoding.UTF8.GetBytes("elitescada-element:" + key)));
+    private static string LampName(string value) => value switch { "round" => "redondo", "square" => "quadrado", "rectangular" => "retangular", _ => value };
+    private static string ButtonName(string value) => value switch { "raised" => "elevado", "flush" => "faceado", _ => "iluminado" };
+    private static string MotorName(string value) => value switch { "tefc" => "fechado", "vfd-package" => "com inversor", "large-frame" => "carcaça grande", _ => value };
+    private static string ValveName(string value) => value switch { "ball" => "esfera", "gate" => "gaveta", "globe" => "globo", "butterfly" => "borboleta", _ => "de controle" };
+    private static string ContactName(string value) => value.Replace("contact-", "").Replace("isolator-", "seccionadora ").Replace("mono", "monofilar").Replace("tri", "trifilar").Replace("horizontal", "horizontal").Replace("vertical", "vertical");
+
+    private static int ContactPoleIndex(string key)
+    {
+        var parts = key.Split('-', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 && int.TryParse(parts[1], System.Globalization.NumberStyles.None,
+            System.Globalization.CultureInfo.InvariantCulture, out var index) ? index : 0;
+    }
+}

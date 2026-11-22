@@ -1,0 +1,63 @@
+[
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-779-DATABASE",
+    "issue": 779,
+    "topicId": "database.topology",
+    "fieldKeys": [],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "Owner-authorized storage capacity/retention/archiving controls are implemented and validated.",
+    "review": "Add the actual fields, modest-hardware sizing workflow, no-automatic-expiry semantics, archive/restore procedure and limits. Preserve the distinction between database topology, backup and data retention."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-779-HISTORIAN",
+    "issue": 779,
+    "topicId": "historian.capture-query",
+    "fieldKeys": [],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "The accepted product provides the queued Historian storage/archiving administration controls.",
+    "review": "Link and explain the actual storage controls without conflating acquisition admission, aggregation, retention or backup. Replace only obsolete limitations and keep acquisition examples verified."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-779-AUDIT",
+    "issue": 779,
+    "topicId": "audit.query-diagnostics",
+    "fieldKeys": [
+      "audit.retention"
+    ],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "Accepted storage/archiving administration defines how Audit retention is exposed to users.",
+    "review": "Recheck read-only diagnostics versus actual retention controls and link the verified administration procedure. Do not turn the current indicators into claimed editable controls without an implemented UI."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-781",
+    "issue": 781,
+    "topicId": "runtime.station-multimonitor",
+    "fieldKeys": [
+      "station.name",
+      "station.screen",
+      "station.mode",
+      "station.windows"
+    ],
+    "status": "WAITING_PREVIEW_ACCEPTANCE",
+    "reviewWhen": "The Product Owner accepts physical placement and recovery in Preview and confirms that the E2E captures match the accepted interface; replace them if the Preview differs.",
+    "review": "Verify the profile fields, 1–4 windows, navigation/fixed behavior, blocked-popup fallback, per-window session result and close/reopen/reconnect instructions against the accepted Preview. The current manual images are real captures from the product UI in a CI E2E run; compare them with Preview and replace them if any visible difference exists. Keep manual physical placement and lack of automatic monitor-position restoration explicit unless the product changes."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-857-INTELLIGENCE",
+    "issue": 857,
+    "topicId": "intelligence.analysis-guide",
+    "fieldKeys": [],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "The corresponding Intelligence correction is implemented, validated and accepted.",
+    "review": "Document actual UI controls for existing complementary analytics, starting with current comparison under measured frequency. Preserve method/unit/provenance limits and include verified Screens; do not claim a UI path before it exists."
+  },
+  {
+    "id": "HELP-REVIEW-AFTER-PRODUCT-858-INTELLIGENCE",
+    "issue": 858,
+    "topicId": "intelligence.activation",
+    "fieldKeys": [],
+    "status": "WAITING_PRODUCT_IMPLEMENTATION_AND_VALIDATION",
+    "reviewWhen": "The corresponding Intelligence correction is implemented, validated and accepted.",
+    "review": "Update manager/developer responsibilities only after the authorized activation/pause contract and restricted-manager proof are delivered. Preserve revision/policy/permit/persistence requirements."
+  }
+]

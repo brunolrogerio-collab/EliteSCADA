@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { installHelpShell } from './helpTestSupport';
 
 const events = [
   {
@@ -68,6 +69,14 @@ const healthyDiagnostics = {
 test.use({ locale: 'pt-BR' });
 
 test('Audit workspace keeps filters compact and moves event context into a keyboard-accessible master-detail view', async ({ page }) => {
+  // Local Help review mounts this existing UI against its Audit fixtures; CI retains real authentication.
+  if (process.env.SCADIVO_HELP_CATALOG_OUTPUT) {
+    await installHelpShell(page);
+    await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
+      authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+      authenticationEnabled: false, runtime: ['View', 'SystemAdmin'], workspace: ['EngineeringView']
+    } }));
+  }
   const auditQueries: string[] = [];
 
   await page.route('**/api/audit/diagnostics', async route => {
@@ -81,6 +90,9 @@ test('Audit workspace keeps filters compact and moves event context into a keybo
   });
 
   await page.goto('/audit');
+
+  await page.locator('.app-page-help > summary').click();
+  await expect(page.getByRole('link', { name: 'Como consultar e interpretar a auditoria' })).toHaveAttribute('href', '/help?topic=audit.query-diagnostics');
 
   const advanced = page.locator('.audit-advanced-filters');
   await expect(advanced).not.toHaveAttribute('open', '');

@@ -1,4 +1,6 @@
 using Scada.Core.Events;
+using Scada.Core.Commands;
+using Scada.Core.Interactions;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
@@ -178,6 +180,57 @@ public sealed class Dnp3CoordinatorConvergenceTests
     }
 
     [Fact]
+    public async Task Coordinator_PreservesSynchronizedSourceTimeEvidenceWhenCommunicationFails()
+    {
+        var dataSource = DataSource("dnp3.timestamp-evidence-retention");
+        var tagId = Guid.NewGuid();
+        var sourceTimestamp = DateTimeOffset.Parse("2026-08-31T05:30:00Z");
+        var package = Package(
+            dataSource,
+            new TagEngineeringDto(
+                tagId,
+                "AnalogInt32",
+                "DNP3.TimestampEvidenceRetention",
+                TagDataType.Int32,
+                Source: dataSource.Key,
+                Address: "dnp3:analogInput:0",
+                ReadOnly: true,
+                CommunicationBinding: Binding(
+                    "dnp3:analogInput:0",
+                    new Dictionary<string, string> { ["staticVariation"] = "G30V1" })));
+        var session = new CaptureDnp3Session(new Dnp3Measurement(
+            Dnp3PointKind.AnalogInput,
+            0,
+            4242,
+            new Dnp3ObjectVariation(30, 1),
+            IsEvent: false,
+            Dnp3PointFlagSet.Nominal,
+            sourceTimestamp,
+            SourceTimestampSynchronized: true));
+        var components = CommunicationDriverRuntimeComposition.BuildForCurrentSchema(
+            dnp3SessionFactory: new CaptureDnp3SessionFactory(session));
+        var compiler = new EngineeringDriverCompiler(components);
+        await using var coordinator = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            compiler,
+            TimeSpan.FromSeconds(2),
+            communicationComponents: components);
+
+        var activation = await coordinator.ActivateAsync("project-dnp3-evidence-retention", 1, package);
+
+        Assert.True(activation.Activated, JoinIssues(activation));
+        Assert.True(coordinator.TryGetCurrent(tagId, out var beforeFailure));
+        Assert.Equal(TimestampEvidenceState.Synchronized, beforeFailure!.SourceTimestampEvidenceState);
+
+        await session.PublishStateAsync(Dnp3SessionState.Reconnecting, CancellationToken.None);
+
+        Assert.True(coordinator.TryGetCurrent(tagId, out var afterFailure));
+        Assert.Equal(TagQuality.BadCommunication, afterFailure!.Quality);
+        Assert.Equal(sourceTimestamp, afterFailure.SourceTimestamp);
+        Assert.Equal(TimestampEvidenceState.Synchronized, afterFailure.SourceTimestampEvidenceState);
+    }
+
+    [Fact]
     public async Task Coordinator_RoutesBinaryOutputWriteThroughActiveDnp3Session()
     {
         var dataSource = DataSource("dnp3.write");
@@ -220,6 +273,133 @@ public sealed class Dnp3CoordinatorConvergenceTests
         Assert.Equal((ushort)3, write.Index);
         Assert.Equal(Dnp3BinaryOperation.LatchOn, write.Operation);
         Assert.Equal(Dnp3CommandMode.SelectBeforeOperate, write.Profile.Mode);
+    }
+
+    [Fact]
+    public async Task RichCommand_PulseOnUsesOnlyServerBoundCrobAndNeverRetriesAmbiguousOutcome()
+    {
+        var dataSource = DataSource("dnp3.rich-command");
+        var tagId = Guid.NewGuid();
+        var package = Package(
+            dataSource,
+            new TagEngineeringDto(
+                tagId,
+                "PulseTarget",
+                "DNP3.PulseTarget",
+                TagDataType.Boolean,
+                Source: dataSource.Key,
+                Address: "dnp3:binaryOutputStatus:3",
+                ReadOnly: false,
+                CommunicationBinding: Binding(
+                    "dnp3:binaryOutputStatus:3",
+                    new Dictionary<string, string>
+                    {
+                        ["writable"] = "true",
+                        ["commandMode"] = "selectBeforeOperate",
+                        ["binaryTrueOperation"] = "latchOn",
+                        ["binaryFalseOperation"] = "latchOff"
+                    })));
+        var planResult = new Dnp3CommunicationRuntimePlanner().Plan(package, dataSource);
+        Assert.True(planResult.CanActivate, JoinIssues(planResult));
+        var plan = Assert.IsType<Dnp3CommunicationRuntimePlan>(planResult.Plan);
+        var plannedPoint = Assert.Single(plan.Points);
+        Assert.Equal(dataSource.Id, plannedPoint.Tag.DataSourceId);
+        Assert.Equal(Dnp3PointKind.BinaryOutputStatus, plannedPoint.Binding.PointKind);
+        Assert.Equal((ushort)3, plannedPoint.Binding.Index);
+        Assert.True(plannedPoint.Binding.Writable);
+
+        var session = new CaptureDnp3Session();
+        var driver = new Dnp3CommunicationRuntimeFactory(new CaptureDnp3SessionFactory(session)).Create(
+            plan,
+            new CommunicationDriverRuntimeServices(
+                "project-dnp3-command",
+                new CurrentTagCache(new InMemoryScadaEventBus()),
+                new InMemoryTagRegistry()));
+        await using var lifetime = driver;
+        await driver.StartAsync();
+
+        var commandId = Guid.NewGuid();
+        var invocation = new RichCommandInvocation(
+            Guid.NewGuid(),
+            commandId,
+            [new RichCommandParameterValue("onTime", InteractionScalarValue.Duration(TimeSpan.FromMilliseconds(250)))],
+            DateTimeOffset.UtcNow);
+        var binding = new DriverCommandBinding(
+            commandId,
+            dataSource.Id!.Value,
+            Dnp3CommunicationRuntimeIdentity.StableDeviceIdentity(dataSource.Id.Value),
+            "dnp3.crob.pulseOn",
+            [
+                new DriverCommandBindingSetting("pointKind", "binaryOutputStatus"),
+                new DriverCommandBindingSetting("pointIndex", "3"),
+                new DriverCommandBindingSetting("controlMode", "selectBeforeOperate"),
+                new DriverCommandBindingSetting("count", "1")
+            ]);
+        var executor = Assert.IsAssignableFrom<IRichCommandDriverExecutor>(driver);
+        var context = new RichCommandExecutionContext(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, TimeSpan.FromSeconds(2));
+
+        var completed = await executor.ExecuteAsync(invocation, binding, context);
+        Assert.Equal(RichCommandOutcome.Completed, completed.Outcome);
+        var firstWrite = Assert.Single(session.BinaryWrites);
+        Assert.Equal((ushort)3, firstWrite.Index);
+        Assert.Equal(Dnp3BinaryOperation.PulseOn, firstWrite.Operation);
+        Assert.Equal(Dnp3CommandMode.SelectBeforeOperate, firstWrite.Profile.Mode);
+        Assert.Equal(Dnp3BinaryOperation.PulseOn, firstWrite.Profile.TrueOperation);
+        Assert.Equal((byte)1, firstWrite.Profile.Count);
+        Assert.Equal(TimeSpan.FromMilliseconds(250), firstWrite.Profile.OnTime);
+
+        foreach (var duration in new[] { TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(10) })
+        {
+            var boundaryResult = await executor.ExecuteAsync(
+                invocation with
+                {
+                    InvocationId = Guid.NewGuid(),
+                    Parameters = [new RichCommandParameterValue("onTime", InteractionScalarValue.Duration(duration))]
+                },
+                binding,
+                context);
+            Assert.Equal(RichCommandOutcome.Completed, boundaryResult.Outcome);
+            var boundaryWrite = session.BinaryWrites[^1];
+            Assert.Equal((ushort)3, boundaryWrite.Index);
+            Assert.Equal(Dnp3BinaryOperation.PulseOn, boundaryWrite.Operation);
+            Assert.Equal((byte)1, boundaryWrite.Profile.Count);
+            Assert.Equal(duration, boundaryWrite.Profile.OnTime);
+        }
+
+        var writesBeforeInvalid = session.BinaryWrites.Count;
+        var invalidInvocations = new[]
+        {
+            invocation with { InvocationId = Guid.NewGuid(), Parameters = [] },
+            invocation with
+            {
+                InvocationId = Guid.NewGuid(),
+                Parameters = [new RichCommandParameterValue("onTime", InteractionScalarValue.Duration(TimeSpan.FromMilliseconds(99)))]
+            },
+            invocation with
+            {
+                InvocationId = Guid.NewGuid(),
+                Parameters = [new RichCommandParameterValue("onTime", InteractionScalarValue.Duration(TimeSpan.FromMilliseconds(10_001)))]
+            }
+        };
+        foreach (var invalidInvocation in invalidInvocations)
+        {
+            var invalidResult = await executor.ExecuteAsync(invalidInvocation, binding, context);
+            Assert.Equal(RichCommandOutcome.Rejected, invalidResult.Outcome);
+        }
+        Assert.Equal(writesBeforeInvalid, session.BinaryWrites.Count);
+
+        session.BinaryCommandResult = Dnp3CommandResult.Failure("TIMEOUT", "ambiguous peer response");
+        var unknown = await executor.ExecuteAsync(invocation with { InvocationId = Guid.NewGuid() }, binding, context);
+        Assert.Equal(RichCommandOutcome.Unknown, unknown.Outcome);
+        Assert.Equal(writesBeforeInvalid + 1, session.BinaryWrites.Count);
+
+        var invalidTarget = binding with
+        {
+            Settings = binding.Settings!.Select(setting => setting.Key == "pointIndex" ? setting with { Value = "4" } : setting).ToArray()
+        };
+        var rejected = await executor.ExecuteAsync(invocation with { InvocationId = Guid.NewGuid() }, invalidTarget, context);
+        Assert.Equal(RichCommandOutcome.Rejected, rejected.Outcome);
+        Assert.Equal(writesBeforeInvalid + 1, session.BinaryWrites.Count);
     }
 
     private static DataSourceEngineeringDto DataSource(
@@ -293,8 +473,10 @@ public sealed class Dnp3CoordinatorConvergenceTests
         private DateTimeOffset _stateChangedAt = DateTimeOffset.UtcNow;
         private long _connections;
         private long _startupIntegrityScans;
+        private Func<Dnp3SessionState, CancellationToken, ValueTask>? _stateHandler;
 
         public Dnp3TcpConnectionOptions? ConnectionOptions { get; set; }
+        public Dnp3CommandResult BinaryCommandResult { get; set; } = Dnp3CommandResult.Success();
         public List<(ushort Index, Dnp3BinaryOperation Operation, Dnp3BinaryCommandProfile Profile)> BinaryWrites { get; } = new();
         public List<(ushort Index, object Value, Dnp3AnalogCommandProfile Profile)> AnalogWrites { get; } = new();
 
@@ -314,6 +496,7 @@ public sealed class Dnp3CoordinatorConvergenceTests
         {
             options.Validate();
             cancellationToken.ThrowIfCancellationRequested();
+            _stateHandler = stateHandler;
             SetState(Dnp3SessionState.StartupIntegrity);
             await stateHandler(Dnp3SessionState.StartupIntegrity, cancellationToken);
 
@@ -333,6 +516,16 @@ public sealed class Dnp3CoordinatorConvergenceTests
             await ValueTask.CompletedTask;
         }
 
+        public async ValueTask PublishStateAsync(
+            Dnp3SessionState state,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            SetState(state);
+            var handler = _stateHandler ?? throw new InvalidOperationException("DNP3 state callback was not registered.");
+            await handler(state, cancellationToken);
+        }
+
         public ValueTask<Dnp3CommandResult> ExecuteBinaryAsync(
             ushort index,
             Dnp3BinaryOperation operation,
@@ -341,7 +534,7 @@ public sealed class Dnp3CoordinatorConvergenceTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             lock (_gate) BinaryWrites.Add((index, operation, profile));
-            return ValueTask.FromResult(Dnp3CommandResult.Success());
+            return ValueTask.FromResult(BinaryCommandResult);
         }
 
         public ValueTask<Dnp3CommandResult> ExecuteAnalogAsync(

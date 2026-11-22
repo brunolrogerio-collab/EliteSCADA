@@ -12,6 +12,12 @@ public interface ILocalIdentityStore
     Task UpdateAsync(LocalUserAccount account, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Idempotently clears every Authority-owned local identity. This operation is reserved for
+    /// the durable Authority detach journal and owns its serialization boundary.
+    /// </summary>
+    Task ClearAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Atomically replaces the complete durable local Authority identity set.
     /// Implementations must validate the complete replacement before exposing any mutation
     /// and must leave the previous Authority unchanged if replacement fails.
@@ -117,6 +123,23 @@ public sealed class InMemoryLocalIdentityStore : ILocalIdentityStore
             _byUsername[copy.NormalizedUsername] = copy.Id;
         }
         return Task.CompletedTask;
+    }
+
+    public async Task ClearAllAsync(CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            lock (_gate)
+            {
+                _byId.Clear();
+                _byUsername.Clear();
+            }
+        }
+        finally
+        {
+            _mutationGate.Release();
+        }
     }
 
     public async Task ReplaceAllAsync(

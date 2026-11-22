@@ -11,17 +11,46 @@ public static class BuiltinVisualObjectSchemas
     public const string RectangleType = "core.rectangle";
     public const string EllipseType = "core.ellipse";
     public const string LineType = "core.line";
+    public const string ArcType = "core.arc";
+    public const string BezierType = "core.bezier";
     public const string PolygonType = "core.polygon";
     public const string TextType = "core.text";
     public const string ImageType = "core.image";
+    public const string Model3dType = "core.model3d";
+    public const string SvgSymbolType = "core.svgSymbol";
+    public const string VideoPlayerType = "core.videoPlayer";
+    public const string PdfViewerType = "core.pdfViewer";
+    public const string ReportLauncherType = "core.reportLauncher";
     public const string ValueDisplayType = "core.valueDisplay";
     public const string TrendType = "core.trend";
     public const string AlarmBrowserType = "core.alarmBrowser";
     public const string EventBrowserType = "core.eventBrowser";
     public const string ButtonType = "core.button";
+    public const string CheckBoxType = "core.checkBox";
+    public const string ComboBoxType = "core.comboBox";
     public const string SliderType = "core.slider";
+    public const string NumericInputType = "core.numericInput";
+    public const string MeasurementDialType = "core.measurementDial";
+    public const string MeasurementRingType = "core.measurementRing";
+    public const string MeasurementBarType = "core.measurementBar";
+    public const string MeasurementThermometerType = "core.measurementThermometer";
+    public const string MeasurementBandsType = "core.measurementBands";
+    public const string MeasurementTargetType = "core.measurementTarget";
+    public const string IntelligencePerformanceV1BType = "core.intelligencePerformanceV1B";
+    public const string IntelligenceProfileCoverageV1Type = "core.intelligenceProfileCoverageV1";
+    public const string IntelligenceReferenceEvidenceV1Type = "core.intelligenceReferenceEvidenceV1";
+    public const string IntelligenceCurrentFrequencyComparisonV1Type = "core.intelligenceCurrentFrequencyComparisonV1";
+    public const string IntelligenceSingleTargetDeviationV1Type = "core.intelligenceSingleTargetDeviationV1";
+    public const string IntelligenceExperimentalJointDeviationV1Type = "core.intelligenceExperimentalJointDeviationV1";
+    public const string IntelligenceContextEligibilityV1Type = "core.intelligenceContextEligibilityV1";
+    public const string IntelligenceProcessStageCoverageV1Type = "core.intelligenceProcessStageCoverageV1";
+    public const string IntelligenceProcessStageInsightsV1Type = "core.intelligenceProcessStageInsightsV1";
+    public const string IntelligenceContextualDeviationV2Type = "core.intelligenceContextualDeviationV2";
     public const string TrendPensProperty = "pens";
     public const string BrowserConfigProperty = "browserConfig";
+    public const string SvgPaintOverridesProperty = "svgPaintOverrides";
+    public const string CheckBoxConfigProperty = "checkBoxConfig";
+    public const string ComboBoxOptionsProperty = "comboBoxOptions";
 
     private const string TrendModeProperty = "trendMode";
     private const string TrendWindowSecondsProperty = "trendWindowSeconds";
@@ -29,6 +58,12 @@ public static class BuiltinVisualObjectSchemas
     private const string TrendLegendVisibleProperty = "trendLegendVisible";
     private const string TrendGridVisibleProperty = "trendGridVisible";
     private const string TrendAxesVisibleProperty = "trendAxesVisible";
+    private const string TrendLeftAxisVisibleProperty = "trendLeftAxisVisible";
+    private const string TrendRightAxisVisibleProperty = "trendRightAxisVisible";
+    private const string TrendAxisLabelsVisibleProperty = "trendAxisLabelsVisible";
+    private const string TrendAxisFontSizeProperty = "trendAxisFontSize";
+    private const string TrendLegendFontSizeProperty = "trendLegendFontSize";
+    private const string TrendTimeAxisVisibleProperty = "trendTimeAxisVisible";
     private const string TrendQualityVisibleProperty = "trendQualityVisible";
 
     private static readonly IReadOnlyList<VisualPropertyDefinition> TrendDefinitions =
@@ -54,7 +89,49 @@ public static class BuiltinVisualObjectSchemas
         new(TrendLegendVisibleProperty, new VisualBooleanValue(true)),
         new(TrendGridVisibleProperty, new VisualBooleanValue(true)),
         new(TrendAxesVisibleProperty, new VisualBooleanValue(true)),
+        new(TrendLeftAxisVisibleProperty, new VisualBooleanValue(true)),
+        new(TrendRightAxisVisibleProperty, new VisualBooleanValue(true)),
+        new(TrendAxisLabelsVisibleProperty, new VisualBooleanValue(true)),
+        new(TrendTimeAxisVisibleProperty, new VisualBooleanValue(true)),
+        new(
+            TrendAxisFontSizeProperty,
+            new VisualNumberValue(16),
+            constraints: new VisualPropertyConstraints { Minimum = 8, Maximum = 32 },
+            unit: "px"),
+        new(
+            TrendLegendFontSizeProperty,
+            new VisualNumberValue(14),
+            constraints: new VisualPropertyConstraints { Minimum = 8, Maximum = 32 },
+            unit: "px"),
         new(TrendQualityVisibleProperty, new VisualBooleanValue(true))
+    ];
+
+    private static readonly IReadOnlyList<VisualPropertyDefinition> IntelligencePerformanceDefinitions =
+    [
+        new(VisualPropertyKeys.IntelligenceScopeId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceAssignmentId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceProfileId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceRuleId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceRuleVersion, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceSignalIds, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceFirstContextSignalId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceSecondContextSignalId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceFirstContextLowerInclusiveCanonical, new VisualNumberValue(0), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceFirstContextUpperExclusiveCanonical, new VisualNumberValue(0), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceSecondContextLowerInclusiveCanonical, new VisualNumberValue(0), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceSecondContextUpperExclusiveCanonical, new VisualNumberValue(0), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false)
+    ];
+
+    private static readonly IReadOnlyList<VisualPropertyDefinition> IntelligenceProcessStageCoverageDefinitions =
+    [
+        new(VisualPropertyKeys.IntelligenceStageId, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceStageKey, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceStageName, new VisualStringValue(""), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceStageMembers, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceJointSignals, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceCurrentFrequencySignals, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceSingleTargetSignals, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false),
+        new(VisualPropertyKeys.IntelligenceOperatingContexts, new VisualStringValue("[]"), engineeringEditable: false, runtimeReadable: true, runtimeWritable: false, supportsBinding: false)
     ];
 
     private static readonly IReadOnlyDictionary<string, VisualPropertyDefinition> CommonByKey =
@@ -65,16 +142,28 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Stroke)
             .Concat(CommonVisualPropertyDefinitions.Effects)
             .Concat(CommonVisualPropertyDefinitions.Text)
+            .Concat(CommonVisualPropertyDefinitions.CheckBox)
             .Concat(CommonVisualPropertyDefinitions.Image)
+            .Concat(CommonVisualPropertyDefinitions.Model3dView)
+            .Concat(CommonVisualPropertyDefinitions.Media)
+            .Concat(CommonVisualPropertyDefinitions.ReportLauncher)
             .Concat(CommonVisualPropertyDefinitions.Slider)
+            .Concat(CommonVisualPropertyDefinitions.NumericInput)
+            .Concat(CommonVisualPropertyDefinitions.Measurement)
+            .Concat(CommonVisualPropertyDefinitions.Arc)
+            .Concat(CommonVisualPropertyDefinitions.Bezier)
+            .Concat(CommonVisualPropertyDefinitions.Polygon)
             .Concat(TrendDefinitions)
+            .Concat(IntelligencePerformanceDefinitions)
+            .Concat(IntelligenceProcessStageCoverageDefinitions)
             .ToDictionary(property => property.Key, StringComparer.Ordinal);
 
     private static readonly HashSet<string> AnalogFillCapableTypes =
         new(StringComparer.Ordinal)
         {
             RectangleType,
-            EllipseType
+            EllipseType,
+            BezierType
         };
 
     private static readonly string[] Base =
@@ -158,6 +247,15 @@ public static class BuiltinVisualObjectSchemas
         LineType,
         Base.Concat(Stroke));
 
+    public static VisualObjectPropertySchema Arc { get; } = Create(
+        ArcType,
+        Base.Concat(Fill).Concat(Stroke).Concat(CommonVisualPropertyDefinitions.Arc.Select(property => property.Key))
+            .Concat([VisualPropertyKeys.ArcStartAngle, VisualPropertyKeys.ArcEndAngle]));
+
+    public static VisualObjectPropertySchema Bezier { get; } = Create(
+        BezierType,
+        Base.Concat(Fill).Concat(Stroke).Concat(CommonVisualPropertyDefinitions.Bezier.Select(property => property.Key)));
+
     /// <summary>
     /// Polygon points are structural geometry owned by the core.polygon contract,
     /// not a scalar Visual Property Registry value. Only common transform/
@@ -167,6 +265,7 @@ public static class BuiltinVisualObjectSchemas
         PolygonType,
         Base
             .Concat(Fill)
+            .Concat(CommonVisualPropertyDefinitions.Polygon.Select(property => property.Key))
             .Concat(Stroke));
 
     public static VisualObjectPropertySchema Text { get; } = Create(
@@ -180,7 +279,52 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.AssetRef,
             VisualPropertyKeys.ImageFit,
             VisualPropertyKeys.ImagePositionX,
-            VisualPropertyKeys.ImagePositionY
+            VisualPropertyKeys.ImagePositionY,
+            VisualPropertyKeys.ImageZoom
+        ]));
+
+    public static VisualObjectPropertySchema Model3d { get; } = Create(
+        Model3dType,
+        Base.Concat([
+            VisualPropertyKeys.AssetRef,
+            VisualPropertyKeys.ViewYawDeg,
+            VisualPropertyKeys.ViewPitchDeg,
+            VisualPropertyKeys.RuntimeViewInteractionEnabled
+        ]));
+
+    public static VisualObjectPropertySchema VideoPlayer { get; } = Create(
+        VideoPlayerType,
+        Base.Concat([
+            VisualPropertyKeys.AssetRef, VisualPropertyKeys.ImageFit,
+            VisualPropertyKeys.MediaAutoplay, VisualPropertyKeys.MediaMuted,
+            VisualPropertyKeys.MediaLoop, VisualPropertyKeys.MediaControls,
+            VisualPropertyKeys.MediaSourceId
+        ]));
+
+    public static VisualObjectPropertySchema PdfViewer { get; } = Create(
+        PdfViewerType,
+        Base.Concat([
+            VisualPropertyKeys.AssetRef, VisualPropertyKeys.PdfInitialPage,
+            VisualPropertyKeys.PdfZoom, VisualPropertyKeys.PdfToolbarVisible
+        ]));
+
+    public static VisualObjectPropertySchema ReportLauncher { get; } = Create(
+        ReportLauncherType,
+        Base
+            .Concat([VisualPropertyKeys.BackgroundColor])
+            .Concat(CommonVisualPropertyDefinitions.ReportLauncher.Select(property => property.Key))
+            .Concat(Stroke)
+            .Concat([VisualPropertyKeys.CornerRadius])
+            .Concat(TextProperties));
+
+    public static VisualObjectPropertySchema SvgSymbol { get; } = Create(
+        SvgSymbolType,
+        Base.Concat(
+        [
+            VisualPropertyKeys.AssetRef,
+            VisualPropertyKeys.FillColor,
+            VisualPropertyKeys.StrokeColor,
+            VisualPropertyKeys.StrokeWidth
         ]));
 
     public static VisualObjectPropertySchema ValueDisplay { get; } = Create(
@@ -189,7 +333,9 @@ public static class BuiltinVisualObjectSchemas
             .Concat([VisualPropertyKeys.BackgroundColor])
             .Concat(Stroke)
             .Concat([VisualPropertyKeys.CornerRadius])
-            .Concat(TextProperties));
+            .Concat(TextProperties)
+            .Concat([VisualPropertyKeys.ValueFormat, VisualPropertyKeys.TextColorGood, VisualPropertyKeys.TextColorBad])
+            .Concat([VisualPropertyKeys.DecimalPlacesEnabled, VisualPropertyKeys.DecimalPlaces]));
 
     /// <summary>
     /// Trend pens are structural payload owned by core.trend and are deliberately
@@ -210,6 +356,12 @@ public static class BuiltinVisualObjectSchemas
             TrendLegendVisibleProperty,
             TrendGridVisibleProperty,
             TrendAxesVisibleProperty,
+            TrendLeftAxisVisibleProperty,
+            TrendRightAxisVisibleProperty,
+            TrendAxisLabelsVisibleProperty,
+            TrendTimeAxisVisibleProperty,
+            TrendAxisFontSizeProperty,
+            TrendLegendFontSizeProperty,
             TrendQualityVisibleProperty
         ]));
 
@@ -234,6 +386,25 @@ public static class BuiltinVisualObjectSchemas
             .Concat([VisualPropertyKeys.CornerRadius])
             .Concat(TextProperties));
 
+    public static VisualObjectPropertySchema CheckBox { get; } = Create(
+        CheckBoxType,
+        Base
+            .Concat([VisualPropertyKeys.BackgroundColor])
+            .Concat(Stroke)
+            .Concat([VisualPropertyKeys.CornerRadius])
+            .Concat(TextProperties)
+            .Concat(CommonVisualPropertyDefinitions.CheckBox.Select(property => property.Key))
+            .Concat([VisualPropertyKeys.InteractionEnabled]));
+
+    public static VisualObjectPropertySchema ComboBox { get; } = Create(
+        ComboBoxType,
+        Base
+            .Concat([VisualPropertyKeys.BackgroundColor])
+            .Concat(Stroke)
+            .Concat([VisualPropertyKeys.CornerRadius])
+            .Concat(TextProperties)
+            .Concat([VisualPropertyKeys.InteractionEnabled]));
+
     public static VisualObjectPropertySchema Slider { get; } = Create(
         SliderType,
         Base.Concat(
@@ -252,21 +423,199 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.CornerRadius
         ]));
 
+    public static VisualObjectPropertySchema NumericInput { get; } = Create(
+        NumericInputType,
+        Base
+            .Concat([VisualPropertyKeys.BackgroundColor])
+            .Concat(
+            [
+                VisualPropertyKeys.StrokeColor,
+                VisualPropertyKeys.StrokeWidth,
+                VisualPropertyKeys.CornerRadius,
+                VisualPropertyKeys.TextColor,
+                VisualPropertyKeys.TextColorEditing,
+                VisualPropertyKeys.TextColorGood,
+                VisualPropertyKeys.TextColorBad,
+                VisualPropertyKeys.DecimalPlacesEnabled,
+                VisualPropertyKeys.DecimalPlaces,
+                VisualPropertyKeys.FontFamily,
+                VisualPropertyKeys.FontSize,
+                VisualPropertyKeys.FontWeight,
+                VisualPropertyKeys.HorizontalAlignment,
+                VisualPropertyKeys.Value,
+                VisualPropertyKeys.Minimum,
+                VisualPropertyKeys.Maximum,
+                VisualPropertyKeys.Step,
+                VisualPropertyKeys.InteractionEnabled,
+                VisualPropertyKeys.ShowApplyButton
+            ]));
+
+    private static readonly string[] Measurement =
+    [
+        VisualPropertyKeys.Value,
+        VisualPropertyKeys.MeasurementUnit,
+        VisualPropertyKeys.Minimum,
+        VisualPropertyKeys.Maximum,
+        VisualPropertyKeys.DecimalPlacesEnabled,
+        VisualPropertyKeys.DecimalPlaces,
+        VisualPropertyKeys.MeasurementTheme,
+        VisualPropertyKeys.MeasurementQualityVisible,
+        VisualPropertyKeys.MeasurementFreshnessVisible,
+        VisualPropertyKeys.MeasurementStaleAfterSeconds,
+        VisualPropertyKeys.TrackColor,
+        VisualPropertyKeys.ThumbColor
+    ];
+
+    private static VisualObjectPropertySchema CreateMeasurement(string objectType, params string[] additions) => Create(
+        objectType,
+        Base
+            .Concat([VisualPropertyKeys.BackgroundColor])
+            .Concat(Stroke)
+            .Concat([VisualPropertyKeys.CornerRadius])
+            .Concat(Measurement)
+            .Concat(additions));
+
+    public static VisualObjectPropertySchema MeasurementDial { get; } = CreateMeasurement(MeasurementDialType);
+    public static VisualObjectPropertySchema MeasurementRing { get; } = CreateMeasurement(MeasurementRingType);
+    public static VisualObjectPropertySchema MeasurementBar { get; } = CreateMeasurement(MeasurementBarType);
+    public static VisualObjectPropertySchema MeasurementThermometer { get; } = CreateMeasurement(MeasurementThermometerType);
+    public static VisualObjectPropertySchema MeasurementBands { get; } = CreateMeasurement(
+        MeasurementBandsType,
+        VisualPropertyKeys.MeasurementBandOneEnd,
+        VisualPropertyKeys.MeasurementBandTwoEnd);
+    public static VisualObjectPropertySchema MeasurementTarget { get; } = CreateMeasurement(
+        MeasurementTargetType,
+        VisualPropertyKeys.MeasurementTarget);
+
+    public static VisualObjectPropertySchema IntelligencePerformanceV1B { get; } = Create(
+        IntelligencePerformanceV1BType,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId,
+            VisualPropertyKeys.IntelligenceAssignmentId,
+            VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceRuleId,
+            VisualPropertyKeys.IntelligenceRuleVersion,
+            VisualPropertyKeys.IntelligenceSignalIds
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceProfileCoverageV1 { get; } = Create(
+        IntelligenceProfileCoverageV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId,
+            VisualPropertyKeys.IntelligenceProfileId
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceProcessStageCoverageV1 { get; } = Create(
+        IntelligenceProcessStageCoverageV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceStageId,
+            VisualPropertyKeys.IntelligenceStageKey,
+            VisualPropertyKeys.IntelligenceStageName,
+            VisualPropertyKeys.IntelligenceStageMembers
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceReferenceEvidenceV1 { get; } = Create(
+        IntelligenceReferenceEvidenceV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId,
+            VisualPropertyKeys.IntelligenceProfileId
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceContextEligibilityV1 { get; } = Create(
+        IntelligenceContextEligibilityV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId,
+            VisualPropertyKeys.IntelligenceAssignmentId,
+            VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceOperatingContexts
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceCurrentFrequencyComparisonV1 { get; } = Create(
+        IntelligenceCurrentFrequencyComparisonV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceCurrentFrequencySignals
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceSingleTargetDeviationV1 { get; } = Create(
+        IntelligenceSingleTargetDeviationV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceSingleTargetSignals
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceExperimentalJointDeviationV1 { get; } = Create(
+        IntelligenceExperimentalJointDeviationV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId, VisualPropertyKeys.IntelligenceAssignmentId, VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceOperatingContexts, VisualPropertyKeys.IntelligenceJointSignals
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceProcessStageInsightsV1 { get; } = Create(
+        IntelligenceProcessStageInsightsV1Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceStageId,
+            VisualPropertyKeys.IntelligenceStageKey,
+            VisualPropertyKeys.IntelligenceStageName,
+            VisualPropertyKeys.IntelligenceStageMembers
+        ]));
+
+    public static VisualObjectPropertySchema IntelligenceContextualDeviationV2 { get; } = Create(
+        IntelligenceContextualDeviationV2Type,
+        Base.Concat([
+            VisualPropertyKeys.IntelligenceScopeId,
+            VisualPropertyKeys.IntelligenceAssignmentId,
+            VisualPropertyKeys.IntelligenceProfileId,
+            VisualPropertyKeys.IntelligenceSignalIds,
+            VisualPropertyKeys.IntelligenceFirstContextSignalId,
+            VisualPropertyKeys.IntelligenceFirstContextLowerInclusiveCanonical,
+            VisualPropertyKeys.IntelligenceFirstContextUpperExclusiveCanonical,
+            VisualPropertyKeys.IntelligenceSecondContextSignalId,
+            VisualPropertyKeys.IntelligenceSecondContextLowerInclusiveCanonical,
+            VisualPropertyKeys.IntelligenceSecondContextUpperExclusiveCanonical
+        ]));
+
     public static IReadOnlyCollection<VisualObjectPropertySchema> All { get; } =
     [
         Group,
         Rectangle,
         Ellipse,
         Line,
+        Arc,
+        Bezier,
         Polygon,
         Text,
         Image,
+        Model3d,
+        VideoPlayer,
+        PdfViewer,
+        ReportLauncher,
+        SvgSymbol,
         ValueDisplay,
         Trend,
         AlarmBrowser,
         EventBrowser,
         Button,
-        Slider
+        CheckBox,
+        ComboBox,
+        Slider,
+        NumericInput,
+        MeasurementDial,
+        MeasurementRing,
+        MeasurementBar,
+        MeasurementThermometer,
+        MeasurementBands,
+        MeasurementTarget,
+        IntelligencePerformanceV1B,
+        IntelligenceProfileCoverageV1,
+        IntelligenceReferenceEvidenceV1,
+        IntelligenceContextEligibilityV1,
+        IntelligenceCurrentFrequencyComparisonV1,
+        IntelligenceSingleTargetDeviationV1,
+        IntelligenceExperimentalJointDeviationV1,
+        IntelligenceProcessStageCoverageV1,
+        IntelligenceProcessStageInsightsV1,
+        IntelligenceContextualDeviationV2
     ];
 
     /// <summary>

@@ -6,8 +6,6 @@ import {
 import { c04DataSourceToolingText } from './c04DataSourceToolingI18n';
 import {
   discoverEngineeringDataSourceDraft,
-  testEngineeringDataSourceDraftConnection,
-  type DriverConnectionTestResultView,
   type DriverDiscoveryCandidateView,
   type DriverDraftDataSourceView
 } from './driverEngineeringApi';
@@ -25,19 +23,17 @@ export function OpcUaDataSourceDiscoveryAssistant({ draft, definition, locale, o
   const text = useMemo(() => c04DataSourceToolingText(locale), [locale]);
   const [discoveryUrl, setDiscoveryUrl] = useState(draft.settings?.endpointUrl ?? '');
   const [candidates, setCandidates] = useState<DriverDiscoveryCandidateView[]>([]);
-  const [connection, setConnection] = useState<DriverConnectionTestResultView | null>(null);
-  const [busy, setBusy] = useState<'discover' | 'test' | null>(null);
+  const [busy, setBusy] = useState<'discover' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const endpoint = draft.settings?.endpointUrl?.trim();
     if (endpoint) setDiscoveryUrl(endpoint);
-    setConnection(null);
   }, [draft.driver, draft.key, draft.settings]);
 
   if (definition.typeKey.toLowerCase() !== 'opc-ua') return null;
-  if (!definition.capabilities.supportsDiscovery && !definition.capabilities.supportsConnectionTest) return null;
+  if (!definition.capabilities.supportsDiscovery) return null;
 
   const requestContext = (): DriverDraftDataSourceView | null => {
     if (!draft.key.trim()) {
@@ -79,23 +75,6 @@ export function OpcUaDataSourceDiscoveryAssistant({ draft, definition, locale, o
     }
   };
 
-  const testConnection = async () => {
-    const context = requestContext();
-    if (!context) return;
-
-    setBusy('test');
-    setError(null);
-    setNotice(null);
-    setConnection(null);
-    try {
-      setConnection(await testEngineeringDataSourceDraftConnection(context));
-    } catch (reason) {
-      setError(asMessage(reason));
-    } finally {
-      setBusy(null);
-    }
-  };
-
   const useCandidate = (candidate: DriverDiscoveryCandidateView) => {
     const allowedFields = new Map(
       (definition.configurationSchema?.dataSourceFields ?? [])
@@ -114,7 +93,6 @@ export function OpcUaDataSourceDiscoveryAssistant({ draft, definition, locale, o
     }
 
     onChange({ ...draft, settings: nextSettings });
-    setConnection(null);
     setNotice(ignored ? `${text.selected} ${text.catalogMismatch}` : text.selected);
     const endpoint = candidate.suggestedSettings?.endpointUrl ?? candidate.sanitizedEndpoint;
     if (endpoint) setDiscoveryUrl(endpoint);
@@ -178,23 +156,6 @@ export function OpcUaDataSourceDiscoveryAssistant({ draft, definition, locale, o
         <small>{text.trustNote}</small>
       </section>}
 
-      {definition.capabilities.supportsConnectionTest && <div className="eng-editor-actions">
-        <button
-          type="button"
-          className="secondary"
-          disabled={busy !== null}
-          onClick={() => void testConnection()}
-          data-testid="opcua-source-test"
-        >
-          {busy === 'test' ? text.testing : text.test}
-        </button>
-      </div>}
-
-      {connection && <div className="eng-mutation-detail" data-testid="opcua-source-test-result">
-        <strong>{connection.succeeded ? text.connectionOk : text.connectionFailed}</strong>
-        {connection.sanitizedEndpoint && <code>{connection.sanitizedEndpoint}</code>}
-        {connection.observedIdentity && <span>{connection.observedIdentity}</span>}
-      </div>}
       {notice && <small role="status">{notice}</small>}
       {error && <pre className="eng-preview-error" role="alert">{error}</pre>}
     </section>

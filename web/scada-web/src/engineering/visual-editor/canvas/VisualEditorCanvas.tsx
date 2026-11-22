@@ -1,11 +1,19 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
   WheelEvent as ReactWheelEvent
 } from 'react';
-import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../../visual-runtime';
+import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../../visual-runtime';
+import type { EngineeringLocale } from '../../i18n';
+import type { DynamoEngineering, EquipmentEngineering, TemplateEngineering } from '../../types';
+import { visualAssetContentUrl } from '../../visualAssetContentUrl';
+import { CanonicalVisualRenderer } from '../CanonicalVisualRenderer';
+import { clampModel3dPitch, DEFAULT_MODEL3D_PITCH_DEG, DEFAULT_MODEL3D_YAW_DEG, wrapModel3dYaw } from '../model3dViewGeometry';
+import { resolveVisualDefinitionSurfaceStyle } from '../visualDefinitionSurfaceModel';
+import { updateCanonicalPolygonPoints } from '../polygonCanonicalMutations';
+import { applyVisualEditorMutationIntent } from '../visualEditorCanonicalModel';
 import { isVisualElementEffectivelyAuthoringLocked } from '../visualEditorAuthoringModel';
 import type {
   VisualEditorBounds,
@@ -15,10 +23,12 @@ import type {
   VisualEditorViewport
 } from '../visualEditorContracts';
 import { polygonBounds, polygonPointsAttribute, readPolygonPoints } from '../polygonGeometry';
+import { createClosedBezierGeometry, insertBezierAnchor, readEditableBezierPath, removeBezierAnchor, writeBezierPathPoint } from '../bezierGeometry';
 import {
   DEFAULT_CANVAS_GRID_SIZE,
   clientDeltaToCanvas,
   collapseHierarchySelection,
+  fitViewportToBounds,
   hasMeaningfulDelta,
   nextSelection,
   normalizeSelection,
@@ -46,6 +56,7 @@ type ResizeInteraction = Readonly<{
 type RotateInteraction = Readonly<{
   kind: 'rotate'; pointerId: number; startClient: VisualEditorPoint; centerClient: VisualEditorPoint; objectIds: readonly string[]; deltaDegrees: number;
 }>;
+type ModelViewInteraction = Readonly<{ kind: 'model-view'; pointerId: number; objectId: string; startClient: VisualEditorPoint; startYaw: number; startPitch: number; yaw: number; pitch: number; }>;
 type PanInteraction = Readonly<{
   kind: 'pan'; pointerId: number; startClient: VisualEditorPoint; startViewport: VisualEditorViewport; viewport: VisualEditorViewport;
 }>;
@@ -60,10 +71,24 @@ type PolygonVertexInteraction = Readonly<{
   pointScaleX: number;
   pointScaleY: number;
 }>;
-type CanvasInteraction = MoveInteraction | ResizeInteraction | RotateInteraction | PanInteraction | PolygonVertexInteraction | null;
+type BezierPointInteraction = Readonly<{
+  kind: 'bezier-point'; pointerId: number; startClient: VisualEditorPoint; objectId: string;
+  pointIndex: number; startPoint: VisualEditorPoint; point: VisualEditorPoint; startPath: string;
+}>;
+type CanvasInteraction = MoveInteraction | ResizeInteraction | RotateInteraction | ModelViewInteraction | PanInteraction | PolygonVertexInteraction | BezierPointInteraction | null;
 
 const CANVAS_CONTENT_WIDTH = 6000;
 const CANVAS_CONTENT_HEIGHT = 4000;
+
+export type VisualEditorCanvasProps = VisualEditorCanvasContractProps & Readonly<{
+  locale?: EngineeringLocale;
+  dynamoDefinitions?: readonly DynamoEngineering[] | null;
+  equipmentDefinitions?: readonly EquipmentEngineering[] | null;
+  templateDefinitions?: readonly TemplateEngineering[] | null;
+  emptyLabel?: string;
+  toolbarContent?: React.ReactNode;
+  liveDataEnabled?: boolean;
+}>;
 
 export function VisualEditorCanvas({
   screen,
@@ -73,16 +98,30 @@ export function VisualEditorCanvas({
   onMutationIntent,
   polygonToolActive = false,
   onPolygonToolCancel,
-  logicalBoundary
-}: VisualEditorCanvasContractProps) {
+  bezierToolActive = false,
+  onBezierToolCancel,
+  logicalBoundary,
+  locale = 'pt-BR',
+  dynamoDefinitions,
+  equipmentDefinitions,
+  templateDefinitions,
+  emptyLabel,
+  toolbarContent,
+  liveDataEnabled = true
+}: VisualEditorCanvasProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [gridEnabled, setGridEnabled] = useState(true);
+  const [identitiesVisible, setIdentitiesVisible] = useState(false);
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
   const [interaction, setInteraction] = useState<CanvasInteraction>(null);
+  const [modelViewObjectId, setModelViewObjectId] = useState<string | null>(null);
   const [polygonDraftPoints, setPolygonDraftPoints] = useState<readonly VisualEditorPoint[]>(Object.freeze([]));
   const [polygonHoverPoint, setPolygonHoverPoint] = useState<VisualEditorPoint | null>(null);
+  const [bezierDraftPoints, setBezierDraftPoints] = useState<readonly VisualEditorPoint[]>(Object.freeze([]));
+  const [bezierHoverPoint, setBezierHoverPoint] = useState<VisualEditorPoint | null>(null);
   const [selectedVertex, setSelectedVertex] = useState<Readonly<{ objectId: string; index: number }> | null>(null);
+  const [selectedBezierAnchor, setSelectedBezierAnchor] = useState<Readonly<{ objectId: string; ordinal: number }> | null>(null);
 
   const projectedElements = useMemo(() => projectCanvasElements(screen), [screen]);
   const selection = useMemo(() => normalizeSelection(selectedObjectIds), [selectedObjectIds]);
@@ -99,11 +138,27 @@ export function VisualEditorCanvas({
   const siblingMutationUnavailable = selection.length === 0
     || !selectionAuthoringState.sameParent
     || selectionAuthoringLocked
-    || polygonToolActive;
+    || polygonToolActive || bezierToolActive;
   const selectedProjection = selection.length === 1 ? findProjection(projectedElements, selection[0]) : null;
+  const modelViewEditing = Boolean(modelViewObjectId && selectedProjection?.objectId === modelViewObjectId &&
+    selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.model3d && !selectionAuthoringLocked && !polygonToolActive && !bezierToolActive);
+  useEffect(() => { setModelViewObjectId(null); }, [selection.join('|'), screen.id, screen.key]);
   const selectedPolygonPoints = selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon
     ? readPolygonPoints(selectedProjection.element)
     : Object.freeze([]);
+  const renderedScreen = useMemo(
+    () => projectTransientInteraction(screen, interaction),
+    [screen, interaction]
+  );
+  const canvasText = canvasControlText(locale);
+
+  const fitToLogicalBoundary = (): void => {
+    const surface = surfaceRef.current?.getBoundingClientRect();
+    if (!surface) return;
+    const width = logicalBoundary?.width ?? CANVAS_CONTENT_WIDTH;
+    const height = logicalBoundary?.height ?? CANVAS_CONTENT_HEIGHT;
+    onUiIntent({ kind: 'viewport.change', viewport: fitViewportToBounds(surface.width, surface.height, width, height) });
+  };
 
   const emitSelection = (objectIds: readonly string[], mode: 'replace' | 'add' | 'toggle'): void => {
     onUiIntent({ kind: 'selection.change', objectIds, mode });
@@ -118,6 +173,12 @@ export function VisualEditorCanvas({
     setPolygonDraftPoints(Object.freeze([]));
     setPolygonHoverPoint(null);
     onPolygonToolCancel?.();
+  };
+
+  const cancelBezier = (): void => {
+    setBezierDraftPoints(Object.freeze([]));
+    setBezierHoverPoint(null);
+    onBezierToolCancel?.();
   };
 
   const finishPolygon = (): void => {
@@ -139,10 +200,43 @@ export function VisualEditorCanvas({
     });
   };
 
+  const finishBezier = (): void => {
+    if (bezierDraftPoints.length < 3) return;
+    try {
+      onMutationIntent({ kind: 'bezier.create', points: bezierDraftPoints });
+      cancelBezier();
+    } catch {
+      // Coordinator reducer will surface the canonical validation error.
+    }
+  };
+
+  const appendBezierPoint = (point: VisualEditorPoint): void => {
+    const nextPoint = snapEnabled ? snapPoint(point, DEFAULT_CANVAS_GRID_SIZE) : point;
+    const first = bezierDraftPoints[0];
+    if (bezierDraftPoints.length >= 3 && first && distanceBetween(first, nextPoint) <= 12 / effectiveViewport.zoom) {
+      finishBezier();
+      return;
+    }
+    const last = bezierDraftPoints[bezierDraftPoints.length - 1];
+    if (last && last.x === nextPoint.x && last.y === nextPoint.y) return;
+    setBezierDraftPoints(current => Object.freeze([...current, Object.freeze(nextPoint)]));
+  };
+
   const beginMove = (event: ReactPointerEvent<HTMLElement>, projection: CanvasElementProjection): void => {
-    if (polygonToolActive || event.button !== 0 || projection.objectId === null) return;
+    if (polygonToolActive || bezierToolActive || event.button !== 0 || projection.objectId === null) return;
     if (isVisualElementEffectivelyAuthoringLocked(screen, projection.objectId)) return;
     event.stopPropagation();
+    if (modelViewEditing && projection.objectId === modelViewObjectId) {
+      const properties = projection.element.properties ?? {};
+      const startYaw = typeof properties[VISUAL_PROPERTY_KEYS.viewYawDeg] === 'number'
+        ? properties[VISUAL_PROPERTY_KEYS.viewYawDeg] as number : DEFAULT_MODEL3D_YAW_DEG;
+      const startPitch = typeof properties[VISUAL_PROPERTY_KEYS.viewPitchDeg] === 'number'
+        ? properties[VISUAL_PROPERTY_KEYS.viewPitchDeg] as number : DEFAULT_MODEL3D_PITCH_DEG;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setInteraction({ kind: 'model-view', pointerId: event.pointerId, objectId: projection.objectId,
+        startClient: pointFromPointer(event), startYaw, startPitch, yaw: startYaw, pitch: startPitch });
+      return;
+    }
     const mode = selectionModeFromModifiers(event);
     const preserveExistingSelection = mode === 'replace' && selectionSet.has(projection.objectId);
     const requestedSelection = preserveExistingSelection ? selection : nextSelection(selection, projection.objectId, mode);
@@ -154,7 +248,7 @@ export function VisualEditorCanvas({
   };
 
   const beginResize = (event: ReactPointerEvent<HTMLButtonElement>, projection: CanvasElementProjection, handle: CanvasResizeHandle): void => {
-    if (polygonToolActive || event.button !== 0 || projection.objectId === null || selection.length !== 1) return;
+    if (polygonToolActive || bezierToolActive || event.button !== 0 || projection.objectId === null || selection.length !== 1) return;
     if (isVisualElementEffectivelyAuthoringLocked(screen, projection.objectId)) return;
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -163,7 +257,7 @@ export function VisualEditorCanvas({
   };
 
   const beginRotate = (event: ReactPointerEvent<HTMLButtonElement>, projection: CanvasElementProjection): void => {
-    if (polygonToolActive || event.button !== 0 || projection.objectId === null) return;
+    if (polygonToolActive || bezierToolActive || event.button !== 0 || projection.objectId === null) return;
     if (isVisualElementEffectivelyAuthoringLocked(screen, projection.objectId)) return;
     event.stopPropagation();
     const objectNode = event.currentTarget.closest<HTMLElement>('[data-canvas-object-id]');
@@ -196,10 +290,29 @@ export function VisualEditorCanvas({
     });
   };
 
+  const beginBezierPoint = (event: ReactPointerEvent<HTMLButtonElement>, projection: CanvasElementProjection, pointIndex: number, points: readonly VisualEditorPoint[]) => {
+    if (event.button !== 0 || !projection.objectId || isVisualElementEffectivelyAuthoringLocked(screen, projection.objectId)) return;
+    const path = projection.element.properties?.[VISUAL_PROPERTY_KEYS.bezierPath];
+    if (typeof path !== 'string' || !points[pointIndex]) return;
+    event.stopPropagation();
+    const model = readEditableBezierPath(path);
+    const anchorOrdinal = model?.anchorIndexes.indexOf(pointIndex) ?? -1;
+    if (anchorOrdinal >= 0) setSelectedBezierAnchor(Object.freeze({ objectId: projection.objectId, ordinal: anchorOrdinal }));
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setInteraction({ kind: 'bezier-point', pointerId: event.pointerId, startClient: pointFromPointer(event), objectId: projection.objectId,
+      pointIndex, startPoint: points[pointIndex], point: points[pointIndex], startPath: path });
+  };
+
   const handleSurfacePointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (polygonToolActive && event.button === 0) {
       event.preventDefault();
       appendPolygonPoint(clientPointToCanvas(event, effectiveViewport, surfaceRef.current));
+      emitSelection([], 'replace');
+      return;
+    }
+    if (bezierToolActive && event.button === 0) {
+      event.preventDefault();
+      appendBezierPoint(clientPointToCanvas(event, effectiveViewport, surfaceRef.current));
       emitSelection([], 'replace');
       return;
     }
@@ -219,10 +332,20 @@ export function VisualEditorCanvas({
       const point = clientPointToCanvas(event, effectiveViewport, surfaceRef.current);
       setPolygonHoverPoint(snapEnabled ? snapPoint(point, DEFAULT_CANVAS_GRID_SIZE) : point);
     }
+    if (bezierToolActive && !interaction) {
+      const point = clientPointToCanvas(event, effectiveViewport, surfaceRef.current);
+      setBezierHoverPoint(snapEnabled ? snapPoint(point, DEFAULT_CANVAS_GRID_SIZE) : point);
+    }
     if (!interaction || event.pointerId !== interaction.pointerId) return;
     const current = pointFromPointer(event);
     if (interaction.kind === 'pan') {
       setInteraction({ ...interaction, viewport: panViewport(interaction.startViewport, subtractPoints(current, interaction.startClient)) });
+      return;
+    }
+    if (interaction.kind === 'model-view') {
+      setInteraction({ ...interaction,
+        yaw: wrapModel3dYaw(interaction.startYaw + (current.x - interaction.startClient.x) * 0.45),
+        pitch: clampModel3dPitch(interaction.startPitch - (current.y - interaction.startClient.y) * 0.45) });
       return;
     }
     if (interaction.kind === 'rotate') {
@@ -239,6 +362,13 @@ export function VisualEditorCanvas({
     }
     if (interaction.kind === 'resize') {
       setInteraction({ ...interaction, bounds: resizeBounds(interaction.startBounds, delta, interaction.handle) });
+      return;
+    }
+    if (interaction.kind === 'bezier-point') {
+      const projection = findProjection(projectedElements, interaction.objectId);
+      if (!projection) return;
+      const pointDelta = { x: delta.x * 100 / Math.max(projection.geometry.width, 1), y: delta.y * 100 / Math.max(projection.geometry.height, 1) };
+      setInteraction({ ...interaction, point: Object.freeze({ x: interaction.startPoint.x + pointDelta.x, y: interaction.startPoint.y + pointDelta.y }) });
       return;
     }
     const pointDelta = Object.freeze({
@@ -265,12 +395,24 @@ export function VisualEditorCanvas({
       case 'rotate':
         if (interaction.objectIds.length > 0 && Math.abs(interaction.deltaDegrees) > Number.EPSILON) onMutationIntent({ kind: 'object.rotate', objectIds: interaction.objectIds, deltaDegrees: interaction.deltaDegrees });
         break;
+      case 'model-view':
+        if (interaction.yaw !== interaction.startYaw) onMutationIntent({ kind: 'property.set', objectIds: [interaction.objectId], propertyKey: VISUAL_PROPERTY_KEYS.viewYawDeg, value: interaction.yaw });
+        if (interaction.pitch !== interaction.startPitch) onMutationIntent({ kind: 'property.set', objectIds: [interaction.objectId], propertyKey: VISUAL_PROPERTY_KEYS.viewPitchDeg, value: interaction.pitch });
+        break;
       case 'pan':
         if (!sameViewport(interaction.startViewport, interaction.viewport)) onUiIntent({ kind: 'viewport.change', viewport: interaction.viewport });
         break;
       case 'polygon-vertex':
         if (!pointsEqual(interaction.startPoints, interaction.points)) onMutationIntent({ kind: 'polygon.points.set', objectId: interaction.objectId, points: interaction.points });
         break;
+      case 'bezier-point': {
+        if (interaction.startPoint.x !== interaction.point.x || interaction.startPoint.y !== interaction.point.y) {
+          const model = readEditableBezierPath(interaction.startPath);
+          const path = model && writeBezierPathPoint(model, interaction.pointIndex, interaction.point);
+          if (path) onMutationIntent({ kind: 'property.set', objectIds: [interaction.objectId], propertyKey: VISUAL_PROPERTY_KEYS.bezierPath, value: path });
+        }
+        break;
+      }
     }
     setInteraction(null);
   };
@@ -287,7 +429,9 @@ export function VisualEditorCanvas({
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'Escape') {
       setInteraction(null);
+      if (modelViewEditing) { setModelViewObjectId(null); return; }
       if (polygonToolActive) cancelPolygon();
+      else if (bezierToolActive) cancelBezier();
       else emitSelection([], 'replace');
       return;
     }
@@ -295,6 +439,13 @@ export function VisualEditorCanvas({
       if (event.key === 'Enter' && polygonDraftPoints.length >= 3) {
         event.preventDefault();
         finishPolygon();
+      }
+      return;
+    }
+    if (bezierToolActive) {
+      if (event.key === 'Enter' && bezierDraftPoints.length >= 3) {
+        event.preventDefault();
+        finishBezier();
       }
       return;
     }
@@ -327,6 +478,23 @@ export function VisualEditorCanvas({
     setSelectedVertex(Object.freeze({ objectId: selectedProjection.objectId, index: index + 1 }));
   };
 
+  const updateSelectedBezier = (operation: 'insert' | 'remove'): void => {
+    if (!selectedProjection?.objectId || selectedProjection.element.type !== BUILTIN_VISUAL_OBJECT_TYPES.bezier) return;
+    const path = selectedProjection.element.properties?.[VISUAL_PROPERTY_KEYS.bezierPath];
+    if (typeof path !== 'string') return;
+    const model = readEditableBezierPath(path);
+    const ordinal = selectedBezierAnchor?.objectId === selectedProjection.objectId
+      ? selectedBezierAnchor.ordinal
+      : (model?.anchorIndexes.length ?? 1) - 1;
+    const nextPath = operation === 'insert' ? insertBezierAnchor(path, ordinal) : removeBezierAnchor(path, ordinal);
+    if (nextPath && nextPath !== path) {
+      onMutationIntent({ kind: 'property.set', objectIds: [selectedProjection.objectId], propertyKey: VISUAL_PROPERTY_KEYS.bezierPath, value: nextPath });
+      setSelectedBezierAnchor(operation === 'insert'
+        ? Object.freeze({ objectId: selectedProjection.objectId, ordinal: ordinal + 1 })
+        : null);
+    }
+  };
+
   const removePolygonVertex = (): void => {
     if (!selectedProjection?.objectId || selectedPolygonPoints.length <= 3 || selectedVertex?.objectId !== selectedProjection.objectId) return;
     const points = selectedPolygonPoints.filter((_, index) => index !== selectedVertex.index);
@@ -338,15 +506,18 @@ export function VisualEditorCanvas({
     transform: `translate(${effectiveViewport.panX}px, ${effectiveViewport.panY}px) scale(${effectiveViewport.zoom})`,
     transformOrigin: '0 0', width: `${CANVAS_CONTENT_WIDTH}px`, height: `${CANVAS_CONTENT_HEIGHT}px`
   } satisfies CSSProperties;
-  const surfaceStyle = {
-    '--visual-editor-grid-size': `${DEFAULT_CANVAS_GRID_SIZE * effectiveViewport.zoom}px`,
-    '--visual-editor-grid-pan-x': `${effectiveViewport.panX}px`, '--visual-editor-grid-pan-y': `${effectiveViewport.panY}px`
+  const canonicalLayerStyle = {
+    width: logicalBoundary?.width ?? CANVAS_CONTENT_WIDTH,
+    height: logicalBoundary?.height ?? CANVAS_CONTENT_HEIGHT,
+    '--visual-editor-grid-size': `${DEFAULT_CANVAS_GRID_SIZE}px`,
+    ...resolveVisualDefinitionSurfaceStyle(screen.properties, visualAssetContentUrl)
   } as CSSProperties;
 
   const renderProjection = (projection: CanvasElementProjection, ancestorMovesWithSelection: boolean): React.ReactNode => {
     const objectId = projection.objectId;
     const authoringLocked = objectId !== null && isVisualElementEffectivelyAuthoringLocked(screen, objectId);
     const selected = objectId !== null && selectionSet.has(objectId);
+    const modelViewOnThisObject = modelViewEditing && objectId === modelViewObjectId;
     const hovered = objectId !== null && hoveredObjectId === objectId;
     const moveTargeted = interaction?.kind === 'move' && objectId !== null && interaction.objectIds.includes(objectId);
     const applyMovePreview = moveTargeted && !ancestorMovesWithSelection;
@@ -364,13 +535,20 @@ export function VisualEditorCanvas({
     const polygonPoints = projection.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon
       ? (interaction?.kind === 'polygon-vertex' && interaction.objectId === objectId ? interaction.points : readPolygonPoints(projection.element))
       : Object.freeze([]);
+    const bezierPath = projection.element.type === BUILTIN_VISUAL_OBJECT_TYPES.bezier ? projection.element.properties?.[VISUAL_PROPERTY_KEYS.bezierPath] : null;
+    const bezierModel = typeof bezierPath === 'string' ? readEditableBezierPath(bezierPath) : null;
+    const bezierPoints = bezierModel?.points.map((point, index) => interaction?.kind === 'bezier-point' && interaction.objectId === objectId && interaction.pointIndex === index ? interaction.point : point) ?? Object.freeze([]);
+    const bezierVisiblePoints = bezierPoints.map((point, index) => ({ point, index })).filter(({ index }) =>
+      !(index === bezierPoints.length - 1 && bezierPoints.length > 2 &&
+        Math.abs(bezierPoints[0].x - bezierPoints[index].x) <= 1e-6 &&
+        Math.abs(bezierPoints[0].y - bezierPoints[index].y) <= 1e-6));
     const pointBounds = polygonBounds(polygonPoints);
     const pointScaleX = geometry.width / Math.max(pointBounds.width, 1);
     const pointScaleY = geometry.height / Math.max(pointBounds.height, 1);
 
     return <div
       key={objectId ?? `${projection.element.type}:${projection.element.key}`}
-      className={`visual-editor-canvas__object${selected ? ' is-selected' : ''}${hovered ? ' is-hovered' : ''}${authoringLocked ? ' is-authoring-locked' : ''}${projection.identityIssue ? ' has-identity-issue' : ''}`}
+      className={`visual-editor-canvas__object${selected ? ' is-selected' : ''}${hovered ? ' is-hovered' : ''}${modelViewOnThisObject ? ' is-model-view-editing' : ''}${authoringLocked ? ' is-authoring-locked' : ''}${projection.identityIssue ? ' has-identity-issue' : ''}`}
       style={style}
       data-canvas-object-id={objectId ?? undefined}
       data-canvas-object-key={projection.element.key}
@@ -380,9 +558,6 @@ export function VisualEditorCanvas({
       onPointerEnter={() => setHoveredObjectId(objectId)}
       onPointerLeave={() => setHoveredObjectId(current => current === objectId ? null : current)}
     >
-      {projection.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon && polygonPoints.length >= 3 ? <svg className="visual-editor-canvas__polygon-shape" viewBox={`0 0 ${Math.max(pointBounds.width, 1)} ${Math.max(pointBounds.height, 1)}`} preserveAspectRatio="none" aria-hidden="true">
-        <polygon points={polygonPointsAttribute(polygonPoints.map(point => ({ x: point.x - pointBounds.minX, y: point.y - pointBounds.minY })))} />
-      </svg> : null}
       <span className="visual-editor-canvas__object-label" aria-hidden="true">{projection.element.key}</span>
 
       {selected && objectId !== null && !authoringLocked ? <div className="visual-editor-canvas__adorners" aria-hidden="true">
@@ -399,6 +574,13 @@ export function VisualEditorCanvas({
         data-polygon-vertex-index={index}
         onPointerDown={event => beginPolygonVertex(event, projection, index, polygonPoints)}
       />) : null}
+      {selected && objectId !== null && !authoringLocked && bezierModel ? bezierVisiblePoints.map(({ point, index }) => <button
+        key={`bezier-point-${index}`} type="button"
+        className={`visual-editor-canvas__bezier-point${bezierModel.anchorIndexes.includes(index) ? ' is-anchor' : ' is-handle'}${bezierModel.anchorIndexes.includes(index) && selectedBezierAnchor?.objectId === objectId && bezierModel.anchorIndexes[selectedBezierAnchor.ordinal] === index ? ' is-selected' : ''}${interaction?.kind === 'bezier-point' && interaction.objectId === objectId && interaction.pointIndex === index ? ' is-dragging' : ''}`}
+        style={{ left: `${point.x * geometry.width / 100}px`, top: `${point.y * geometry.height / 100}px` }}
+        aria-label={`Bezier ${bezierModel.anchorIndexes.includes(index) ? 'anchor' : 'handle'} ${index + 1}`} data-bezier-point-index={index} data-bezier-point-kind={bezierModel.anchorIndexes.includes(index) ? 'anchor' : 'handle'}
+        onPointerDown={event => beginBezierPoint(event, projection, index, bezierModel.points)}
+      />) : null}
 
       {projection.children.map(child => renderProjection(child, childAncestorMoving))}
     </div>;
@@ -407,34 +589,76 @@ export function VisualEditorCanvas({
   const draftPreviewPoints = polygonToolActive && polygonHoverPoint
     ? [...polygonDraftPoints, polygonHoverPoint]
     : polygonDraftPoints;
+  const bezierPreviewPoints = bezierToolActive && bezierHoverPoint
+    ? [...bezierDraftPoints, bezierHoverPoint]
+    : bezierDraftPoints;
+  const bezierDraft = bezierPreviewPoints.length >= 3 ? createClosedBezierGeometry(bezierPreviewPoints) : null;
 
-  return <section className={`visual-editor-canvas${polygonToolActive ? ' is-polygon-tool' : ''}`} data-testid="visual-editor-canvas">
-    <div className="visual-editor-canvas__toolbar" role="toolbar" aria-label="Canvas controls">
-      <button type="button" onClick={() => onUiIntent({ kind: 'viewport.change', viewport: zoomViewport(viewport, 1 / 1.2) })} aria-label="Zoom out">−</button>
-      <button type="button" onClick={() => onUiIntent({ kind: 'viewport.change', viewport: { zoom: 1, panX: 0, panY: 0 } })} aria-label="Reset viewport">100%</button>
-      <button type="button" onClick={() => onUiIntent({ kind: 'viewport.change', viewport: zoomViewport(viewport, 1.2) })} aria-label="Zoom in">+</button>
-      <button type="button" aria-pressed={gridEnabled} onClick={() => setGridEnabled(value => !value)} data-testid="canvas-grid-toggle">Grid</button>
-      <button type="button" aria-pressed={snapEnabled} onClick={() => setSnapEnabled(value => !value)} data-testid="canvas-snap-toggle">Snap</button>
+  return <section className={`visual-editor-canvas${polygonToolActive ? ' is-polygon-tool' : ''}${bezierToolActive ? ' is-bezier-tool' : ''}`} data-testid="visual-editor-canvas" data-renderer="canonical-single-surface" data-identities-visible={identitiesVisible} data-model3d-view-editing={modelViewEditing}>
+    <div className="visual-editor-canvas__toolbar" role="toolbar" aria-label={canvasText.controls}>
+      <button type="button" title={canvasText.zoomOut} onClick={() => onUiIntent({ kind: 'viewport.change', viewport: zoomViewport(viewport, 1 / 1.2) })} aria-label={canvasText.zoomOut}>−</button>
+      <button type="button" title={canvasText.resetViewport} onClick={() => onUiIntent({ kind: 'viewport.change', viewport: { zoom: 1, panX: 0, panY: 0 } })} aria-label={canvasText.resetViewport}>1:1</button>
+      {logicalBoundary ? <button type="button" title={canvasText.fitScreen} onClick={fitToLogicalBoundary} aria-label={canvasText.fitScreen} data-testid="canvas-fit-screen">⛶</button> : null}
+      <button type="button" title={canvasText.zoomIn} onClick={() => onUiIntent({ kind: 'viewport.change', viewport: zoomViewport(viewport, 1.2) })} aria-label={canvasText.zoomIn}>+</button>
+      <button type="button" title={canvasText.grid} aria-label={canvasText.grid} aria-pressed={gridEnabled} onClick={() => setGridEnabled(value => !value)} data-testid="canvas-grid-toggle">#</button>
+      <button type="button" title={canvasText.snap} aria-label={canvasText.snap} aria-pressed={snapEnabled} onClick={() => setSnapEnabled(value => !value)} data-testid="canvas-snap-toggle">⊙</button>
+      {!polygonToolActive && !bezierToolActive && selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.model3d && !selectionAuthoringLocked ? <>
+        <button type="button" title={canvasText.modelViewHint} aria-label={canvasText.modelViewToggle}
+          aria-pressed={modelViewEditing} data-testid="canvas-model3d-view-toggle"
+          onClick={() => { setInteraction(null); setModelViewObjectId(modelViewEditing ? null : selectedProjection.objectId); }}
+        >{canvasText.modelViewToggle}</button>
+        {modelViewEditing ? <span className="visual-editor-canvas__model-view-help" data-testid="canvas-model3d-view-status">{canvasText.modelViewHint}</span> : null}
+      </> : null}
       {polygonToolActive ? <>
-        <span className="visual-editor-canvas__polygon-status">Polygon · {polygonDraftPoints.length} points</span>
-        <button type="button" disabled={polygonDraftPoints.length < 3} onClick={finishPolygon} data-testid="polygon-finish">Finish polygon</button>
-        <button type="button" onClick={cancelPolygon}>Cancel polygon</button>
+        <span className="visual-editor-canvas__polygon-status">{canvasText.polygon} · {polygonDraftPoints.length}</span>
+        <button type="button" title={canvasText.finishPolygon} aria-label={canvasText.finishPolygon} disabled={polygonDraftPoints.length < 3} onClick={finishPolygon} data-testid="polygon-finish">✓</button>
+        <button type="button" title={canvasText.cancelPolygon} aria-label={canvasText.cancelPolygon} onClick={cancelPolygon}>×</button>
       </> : null}
-      {!polygonToolActive && selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon ? <>
-        <button type="button" onClick={addPolygonVertex}>+ Vertex</button>
-        <button type="button" disabled={!selectedVertex || selectedPolygonPoints.length <= 3} onClick={removePolygonVertex}>− Vertex</button>
+      {bezierToolActive ? <>
+        <span className="visual-editor-canvas__polygon-status">{canvasText.bezier} · {bezierDraftPoints.length}</span>
+        <button type="button" title={canvasText.finishBezier} aria-label={canvasText.finishBezier} disabled={bezierDraftPoints.length < 3} onClick={finishBezier} data-testid="bezier-finish">✓</button>
+        <button type="button" title={canvasText.cancelBezier} aria-label={canvasText.cancelBezier} onClick={cancelBezier}>{canvasText.cancelShort}</button>
       </> : null}
+      {!polygonToolActive && !bezierToolActive && selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon ? <>
+        <button type="button" title={canvasText.addVertex} aria-label={canvasText.addVertex} onClick={addPolygonVertex}>◇+</button>
+        <button type="button" title={canvasText.removeVertex} aria-label={canvasText.removeVertex} disabled={!selectedVertex || selectedPolygonPoints.length <= 3} onClick={removePolygonVertex}>◇−</button>
+      </> : null}
+      {!polygonToolActive && !bezierToolActive && selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.bezier ? <>
+        <button type="button" title={canvasText.addBezierAnchor} aria-label={canvasText.addBezierAnchor} onClick={() => updateSelectedBezier('insert')} data-testid="bezier-anchor-add">⌒+</button>
+        <button type="button" title={canvasText.removeBezierAnchor} aria-label={canvasText.removeBezierAnchor} disabled={selectedBezierAnchor?.objectId !== selectedProjection.objectId || removeBezierAnchor(String(selectedProjection.element.properties?.[VISUAL_PROPERTY_KEYS.bezierPath] ?? ''), selectedBezierAnchor?.ordinal) === null} onClick={() => updateSelectedBezier('remove')} data-testid="bezier-anchor-remove">⌒−</button>
+      </> : null}
+      <button type="button" title={canvasText.identities} aria-label={canvasText.identities} aria-pressed={identitiesVisible} onClick={() => setIdentitiesVisible(value => !value)} data-testid="canvas-identities-toggle">ID</button>
+      {toolbarContent}
       <span className="visual-editor-canvas__toolbar-spacer" />
-      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.duplicate', objectIds: selection })}>Duplicate</button>
-      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.delete', objectIds: selection })}>Delete</button>
-      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'sendToBack' })} aria-label="Send to back">⇤</button>
-      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'sendBackward' })} aria-label="Send backward">←</button>
-      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'bringForward' })} aria-label="Bring forward">→</button>
-      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'bringToFront' })} aria-label="Bring to front">⇥</button>
+      <button type="button" title={canvasText.duplicate} aria-label={canvasText.duplicate} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.duplicate', objectIds: selection })}>⧉</button>
+      <button type="button" title={canvasText.deleteSelection} aria-label={canvasText.deleteSelection} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.delete', objectIds: selection })}>⌫</button>
+      <button type="button" title={canvasText.sendToBack} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'sendToBack' })} aria-label={canvasText.sendToBack}>⇤</button>
+      <button type="button" title={canvasText.sendBackward} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'sendBackward' })} aria-label={canvasText.sendBackward}>←</button>
+      <button type="button" title={canvasText.bringForward} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'bringForward' })} aria-label={canvasText.bringForward}>→</button>
+      <button type="button" title={canvasText.bringToFront} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'bringToFront' })} aria-label={canvasText.bringToFront}>⇥</button>
     </div>
 
-    <div ref={surfaceRef} className={`visual-editor-canvas__surface${gridEnabled ? ' has-grid' : ''}`} style={surfaceStyle} tabIndex={0} role="application" aria-label={`Visual editor canvas for ${screen.name}`} onPointerDown={handleSurfacePointerDown} onPointerMove={handlePointerMove} onPointerUp={finishInteraction} onPointerCancel={() => setInteraction(null)} onDoubleClick={() => { if (polygonToolActive && polygonDraftPoints.length >= 3) finishPolygon(); }} onWheel={handleWheel} onKeyDown={handleKeyDown}>
+    <div ref={surfaceRef} className="visual-editor-canvas__surface" tabIndex={0} role="application" aria-label={`Visual editor canvas for ${screen.name}`} onPointerDown={handleSurfacePointerDown} onPointerMove={handlePointerMove} onPointerUp={finishInteraction} onPointerCancel={() => setInteraction(null)} onDoubleClick={() => { if (polygonToolActive && polygonDraftPoints.length >= 3) finishPolygon(); else if (bezierToolActive && bezierDraftPoints.length >= 3) finishBezier(); }} onWheel={handleWheel} onKeyDown={handleKeyDown}>
       <div className="visual-editor-canvas__viewport" style={viewportStyle}>
+        <div
+          className={`visual-editor-canvas__canonical-layer${logicalBoundary ? ' is-bounded' : ''}${gridEnabled ? ' has-grid' : ''}`}
+          style={canonicalLayerStyle}
+          aria-hidden="true"
+          inert
+          data-testid="visual-editor-canonical-layer"
+        >
+          <CanonicalVisualRenderer
+            elements={renderedScreen.elements}
+            emptyLabel={emptyLabel ?? canvasText.empty}
+            locale={locale}
+            dynamoDefinitions={dynamoDefinitions}
+            equipmentDefinitions={equipmentDefinitions}
+            templateDefinitions={templateDefinitions}
+            showTechnicalFallbackText={identitiesVisible}
+            liveBindings={liveDataEnabled}
+            historicalQueriesEnabled={liveDataEnabled}
+          />
+        </div>
         {logicalBoundary ? <div
           className="visual-editor-canvas__logical-boundary"
           data-testid="visual-editor-logical-boundary"
@@ -442,21 +666,117 @@ export function VisualEditorCanvas({
           data-logical-height={logicalBoundary.height}
           style={{ width: logicalBoundary.width, height: logicalBoundary.height }}
         ><span>{logicalBoundary.label}</span></div> : null}
-        {projectedElements.map(projection => renderProjection(projection, false))}
+        <div className="visual-editor-canvas__interaction-layer">
+          {projectedElements.map(projection => renderProjection(projection, false))}
+        </div>
         {polygonToolActive && draftPreviewPoints.length > 0 ? <svg className="visual-editor-canvas__polygon-draft" width={CANVAS_CONTENT_WIDTH} height={CANVAS_CONTENT_HEIGHT} aria-hidden="true">
           <polyline points={polygonPointsAttribute(draftPreviewPoints)} />
           {polygonDraftPoints.map((point, index) => <circle key={index} cx={point.x} cy={point.y} r={4} />)}
         </svg> : null}
+        {bezierToolActive && bezierPreviewPoints.length > 0 ? <svg className="visual-editor-canvas__bezier-draft" data-testid="bezier-draft-preview" width={CANVAS_CONTENT_WIDTH} height={CANVAS_CONTENT_HEIGHT} aria-hidden="true">
+          {bezierDraft
+            ? <g transform={`translate(${bezierDraft.x} ${bezierDraft.y}) scale(${bezierDraft.width / 100} ${bezierDraft.height / 100})`}><path d={bezierDraft.path}/></g>
+            : <polyline points={polygonPointsAttribute(bezierPreviewPoints)} />}
+          {bezierDraftPoints.map((point, index) => <circle key={index} cx={point.x} cy={point.y} r={4}/>)}</svg> : null}
       </div>
     </div>
 
     <footer className="visual-editor-canvas__status" aria-live="polite">
-      <span>{Math.round(effectiveViewport.zoom * 100)}%</span><span>{selection.length} selected</span>{interaction?.kind ? <span>{interaction.kind}</span> : null}{polygonToolActive ? <span>polygon drawing</span> : null}
+      <span>{Math.round(effectiveViewport.zoom * 100)}%</span><span>{selection.length} {canvasText.selected}</span>{interaction?.kind ? <span>{interaction.kind}</span> : null}{polygonToolActive ? <span>{canvasText.polygonDrawing}</span> : null}{bezierToolActive ? <span>{canvasText.bezierDrawing}</span> : null}
     </footer>
   </section>;
 }
 
+function projectTransientInteraction(
+  screen: VisualEditorCanvasContractProps['screen'],
+  interaction: CanvasInteraction
+): VisualEditorCanvasContractProps['screen'] {
+  if (!interaction || interaction.kind === 'pan') return screen;
+  try {
+    switch (interaction.kind) {
+      case 'move':
+        if (!interaction.objectIds.length || !hasMeaningfulDelta(interaction.delta)) return screen;
+        return applyVisualEditorMutationIntent(screen, {
+          kind: 'object.move',
+          objectIds: interaction.objectIds,
+          delta: interaction.delta
+        });
+      case 'resize':
+        if (sameBounds(interaction.startBounds, interaction.bounds)) return screen;
+        return applyVisualEditorMutationIntent(screen, {
+          kind: 'object.resize',
+          objectId: interaction.objectId,
+          bounds: interaction.bounds
+        });
+      case 'rotate':
+        if (!interaction.objectIds.length || Math.abs(interaction.deltaDegrees) <= Number.EPSILON) return screen;
+        return applyVisualEditorMutationIntent(screen, {
+          kind: 'object.rotate',
+          objectIds: interaction.objectIds,
+          deltaDegrees: interaction.deltaDegrees
+        });
+      case 'model-view': {
+        let draft = screen;
+        if (interaction.yaw !== interaction.startYaw) draft = applyVisualEditorMutationIntent(draft, {
+          kind: 'property.set', objectIds: [interaction.objectId], propertyKey: VISUAL_PROPERTY_KEYS.viewYawDeg, value: interaction.yaw
+        });
+        if (interaction.pitch !== interaction.startPitch) draft = applyVisualEditorMutationIntent(draft, {
+          kind: 'property.set', objectIds: [interaction.objectId], propertyKey: VISUAL_PROPERTY_KEYS.viewPitchDeg, value: interaction.pitch
+        });
+        return draft;
+      }
+      case 'polygon-vertex':
+        if (pointsEqual(interaction.startPoints, interaction.points)) return screen;
+        return updateCanonicalPolygonPoints(screen, interaction.objectId, interaction.points);
+      case 'bezier-point': {
+        const model = readEditableBezierPath(interaction.startPath);
+        const path = model && writeBezierPathPoint(model, interaction.pointIndex, interaction.point);
+        if (!path) return screen;
+        return applyVisualEditorMutationIntent(screen, {
+          kind: 'property.set', objectIds: [interaction.objectId], propertyKey: VISUAL_PROPERTY_KEYS.bezierPath, value: path
+        });
+      }
+    }
+  } catch {
+    return screen;
+  }
+}
+
+function canvasControlText(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    controls: 'Canvas controls', zoomOut: 'Zoom out', resetViewport: 'Reset viewport', fitScreen: 'Fit screen to visible area', zoomIn: 'Zoom in', identities: 'Show object identities',
+    grid: 'Grid', snap: 'Snap', modelViewToggle: 'Adjust 3D view', modelViewHint: 'Drag with the left mouse button to orbit; press Escape or the button to leave view mode.', polygon: 'Polygon points', finishPolygon: 'Finish polygon', cancelPolygon: 'Cancel polygon',
+    bezier: 'Bezier anchors', finishBezier: 'Close and finish Bezier curve', cancelBezier: 'Cancel Bezier curve', cancelShort: '×',
+    addVertex: 'Add polygon vertex', removeVertex: 'Remove polygon vertex', duplicate: 'Duplicate selection',
+    addBezierAnchor: 'Split the segment after the selected Bezier anchor', removeBezierAnchor: 'Remove the selected Bezier anchor',
+    deleteSelection: 'Delete selection', sendToBack: 'Send to back', sendBackward: 'Send backward',
+    bringForward: 'Bring forward', bringToFront: 'Bring to front', selected: 'selected',
+    polygonDrawing: 'polygon drawing', bezierDrawing: 'Bezier drawing: click anchors; close at the first point or press Enter', empty: 'This visual surface has no objects yet.'
+  };
+  if (locale === 'es') return {
+    controls: 'Controles del canvas', zoomOut: 'Alejar', resetViewport: 'Restablecer vista', fitScreen: 'Ajustar pantalla al área visible', zoomIn: 'Acercar', identities: 'Mostrar identidades de objetos',
+    grid: 'Cuadrícula', snap: 'Ajuste', modelViewToggle: 'Ajustar vista 3D', modelViewHint: 'Arrastre con el botón izquierdo para girar; Escape o el botón sale del modo.', polygon: 'Puntos del polígono', finishPolygon: 'Finalizar polígono', cancelPolygon: 'Cancelar polígono',
+    bezier: 'Puntos Bézier', finishBezier: 'Cerrar y finalizar curva Bézier', cancelBezier: 'Cancelar curva Bézier', cancelShort: '×',
+    addVertex: 'Agregar vértice', removeVertex: 'Eliminar vértice', duplicate: 'Duplicar selección',
+    addBezierAnchor: 'Dividir el segmento después del punto Bézier seleccionado', removeBezierAnchor: 'Eliminar el punto Bézier seleccionado',
+    deleteSelection: 'Eliminar selección', sendToBack: 'Enviar al fondo', sendBackward: 'Enviar atrás',
+    bringForward: 'Traer adelante', bringToFront: 'Traer al frente', selected: 'seleccionados',
+    polygonDrawing: 'dibujando polígono', bezierDrawing: 'Dibujando Bézier: haga clic; cierre en el primer punto o pulse Enter', empty: 'Esta superficie visual todavía no tiene objetos.'
+  };
+  return {
+    controls: 'Controles do canvas', zoomOut: 'Reduzir zoom', resetViewport: 'Restaurar visualização', fitScreen: 'Ajustar tela à área visível', zoomIn: 'Aumentar zoom', identities: 'Mostrar identificadores dos objetos',
+    grid: 'Grade', snap: 'Ajuste à grade', modelViewToggle: 'Ajustar vista 3D', modelViewHint: 'Arraste com o botão esquerdo para girar; Escape ou o botão sai do modo.', polygon: 'Pontos do polígono', finishPolygon: 'Finalizar polígono', cancelPolygon: 'Cancelar polígono',
+    bezier: 'Pontos da Bézier', finishBezier: 'Fechar e finalizar curva Bézier', cancelBezier: 'Cancelar curva Bézier', cancelShort: '×',
+    addVertex: 'Adicionar vértice', removeVertex: 'Remover vértice', duplicate: 'Duplicar seleção',
+    addBezierAnchor: 'Dividir o segmento após o ponto Bézier selecionado', removeBezierAnchor: 'Remover o ponto Bézier selecionado',
+    deleteSelection: 'Excluir seleção', sendToBack: 'Enviar para trás', sendBackward: 'Recuar uma camada',
+    bringForward: 'Avançar uma camada', bringToFront: 'Trazer para frente', selected: 'selecionados',
+    polygonDrawing: 'desenhando polígono', bezierDrawing: 'Desenhando Bézier: clique nos pontos; feche no primeiro ou pressione Enter', empty: 'Esta superfície visual ainda não possui objetos.'
+  };
+}
+
 function pointFromPointer(event: ReactPointerEvent<HTMLElement>): VisualEditorPoint { return Object.freeze({ x: event.clientX, y: event.clientY }); }
+function distanceBetween(left: VisualEditorPoint, right: VisualEditorPoint): number { return Math.hypot(left.x - right.x, left.y - right.y); }
 function clientPointToCanvas(event: ReactPointerEvent<HTMLElement>, viewport: VisualEditorViewport, surface: HTMLElement | null): VisualEditorPoint {
   const normalized = normalizeViewport(viewport);
   const rect = surface?.getBoundingClientRect();

@@ -428,7 +428,7 @@ public sealed class Iec104CommunicationRuntimePlanner : ICommunicationDriverRunt
             metadata,
             access,
             dto.AddressSelector,
-            dto.CommunicationBinding);
+            dto.CommunicationBinding, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static bool TryTypeId(

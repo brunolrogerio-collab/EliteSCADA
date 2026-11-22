@@ -22,7 +22,8 @@ public sealed record VisualAssetPayload(
 }
 
 public sealed record EngineeringImportContext(
-    IReadOnlyDictionary<string, VisualAssetPayload>? VisualAssetPayloads = null)
+    IReadOnlyDictionary<string, VisualAssetPayload>? VisualAssetPayloads = null,
+    bool PreserveActivatedIntelligenceScopes = false)
 {
     public static EngineeringImportContext Empty { get; } = new();
 

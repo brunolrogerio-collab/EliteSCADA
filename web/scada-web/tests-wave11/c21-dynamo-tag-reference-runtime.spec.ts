@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
+import { admitInteractiveRuntimeSession, terminateRuntimeSession } from '../tests-e2e/runtimeSessionLease';
 import { normalizeDynamoParameterValue } from '../src/runtime/visual-navigation/dynamoParameterWireContract';
 import { expandRuntimeDynamoVisuals } from '../src/runtime/visual-navigation/runtimeDynamoVisualProjection';
 import { runtimeDynamoElementIdentity } from '../src/runtime/visual-navigation/runtimeVisualNavigationModel';
@@ -141,8 +142,10 @@ test('C21 Active lifecycle subscribes and renders two TagReference instances ind
     await expect(page.getByTestId('runtime-engineering-application'))
       .toHaveAttribute('data-runtime-revision', String(saved.revision));
     const canvas = page.getByTestId('runtime-engineering-canvas');
-    const childA = canvas.locator(`[data-object-id="${runtimeDynamoElementIdentity(instanceAId, childId)}"]`);
-    const childB = canvas.locator(`[data-object-id="${runtimeDynamoElementIdentity(instanceBId, childId)}"]`);
+    // Dynamo children keep the definition element ID in data-object-id;
+    // the instance-qualified identity is exposed as data-runtime-object-id.
+    const childA = canvas.locator(`[data-runtime-object-id="${runtimeDynamoElementIdentity(instanceAId, childId)}"]`);
+    const childB = canvas.locator(`[data-runtime-object-id="${runtimeDynamoElementIdentity(instanceBId, childId)}"]`);
     await expect(childA).toBeVisible();
     await expect(childB).toBeHidden();
 
@@ -181,6 +184,11 @@ async function savePublishActivate(request: APIRequestContext, projectName: stri
 }
 
 async function writeTag(request: APIRequestContext, tagId: string, value: boolean) {
-  const response = await request.post(`/api/tags/${encodeURIComponent(tagId)}/write`, { data: { value } });
-  expect(response.status(), `TAG write HTTP ${response.status()}: ${await response.text()}`).toBe(202);
+  const leaseHeaders = await admitInteractiveRuntimeSession(request);
+  try {
+    const response = await request.post(`/api/tags/${encodeURIComponent(tagId)}/write`, { data: { value }, headers: leaseHeaders });
+    expect(response.status(), `TAG write HTTP ${response.status()}: ${await response.text()}`).toBe(202);
+  } finally {
+    await terminateRuntimeSession(request, leaseHeaders);
+  }
 }

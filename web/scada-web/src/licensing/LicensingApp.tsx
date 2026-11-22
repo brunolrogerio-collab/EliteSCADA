@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  displayLicenseSchema,
+  displaySignedHaEntitlement,
+  displaySignedIntelligenceEntitlement,
+  displaySignedSeatTotal
+} from './licensingEntitlementPresentation';
 import './licensing.css';
+import { OnlineLicenseActivation } from './OnlineLicenseActivation';
 
 type Locale = 'pt-BR' | 'en' | 'es';
 
@@ -9,6 +16,11 @@ type LicenseStatus = {
   maximumTags?: number | null;
   demoMaximumContinuousMinutes?: number | null;
   licenseId?: string | null;
+  schemaVersion?: number | null;
+  viewOnlySeats?: number | null;
+  interactiveSeats?: number | null;
+  haRuntime?: boolean | null;
+  assetProcessIntelligence?: boolean | null;
   issuedAtUtc?: string | null;
   notAfterUtc?: string | null;
   keyId?: string | null;
@@ -29,7 +41,28 @@ type RuntimeEntitlementStatus = {
 type StatusResponse = {
   license: LicenseStatus;
   runtime: RuntimeEntitlementStatus;
+  usage?: { tags: number; interactive: number; viewOnly: number; observedAtUtc: string } | null;
+  sessionLimits?: { interactiveSeats: number; viewOnlySeats: number } | null;
+  onlineDevice?: OnlineLicenseDeviceStatus;
 };
+
+type OnlineLicenseDeviceStatus = {
+  configured: boolean;
+  available: boolean;
+  hasActivation: boolean;
+  leasePresent: boolean;
+  issuedAtUtc?: string | null;
+  notAfterUtc?: string | null;
+  renewalDueUtc?: string | null;
+  requestPending: boolean;
+  clockRollbackDetected: boolean;
+  isReset: boolean;
+  reauthenticationRequired: boolean;
+  installationPending?: boolean;
+  confirmationPending?: boolean;
+};
+
+type OnlineConnectivity = 'checking' | 'reachable' | 'unreachable' | 'not-configured' | 'unverified';
 
 type RequestResponse = {
   schemaVersion: number;
@@ -43,29 +76,68 @@ const localeKey = 'elitescada.engineering.locale';
 const messages = {
   'pt-BR': {
     title: 'Licenciamento', subtitle: 'Estado da licença, modo Demo e ativação desta máquina.',
-    refresh: 'Atualizar', license: 'Licença', runtime: 'Runtime', state: 'Estado', tier: 'Faixa', tags: 'Limite de TAGs',
-    licenseId: 'ID da licença', expires: 'Validade', diagnostic: 'Diagnóstico', demoRemaining: 'Demo restante',
-    unlimited: 'Ilimitado', none: 'Não informado', machineRequest: 'Solicitação da máquina', requestHelp: 'Copie este código e envie para a autoridade de licenciamento EliteSCADA. Identificadores brutos de hardware não são exibidos.',
+    refresh: 'Atualizar', license: 'Licença', runtime: 'Runtime', state: 'Estado', tier: 'Faixa', tags: 'Limite de TAGs', usage: 'Em uso', unavailable: 'Indisponível',
+    licenseId: 'ID da licença', schema: 'Esquema da licença', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime View Only', haRuntime: 'Redundância / HA Runtime', assetProcessIntelligence: 'Asset & Process Intelligence',
+    expires: 'Validade', diagnostic: 'Diagnóstico', demoDuration: 'Duração do Demo', noTimeLimit: 'Sem limite de tempo',
+    unlimited: 'Ilimitado', none: 'Não informado', legacy: 'legado', legacyNotSpecified: 'Não especificado pela ESLIC1', yes: 'Licenciado', no: 'Não licenciado', machineRequest: 'Solicitação da máquina', requestHelp: 'Copie este código e envie para a autoridade de licenciamento SCADIVO. Identificadores brutos de hardware não são exibidos.',
     copy: 'Copiar código', copied: 'Código da máquina copiado.', install: 'Instalar licença', licenseCode: 'Código de licença assinado',
     validateInstall: 'Validar e instalar', remove: 'Remover licença', installed: 'Licença validada e instalada.', removed: 'Licença removida. As próximas ativações usarão o modo Demo.',
+    onlineTitle: 'Licença online', onlineInfo: 'Resumo local para acompanhamento. Um lease armazenado não concede autorização ao Runtime.',
+    onlineConnection: 'Conexão com o servidor', onlineConnectionChecking: 'Verificando…',
+    onlineConnectionReachable: 'Conectado', onlineConnectionUnreachable: 'Sem conexão. Verifique internet, firewall ou proxy.',
+    onlineConnectionNotConfigured: 'Não verificado: serviço não configurado nesta instalação', onlineConnectionUnverified: 'Não verificado nesta sessão.',
+    onlineConnectionHelp: '“Conectado” confirma apenas que o serviço respondeu; não confirma licença ativa, credenciais válidas ou aceitação de uma ativação.',
+    onlineConnectionRetry: 'Verificar novamente',
+    onlineConfiguration: 'Configuração', onlineConfigured: 'Configurada', onlineNotConfigured: 'Não configurada', onlineState: 'Estado',
+    onlineUnavailable: 'Não foi possível ler o estado online.', onlineNoActivation: 'Nenhuma ativação salva', onlineActivationStored: 'Vínculo salvo',
+    onlineReset: 'Vínculo removido', onlinePending: 'Solicitação pendente', onlineLease: 'Lease armazenado', onlineIssued: 'Emitido em',
+    onlineExpiry: 'Validade do lease', onlineRenewal: 'Renovação prevista', onlineClockRollback: 'Retrocesso do relógio detectado',
+    onlineReauthentication: 'Reautenticação necessária', yesShort: 'Sim', noShort: 'Não',
+    onlineResetAction: 'Remover vínculo local', onlineResetConfirm: 'Remover a licença online desta instalação? A vaga continuará ocupada no Portal até ser liberada lá.', onlineResetDone: 'Vínculo local removido. A vaga continua registrada no Portal.',
     loading: 'Carregando…', loadError: 'Não foi possível carregar o estado de licenciamento.', installError: 'Não foi possível instalar a licença.', removeConfirm: 'Remover a licença instalada desta máquina?'
   },
   en: {
     title: 'Licensing', subtitle: 'License state, Demo mode and activation for this machine.',
-    refresh: 'Refresh', license: 'License', runtime: 'Runtime', state: 'State', tier: 'Tier', tags: 'TAG limit',
-    licenseId: 'License ID', expires: 'Expiry', diagnostic: 'Diagnostic', demoRemaining: 'Demo remaining',
-    unlimited: 'Unlimited', none: 'Not provided', machineRequest: 'Machine request', requestHelp: 'Copy this code and send it to the EliteSCADA licensing authority. Raw hardware identifiers are not exposed.',
+    refresh: 'Refresh', license: 'License', runtime: 'Runtime', state: 'State', tier: 'Tier', tags: 'TAG limit', usage: 'In use', unavailable: 'Unavailable',
+    licenseId: 'License ID', schema: 'License schema', interactiveTotal: 'Interactive Runtime clients', viewOnlyTotal: 'View Only Runtime clients', haRuntime: 'Runtime redundancy / HA', assetProcessIntelligence: 'Asset & Process Intelligence',
+    expires: 'Expiry', diagnostic: 'Diagnostic', demoDuration: 'Demo duration', noTimeLimit: 'No time limit',
+    unlimited: 'Unlimited', none: 'Not provided', legacy: 'legacy', legacyNotSpecified: 'Not specified by ESLIC1', yes: 'Licensed', no: 'Not licensed', machineRequest: 'Machine request', requestHelp: 'Copy this code and send it to the SCADIVO licensing authority. Raw hardware identifiers are not exposed.',
     copy: 'Copy request', copied: 'Machine request copied.', install: 'Install license', licenseCode: 'Signed license code',
     validateInstall: 'Validate and install', remove: 'Remove license', installed: 'License validated and installed.', removed: 'License removed. Future activations will use Demo mode.',
+    onlineTitle: 'Online license', onlineInfo: 'Local summary for reference. A stored lease does not grant Runtime authorization.',
+    onlineConnection: 'Server connection', onlineConnectionChecking: 'Checking…',
+    onlineConnectionReachable: 'Connected', onlineConnectionUnreachable: 'No connection. Check internet, firewall or proxy.',
+    onlineConnectionNotConfigured: 'Not verified: service is not configured in this installation', onlineConnectionUnverified: 'Not verified in this session.',
+    onlineConnectionHelp: '“Connected” only confirms that the service responded; it does not confirm an active license, valid credentials or an accepted activation.',
+    onlineConnectionRetry: 'Check again',
+    onlineConfiguration: 'Configuration', onlineConfigured: 'Configured', onlineNotConfigured: 'Not configured', onlineState: 'State',
+    onlineUnavailable: 'Online status could not be read.', onlineNoActivation: 'No activation saved', onlineActivationStored: 'Binding saved',
+    onlineReset: 'Binding removed', onlinePending: 'Request pending', onlineLease: 'Stored lease', onlineIssued: 'Issued',
+    onlineExpiry: 'Lease expiry', onlineRenewal: 'Renewal due', onlineClockRollback: 'Clock rollback detected',
+    onlineReauthentication: 'Reauthentication required', yesShort: 'Yes', noShort: 'No',
+    onlineResetAction: 'Remove local binding', onlineResetConfirm: 'Remove the online license from this installation? The activation will remain occupied in the Portal until released there.', onlineResetDone: 'Local binding removed. The activation remains registered in the Portal.',
     loading: 'Loading…', loadError: 'Licensing status could not be loaded.', installError: 'License could not be installed.', removeConfirm: 'Remove the installed license from this machine?'
   },
   es: {
     title: 'Licenciamiento', subtitle: 'Estado de licencia, modo Demo y activación de esta máquina.',
-    refresh: 'Actualizar', license: 'Licencia', runtime: 'Runtime', state: 'Estado', tier: 'Nivel', tags: 'Límite de TAGs',
-    licenseId: 'ID de licencia', expires: 'Validez', diagnostic: 'Diagnóstico', demoRemaining: 'Demo restante',
-    unlimited: 'Ilimitado', none: 'No informado', machineRequest: 'Solicitud de la máquina', requestHelp: 'Copie este código y envíelo a la autoridad de licenciamiento EliteSCADA. No se muestran identificadores brutos de hardware.',
+    refresh: 'Actualizar', license: 'Licencia', runtime: 'Runtime', state: 'Estado', tier: 'Nivel', tags: 'Límite de TAGs', usage: 'En uso', unavailable: 'No disponible',
+    licenseId: 'ID de licencia', schema: 'Esquema de licencia', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime Solo visualización', haRuntime: 'Redundancia / HA Runtime', assetProcessIntelligence: 'Asset & Process Intelligence',
+    expires: 'Validez', diagnostic: 'Diagnóstico', demoDuration: 'Duración de Demo', noTimeLimit: 'Sin límite de tiempo',
+    unlimited: 'Ilimitado', none: 'No informado', legacy: 'legado', legacyNotSpecified: 'No especificado por ESLIC1', yes: 'Licenciado', no: 'No licenciado', machineRequest: 'Solicitud de la máquina', requestHelp: 'Copie este código y envíelo a la autoridad de licenciamiento SCADIVO. No se muestran identificadores brutos de hardware.',
     copy: 'Copiar código', copied: 'Código de máquina copiado.', install: 'Instalar licencia', licenseCode: 'Código de licencia firmado',
     validateInstall: 'Validar e instalar', remove: 'Eliminar licencia', installed: 'Licencia validada e instalada.', removed: 'Licencia eliminada. Las próximas activaciones usarán el modo Demo.',
+    onlineTitle: 'Licencia online', onlineInfo: 'Resumen local para consulta. Un lease almacenado no concede autorización al Runtime.',
+    onlineConnection: 'Conexión con el servidor', onlineConnectionChecking: 'Verificando…',
+    onlineConnectionReachable: 'Conectado', onlineConnectionUnreachable: 'Sin conexión. Revise internet, firewall o proxy.',
+    onlineConnectionNotConfigured: 'No verificado: servicio no configurado en esta instalación', onlineConnectionUnverified: 'No verificado en esta sesión.',
+    onlineConnectionHelp: '“Conectado” solo confirma que el servicio respondió; no confirma una licencia activa, credenciales válidas ni la aceptación de una activación.',
+    onlineConnectionRetry: 'Verificar de nuevo',
+    onlineConfiguration: 'Configuración', onlineConfigured: 'Configurada', onlineNotConfigured: 'No configurada', onlineState: 'Estado',
+    onlineUnavailable: 'No fue posible leer el estado online.', onlineNoActivation: 'No hay activación guardada', onlineActivationStored: 'Vínculo guardado',
+    onlineReset: 'Vínculo eliminado', onlinePending: 'Solicitud pendiente', onlineLease: 'Lease almacenado', onlineIssued: 'Emitido',
+    onlineExpiry: 'Validez del lease', onlineRenewal: 'Renovación prevista', onlineClockRollback: 'Se detectó un retroceso del reloj',
+    onlineReauthentication: 'Se requiere reautenticación', yesShort: 'Sí', noShort: 'No',
+    onlineResetAction: 'Eliminar vínculo local', onlineResetConfirm: '¿Eliminar la licencia online de esta instalación? La activación seguirá ocupada en el Portal hasta liberarla allí.', onlineResetDone: 'Vínculo local eliminado. La activación continúa registrada en el Portal.',
     loading: 'Cargando…', loadError: 'No fue posible cargar el estado de licenciamiento.', installError: 'No fue posible instalar la licencia.', removeConfirm: '¿Eliminar la licencia instalada de esta máquina?'
   }
 } as const;
@@ -98,6 +170,29 @@ function displayDate(value: string | null | undefined, none: string) {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
 }
 
+function describeOnlineState(status: OnlineLicenseDeviceStatus, t: typeof messages[Locale]) {
+  if (!status.configured) return t.onlineNotConfigured;
+  if (!status.available) return t.onlineUnavailable;
+  if (status.isReset) return t.onlineReset;
+  if (status.requestPending) return t.onlinePending;
+  if (!status.hasActivation) return t.onlineNoActivation;
+  return t.onlineActivationStored;
+}
+
+function parseOnlineConnectivity(value: unknown): OnlineConnectivity {
+  if (!value || typeof value !== 'object' || !('state' in value)) return 'unverified';
+  const state = (value as { state?: unknown }).state;
+  return state === 'reachable' || state === 'unreachable' || state === 'not-configured' ? state : 'unverified';
+}
+
+function describeOnlineConnectivity(state: OnlineConnectivity, t: typeof messages[Locale]) {
+  if (state === 'checking') return t.onlineConnectionChecking;
+  if (state === 'reachable') return t.onlineConnectionReachable;
+  if (state === 'unreachable') return t.onlineConnectionUnreachable;
+  if (state === 'not-configured') return t.onlineConnectionNotConfigured;
+  return t.onlineConnectionUnverified;
+}
+
 export function LicensingApp() {
   const locale = useMemo(resolveLocale, []);
   const t = messages[locale];
@@ -105,18 +200,37 @@ export function LicensingApp() {
   const [request, setRequest] = useState<RequestResponse | null>(null);
   const [licenseCode, setLicenseCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [onlineConnectivity, setOnlineConnectivity] = useState<OnlineConnectivity>('checking');
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     setError('');
-    const [statusResponse, requestResponse] = await Promise.all([
+    setOnlineConnectivity('checking');
+    const [statusResponse, requestResponse, connectivityResponse] = await Promise.all([
       fetch(`${API}/api/licensing/status`, { headers: { accept: 'application/json' } }),
-      fetch(`${API}/api/licensing/request`, { headers: { accept: 'application/json' } })
+      fetch(`${API}/api/licensing/request`, { headers: { accept: 'application/json' } }),
+      fetch(`${API}/api/licensing/online/connectivity`, { headers: { accept: 'application/json' }, cache: 'no-store' })
+        .then(async response => response.ok ? await response.json() as unknown : null)
+        .catch(() => null)
     ]);
     setStatus(await readJson<StatusResponse>(statusResponse));
     setRequest(await readJson<RequestResponse>(requestResponse));
+    setOnlineConnectivity(parseOnlineConnectivity(connectivityResponse));
   }, []);
+
+  const checkOnlineConnectivity = async () => {
+    setOnlineConnectivity('checking');
+    try {
+      const response = await fetch(`${API}/api/licensing/online/connectivity`, {
+        headers: { accept: 'application/json' }, cache: 'no-store'
+      });
+      const payload = response.ok ? await response.json() as unknown : null;
+      setOnlineConnectivity(parseOnlineConnectivity(payload));
+    } catch {
+      setOnlineConnectivity('unverified');
+    }
+  };
 
   useEffect(() => {
     void load().catch(() => setError(t.loadError));
@@ -171,10 +285,20 @@ export function LicensingApp() {
     }
   };
 
+  const resetOnline = async () => {
+    if (!window.confirm(t.onlineResetConfirm)) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await readJson(await fetch(`${API}/api/licensing/online/reset`, { method: 'POST', cache: 'no-store' }));
+      setNotice(t.onlineResetDone); await load();
+    } catch { setError(t.loadError); }
+    finally { setBusy(false); }
+  };
+
   return (
     <main className="shell licensing-page">
       <header className="licensing-heading">
-        <div><h1>{t.title}</h1><p>{t.subtitle}</p></div>
+        <div><h1>{t.title}</h1><details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{t.subtitle}</p></details></div>
         <button type="button" onClick={() => void load().catch(() => setError(t.loadError))} disabled={busy}>{t.refresh}</button>
       </header>
 
@@ -189,7 +313,15 @@ export function LicensingApp() {
             <dl>
               <dt>{t.state}</dt><dd><strong>{status.license.state}</strong></dd>
               <dt>{t.tier}</dt><dd>{status.license.tier ?? t.none}</dd>
-              <dt>{t.tags}</dt><dd>{displayTags(status.license.maximumTags, status.license.state, t.unlimited, t.none)}</dd>
+              <dt>{t.tags}</dt><dd data-testid="license-tags-total">{displayTags(status.license.maximumTags, status.license.state, t.unlimited, t.none)} <span data-testid="license-tags-usage">({t.usage}: {status.usage?.tags?.toLocaleString(locale) ?? t.unavailable})</span></dd>
+              {status.license.state === 'Demo' && <>
+                <dt>{t.demoDuration}</dt><dd data-testid="demo-duration">{status.license.demoMaximumContinuousMinutes === null ? t.noTimeLimit : t.none}</dd>
+              </>}
+              <dt>{t.schema}</dt><dd data-testid="license-schema">{displayLicenseSchema(status.license, t)}</dd>
+              <dt>{t.interactiveTotal}</dt><dd data-testid="license-interactive-total">{status.sessionLimits?.interactiveSeats?.toLocaleString(locale) ?? displaySignedSeatTotal(status.license.interactiveSeats, status.license, t)} <span data-testid="license-interactive-usage">({t.usage}: {status.usage?.interactive?.toLocaleString(locale) ?? t.unavailable})</span></dd>
+              <dt>{t.viewOnlyTotal}</dt><dd data-testid="license-view-only-total">{status.sessionLimits?.viewOnlySeats?.toLocaleString(locale) ?? displaySignedSeatTotal(status.license.viewOnlySeats, status.license, t)} <span data-testid="license-view-only-usage">({t.usage}: {status.usage?.viewOnly?.toLocaleString(locale) ?? t.unavailable})</span></dd>
+              <dt>{t.haRuntime}</dt><dd data-testid="license-ha-runtime">{displaySignedHaEntitlement(status.license.haRuntime, status.license, t)}</dd>
+              <dt>{t.assetProcessIntelligence}</dt><dd data-testid="license-asset-process-intelligence">{displaySignedIntelligenceEntitlement(status.license.assetProcessIntelligence, status.license, t)}</dd>
               <dt>{t.licenseId}</dt><dd className="licensing-mono">{status.license.licenseId ?? t.none}</dd>
               <dt>{t.expires}</dt><dd>{displayDate(status.license.notAfterUtc, t.none)}</dd>
               <dt>{t.diagnostic}</dt><dd>{status.license.diagnostic ?? t.none}</dd>
@@ -202,32 +334,67 @@ export function LicensingApp() {
               <dt>{t.state}</dt><dd><strong>{status.runtime.state}</strong></dd>
               <dt>{t.tier}</dt><dd>{status.runtime.activeTier ?? t.none}</dd>
               <dt>{t.tags}</dt><dd>{displayTags(status.runtime.maximumTags, status.runtime.activeLicenseState ?? '', t.unlimited, t.none)}</dd>
-              <dt>{t.demoRemaining}</dt><dd>{status.runtime.demoRemaining ?? t.none}</dd>
-              <dt>{t.expires}</dt><dd>{displayDate(status.runtime.demoExpiresAtUtc, t.none)}</dd>
+              {status.runtime.demoExpiresAtUtc && <>
+                <dt>{t.expires}</dt><dd>{displayDate(status.runtime.demoExpiresAtUtc, t.none)}</dd>
+              </>}
               <dt>{t.diagnostic}</dt><dd>{status.runtime.lastDiagnostic ?? t.none}</dd>
             </dl>
           </section>
 
-          <section className="licensing-card licensing-wide">
+          <section className="licensing-card licensing-machine-card" data-testid="machine-license-panel">
             <h2>{t.machineRequest}</h2>
             <textarea className="licensing-request" readOnly value={request?.requestCode ?? ''} aria-label={t.machineRequest} />
             <div className="licensing-actions">
               <button type="button" onClick={() => void copyRequest()} disabled={!request?.requestCode}>{t.copy}</button>
             </div>
             <p className="licensing-help">{t.requestHelp}</p>
+            <div className="licensing-machine-install">
+              <h3>{t.install}</h3>
+              <form onSubmit={install}>
+                <label htmlFor="license-code">{t.licenseCode}</label>
+                <textarea id="license-code" value={licenseCode} onChange={event => setLicenseCode(event.target.value)} placeholder="ESLIC1... / ESLIC2... / ESLIC3..." />
+                <div className="licensing-actions">
+                  <button type="submit" disabled={busy || !licenseCode.trim()}>{t.validateInstall}</button>
+                  <button type="button" className="licensing-danger" disabled={busy} onClick={() => void remove()}>{t.remove}</button>
+                </div>
+              </form>
+            </div>
           </section>
 
-          <section className="licensing-card licensing-wide">
-            <h2>{t.install}</h2>
-            <form onSubmit={install}>
-              <label htmlFor="license-code">{t.licenseCode}</label>
-              <textarea id="license-code" value={licenseCode} onChange={event => setLicenseCode(event.target.value)} placeholder="ESLIC1..." />
+          {status.onlineDevice && <section className="licensing-card licensing-online-card" data-testid="online-license-panel">
+            <h2>{t.onlineTitle}</h2>
+            <div className="licensing-online-status">
+              <p className="licensing-help">{t.onlineInfo}</p>
+              <p className={`licensing-connectivity licensing-connectivity-${onlineConnectivity}`} role="status" data-testid="online-license-connectivity">
+                <span className="licensing-connectivity-dot" aria-hidden="true" />
+                <strong>{t.onlineConnection}:</strong> {describeOnlineConnectivity(onlineConnectivity, t)}
+              </p>
+              <p className="licensing-help licensing-connectivity-help">{t.onlineConnectionHelp}</p>
               <div className="licensing-actions">
-                <button type="submit" disabled={busy || !licenseCode.trim()}>{t.validateInstall}</button>
-                <button type="button" className="licensing-danger" disabled={busy} onClick={() => void remove()}>{t.remove}</button>
+                <button type="button" onClick={() => void checkOnlineConnectivity()} disabled={onlineConnectivity === 'checking'}>
+                  {onlineConnectivity === 'checking' ? t.onlineConnectionChecking : t.onlineConnectionRetry}
+                </button>
               </div>
-            </form>
-          </section>
+              <dl data-testid="online-license-status">
+                <dt>{t.onlineConfiguration}</dt><dd>{status.onlineDevice.configured ? t.onlineConfigured : t.onlineNotConfigured}</dd>
+                <dt>{t.onlineState}</dt><dd><strong>{describeOnlineState(status.onlineDevice, t)}</strong></dd>
+                {status.onlineDevice.configured && status.onlineDevice.available && <>
+                  <dt>{t.onlineLease}</dt><dd>{status.onlineDevice.leasePresent ? t.yesShort : t.noShort}</dd>
+                  {status.onlineDevice.issuedAtUtc && <><dt>{t.onlineIssued}</dt><dd>{displayDate(status.onlineDevice.issuedAtUtc, t.none)}</dd></>}
+                  {status.onlineDevice.notAfterUtc && <><dt>{t.onlineExpiry}</dt><dd>{displayDate(status.onlineDevice.notAfterUtc, t.none)}</dd></>}
+                  {status.onlineDevice.renewalDueUtc && <><dt>{t.onlineRenewal}</dt><dd>{displayDate(status.onlineDevice.renewalDueUtc, t.none)}</dd></>}
+                  {status.onlineDevice.clockRollbackDetected && <><dt>{t.onlineClockRollback}</dt><dd>{t.yesShort}</dd></>}
+                  {status.onlineDevice.reauthenticationRequired && <><dt>{t.onlineReauthentication}</dt><dd>{t.yesShort}</dd></>}
+                </>}
+              </dl>
+              {status.onlineDevice.configured && status.onlineDevice.available &&
+                (!status.onlineDevice.hasActivation || status.onlineDevice.confirmationPending || status.onlineDevice.installationPending || status.onlineDevice.reauthenticationRequired) &&
+                <OnlineLicenseActivation api={API} locale={locale} pending={status.onlineDevice.confirmationPending === true}
+                  completionPending={status.onlineDevice.installationPending === true} onChanged={load} />}
+              {status.onlineDevice.hasActivation && !status.onlineDevice.requestPending && !status.onlineDevice.installationPending &&
+                <div className="licensing-actions"><button type="button" className="licensing-danger" disabled={busy} onClick={() => void resetOnline()}>{t.onlineResetAction}</button></div>}
+            </div>
+          </section>}
         </div>
       )}
     </main>

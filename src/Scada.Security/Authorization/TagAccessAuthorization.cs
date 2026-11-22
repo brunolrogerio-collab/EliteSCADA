@@ -9,7 +9,9 @@ public enum TagAccessOperation
     Configure
 }
 
-public sealed class TagAccessAuthorization(ICapabilityAuthorizationService capabilities)
+public sealed class TagAccessAuthorization(
+    ICapabilityAuthorizationService capabilities,
+    Func<TagDefinition, AuthorizationResource>? resourceFactory = null)
 {
     public AuthorizationDecision Evaluate(
         SecurityPrincipal principal,
@@ -27,6 +29,16 @@ public sealed class TagAccessAuthorization(ICapabilityAuthorizationService capab
             _ => throw new ArgumentOutOfRangeException(nameof(operation))
         };
 
+        var resource = resourceFactory?.Invoke(tag) ?? new AuthorizationResource(
+            TagPath: tag.Path,
+            ResourceKind: AuthorizationResourceKind.Tag,
+            ResourceId: tag.Id);
+        var decision = capabilities.Evaluate(
+            principal,
+            capability,
+            resource);
+        if (!decision.Allowed) return decision;
+
         var explicitRoles = operation switch
         {
             TagAccessOperation.Read => tag.AccessPolicy?.ReadRoles,
@@ -39,19 +51,20 @@ public sealed class TagAccessAuthorization(ICapabilityAuthorizationService capab
         {
             var allowed = explicitRoles
                 .Where(role => !string.IsNullOrWhiteSpace(role))
-                .Intersect(principal.Roles, StringComparer.OrdinalIgnoreCase)
+                .Intersect(decision.MatchedRoles, StringComparer.OrdinalIgnoreCase)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
             return allowed.Length > 0
-                ? new AuthorizationDecision(true, capability, "TAG access policy explicitly grants this operation.", allowed)
-                : AuthorizationDecision.Denied(capability, "TAG access policy does not grant this operation to any assigned role.");
+                ? decision with
+                {
+                    MatchedRoles = allowed,
+                    Reason = "Capability granted through a role allowed by the TAG access policy restriction."
+                }
+                : AuthorizationDecision.Denied(capability, "TAG access policy does not grant this operation through any capability-granting role.");
         }
 
-        return capabilities.Evaluate(
-            principal,
-            capability,
-            new AuthorizationResource(TagPath: tag.Path));
+        return decision;
     }
 }

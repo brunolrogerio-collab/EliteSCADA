@@ -1,16 +1,28 @@
+import {
+  createHistoricalTimeRangeState,
+  historicalTimeRangeToQuery,
+  type HistoricalTimeRangeState
+} from './historicalTimeRange';
 import type { TrendVisualPen } from '../visual-runtime';
-import type {
-  HistoricalQueryRequest,
-  HistoricalQueryResponse,
-  HistoricalQueryRow
+import {
+  normalizeHistoricalQueryResponse,
+  type HistoricalQueryRequest,
+  type HistoricalQueryResponse,
+  type HistoricalQueryRow
 } from './historical-browser/historicalQueryApi';
+
+const TREND_DATA_QUERY_ID = '48bba95f-2817-421e-b524-ac642ecc2eae';
+const TREND_DATA_QUERY_KEY = 'runtime-trend-history-v1';
+const MAX_TREND_RESULT_POINTS = 200;
+const MAX_TREND_INTERPOLATION_GAP_MS = 60_000;
 
 export type TrendSample = Readonly<{
   tagId: string;
   tagPath: string;
   timestamp: string;
   epochMilliseconds: number;
-  value: number;
+  value: number | null;
+  digital?: boolean;
   quality: string;
 }>;
 
@@ -19,30 +31,140 @@ export type TrendSeries = Readonly<{
   samples: readonly TrendSample[];
 }>;
 
+export type TrendHistoricalQueryEnvelope = Readonly<{
+  definition: Readonly<{
+    id: string;
+    key: string;
+    name: string;
+    providerKey: 'historical';
+    version: 1;
+    query: HistoricalQueryRequest;
+    selectedFields: readonly string[];
+    historianRetrieval: Readonly<{
+      mode: 'sampledFixedStep';
+      stepMilliseconds: number;
+      maximumGapMilliseconds: number;
+    }>;
+  }>;
+  execution: Readonly<Record<string, never>>;
+}>;
+
 export function buildTrendHistoricalQuery(
   pens: readonly TrendVisualPen[],
-  windowSeconds: number,
-  limit = 200
-): HistoricalQueryRequest {
+  rangeOrWindowSeconds: HistoricalTimeRangeState | number,
+  maximumResultPoints = MAX_TREND_RESULT_POINTS
+): TrendHistoricalQueryEnvelope {
   const tagIds = [...new Set(pens.filter(pen => pen.visible).map(pen => pen.tagId))];
   if (tagIds.length === 0) throw new Error('Trend requires at least one visible Pen before querying history.');
-  if (!Number.isSafeInteger(windowSeconds) || windowSeconds < 60 || windowSeconds > 604800) {
-    throw new Error('Trend windowSeconds must be an integer between 60 and 604800.');
+  if (!Number.isSafeInteger(maximumResultPoints) || maximumResultPoints < tagIds.length * 2 || maximumResultPoints > MAX_TREND_RESULT_POINTS) {
+    throw new Error(`Trend result point limit must fit at least two points per Pen and cannot exceed ${MAX_TREND_RESULT_POINTS}.`);
   }
-  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200) {
-    throw new Error('Trend query limit must be an integer between 1 and 200.');
+
+  const range = typeof rangeOrWindowSeconds === 'number'
+    ? createHistoricalTimeRangeState({ mode: 'relative', durationSeconds: rangeOrWindowSeconds })
+    : rangeOrWindowSeconds;
+  if (range.mode === 'live') throw new Error('Live Trend does not query Historian history.');
+  const timeRange = historicalTimeRangeToQuery(range);
+  const durationMilliseconds = timeRange.kind === 'absolute'
+    ? Date.parse(timeRange.toUtc) - Date.parse(timeRange.fromUtc)
+    : timeRange.durationSeconds * 1000;
+  if (!Number.isFinite(durationMilliseconds) || durationMilliseconds <= 0) {
+    throw new Error('Trend historical query range must have a positive duration.');
   }
-  return Object.freeze({
+
+  // Historical Query pagination is table-oriented. A Trend samples the complete
+  // selected window through the shared bounded retrieval provider instead of
+  // plotting only the first raw page.
+  const pointsPerPen = Math.floor(maximumResultPoints / tagIds.length);
+  const intervalsPerPen = Math.max(1, pointsPerPen - 1);
+  const stepMilliseconds = Math.max(1, Math.ceil(durationMilliseconds / intervalsPerPen));
+  const maximumGapMilliseconds = Math.max(
+    5_000,
+    Math.min(MAX_TREND_INTERPOLATION_GAP_MS, stepMilliseconds)
+  );
+
+  const query: HistoricalQueryRequest = Object.freeze({
     datasetKey: 'historian.samples',
     version: 1,
-    timeRange: Object.freeze({ kind: 'relative', durationSeconds: windowSeconds, anchor: 'now' }),
+    timeRange,
     filters: Object.freeze([Object.freeze({
       field: 'tag.id',
       operator: 'in',
       values: Object.freeze(tagIds.map(tagId => Object.freeze({ kind: 'guid' as const, value: tagId })))
     })]),
     orderBy: Object.freeze([Object.freeze({ field: 'timestamp', direction: 'ascending' as const })]),
-    page: Object.freeze({ limit })
+    page: Object.freeze({ limit: maximumResultPoints })
+  });
+
+  return Object.freeze({
+    definition: Object.freeze({
+      id: TREND_DATA_QUERY_ID,
+      key: TREND_DATA_QUERY_KEY,
+      name: 'Runtime Trend History',
+      providerKey: 'historical',
+      version: 1,
+      query,
+      selectedFields: Object.freeze(['tag.id', 'tag.path', 'quality', 'value', 'timestamp']),
+      historianRetrieval: Object.freeze({
+        mode: 'sampledFixedStep',
+        stepMilliseconds,
+        maximumGapMilliseconds
+      })
+    }),
+    execution: Object.freeze({})
+  });
+}
+
+export async function executeTrendHistoricalQuery(
+  request: TrendHistoricalQueryEnvelope,
+  signal?: AbortSignal
+): Promise<HistoricalQueryResponse> {
+  const response = await fetch('/api/historical/data-query', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify(request),
+    signal
+  });
+  if (!response.ok) {
+    let message = `Trend historian query failed with HTTP ${response.status}.`;
+    try {
+      const payload: unknown = await response.json();
+      if (isRecord(payload) && typeof payload.error === 'string' && payload.error.trim()) message = payload.error;
+    } catch {
+      // Keep the status-based diagnostic when the body is absent or non-JSON.
+    }
+    throw new Error(message);
+  }
+
+  const payload: unknown = await response.json();
+  if (!isRecord(payload) || payload.datasetKey !== 'historian.samples' || !Array.isArray(payload.rows)) {
+    throw new Error('Trend historian response is malformed.');
+  }
+
+  const rows: HistoricalQueryRow[] = payload.rows.map((candidate: unknown) => {
+    if (!isRecord(candidate) || !isRecord(candidate.data) || !isRecord(candidate.data.cells)) {
+      throw new Error('Trend historian row is malformed.');
+    }
+
+    const cells = { ...candidate.data.cells } as Record<string, unknown>;
+    const value = cells.value;
+    const isNullValue = isRecord(value) && (value.kind === 'null' || value.value === null);
+    const provenance = isRecord(candidate.provenance) && typeof candidate.provenance.kind === 'string'
+      ? candidate.provenance.kind.toLocaleLowerCase('en-US')
+      : '';
+    if (provenance === 'gap' || isNullValue) {
+      cells.value = Object.freeze({ kind: 'null', value: null });
+      cells.quality = Object.freeze({ kind: 'enum', value: 'Gap' });
+    }
+    return Object.freeze({ cells }) as HistoricalQueryRow;
+  });
+
+  return normalizeHistoricalQueryResponse({
+    ...payload,
+    rows,
+    nextCursor: null,
+    pageSize: payload.resultLimit
   });
 }
 
@@ -78,13 +200,19 @@ function normalizeTrendSample(row: HistoricalQueryRow): TrendSample | null {
   const timestamp = cellText(row, 'timestamp');
   const quality = cellText(row, 'quality');
   const valueText = cellText(row, 'value');
-  if (!tagId || !timestamp || valueText === null) return null;
+  if (!tagId || !timestamp) return null;
   const epochMilliseconds = Date.parse(timestamp);
-  const value = Number(valueText);
-  if (!Number.isFinite(epochMilliseconds) || !Number.isFinite(value)) return null;
-  return Object.freeze({ tagId, tagPath: tagPath ?? '', timestamp, epochMilliseconds, value, quality: quality ?? 'Unknown' });
+  if (!Number.isFinite(epochMilliseconds)) return null;
+  const digital = row.cells.value?.kind === 'boolean';
+  const value = valueText === null ? null : digital ? Number(valueText === 'true') : Number(valueText);
+  if (value !== null && !Number.isFinite(value)) return null;
+  return Object.freeze({ tagId, tagPath: tagPath ?? '', timestamp, epochMilliseconds, value, ...(digital ? { digital } : {}), quality: quality ?? (value === null ? 'Gap' : 'Unknown') });
 }
 
 function cellText(row: HistoricalQueryRow, field: string): string | null {
   return row.cells[field]?.value ?? null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

@@ -2,17 +2,70 @@ using System.Text.Json;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
+using Scada.Core.Sources;
 using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.VisualScripting;
 using Scada.Engineering.Views;
 
 namespace Scada.Core.Tests;
 
 public sealed class EngineeringViewExchangeTests
 {
+    [Fact]
+    public void EquipmentInstancesRemainLinkedWhenTheirCanonicalTemplateArtworkChanges()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var assets = new InMemoryEngineeringAssetRegistry();
+        var views = new InMemoryEngineeringViewRegistry();
+        var service = new EngineeringExchangeService(tags, alarms,
+            new InMemoryDataSourceEngineeringRegistry(), assets, views);
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>(),
+            Templates: [new EquipmentTemplateEngineeringDto(
+                null,
+                "pump.faceplate",
+                "Pump Faceplate",
+                Elements: [new VisualElementEngineeringDto("body", BuiltinVisualObjectSchemas.RectangleType)])],
+            Equipment: [new EquipmentEngineeringDto(null, "Plant.P01", "Pump 01", "pump.faceplate")]);
+
+        Assert.True(service.Preview(package, ImportMode.CreateAndUpdate).CanApply);
+        Assert.Empty(service.Apply(package, ImportMode.CreateAndUpdate).Issues);
+        var first = service.ParseJson(service.ExportJson());
+        var firstTemplate = Assert.Single(first.Templates!);
+        var firstEquipment = Assert.Single(first.Equipment!);
+        Assert.Equal(firstTemplate.Id, firstEquipment.TemplateId);
+        Assert.Equal(firstTemplate.Key, firstEquipment.TemplateKey);
+
+        var revised = first with
+        {
+            Templates = [firstTemplate with
+            {
+                Elements = [new VisualElementEngineeringDto("body-v2", BuiltinVisualObjectSchemas.EllipseType)]
+            }]
+        };
+        Assert.True(service.Preview(revised, ImportMode.CreateAndUpdate).CanApply);
+        Assert.Empty(service.Apply(revised, ImportMode.CreateAndUpdate).Issues);
+
+        var current = service.ParseJson(service.ExportJson());
+        var currentTemplate = Assert.Single(current.Templates!);
+        var currentEquipment = Assert.Single(current.Equipment!);
+        Assert.Equal(firstEquipment.Id, currentEquipment.Id);
+        Assert.Equal(firstTemplate.Id, currentEquipment.TemplateId);
+        Assert.Equal(firstTemplate.Key, currentEquipment.TemplateKey);
+        Assert.Equal("body-v2", Assert.Single(currentTemplate.Elements!).Key);
+        Assert.Equal(BuiltinVisualObjectSchemas.EllipseType, currentTemplate.Elements!.Single().Type);
+    }
+
     [Fact]
     public void CurrentSchema_RoundTripsScreenAndPopup()
     {
@@ -100,6 +153,144 @@ public sealed class EngineeringViewExchangeTests
         Assert.False(preview.CanApply);
         Assert.Contains(issues, x => x.Code == "VISUAL_DYNAMO_NOT_FOUND");
         Assert.Contains(issues, x => x.Code == "VISUAL_EQUIPMENT_NOT_FOUND");
+    }
+
+    [Fact]
+    public void Preview_ValidatesDynamoValueSourceIdentityAndDeclaredType()
+    {
+        var service = CreateService();
+        var tagId = Guid.Parse("66000000-0000-4000-8000-000000000001");
+        var memorySourceId = Guid.Parse("66000000-0000-4000-8000-000000000003");
+        var definition = new DynamoEngineeringDto(
+            null,
+            "indicator.lamp.round",
+            "Round lamp",
+            Parameters: [new DynamoParameterDefinitionEngineeringDto(
+                "faultSignal",
+                DynamoParameterKind.ValueSource,
+                Required: true,
+                ValueSourceType: VisualExpressionValueType.Boolean)]);
+        var instance = new VisualElementEngineeringDto(
+            "lamp-1",
+            "dynamo",
+            DynamoKey: definition.Key,
+            DynamoParameters: [new DynamoParameterValueEngineeringDto(
+                "faultSignal",
+                DynamoParameterKind.ValueSource,
+                ValueSource: new VisualValueSourceEngineeringDto(
+                    VisualValueSourceKind.ClientMemory,
+                    VisualExpressionValueType.Boolean,
+                    "Signals.Fault",
+                    new TagValueReference(tagId)))]);
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [new TagEngineeringDto(tagId, "Fault", "Signals.Fault", TagDataType.Boolean,
+                Source: "memory.client", DataSourceId: memorySourceId)],
+            Array.Empty<AlarmEngineeringDto>(),
+            Dynamos: [definition],
+            DataSources: [new DataSourceEngineeringDto(memorySourceId, "memory.client", "Client Memory", BuiltInSourceProviderDescriptors.ClientMemory.TypeKey)],
+            Screens: [new ScreenEngineeringDto(null, "plant.overview", "Plant Overview", "/plant", [instance])]);
+
+        Assert.True(service.Preview(package, ImportMode.CreateAndUpdate).CanApply);
+        Assert.Empty(service.Apply(package, ImportMode.CreateAndUpdate).Issues);
+        var roundTripped = service.ParseJson(service.ExportJson());
+        var persistedSource = Assert.Single(Assert.Single(roundTripped.Screens!).Elements!)
+            .DynamoParameters!.Single().ValueSource!;
+        Assert.Equal(VisualValueSourceKind.ClientMemory, persistedSource.Kind);
+        Assert.Equal(VisualExpressionValueType.Boolean, persistedSource.ValueType);
+        Assert.Equal(tagId, persistedSource.TagReference?.TagId);
+
+        var missingReferencePackage = package with
+        {
+            Screens = [package.Screens!.Single() with
+            {
+                Elements = [instance with
+                {
+                    DynamoParameters = [instance.DynamoParameters!.Single() with
+                    {
+                        ValueSource = instance.DynamoParameters!.Single().ValueSource! with
+                        {
+                            TagReference = new TagValueReference(Guid.Parse("66000000-0000-4000-8000-000000000002"))
+                        }
+                    }]
+                }]
+            }]
+        };
+        var missingIssues = service.Preview(missingReferencePackage, ImportMode.CreateAndUpdate)
+            .Items.SelectMany(item => item.Issues);
+        Assert.Contains(missingIssues, issue => issue.Code == "VISUAL_DYNAMIC_REFERENCE_NOT_FOUND");
+
+        var mismatchedTypePackage = package with
+        {
+            Screens = [package.Screens!.Single() with
+            {
+                Elements = [instance with
+                {
+                    DynamoParameters = [instance.DynamoParameters!.Single() with
+                    {
+                        ValueSource = instance.DynamoParameters!.Single().ValueSource! with
+                        {
+                            ValueType = VisualExpressionValueType.Number
+                        }
+                    }]
+                }]
+            }]
+        };
+        var typeIssues = service.Preview(mismatchedTypePackage, ImportMode.CreateAndUpdate)
+            .Items.SelectMany(item => item.Issues);
+        Assert.Contains(typeIssues, issue => issue.Code == "VISUAL_DYNAMO_VALUE_SOURCE_TYPE_MISMATCH");
+
+        var mismatchedSourcePackage = package with
+        {
+            Tags = [package.Tags.Single() with { Source = "memory.server", DataSourceId = Guid.Parse("66000000-0000-4000-8000-000000000004") }],
+            DataSources = [new DataSourceEngineeringDto(
+                Guid.Parse("66000000-0000-4000-8000-000000000004"),
+                "memory.server",
+                "Server Memory",
+                BuiltInSourceProviderDescriptors.ServerMemory.TypeKey)]
+        };
+        var sourceIssues = service.Preview(mismatchedSourcePackage, ImportMode.CreateAndUpdate)
+            .Items.SelectMany(item => item.Issues);
+        Assert.Contains(sourceIssues, issue => issue.Code == "VISUAL_DYNAMIC_REFERENCE_KIND_MISMATCH");
+
+        var expressionInstance = instance with
+        {
+            DynamoParameters = [instance.DynamoParameters!.Single() with
+            {
+                ValueSource = new VisualValueSourceEngineeringDto(
+                    VisualValueSourceKind.Expression,
+                    VisualExpressionValueType.Boolean,
+                    Expression: new VisualExpressionEngineeringDto(
+                        "fault",
+                        VisualExpressionValueType.Boolean,
+                        [new VisualExpressionDependencyEngineeringDto(
+                            "fault",
+                            VisualExpressionDependencyKind.ClientMemory,
+                            VisualExpressionValueType.Boolean,
+                            new TagValueReference(tagId),
+                            "Signals.Fault")]))
+            }]
+        };
+        var expressionPackage = package with
+        {
+            Screens = [package.Screens!.Single() with { Elements = [expressionInstance] }]
+        };
+        Assert.True(service.Preview(expressionPackage, ImportMode.CreateAndUpdate).CanApply);
+
+        var mismatchedExpressionPackage = expressionPackage with
+        {
+            Tags = [package.Tags.Single() with { Source = "memory.server", DataSourceId = Guid.Parse("66000000-0000-4000-8000-000000000004") }],
+            DataSources = [new DataSourceEngineeringDto(
+                Guid.Parse("66000000-0000-4000-8000-000000000004"),
+                "memory.server",
+                "Server Memory",
+                BuiltInSourceProviderDescriptors.ServerMemory.TypeKey)]
+        };
+        var expressionIssues = service.Preview(mismatchedExpressionPackage, ImportMode.CreateAndUpdate)
+            .Items.SelectMany(item => item.Issues);
+        Assert.Contains(expressionIssues, issue => issue.Code == "VISUAL_DYNAMIC_REFERENCE_KIND_MISMATCH");
     }
 
     [Fact]

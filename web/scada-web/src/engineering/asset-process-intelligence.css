@@ -1,0 +1,538 @@
+.asset-process-intelligence {
+  --text: var(--eng-text);
+  --text-muted: var(--eng-muted);
+  --border: var(--eng-border);
+  --surface: var(--eng-panel);
+  --surface-subtle: var(--eng-panel-soft);
+  --accent: var(--eng-accent);
+}
+
+.asset-process-intelligence__stage > p,
+.asset-process-intelligence__scope-panel > header p {
+  margin: 0.4rem 0 0;
+  color: var(--text-muted, #64748b);
+}
+.asset-process-intelligence__guided-dashboard-hint{flex-basis:100%;color:var(--eng-muted,#657080);font-size:12px;line-height:1.4}
+
+.asset-process-intelligence__status {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem 1rem;
+  margin-top: 1rem;
+}
+
+.asset-process-intelligence__status span,
+.asset-process-intelligence__controls span {
+  color: var(--text-muted, #64748b);
+  font-size: 0.9rem;
+}
+
+.asset-process-intelligence__status strong {
+  color: var(--text, #17212b);
+}
+
+.asset-process-intelligence__scope-panel > header,
+.asset-process-intelligence__row,
+.asset-process-intelligence__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.asset-process-intelligence__scope-panel > header h2 {
+  margin: 0;
+}
+
+.asset-process-intelligence__authoring {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.asset-process-intelligence__authoring-header,
+.asset-process-intelligence__section-heading,
+.asset-process-intelligence__stage-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.asset-process-intelligence__authoring-header h2,
+.asset-process-intelligence__section-heading h3,
+.asset-process-intelligence__section-heading h4 {
+  margin: 0;
+}
+
+.asset-process-intelligence__authoring-header p,
+.asset-process-intelligence__section-heading p {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted, #64748b);
+}
+
+.asset-process-intelligence__authoring-section {
+  display: grid;
+  gap: 0.8rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #cbd5e1);
+}
+
+.asset-process-intelligence__dashboard-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.asset-process-intelligence__dashboard-composer { display: grid; gap: 0.75rem; min-width: 0; }
+.asset-process-intelligence__dashboard-composer h3,
+.asset-process-intelligence__dashboard-composer p { margin: 0; }
+.asset-process-intelligence__dashboard-composer > label:not(.asset-process-intelligence__checkbox) { display: grid; gap: 0.35rem; max-width: 24rem; }
+.asset-process-intelligence__dashboard-composer > button { justify-self: start; }
+
+.asset-process-intelligence__dashboard-form label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.asset-process-intelligence__dashboard-form select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.asset-process-intelligence__dashboard-next-steps {
+  margin: 0;
+  color: var(--text-muted, #64748b);
+  line-height: 1.5;
+}
+
+.asset-process-intelligence__split {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.7fr) minmax(0, 2fr);
+  gap: 1rem;
+}
+
+.asset-process-intelligence__choice-list {
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+}
+
+.asset-process-intelligence__choice-list > button,
+.asset-process-intelligence__stage-choice > button[role="option"] {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.7rem;
+  text-align: left;
+  color: var(--text, #17212b);
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 0.45rem;
+  background: var(--surface, var(--app-surface-elevated));
+}
+
+.asset-process-intelligence__choice-list [aria-selected="true"] {
+  outline: 2px solid var(--accent, #1482b5);
+}
+
+.asset-process-intelligence__choice-list small {
+  color: var(--text-muted, #64748b);
+}
+
+.asset-process-intelligence__stage-choice > span,
+.asset-process-intelligence__row > span:last-child {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.asset-process-intelligence__editor {
+  display: grid;
+  align-content: start;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.asset-process-intelligence__field-grid,
+.asset-process-intelligence__signal-form,
+.asset-process-intelligence__assignment-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.asset-process-intelligence__field-grid label,
+.asset-process-intelligence__signal-form label,
+.asset-process-intelligence__assignment-form label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.asset-process-intelligence__field-grid input,
+.asset-process-intelligence__signal-form input,
+.asset-process-intelligence__signal-form select,
+.asset-process-intelligence__assignment-form select {
+  min-width: 0;
+  width: 100%;
+}
+
+.asset-process-intelligence__checkbox {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem !important;
+  min-height: 2.5rem;
+}
+
+.asset-process-intelligence__danger,
+.asset-process-intelligence__missing {
+  color: var(--danger, #b42318) !important;
+}
+
+.asset-process-intelligence__authoring-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #cbd5e1);
+}
+
+.asset-process-intelligence__authoring-footer > span {
+  color: var(--text-muted, #64748b);
+}
+
+.asset-process-intelligence__list {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.asset-process-intelligence__row {
+  flex-wrap: wrap;
+  padding: 0.8rem;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 0.5rem;
+}
+
+.asset-process-intelligence__semantic-fields {
+  display: grid;
+  flex: 1 1 100%;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.65rem;
+}
+
+.asset-process-intelligence__semantic-fields label {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.asset-process-intelligence__semantic-fields select {
+  min-width: 0;
+  width: 100%;
+}
+
+.asset-process-intelligence__row > label,
+.asset-process-intelligence__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.asset-process-intelligence__row > label span {
+  display: grid;
+}
+
+.asset-process-intelligence__row small {
+  color: var(--text-muted, #64748b);
+}
+
+.asset-process-intelligence__controls {
+  flex-wrap: wrap;
+}
+
+.asset-process-intelligence__footer {
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.asset-process-intelligence__coverage {
+  flex: 1 1 100%;
+  min-width: min(100%, 18rem);
+  padding-top: 0.35rem;
+}
+
+.asset-process-intelligence__analysis {
+  padding: 1rem;
+  border: 1px solid var(--eng-border);
+  border-radius: 0.5rem;
+  background: var(--eng-panel-soft);
+  overflow-wrap: anywhere;
+}
+.asset-process-intelligence__analysis > summary { cursor: pointer; font-weight: 600; }
+.asset-process-intelligence__analysis[open] > summary { margin-bottom: 0.8rem; }
+.asset-process-intelligence__analysis p { color: var(--eng-muted); line-height: 1.5; }
+.asset-process-intelligence__analysis .asset-process-intelligence__coverage-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  align-items: end;
+}
+.asset-process-intelligence__analysis form > p,
+.asset-process-intelligence__analysis form > fieldset,
+.asset-process-intelligence__analysis form > div { grid-column: 1 / -1; }
+.asset-process-intelligence__analysis input:not([type="checkbox"]),
+.asset-process-intelligence__analysis select {
+  box-sizing: border-box; width: 100%; min-width: 0;
+  padding: 0.6rem; border: 1px solid var(--eng-border); border-radius: 0.35rem;
+  color: var(--eng-text); background: var(--eng-input-bg, var(--eng-panel)); font: inherit;
+}
+.asset-process-intelligence__analysis button {
+  justify-self: start; padding: 0.6rem 0.85rem; border: 1px solid var(--eng-border);
+  border-radius: 0.35rem; color: var(--eng-text); background: var(--eng-panel); font: inherit; cursor: pointer;
+}
+.asset-process-intelligence__analysis button:disabled { opacity: 0.55; cursor: not-allowed; }
+.asset-process-intelligence__analysis :is(input, select, button, summary):focus-visible { outline: 2px solid var(--eng-accent); outline-offset: 2px; }
+.asset-process-intelligence__analysis fieldset { min-width: 0; padding: 0.8rem; border: 1px solid var(--eng-border); border-radius: 0.35rem; }
+.asset-process-intelligence__analysis fieldset label:has(input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 0.4rem; margin-right: 1rem; }
+.asset-process-intelligence__analysis [role="alert"] { color: var(--eng-danger, #f87171); }
+.asset-process-intelligence__analysis-table { max-width: 100%; overflow-x: auto; margin-top: 1rem; }
+.asset-process-intelligence__analysis-table table { width: 100%; min-width: 36rem; border-collapse: collapse; }
+.asset-process-intelligence__analysis-table :is(th, td) { padding: 0.65rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--eng-border); }
+.asset-process-intelligence__analysis-table th { background: var(--eng-panel); }
+.asset-process-intelligence__analysis-table details { margin-top: 0.4rem; }
+
+.asset-process-intelligence__coverage-body {
+  display: grid;
+  gap: 0.85rem;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 0.5rem;
+  background: var(--surface-subtle, rgba(148, 163, 184, 0.06));
+}
+
+.asset-process-intelligence__coverage-form {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.asset-process-intelligence__coverage-form label {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.asset-process-intelligence__coverage-note {
+  color: var(--text-muted, #64748b);
+  margin: 0;
+}
+
+.asset-process-intelligence__coverage-error {
+  color: var(--danger, #b91c1c);
+  margin: 0;
+}
+
+.asset-process-intelligence__coverage-result {
+  display: grid;
+  gap: 1rem;
+}
+
+.asset-process-intelligence__coverage-result section {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.asset-process-intelligence__coverage-result h4,
+.asset-process-intelligence__coverage-signals h5 {
+  margin: 0;
+}
+
+.asset-process-intelligence__coverage-result p {
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+
+.asset-process-intelligence__coverage-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 0.6rem 1rem;
+  margin: 0;
+}
+
+.asset-process-intelligence__coverage-facts > div {
+  min-width: 0;
+}
+
+.asset-process-intelligence__coverage-facts dt {
+  color: var(--text-muted, #64748b);
+  font-size: 0.875rem;
+}
+
+.asset-process-intelligence__coverage-facts dd {
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.asset-process-intelligence__coverage-signals {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+
+.asset-process-intelligence__coverage-signals > article {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 0.4rem;
+  background: var(--surface, var(--app-surface-elevated));
+}
+
+.asset-process-intelligence__performance {
+  flex: 1 1 100%;
+  min-width: min(100%, 18rem);
+  padding-top: 0.35rem;
+}
+
+.asset-process-intelligence__performance-body {
+  display: grid;
+  gap: 0.85rem;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 0.5rem;
+  background: var(--surface-subtle, rgba(148, 163, 184, 0.06));
+}
+
+.asset-process-intelligence__performance-body p {
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+
+.asset-process-intelligence__performance-form {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.asset-process-intelligence__performance-form label {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.asset-process-intelligence__performance-rule {
+  display: grid;
+  flex: 1 1 100%;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 0.4rem;
+  background: var(--surface, var(--app-surface-elevated));
+}
+
+.asset-process-intelligence__performance-result {
+  display: grid;
+  gap: 1rem;
+}
+
+.asset-process-intelligence__performance-result section {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.asset-process-intelligence__performance-result h4,
+.asset-process-intelligence__performance-inputs h5 {
+  margin: 0;
+}
+
+.asset-process-intelligence__performance-inputs {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+
+.asset-process-intelligence__performance-inputs > article {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 0.4rem;
+  background: var(--surface, var(--app-surface-elevated));
+}
+
+@media (max-width: 720px) {
+  .eng-body:has(.asset-process-intelligence) .eng-sidebar { min-width: 0; overflow-x: auto; }
+  .asset-process-intelligence .eng-section-header { display: grid; }
+  .asset-process-intelligence .eng-section-header > div:first-child { min-width: 0; }
+  .asset-process-intelligence .eng-section-header p { width: auto; max-width: 100%; white-space: normal; }
+  .asset-process-intelligence__row { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .asset-process-intelligence__row > * { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  .asset-process-intelligence__analysis input[type="checkbox"] { width: auto; flex: 0 0 auto; }
+  .asset-process-intelligence__scope-panel > header,
+  .asset-process-intelligence__row,
+  .asset-process-intelligence__footer,
+  .asset-process-intelligence__authoring-header,
+  .asset-process-intelligence__section-heading,
+  .asset-process-intelligence__authoring-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .asset-process-intelligence__coverage-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .asset-process-intelligence__coverage-form label,
+  .asset-process-intelligence__coverage-form input {
+    width: 100%;
+  }
+
+  .asset-process-intelligence__performance-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .asset-process-intelligence__performance-form label,
+  .asset-process-intelligence__performance-form input,
+  .asset-process-intelligence__performance-form select {
+    width: 100%;
+  }
+
+  .asset-process-intelligence__split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .asset-process-intelligence__dashboard-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.asset-process-intelligence__navigation { border: 1px solid var(--eng-border); border-radius: 8px; padding: 16px; background: var(--eng-panel); }
+.asset-process-intelligence__navigation p { color: var(--eng-muted); margin: 8px 0; }
+.asset-process-intelligence__navigation ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; padding: 0; list-style: none; }
+.asset-process-intelligence__navigation a { display: block; padding: 8px; border: 1px solid var(--eng-border); border-radius: 6px; overflow-wrap: anywhere; }
+.asset-process-intelligence [id^="intelligence-"] { scroll-margin-top: 96px; }
+
+.asset-process-intelligence > .eng-section-header { align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+.asset-process-intelligence > .eng-section-header > div:first-child { display: block; flex: 1 1 100%; min-width: 0; }
+.asset-process-intelligence > .eng-section-header :is(h1, p) { white-space: normal; overflow: visible; text-overflow: clip; }
+.asset-process-intelligence > .eng-section-header p { margin: 8px 0; }
+.asset-process-intelligence .asset-process-intelligence__message { display: block; min-height: 0; height: auto; max-width: none; width: auto; margin: 0; padding: 12px 16px; text-align: left; }
+
+.asset-process-intelligence > .eng-section-header .eng-section-meta { flex-wrap: wrap; min-width: 0; max-width: 100%; white-space: normal; }
+.asset-process-intelligence > .eng-section-header .eng-section-meta :is(strong, span) { white-space: normal; overflow-wrap: anywhere; min-width: 0; }

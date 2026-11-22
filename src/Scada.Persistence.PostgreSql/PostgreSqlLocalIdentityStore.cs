@@ -1,4 +1,5 @@
 using Npgsql;
+using Scada.Core.Persistence;
 using NpgsqlTypes;
 using Scada.Security.Authentication;
 
@@ -9,8 +10,6 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
     private const long MutationAdvisoryLockKey = 4993446713136202562;
 
     private const string InitializeSql = """
-        SELECT pg_advisory_xact_lock(4993446713136202561);
-
         CREATE SCHEMA IF NOT EXISTS elitescada;
 
         CREATE TABLE IF NOT EXISTS elitescada.schema_migrations (
@@ -55,18 +54,23 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
         """;
 
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
 
-    public PostgreSqlLocalIdentityStore(string connectionString)
+    public PostgreSqlLocalIdentityStore(
+        string connectionString,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("PostgreSQL connection string is required.", nameof(connectionString));
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await PostgreSqlSharedSchemaInitialization.AcquireLockAsync(connection, transaction, cancellationToken);
         await using var command = new NpgsqlCommand(InitializeSql, connection, transaction);
         await command.ExecuteNonQueryAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -142,6 +146,7 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
 
     public async Task CreateAsync(LocalUserAccount account, CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("local-identity", cancellationToken);
         Validate(account);
         await using var command = _dataSource.CreateCommand(InsertSql);
         Bind(command, account);
@@ -150,6 +155,7 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
 
     public async Task UpdateAsync(LocalUserAccount account, CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("local-identity", cancellationToken);
         Validate(account);
         const string sql = """
             UPDATE elitescada.local_users
@@ -174,6 +180,7 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
         IReadOnlyCollection<LocalUserAccount> accounts,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("local-identity", cancellationToken);
         var replacement = PrepareReplacement(accounts);
 
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
@@ -213,10 +220,31 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
         }
     }
 
+    public async Task ClearAllAsync(CancellationToken cancellationToken = default)
+    {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("local-identity", cancellationToken);
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await AcquireMutationLockAsync(connection, transaction, cancellationToken);
+            await using var delete = new NpgsqlCommand("DELETE FROM elitescada.local_users;", connection, transaction);
+            await delete.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            try { await transaction.RollbackAsync(CancellationToken.None); }
+            catch { }
+            throw;
+        }
+    }
+
     public async Task<bool> TryReplaceAllIfEmptyAsync(
         IReadOnlyCollection<LocalUserAccount> accounts,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("local-identity", cancellationToken);
         var replacement = PrepareReplacement(accounts);
 
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);

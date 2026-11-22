@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <polygon points="26,18 102,18 88,64 40,64" fill="#E5E7EB" stroke="#374151" stroke-width="5" stroke-linejoin="round" data-elitescada-slot="hopper" />
+  <rect x="44" y="64" width="40" height="20" rx="4" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="feeder" />
+  <line x1="50" y1="74" x2="78" y2="74" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="gate" />
+  <circle cx="104" cy="28" r="4" fill="#9CA3AF" data-elitescada-slot="status" />
+</svg>

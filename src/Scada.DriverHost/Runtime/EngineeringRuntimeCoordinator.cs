@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
@@ -79,16 +80,45 @@ public interface IEngineeringRuntimeCoordinator : IAsyncDisposable
         EngineeringPackage package,
         Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
         CancellationToken cancellationToken = default);
+    Task<RuntimeActivationResult> ActivateForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default) =>
+        ActivateAsync(projectKey, revision, package, commitAsync, cancellationToken);
 }
 
-public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator
+/// <summary>
+/// Restores a peer-authoritative value snapshot into an already activated runtime
+/// without issuing writes to communication drivers.
+/// </summary>
+public interface IRuntimeTagValueSnapshotRestorer
+{
+    Task<int> RestoreAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default);
+
+    Task<int> RestoreAuthoritativeValuesForTakeoverAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default);
+
+    Task<int> ApplyPassiveAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator, IRuntimeTagValueSnapshotRestorer, IRichCommandDriverExecutorResolver
 {
     private readonly IScadaEventBus _externalEventBus;
     private readonly IEngineeringDriverCompiler _compiler;
     private readonly IServerMemoryRetentionStore _serverMemoryRetentionStore;
     private readonly CommunicationDriverRuntimeComponentRegistry _communicationComponents;
     private readonly ICommunicationDriverProtectedMaterialResolver? _protectedMaterialResolver;
+    private readonly ITransientEventRuntimeIngress? _transientEventIngress;
     private readonly TimeSpan _activationTimeout;
+    private readonly Func<bool> _industrialEffectAuthority;
+    private readonly Func<string, long, Guid, bool>? _intelligenceAlarmPermit;
     private readonly SemaphoreSlim _activationGate = new(1, 1);
     private RuntimeState _active;
 
@@ -98,7 +128,10 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         TimeSpan? activationTimeout = null,
         IServerMemoryRetentionStore? serverMemoryRetentionStore = null,
         CommunicationDriverRuntimeComponentRegistry? communicationComponents = null,
-        ICommunicationDriverProtectedMaterialResolver? protectedMaterialResolver = null)
+        ICommunicationDriverProtectedMaterialResolver? protectedMaterialResolver = null,
+        Func<bool>? industrialEffectAuthority = null,
+        ITransientEventRuntimeIngress? transientEventIngress = null,
+        Func<string, long, Guid, bool>? intelligenceAlarmPermit = null)
     {
         _externalEventBus = externalEventBus ?? throw new ArgumentNullException(nameof(externalEventBus));
         _compiler = compiler ?? throw new ArgumentNullException(nameof(compiler));
@@ -106,6 +139,9 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         _communicationComponents = communicationComponents
             ?? CommunicationDriverRuntimeComposition.BuildForCurrentSchema();
         _protectedMaterialResolver = protectedMaterialResolver;
+        _transientEventIngress = transientEventIngress;
+        _industrialEffectAuthority = industrialEffectAuthority ?? (() => true);
+        _intelligenceAlarmPermit = intelligenceAlarmPermit;
         _activationTimeout = activationTimeout ?? TimeSpan.FromSeconds(10);
         if (_activationTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(activationTimeout));
@@ -178,29 +214,325 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     public bool IsServerMemoryTag(Guid tagId) =>
         Volatile.Read(ref _active).ServerMemoryByTagId.ContainsKey(tagId);
 
+    public bool TryResolve(Guid dataSourceId, out IRichCommandDriverExecutor? executor)
+    {
+        executor = null;
+        if (dataSourceId == Guid.Empty)
+            return false;
+
+        var state = Volatile.Read(ref _active);
+        if (state.PassiveProjection)
+            return false;
+
+        var candidates = state.Drivers
+            .Where(driver => driver.Tags.Any(tag => tag.DataSourceId == dataSourceId))
+            .OfType<IRichCommandDriverExecutor>()
+            .Take(2)
+            .ToArray();
+        if (candidates.Length != 1)
+            return false;
+
+        executor = candidates[0];
+        return true;
+    }
+
+    public async Task<int> RestoreAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+        => await RestoreAuthoritativeValuesCoreAsync(
+            values,
+            reconcileAlarmsLocally: false,
+            cancellationToken);
+
+    public async Task<int> RestoreAuthoritativeValuesForTakeoverAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+    {
+        if (_industrialEffectAuthority())
+            throw new InvalidOperationException(
+                "HA authoritative values must be reconciled before industrial effects are released.");
+
+        return await RestoreAuthoritativeValuesCoreAsync(
+            values,
+            reconcileAlarmsLocally: true,
+            cancellationToken);
+    }
+
+    private async Task<int> RestoreAuthoritativeValuesCoreAsync(
+        IReadOnlyCollection<TagValue> values,
+        bool reconcileAlarmsLocally,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var state = Volatile.Read(ref _active);
+            var restored = 0;
+            foreach (var incoming in values)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!state.Registry.TryGet(incoming.TagId, out var tag) || tag is null)
+                {
+                    throw new InvalidOperationException(
+                        $"HA value snapshot contains TAG '{incoming.TagId}' that is not present in the active runtime.");
+                }
+
+                var value = NormalizeSnapshotValue(tag, incoming);
+                if (state.ServerMemoryByTagId.TryGetValue(tag.Id, out var memorySource))
+                {
+                    // Persist the promoted value as well as publishing it into the
+                    // cache, so a later process restart does not resurrect the
+                    // standby's pre-promotion initial value.
+                    await memorySource.WriteAsync(tag.Id, value.Value, cancellationToken);
+                    restored++;
+                    continue;
+                }
+
+                // A communication driver may already have acquired a newer Good
+                // sample while the takeover activation was starting. Never replace
+                // that fresh local sample with an older peer snapshot.
+                if (state.Cache.TryGet(tag.Id, out var current) &&
+                    current is { Quality: TagQuality.Good } &&
+                    current.Timestamp > value.Timestamp)
+                {
+                    continue;
+                }
+
+                await state.Cache.UpdateAsync(tag, value, cancellationToken);
+                restored++;
+            }
+
+            if (reconcileAlarmsLocally)
+                await EvaluateCurrentAlarmsAsync(state, cancellationToken, locallyOnly: true);
+
+            return restored;
+        }
+        finally
+        {
+            _activationGate.Release();
+        }
+    }
+
+    public async Task<int> ApplyPassiveAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var state = Volatile.Read(ref _active);
+            if (!state.PassiveProjection || state.EventGate.ForwardingEnabled)
+                throw new InvalidOperationException(
+                    "Peer TAG values can only be applied to a fenced passive Runtime projection.");
+
+            var restored = 0;
+            foreach (var incoming in values)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!state.Registry.TryGet(incoming.TagId, out var tag) || tag is null)
+                {
+                    throw new InvalidOperationException(
+                        $"HA value snapshot contains TAG '{incoming.TagId}' that is not present in the passive runtime.");
+                }
+
+                await state.Cache.UpdateAsync(
+                    tag,
+                    NormalizeSnapshotValue(tag, incoming),
+                    cancellationToken);
+                restored++;
+            }
+
+            return restored;
+        }
+        finally
+        {
+            _activationGate.Release();
+        }
+    }
+
+    private static TagValue NormalizeSnapshotValue(TagDefinition tag, TagValue value)
+    {
+        if (value.Value is not JsonElement json) return value;
+
+        object? normalized = tag.DataType switch
+        {
+            TagDataType.Boolean => json.GetBoolean(),
+            TagDataType.Int16 => json.GetInt16(),
+            TagDataType.Int32 or TagDataType.Enum => json.GetInt32(),
+            TagDataType.Int64 => json.GetInt64(),
+            TagDataType.Float => json.GetSingle(),
+            TagDataType.Double => json.GetDouble(),
+            TagDataType.String => json.GetString(),
+            TagDataType.DateTime => json.GetDateTimeOffset(),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(tag.DataType), tag.DataType, "Unsupported TAG data type in HA snapshot.")
+        };
+        return value with { Value = normalized };
+    }
+
+    /// <summary>
+    /// Returns the exact Engineering Application from which the currently materialized
+    /// Runtime was built. This is a projection boundary only; callers cannot mutate
+    /// Working/Published/Active lifecycle state through the returned immutable record graph.
+    /// </summary>
+    public EngineeringPackage? CaptureApplication() => Volatile.Read(ref _active).Application;
+
+    /// <summary>
+    /// Materializes the peer-authoritative Application/revision into the same canonical
+    /// Runtime engine without starting any industrial source or enabling event forwarding.
+    /// The resulting Runtime is suitable for Standby projection/readiness only.
+    /// </summary>
+    public async Task<RuntimeActivationResult> MaterializePassiveAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        DateTimeOffset? authoritativeActivatedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(projectKey))
+            throw new ArgumentException("Project key is required.", nameof(projectKey));
+        if (revision < 1)
+            throw new ArgumentOutOfRangeException(nameof(revision));
+        ArgumentNullException.ThrowIfNull(package);
+
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var captureResolution = HistorianCaptureProfileRuntimeResolver.Resolve(package);
+            var effectivePackage = captureResolution.Package;
+            var memoryCompilation = InternalMemoryRuntimePlanner.Compile(effectivePackage);
+            var compilation = _compiler.Compile(memoryCompilation.CommunicationPackage);
+            var compilationIssues = captureResolution.Issues
+                .Concat(memoryCompilation.Issues)
+                .Concat(compilation.Issues)
+                .ToArray();
+            if (compilationIssues.Any(issue => issue.IsError))
+            {
+                return new RuntimeActivationResult(
+                    projectKey.Trim(),
+                    revision,
+                    false,
+                    compilationIssues,
+                    Array.Empty<RuntimeActivationIssue>());
+            }
+
+            var runtimeIssues = new List<RuntimeActivationIssue>();
+            RuntimeState? candidate = null;
+            try
+            {
+                candidate = BuildCandidate(
+                    projectKey.Trim(),
+                    revision,
+                    effectivePackage,
+                    compilation,
+                    memoryCompilation,
+                    runtimeIssues);
+
+                // Static projection is materialized, but no Driver/ServerMemory source is
+                // started and no alarm input is evaluated on Standby.
+                RegisterPassiveTagProjection(candidate);
+                RegisterAlarms(effectivePackage, candidate, runtimeIssues);
+                RegisterIntelligenceDeviationAlarms(effectivePackage, candidate);
+                RegisterCommands(effectivePackage, candidate, runtimeIssues);
+                if (runtimeIssues.Any(issue => issue.IsError))
+                {
+                    await candidate.DisposeAsync();
+                    return new RuntimeActivationResult(
+                        projectKey.Trim(),
+                        revision,
+                        false,
+                        compilationIssues,
+                        runtimeIssues);
+                }
+
+                candidate.ActivatedAtUtc = authoritativeActivatedAtUtc?.ToUniversalTime();
+                candidate.PassiveProjection = true;
+
+                var previous = Volatile.Read(ref _active);
+                previous.EventGate.DisableForwarding();
+                Volatile.Write(ref _active, candidate);
+                // Deliberately do not enable candidate.EventGate. Passive Standby must
+                // never emit TAG/Alarm/Historian/Operational effects from materialization.
+                candidate = null;
+
+                try
+                {
+                    await previous.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    runtimeIssues.Add(new(
+                        "PREVIOUS_RUNTIME_STOP_FAILED",
+                        $"Passive Runtime materialized, but the previous Runtime reported an error while stopping: {ex.Message}",
+                        IsError: false));
+                }
+
+                return new RuntimeActivationResult(
+                    projectKey.Trim(),
+                    revision,
+                    true,
+                    compilationIssues,
+                    runtimeIssues,
+                    authoritativeActivatedAtUtc?.ToUniversalTime());
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                if (candidate is not null) await candidate.DisposeAsync();
+                throw;
+            }
+            catch (Exception ex)
+            {
+                if (candidate is not null) await candidate.DisposeAsync();
+                runtimeIssues.Add(new("PASSIVE_RUNTIME_MATERIALIZATION_FAILED", ex.Message));
+                return new RuntimeActivationResult(
+                    projectKey.Trim(),
+                    revision,
+                    false,
+                    compilationIssues,
+                    runtimeIssues);
+            }
+        }
+        finally
+        {
+            _activationGate.Release();
+        }
+    }
+
     public ValueTask<bool> AcknowledgeAlarmAsync(
         Guid alarmId,
         string user,
-        CancellationToken cancellationToken = default) =>
-        Volatile.Read(ref _active).Alarms.AcknowledgeAsync(alarmId, user, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        RequireIndustrialEffectAuthority();
+        return Volatile.Read(ref _active).Alarms.AcknowledgeAsync(alarmId, user, cancellationToken);
+    }
 
     public ValueTask<bool> ShelveAlarmAsync(
         Guid alarmId,
         string user,
-        CancellationToken cancellationToken = default) =>
-        Volatile.Read(ref _active).Alarms.ShelveAsync(alarmId, user, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        RequireIndustrialEffectAuthority();
+        return Volatile.Read(ref _active).Alarms.ShelveAsync(alarmId, user, cancellationToken);
+    }
 
     public ValueTask<bool> UnshelveAlarmAsync(
         Guid alarmId,
         string user,
-        CancellationToken cancellationToken = default) =>
-        Volatile.Read(ref _active).Alarms.UnshelveAsync(alarmId, user, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        RequireIndustrialEffectAuthority();
+        return Volatile.Read(ref _active).Alarms.UnshelveAsync(alarmId, user, cancellationToken);
+    }
 
     public async ValueTask WriteAsync(
         Guid tagId,
         object? value,
         CancellationToken cancellationToken = default)
     {
+        RequireIndustrialEffectAuthority();
         var state = Volatile.Read(ref _active);
         if (state.DriverByTagId.TryGetValue(tagId, out var driver))
         {
@@ -221,6 +553,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         Guid tagId,
         CancellationToken cancellationToken = default)
     {
+        RequireIndustrialEffectAuthority();
         var state = Volatile.Read(ref _active);
         if (!state.ServerMemoryByTagId.TryGetValue(tagId, out var memorySource))
             throw new KeyNotFoundException($"Active runtime Server Memory TAG '{tagId}' was not found.");
@@ -232,6 +565,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         Guid commandId,
         CancellationToken cancellationToken = default)
     {
+        RequireIndustrialEffectAuthority();
         var state = Volatile.Read(ref _active);
         if (!state.Commands.TryGet(commandId, out var command) || command is null)
             throw new KeyNotFoundException($"Active runtime command '{commandId}' was not found.");
@@ -257,7 +591,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         long revision,
         EngineeringPackage package,
         CancellationToken cancellationToken = default) =>
-        ActivateCoreAsync(projectKey, revision, package, null, cancellationToken);
+        ActivateCoreAsync(projectKey, revision, package, null, allowDegradedSources: false, cancellationToken);
 
     public Task<RuntimeActivationResult> ActivateAsync(
         string projectKey,
@@ -267,7 +601,18 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(commitAsync);
-        return ActivateCoreAsync(projectKey, revision, package, commitAsync, cancellationToken);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: false, cancellationToken);
+    }
+
+    public Task<RuntimeActivationResult> ActivateForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(commitAsync);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: true, cancellationToken);
     }
 
     private async Task<RuntimeActivationResult> ActivateCoreAsync(
@@ -275,6 +620,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         long revision,
         EngineeringPackage package,
         Func<RuntimeActivationCommitContext, CancellationToken, Task>? commitAsync,
+        bool allowDegradedSources,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(projectKey))
@@ -286,9 +632,14 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         await _activationGate.WaitAsync(cancellationToken);
         try
         {
-            var memoryCompilation = InternalMemoryRuntimePlanner.Compile(package);
+            var captureResolution = HistorianCaptureProfileRuntimeResolver.Resolve(package);
+            var effectivePackage = captureResolution.Package;
+            var memoryCompilation = InternalMemoryRuntimePlanner.Compile(effectivePackage);
             var compilation = _compiler.Compile(memoryCompilation.CommunicationPackage);
-            var compilationIssues = memoryCompilation.Issues.Concat(compilation.Issues).ToArray();
+            var compilationIssues = captureResolution.Issues
+                .Concat(memoryCompilation.Issues)
+                .Concat(compilation.Issues)
+                .ToArray();
             if (compilationIssues.Any(x => x.IsError))
             {
                 return new RuntimeActivationResult(
@@ -301,39 +652,130 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
             var runtimeIssues = new List<RuntimeActivationIssue>();
             RuntimeState? candidate = null;
+            var previous = Volatile.Read(ref _active);
+            IReadOnlyCollection<ICommunicationDriver> stoppedPreviousDrivers = Array.Empty<ICommunicationDriver>();
+
+            async Task RollbackPreviousAsync()
+            {
+                if (stoppedPreviousDrivers.Count == 0) return;
+                foreach (var driver in stoppedPreviousDrivers)
+                {
+                    try
+                    {
+                        await driver.StartAsync(CancellationToken.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        runtimeIssues.Add(new RuntimeActivationIssue(
+                            "RUNTIME_HANDOVER_ROLLBACK_FAILED",
+                            $"Previous Runtime resource owner '{driver.DriverId}' could not be restarted after candidate failure: {ex.Message}",
+                            driver.DriverId));
+                    }
+                }
+                stoppedPreviousDrivers = Array.Empty<ICommunicationDriver>();
+            }
+
+            async Task DisposeCandidateAndRollbackAsync()
+            {
+                if (candidate is not null)
+                {
+                    try { await candidate.DisposeAsync(); }
+                    catch (Exception ex)
+                    {
+                        runtimeIssues.Add(new RuntimeActivationIssue(
+                            "RUNTIME_CANDIDATE_STOP_FAILED",
+                            $"Candidate Runtime reported an error while releasing resources: {ex.Message}",
+                            IsError: false));
+                    }
+                    candidate = null;
+                }
+                await RollbackPreviousAsync();
+            }
+
             try
             {
                 candidate = BuildCandidate(
                     projectKey.Trim(),
                     revision,
+                    effectivePackage,
                     compilation,
                     memoryCompilation,
                     runtimeIssues);
                 if (runtimeIssues.Any(x => x.IsError))
                 {
-                    await candidate.DisposeAsync();
+                    await DisposeCandidateAndRollbackAsync();
                     return new RuntimeActivationResult(
                         projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
                 }
 
-                await StartRuntimeSourcesAsync(candidate, cancellationToken);
+                var handover = ResolveResourceHandover(previous, candidate);
+
+                await StartRuntimeSourcesAsync(
+                    candidate,
+                    handover.CandidateDrivers);
+
+                var preHandoverReady = await WaitUntilReadyAsync(
+                    candidate,
+                    cancellationToken,
+                    handover.CandidateDrivers,
+                    allowEmpty: true);
+                if (!preHandoverReady)
+                {
+                    if (!allowDegradedSources || HasFatalStartupFailure(candidate, handover.CandidateDrivers))
+                    {
+                        runtimeIssues.Add(new(
+                            "RUNTIME_CANDIDATE_NOT_READY",
+                            $"Candidate Runtime did not reach pre-handover readiness within {_activationTimeout}.",
+                            IsError: true));
+                        await DisposeCandidateAndRollbackAsync();
+                        return new RuntimeActivationResult(
+                            projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
+                    }
+
+                    runtimeIssues.Add(new(
+                        "RUNTIME_ACTIVATED_DEGRADED",
+                        "HA takeover is continuing with communication sources degraded; TAGs retain their current quality until acquisition recovers.",
+                        IsError: false));
+                }
+
+                if (handover.PreviousDrivers.Count > 0)
+                {
+                    stoppedPreviousDrivers = await StopDriversForHandoverAsync(
+                        handover.PreviousDrivers,
+                        cancellationToken);
+                }
+
+                await StartDriversAsync(handover.CandidateDrivers);
+
                 var ready = await WaitUntilReadyAsync(candidate, cancellationToken);
                 if (!ready)
                 {
-                    runtimeIssues.Add(new(
-                        "RUNTIME_CANDIDATE_NOT_READY",
-                        $"Candidate runtime did not reach protocol readiness and required Good TAG quality within {_activationTimeout}.",
-                        IsError: true));
-                    await candidate.DisposeAsync();
-                    return new RuntimeActivationResult(
-                        projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
+                    if (!allowDegradedSources || HasFatalStartupFailure(candidate))
+                    {
+                        runtimeIssues.Add(new(
+                            "RUNTIME_CANDIDATE_NOT_READY",
+                            $"Candidate runtime did not reach protocol readiness and required Good TAG quality within {_activationTimeout}.",
+                            IsError: true));
+                        await DisposeCandidateAndRollbackAsync();
+                        return new RuntimeActivationResult(
+                            projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
+                    }
+
+                    if (!runtimeIssues.Any(issue => issue.Code == "RUNTIME_ACTIVATED_DEGRADED"))
+                    {
+                        runtimeIssues.Add(new(
+                            "RUNTIME_ACTIVATED_DEGRADED",
+                            "HA takeover is continuing with communication sources degraded; TAGs retain their current quality until acquisition recovers.",
+                            IsError: false));
+                    }
                 }
 
-                RegisterAlarms(package, candidate, runtimeIssues);
-                RegisterCommands(package, candidate, runtimeIssues);
+                RegisterAlarms(effectivePackage, candidate, runtimeIssues);
+                RegisterIntelligenceDeviationAlarms(effectivePackage, candidate);
+                RegisterCommands(effectivePackage, candidate, runtimeIssues);
                 if (runtimeIssues.Any(x => x.IsError))
                 {
-                    await candidate.DisposeAsync();
+                    await DisposeCandidateAndRollbackAsync();
                     return new RuntimeActivationResult(
                         projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
                 }
@@ -356,17 +798,17 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                         runtimeIssues.Add(new(
                             "RUNTIME_ACTIVATION_COMMIT_FAILED",
                             $"Candidate runtime was ready, but activation could not be committed: {ex.Message}"));
-                        await candidate.DisposeAsync();
+                        await DisposeCandidateAndRollbackAsync();
                         return new RuntimeActivationResult(
                             projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
                     }
                 }
 
-                var previous = Volatile.Read(ref _active);
                 previous.EventGate.DisableForwarding();
                 Volatile.Write(ref _active, candidate);
                 candidate.EventGate.EnableForwarding();
                 candidate = null;
+                stoppedPreviousDrivers = Array.Empty<ICommunicationDriver>();
 
                 try
                 {
@@ -390,12 +832,12 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                if (candidate is not null) await candidate.DisposeAsync();
+                await DisposeCandidateAndRollbackAsync();
                 throw;
             }
             catch (Exception ex)
             {
-                if (candidate is not null) await candidate.DisposeAsync();
+                await DisposeCandidateAndRollbackAsync();
                 runtimeIssues.Add(new("RUNTIME_ACTIVATION_FAILED", ex.Message));
                 return new RuntimeActivationResult(
                     projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
@@ -410,47 +852,34 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     private RuntimeState BuildCandidate(
         string projectKey,
         long revision,
+        EngineeringPackage application,
         EngineeringDriverCompilation compilation,
         InternalMemoryRuntimeCompilation memoryCompilation,
         List<RuntimeActivationIssue> runtimeIssues)
     {
-        var eventGate = new RuntimeEventGate(_externalEventBus, forwardingEnabled: false);
+        var eventGate = new RuntimeEventGate(
+            _externalEventBus,
+            forwardingEnabled: false,
+            effectAuthority: _industrialEffectAuthority);
         var registry = new InMemoryTagRegistry();
         var cache = new CurrentTagCache(eventGate);
         var alarms = new InMemoryAlarmEngine(eventGate);
         var commands = new InMemoryCommandRegistry();
         var drivers = new List<ICommunicationDriver>();
 
-        foreach (var plan in compilation.ModbusTcpPlans)
-        {
-            if (plan.Points.Count == 0)
-            {
-                runtimeIssues.Add(new(
-                    "RUNTIME_DATASOURCE_NO_POINTS",
-                    $"Data source '{plan.DataSourceKey}' has no Modbus points and will not create a runtime driver.",
-                    plan.DataSourceKey,
-                    IsError: false));
-                continue;
-            }
-
-            drivers.Add(new ModbusTcpDriver(
-                $"modbus.tcp:{plan.DataSourceKey}",
-                plan.Name,
-                plan.Host,
-                cache,
-                registry,
-                plan.Points,
-                plan.Port,
-                plan.ScanRate,
-                plan.RequestTimeout,
-                plan.MaxGapElements));
-        }
-
         var communicationServices = new CommunicationDriverRuntimeServices(
             projectKey,
             cache,
             registry,
-            _protectedMaterialResolver);
+            _protectedMaterialResolver,
+            () => eventGate.ForwardingEnabled && _industrialEffectAuthority())
+        {
+            TransientEventIngress = _transientEventIngress,
+            // Active candidates may acquire read-only input samples into their
+            // private cache before the commit. Event forwarding and every
+            // process write remain fenced by CanOwnExternalEffects above.
+            InputAcquisitionAuthority = _industrialEffectAuthority
+        };
 
         foreach (var plan in compilation.CommunicationPlans)
         {
@@ -500,13 +929,14 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         {
             runtimeIssues.Add(new(
                 "RUNTIME_NO_ACTIVE_SOURCES",
-                "Published engineering produced no supported active runtime sources.",
-                IsError: true));
+                "Published engineering has no acquisition sources; visual-only Runtime remains available.",
+                IsError: false));
         }
 
         return new RuntimeState(
             projectKey,
             revision,
+            application,
             eventGate,
             registry,
             cache,
@@ -517,21 +947,131 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             memoryCompilation.ClientMemoryPlans);
     }
 
-    private static async Task StartRuntimeSourcesAsync(RuntimeState state, CancellationToken cancellationToken)
+    private static void RegisterPassiveTagProjection(RuntimeState state)
     {
-        foreach (var source in state.ServerMemorySources)
-            await source.ActivateAsync(cancellationToken);
-
-        foreach (var driver in state.Drivers)
-            await driver.StartAsync(cancellationToken);
+        foreach (var tag in state.Drivers.SelectMany(driver => driver.Tags)
+                     .Concat(state.ServerMemorySources.SelectMany(source => source.Tags))
+                     .GroupBy(tag => tag.Id)
+                     .Select(group => group.First()))
+        {
+            if (!state.Registry.TryGet(tag.Id, out _))
+                state.Registry.Register(tag);
+        }
     }
 
-    private async Task<bool> WaitUntilReadyAsync(RuntimeState state, CancellationToken cancellationToken)
+    private static async Task StartRuntimeSourcesAsync(
+        RuntimeState state,
+        IReadOnlyCollection<ICommunicationDriver>? excludedDrivers = null)
     {
-        var readinessSources = state.Drivers
+        foreach (var source in state.ServerMemorySources)
+            await source.ActivateAsync(CancellationToken.None);
+
+        var excluded = excludedDrivers is null
+            ? null
+            : new HashSet<ICommunicationDriver>(excludedDrivers, ReferenceEqualityComparer.Instance);
+        foreach (var driver in state.Drivers)
+        {
+            if (excluded?.Contains(driver) == true) continue;
+            // A driver is owned by the committed Runtime, not by the HTTP request
+            // (or other caller) that activated it. Passing the activation token here
+            // can silently stop its polling loop as soon as that request completes.
+            await driver.StartAsync(CancellationToken.None);
+        }
+    }
+
+    private static async Task StartDriversAsync(
+        IReadOnlyCollection<ICommunicationDriver> drivers)
+    {
+        foreach (var driver in drivers)
+            await driver.StartAsync(CancellationToken.None);
+    }
+
+    private static async Task<IReadOnlyCollection<ICommunicationDriver>> StopDriversForHandoverAsync(
+        IReadOnlyCollection<ICommunicationDriver> drivers,
+        CancellationToken cancellationToken)
+    {
+        var stopped = new List<ICommunicationDriver>(drivers.Count);
+        try
+        {
+            foreach (var driver in drivers)
+            {
+                // Stop can fail after the driver has already cancelled its polling
+                // loop or released part of its transport. Include the in-flight
+                // driver in rollback before invoking protocol-specific cleanup.
+                stopped.Add(driver);
+                await driver.StopAsync(cancellationToken);
+            }
+            return stopped;
+        }
+        catch (Exception stopException)
+        {
+            List<Exception>? rollbackErrors = null;
+            foreach (var driver in stopped.AsEnumerable().Reverse())
+            {
+                try { await driver.StartAsync(CancellationToken.None); }
+                catch (Exception ex)
+                {
+                    rollbackErrors ??= new List<Exception>();
+                    rollbackErrors.Add(new InvalidOperationException(
+                        $"Previous Runtime resource owner '{driver.DriverId}' could not be restarted after handover failed.",
+                        ex));
+                }
+            }
+
+            if (rollbackErrors is { Count: > 0 })
+                throw new AggregateException(
+                    "Previous Runtime handover failed and one or more resource owners could not be restored.",
+                    new[] { stopException }.Concat(rollbackErrors));
+
+            throw;
+        }
+    }
+
+    private static RuntimeResourceHandover ResolveResourceHandover(
+        RuntimeState previous,
+        RuntimeState candidate)
+    {
+        // Resource-owning communication drivers form one revision-scoped handover
+        // cohort. Even when two revisions use different endpoints/Unit IDs, the
+        // candidate must not open a listener/bus while the previous Active revision
+        // still owns its resource cohort. This keeps physical resource authority
+        // aligned with revision activation rather than only preventing direct
+        // endpoint collisions.
+        var previousDrivers = previous.Drivers
+            .Where(driver => driver is ICommunicationDriverResourceClaimSource)
+            .ToArray();
+        var candidateDrivers = candidate.Drivers
+            .Where(driver => driver is ICommunicationDriverResourceClaimSource)
+            .ToArray();
+
+        foreach (var source in previousDrivers
+                     .Concat(candidateDrivers)
+                     .OfType<ICommunicationDriverResourceClaimSource>())
+        {
+            foreach (var claim in source.ResourceClaims)
+                claim.Validate();
+        }
+
+        return new RuntimeResourceHandover(previousDrivers, candidateDrivers);
+    }
+
+    private async Task<bool> WaitUntilReadyAsync(
+        RuntimeState state,
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<ICommunicationDriver>? ignoredDrivers = null,
+        bool allowEmpty = false)
+    {
+        var ignored = ignoredDrivers is null
+            ? null
+            : new HashSet<ICommunicationDriver>(ignoredDrivers, ReferenceEqualityComparer.Instance);
+        var activeDrivers = state.Drivers
+            .Where(driver => ignored?.Contains(driver) != true)
+            .ToArray();
+
+        var readinessSources = activeDrivers
             .OfType<ICommunicationDriverReadinessSource>()
             .ToArray();
-        var expectedTagIds = state.Drivers
+        var expectedTagIds = activeDrivers
             .Where(driver => driver is not ICommunicationDriverReadinessSource)
             .SelectMany(x => x.Tags)
             .Select(x => x.Id)
@@ -540,11 +1080,14 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             .ToArray();
 
         if (expectedTagIds.Length == 0 && readinessSources.Length == 0)
-            return state.ClientMemoryPlans.SelectMany(x => x.Tags).Any();
+            // A Screen/PDF/media-only project has no acquisition readiness to
+            // await. Driver compilation/creation errors were already rejected;
+            // an existing driver is still required to satisfy its own readiness.
+            return allowEmpty || activeDrivers.Length == 0 || state.ClientMemoryPlans.SelectMany(x => x.Tags).Any();
 
         bool IsReady()
         {
-            if (state.Drivers.Any(x => x.Status.State == DriverState.Faulted))
+            if (activeDrivers.Any(x => x.Status.State == DriverState.Faulted))
                 return false;
 
             var protocolSnapshots = readinessSources
@@ -570,6 +1113,23 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         return IsReady();
     }
 
+    private static bool HasFatalStartupFailure(
+        RuntimeState state,
+        IReadOnlyCollection<ICommunicationDriver>? drivers = null)
+    {
+        var candidates = drivers ?? state.Drivers;
+        if (candidates.Any(driver => driver.Status.State == DriverState.Faulted))
+            return true;
+
+        return candidates
+            .OfType<ICommunicationDriverReadinessSource>()
+            .Any(source => source.GetCommunicationReadiness().State == CommunicationDriverReadinessState.Faulted);
+    }
+
+    private sealed record RuntimeResourceHandover(
+        IReadOnlyCollection<ICommunicationDriver> PreviousDrivers,
+        IReadOnlyCollection<ICommunicationDriver> CandidateDrivers);
+
     private static void RegisterAlarms(
         EngineeringPackage package,
         RuntimeState state,
@@ -577,6 +1137,22 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     {
         foreach (var dto in package.Alarms.Where(x => x.Enabled))
         {
+            var equipment = dto.EquipmentId.HasValue
+                ? package.Equipment?.FirstOrDefault(item => item.Id == dto.EquipmentId)
+                : null;
+            var locationExists = !dto.LocationId.HasValue ||
+                package.Locations?.Any(item => item.Id == dto.LocationId) == true;
+            if (dto.EquipmentId.HasValue && equipment is null ||
+                !locationExists ||
+                dto.LocationId.HasValue && dto.EquipmentId.HasValue)
+            {
+                issues.Add(new(
+                    "RUNTIME_ALARM_OPERATIONAL_TARGET_INVALID",
+                    $"Alarm '{dto.Name}' references an unresolved or inconsistent Equipment/Location operational target.",
+                    dto.Name));
+                continue;
+            }
+
             TagDefinition? tag = null;
             if (dto.TagId.HasValue)
                 state.Registry.TryGet(dto.TagId.Value, out tag);
@@ -609,8 +1185,53 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                     : null,
                 dto.RequiresAcknowledgement,
                 dto.ShelvingAllowed,
-                dto.Metadata));
+                dto.Metadata,
+                dto.SoundProfile,
+                ResolveAlarmLocationId(dto, package),
+                dto.EquipmentId));
         }
+    }
+
+    private void RegisterIntelligenceDeviationAlarms(EngineeringPackage package, RuntimeState state)
+    {
+        if (_intelligenceAlarmPermit is null || state.ProjectKey is not { } projectKey ||
+            state.Revision is not { } revision ||
+            package.AssetProcessIntelligence is not { Version: 3, OperatingContextProfiles: { } contexts } configuration)
+            return;
+
+        foreach (var context in contexts.Where(item => item.DeviationAlarm is not null))
+        {
+            var alarm = context.DeviationAlarm!;
+            var assignment = configuration.Assignments?.FirstOrDefault(item => item.Id == context.AssignmentId);
+            var equipment = package.Equipment?.FirstOrDefault(item => item.Id == assignment?.EquipmentId);
+            if (equipment?.Id is not { } equipmentId || !state.Registry.TryGet(alarm.TagId, out var target) || target is null ||
+                context.Predicates is not { Count: > 0 } predicates)
+                continue;
+
+            var id = IntelligenceDeviationAlarm.GetId(context.Id);
+            if (package.Alarms.Any(item => item.Id == id))
+                throw new InvalidOperationException($"Alarm ID collision for Intelligence context '{context.Key}'.");
+
+            var definition = new AlarmDefinition(id, $"{equipment.Name} · {context.DisplayLabel} · {target.Name}",
+                target.Id, AlarmType.Digital, AlarmPriority.Medium, Area: "Intelligence",
+                Message: FormattableString.Invariant($"{target.Name}: [{alarm.Minimum:G}, {alarm.Maximum:G}]"),
+                AlarmClass: "Intelligence",
+                ActivationDelay: TimeSpan.FromSeconds(alarm.PersistenceSeconds),
+                LocationId: equipment.LocationId, EquipmentId: equipment.Id);
+
+            state.Alarms.RegisterConditional(definition, predicates.Select(item => item.TagId).ToHashSet(),
+                () => state.EventGate.ForwardingEnabled && _industrialEffectAuthority() &&
+                    _intelligenceAlarmPermit(projectKey, revision, equipmentId)
+                    ? IntelligenceDeviationAlarm.Evaluate(state.Cache, alarm, predicates, DateTimeOffset.UtcNow)
+                    : null);
+        }
+    }
+
+    private static Guid? ResolveAlarmLocationId(AlarmEngineeringDto alarm, EngineeringPackage package)
+    {
+        if (alarm.LocationId.HasValue) return alarm.LocationId;
+        if (!alarm.EquipmentId.HasValue) return null;
+        return package.Equipment?.FirstOrDefault(item => item.Id == alarm.EquipmentId)?.LocationId;
     }
 
     private static void RegisterCommands(
@@ -700,17 +1321,27 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
     private static async Task EvaluateCurrentAlarmsAsync(
         RuntimeState state,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool locallyOnly = false)
     {
         foreach (var current in state.Cache.Snapshot())
         {
             if (!state.Registry.TryGet(current.TagId, out var tag) || tag is null)
                 continue;
 
-            await state.EventGate.PublishAsync(
-                new TagValueChanged(tag, null, current, DateTimeOffset.UtcNow),
-                cancellationToken);
+            var change = new TagValueChanged(tag, null, current, DateTimeOffset.UtcNow);
+            if (locallyOnly)
+                await state.EventGate.PublishLocallyAsync(change, cancellationToken);
+            else
+                await state.EventGate.PublishAsync(change, cancellationToken);
         }
+    }
+
+    private void RequireIndustrialEffectAuthority()
+    {
+        if (!_industrialEffectAuthority())
+            throw new InvalidOperationException(
+                "Industrial Runtime effects are fenced because this node is not the effective HA Active authority.");
     }
 
     public async ValueTask DisposeAsync()
@@ -735,6 +1366,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         public RuntimeState(
             string? projectKey,
             long? revision,
+            EngineeringPackage? application,
             RuntimeEventGate eventGate,
             InMemoryTagRegistry registry,
             CurrentTagCache cache,
@@ -746,6 +1378,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         {
             ProjectKey = projectKey;
             Revision = revision;
+            Application = application;
             EventGate = eventGate;
             Registry = registry;
             Cache = cache;
@@ -764,7 +1397,9 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
         public string? ProjectKey { get; }
         public long? Revision { get; }
+        public EngineeringPackage? Application { get; }
         public DateTimeOffset? ActivatedAtUtc { get; set; }
+        public bool PassiveProjection { get; set; }
         public RuntimeEventGate EventGate { get; }
         public InMemoryTagRegistry Registry { get; }
         public CurrentTagCache Cache { get; }
@@ -782,6 +1417,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             return new RuntimeState(
                 null,
                 null,
+                null,
                 eventGate,
                 new InMemoryTagRegistry(),
                 new CurrentTagCache(eventGate),
@@ -797,15 +1433,24 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             List<Exception>? errors = null;
             foreach (var driver in Drivers.Reverse())
             {
-                try
-                {
-                    await driver.StopAsync();
-                    await driver.DisposeAsync();
-                }
+                try { await driver.StopAsync(); }
                 catch (Exception ex)
                 {
                     errors ??= new List<Exception>();
-                    errors.Add(ex);
+                    errors.Add(new InvalidOperationException(
+                        $"Communication driver '{driver.DriverId}' reported an error while stopping.",
+                        ex));
+                }
+
+                // Disposal must still run when StopAsync fails: a protocol driver
+                // can have released only some resources before reporting an error.
+                try { await driver.DisposeAsync(); }
+                catch (Exception ex)
+                {
+                    errors ??= new List<Exception>();
+                    errors.Add(new InvalidOperationException(
+                        $"Communication driver '{driver.DriverId}' reported an error while disposing.",
+                        ex));
                 }
             }
 

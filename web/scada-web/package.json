@@ -10,20 +10,28 @@
     "build": "tsc -b && vite build",
     "prepreview": "node scripts/sync-pyodide.mjs",
     "preview": "vite preview",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:intelligence-ui": "playwright test --config=playwright.intelligence-ui.config.ts && playwright test --config=playwright.intelligence-runtime-local.config.ts"
   },
   "dependencies": {
+    "@fontsource-variable/arimo": "^5.3.0",
+    "@fontsource/cousine": "^5.3.0",
+    "@fontsource/lato": "^5.3.0",
+    "@fontsource/tinos": "^5.3.0",
     "@vitejs/plugin-react": "6.1.1",
-    "vite": "8.2.2",
-    "typescript": "7.0.2",
+    "hls.js": "1.7.3",
+    "monaco-editor": "0.56.0",
+    "pyodide": "314.0.6",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "monaco-editor": "0.56.0",
-    "pyodide": "314.0.6"
+    "three": "^0.186.1",
+    "typescript": "7.0.2",
+    "vite": "8.2.2"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
     "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.5"
+    "@types/react-dom": "19.2.5",
+    "@types/three": "^0.186.0"
   }
 }

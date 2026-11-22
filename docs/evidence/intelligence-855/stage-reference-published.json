@@ -1,0 +1,22 @@
+{
+  "syntheticOnly": true,
+  "generatedScreens": [
+    {
+      "id": "af5be506-2229-4565-9851-291440cf276e",
+      "key": "intelligence-bombeamento-855-2",
+      "role": "values-trend"
+    },
+    {
+      "id": "87f48187-b329-4aea-be51-ce6584eb87d4",
+      "key": "intelligence-process-stage-insights-bombeamento-855-2",
+      "role": "process-stage-insights"
+    },
+    {
+      "id": "5f3a0877-e948-4cf9-adaa-45c89f482dfa",
+      "key": "intelligence-stage-coverage-bombeamento-855-2",
+      "role": "process-stage-coverage"
+    }
+  ],
+  "savedRevision": 35,
+  "activeRevisionAfterScopeActivation": 37
+}

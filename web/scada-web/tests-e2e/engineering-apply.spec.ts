@@ -33,15 +33,15 @@ test('TAG editor only applies the exact candidate after a valid preview', async 
     await page.getByLabel('Descrição').fill(marker);
     await expect(apply).toBeDisabled();
 
-    await page.getByRole('button', { name: 'Validar preview' }).click();
-    await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+    await page.getByTestId('engineering-preview').click();
+    await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
     await expect(apply).toBeEnabled();
 
     // Any post-preview draft edit invalidates the retained candidate before it can be applied.
     await page.getByLabel('Descrição').fill(markerAfterEdit);
     await expect(apply).toBeDisabled();
 
-    await page.getByRole('button', { name: 'Validar preview' }).click();
+    await page.getByTestId('engineering-preview').click();
     await expect(apply).toBeEnabled();
     await apply.click();
 
@@ -120,6 +120,61 @@ test('backend rejects an Engineering candidate when the Workspace version is sta
       data: originalPackage
     });
     expect(restore.ok()).toBeTruthy();
+  }
+});
+
+test('Runtime header-only edits mark the Workspace dirty and survive package re-open', async ({ request }) => {
+  const originalResponse = await request.get('/api/engineering/export/json');
+  expect(originalResponse.ok()).toBeTruthy();
+  const originalPackage = await originalResponse.json() as Record<string, unknown>;
+  const workspaceBeforeResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceBeforeResponse.ok()).toBeTruthy();
+  const workspaceBefore = await workspaceBeforeResponse.json() as { changeVersion: number; isDirty: boolean };
+
+  const currentPresentation = originalPackage.runtimePresentation as {
+    historicalPlaybackEnabled?: boolean;
+    mobileOrientation?: string;
+    version?: number;
+    header?: Record<string, unknown> | null;
+  } | null | undefined;
+  const currentHeader = currentPresentation?.header ?? {};
+  const nextHeight = currentHeader.height === 112 ? 128 : 112;
+  const changedPackage = {
+    ...structuredClone(originalPackage),
+    runtimePresentation: {
+      ...currentPresentation,
+      version: currentPresentation?.version ?? 1,
+      mobileOrientation: currentPresentation?.mobileOrientation ?? 'landscape',
+      historicalPlaybackEnabled: currentPresentation?.historicalPlaybackEnabled ?? false,
+      header: { ...currentHeader, height: nextHeight }
+    }
+  };
+
+  try {
+    const applied = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: changedPackage
+    });
+    expect(applied.ok()).toBeTruthy();
+
+    const workspaceAfterResponse = await request.get('/api/engineering/workspace');
+    expect(workspaceAfterResponse.ok()).toBeTruthy();
+    const workspaceAfter = await workspaceAfterResponse.json() as { changeVersion: number; isDirty: boolean };
+    expect(workspaceAfter.changeVersion).toBeGreaterThan(workspaceBefore.changeVersion);
+    expect(workspaceAfter.isDirty).toBeTruthy();
+
+    const reopenedResponse = await request.get('/api/engineering/export/json');
+    expect(reopenedResponse.ok()).toBeTruthy();
+    const reopened = await reopenedResponse.json() as {
+      runtimePresentation?: { header?: { height?: number } | null } | null;
+    };
+    expect(reopened.runtimePresentation?.header?.height).toBe(nextHeight);
+  } finally {
+    const restored = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: originalPackage
+    });
+    expect(restored.ok()).toBeTruthy();
   }
 });
 
@@ -260,9 +315,11 @@ test('TAG Delete panel surfaces dependency conflict without removing the TAG', a
 
   await page.goto('/engineering');
   await page.getByRole('button', { name: /TAGs/ }).click();
-  const panel = page.locator('.eng-mutation-panel');
+  await page.locator('.eng-editor-picker-list').getByRole('button', { name: tag!.path, exact: false }).click();
+  const panel = page.getByTestId('engineering-entity-actions');
   await expect(panel).toBeVisible();
-  await panel.getByLabel('Entidade').selectOption(tag!.id!);
+  await expect(panel.getByTestId('engineering-current-entity')).toContainText(tag!.path);
+  await expect(panel.getByRole('combobox')).toHaveCount(0);
 
   page.once('dialog', dialog => dialog.accept());
   await panel.getByTestId('engineering-delete').click();
@@ -287,7 +344,10 @@ test('TAG Bulk panel gates Apply behind Preview and shows affected quantity', as
   try {
     await page.goto('/engineering');
     await page.getByRole('button', { name: /TAGs/ }).click();
-    const panel = page.locator('.eng-mutation-panel');
+    const panel = page.getByTestId('engineering-entity-actions');
+    await expect(panel.getByTestId('engineering-bulk-panel')).toHaveCount(0);
+    await panel.getByTestId('engineering-bulk-toggle').click();
+    await expect(panel.getByTestId('engineering-bulk-panel')).toBeVisible();
     const entity = panel.locator('.eng-bulk-entities label').filter({ hasText: tag!.path });
     await entity.getByRole('checkbox').check();
 

@@ -1,0 +1,45 @@
+{
+  "syntheticOnly": true,
+  "partialProfileSignalCount": 2,
+  "generatedViewCount": 2,
+  "generatedViews": [
+    "performance",
+    "values-trend"
+  ],
+  "queriesDuringGeneration": 0,
+  "coverageAcceptedSamples": [
+    120,
+    120
+  ],
+  "performance": {
+    "status": "available",
+    "unit": "kWh/m³",
+    "reasonCodes": [],
+    "qualifiedTupleCount": 120,
+    "minimum": 0.00015631357103800154,
+    "maximum": 0.00017807660855930033,
+    "arithmeticMean": 0.00016665286390744858,
+    "meanSemantics": "arithmetic mean of qualified pointwise formula results; not time-weighted"
+  },
+  "restart": {
+    "syntheticOnly": true,
+    "persistedScreens": 2,
+    "identitiesPreserved": true,
+    "activeRevision": 23,
+    "projectionRevision": 23,
+    "blockedBeforeRearm": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED",
+    "explicitRearmSucceeded": true,
+    "qualifiedTupleCount": 120
+  },
+  "unitConversionProof": {
+    "displayedUnit": "kPa",
+    "enteredMinimum": 0,
+    "enteredMaximum": 500,
+    "persistedCanonicalUnit": "Pa",
+    "persistedMinimum": 0,
+    "persistedMaximum": 500000,
+    "activeRevision": 19,
+    "jointReferenceVectors": 120,
+    "jointEvaluationVectors": 120
+  }
+}

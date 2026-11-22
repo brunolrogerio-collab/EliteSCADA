@@ -29,4 +29,5 @@ test('semantic state remains textual and not color-only', () => {
   expect(runtimeRendererSource).toContain('>{indicator.label}</span>');
   expect(runtimeRendererSource).toContain('role="status"');
   expect(runtimeRendererSource).toContain('data-dynamo-state={indicator.state}');
+  expect(runtimeRendererSource).not.toContain('data-dynamo-command-state');
 });

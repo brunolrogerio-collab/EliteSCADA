@@ -15,15 +15,15 @@ export type RuntimeLogicalTransform = RuntimeLogicalSize & Readonly<{
 }>;
 
 /**
- * C09 owns the Runtime presentation transform, not the C07 Screen schema.
- * Until C07 defines a canonical authored logical resolution, Runtime uses one
- * deterministic 1920x1080 logical canvas and does not inspect Screen properties
- * for undeclared sizing keys.
+ * Runtime keeps a deterministic logical canvas independent of the physical
+ * display resolution. Screen orientation changes only its aspect ratio; the
+ * Runtime still scales the whole canvas uniformly to fit the available area.
  */
-export function resolveRuntimeLogicalSize(): RuntimeLogicalSize {
+export function resolveRuntimeLogicalSize(orientation: 'landscape' | 'portrait' | null = 'landscape'): RuntimeLogicalSize {
+  const portrait = orientation === 'portrait';
   return Object.freeze({
-    width: DEFAULT_RUNTIME_DESIGN_WIDTH,
-    height: DEFAULT_RUNTIME_DESIGN_HEIGHT
+    width: portrait ? DEFAULT_RUNTIME_DESIGN_HEIGHT : DEFAULT_RUNTIME_DESIGN_WIDTH,
+    height: portrait ? DEFAULT_RUNTIME_DESIGN_WIDTH : DEFAULT_RUNTIME_DESIGN_HEIGHT
   });
 }
 

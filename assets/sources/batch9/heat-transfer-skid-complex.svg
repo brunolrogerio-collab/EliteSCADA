@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="16" y="30" width="96" height="66" rx="6" fill="#D1D5DB" stroke="#374151" stroke-width="4" data-elitescada-slot="skid" />
+  <line x1="24" y1="102" x2="104" y2="102" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="base" />
+  <rect x="28" y="44" width="30" height="36" rx="4" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="heater" />
+  <circle cx="82" cy="62" r="14" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="pump" />
+  <line x1="58" y1="62" x2="68" y2="62" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="fluid" />
+  <circle cx="102" cy="40" r="4" fill="#9CA3AF" data-elitescada-slot="status" />
+  <rect x="24" y="82" width="80" height="8" rx="2" fill="none" stroke="#374151" stroke-width="2" data-elitescada-slot="manifold" />
+  <line x1="26" y1="22" x2="102" y2="22" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round" data-elitescada-slot="reference" />
+</svg>

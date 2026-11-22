@@ -4,6 +4,7 @@ import {
   HISTORICAL_BROWSER_RELATIVE_PRESETS,
   createHistoricalBrowserDraft,
   formatHistoricalScalar,
+  historicalBrowserDurationSeconds,
   historicalDatasetLabel,
   historicalTimeSummary,
   validateHistoricalBrowserDraft
@@ -15,9 +16,9 @@ test('Historical Browser exposes the canonical historian, alarm and operational 
     'alarm.events',
     'operational.events'
   ]);
-  expect(historicalDatasetLabel('historian.samples')).toBe('Historian samples');
-  expect(historicalDatasetLabel('alarm.events')).toBe('Alarm events');
-  expect(historicalDatasetLabel('operational.events')).toBe('Operational events');
+  expect(historicalDatasetLabel('historian.samples')).toBe('TAG values');
+  expect(historicalDatasetLabel('alarm.events')).toBe('Alarms');
+  expect(historicalDatasetLabel('operational.events')).toBe('Events');
 });
 
 test('Historical Browser transient draft defaults to a bounded relative period without becoming a query DTO', () => {
@@ -25,37 +26,55 @@ test('Historical Browser transient draft defaults to a bounded relative period w
   expect(draft).toMatchObject({
     datasetKey: 'historian.samples',
     timeMode: 'relative',
-    relativeDurationSeconds: 3600
+    relativeAmount: 1,
+    relativeUnit: 'hours'
   });
+  expect(historicalBrowserDurationSeconds(draft)).toBe(3600);
   expect(validateHistoricalBrowserDraft(draft)).toEqual({ ok: true, diagnostics: [] });
   expect(historicalTimeSummary(draft)).toBe('Last 1 h');
   expect(HISTORICAL_BROWSER_RELATIVE_PRESETS.map(item => item.seconds)).toEqual([
     900,
     3600,
     28800,
-    86400,
-    604800
+    86400
   ]);
 });
 
-test('Historical Browser preflight rejects invalid local periods before a future shared query request', () => {
+test('Historical Browser preflight validates custom, oversized and reversed ranges before request', () => {
   expect(validateHistoricalBrowserDraft({
     ...createHistoricalBrowserDraft(),
-    relativeDurationSeconds: 0
+    relativeAmount: 0
   })).toEqual({
     ok: false,
-    diagnostics: ['Relative period must be a positive whole number of seconds.']
+    diagnostics: ['Period amount must be a positive whole number.']
+  });
+
+  expect(validateHistoricalBrowserDraft({
+    ...createHistoricalBrowserDraft(),
+    relativeAmount: 32,
+    relativeUnit: 'days'
+  })).toEqual({
+    ok: false,
+    diagnostics: ['The period cannot exceed 31 days.']
   });
 
   expect(validateHistoricalBrowserDraft({
     ...createHistoricalBrowserDraft(),
     timeMode: 'absolute',
-    absoluteFromLocal: '2026-08-29T20:00',
-    absoluteToLocal: '2026-08-29T19:00'
+    absoluteFromLocal: '2026-08-29T20:00:00',
+    absoluteToLocal: '2026-08-29T19:00:00'
   })).toEqual({
     ok: false,
-    diagnostics: ['Absolute period start must be before end.']
+    diagnostics: ['From must be before To.']
   });
+});
+
+test('Historical Browser keeps history ranges relative or custom and does not expose Live', () => {
+  const relative = { ...createHistoricalBrowserDraft(), relativeAmount: 15, relativeUnit: 'minutes' as const };
+  expect(historicalBrowserDurationSeconds(relative)).toBe(900);
+  expect(validateHistoricalBrowserDraft(relative).ok).toBe(true);
+  expect(JSON.stringify(relative)).not.toContain('"live"');
+  expect(HISTORICAL_BROWSER_RELATIVE_PRESETS.map(item => item.label)).toEqual(['15 min', '1 h', '8 h', '24 h']);
 });
 
 test('Historical Browser preserves exact Int64 wire text without JavaScript Number precision loss', () => {
@@ -73,5 +92,26 @@ test('Historical Browser scalar presentation remains typed and fail-closed', () 
   expect(formatHistoricalScalar(1.25, 'Int32')).toBe('Unavailable');
   expect(formatHistoricalScalar(Number.POSITIVE_INFINITY, 'Double')).toBe('Unavailable');
   expect(formatHistoricalScalar(null, 'String')).toBe('—');
-  expect(formatHistoricalScalar('2026-08-29T23:00:00Z', 'DateTime')).toBe('2026-08-29T23:00:00Z');
+  const formatted = formatHistoricalScalar('2026-08-29T23:00:00Z', 'DateTime');
+  expect(formatted).toMatch(/2026/);
+  expect(formatted).not.toMatch(/T\d{2}:\d{2}:\d{2}.*Z/);
+});
+
+
+test('Historical Browser keeps the simplified dataset vocabulary equivalent in pt-BR, en and es', () => {
+  expect([
+    historicalDatasetLabel('historian.samples', 'pt-BR'),
+    historicalDatasetLabel('alarm.events', 'pt-BR'),
+    historicalDatasetLabel('operational.events', 'pt-BR')
+  ]).toEqual(['Valores de TAGs', 'Alarmes', 'Eventos']);
+  expect([
+    historicalDatasetLabel('historian.samples', 'en'),
+    historicalDatasetLabel('alarm.events', 'en'),
+    historicalDatasetLabel('operational.events', 'en')
+  ]).toEqual(['TAG values', 'Alarms', 'Events']);
+  expect([
+    historicalDatasetLabel('historian.samples', 'es'),
+    historicalDatasetLabel('alarm.events', 'es'),
+    historicalDatasetLabel('operational.events', 'es')
+  ]).toEqual(['Valores de TAGs', 'Alarmas', 'Eventos']);
 });

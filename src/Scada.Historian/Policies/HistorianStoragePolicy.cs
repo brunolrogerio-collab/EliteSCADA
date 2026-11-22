@@ -11,6 +11,12 @@ public enum HistorianBucketWidth
     OneHour
 }
 
+public enum HistorianRawStorageLimitAction
+{
+    WarnOnly,
+    DeleteOldestCompleteChunks
+}
+
 public static class HistorianBucketWidthExtensions
 {
     public static TimeSpan ToTimeSpan(this HistorianBucketWidth width) => width switch
@@ -71,7 +77,9 @@ public sealed record HistorianDownsamplingRule(
 public sealed record HistorianStoragePolicy(
     string Key,
     HistorianRetentionRule RawRetention,
-    IReadOnlyCollection<HistorianDownsamplingRule>? Downsampling = null)
+    IReadOnlyCollection<HistorianDownsamplingRule>? Downsampling = null,
+    long? RawSampleStorageLimitBytes = null,
+    HistorianRawStorageLimitAction RawSampleStorageLimitAction = HistorianRawStorageLimitAction.WarnOnly)
 {
     public IReadOnlyCollection<HistorianDownsamplingRule> EffectiveDownsampling =>
         Downsampling ?? Array.Empty<HistorianDownsamplingRule>();
@@ -82,6 +90,13 @@ public sealed record HistorianStoragePolicy(
             throw new ArgumentException("Historian storage policy key is required.", nameof(Key));
         if (Key.Any(char.IsWhiteSpace))
             throw new ArgumentException("Historian storage policy key cannot contain whitespace.", nameof(Key));
+
+        if (RawSampleStorageLimitBytes is <= 0)
+            throw new ArgumentException("Raw sample storage limit must be a positive number of bytes when configured.", nameof(RawSampleStorageLimitBytes));
+        if (!Enum.IsDefined(RawSampleStorageLimitAction))
+            throw new ArgumentOutOfRangeException(nameof(RawSampleStorageLimitAction), "Unsupported raw sample storage limit action.");
+        if (RawSampleStorageLimitBytes is null && RawSampleStorageLimitAction != HistorianRawStorageLimitAction.WarnOnly)
+            throw new ArgumentException("A raw sample storage limit action requires a configured positive byte limit.", nameof(RawSampleStorageLimitAction));
 
         ArgumentNullException.ThrowIfNull(RawRetention);
         RawRetention.Validate("raw");
@@ -113,6 +128,13 @@ public static class HistorianPolicySafety
         next.Validate();
 
         if (BecomesMoreDestructive(current?.RawRetention, next.RawRetention))
+            return true;
+
+        if (next.RawSampleStorageLimitBytes.HasValue &&
+            next.RawSampleStorageLimitAction == HistorianRawStorageLimitAction.DeleteOldestCompleteChunks &&
+            (current?.RawSampleStorageLimitAction != HistorianRawStorageLimitAction.DeleteOldestCompleteChunks ||
+             current.RawSampleStorageLimitBytes is null ||
+             next.RawSampleStorageLimitBytes.Value < current.RawSampleStorageLimitBytes.Value))
             return true;
 
         var currentByBucket = current?.EffectiveDownsampling.ToDictionary(x => x.Bucket)

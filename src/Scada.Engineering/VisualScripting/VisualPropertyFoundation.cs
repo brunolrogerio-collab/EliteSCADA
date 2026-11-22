@@ -310,6 +310,10 @@ public static class VisualPropertyKeys
     public const string Width = "width";
     public const string Height = "height";
     public const string Rotation = "rotation";
+    public const string ArcStartAngle = "arcStartAngle";
+    public const string ArcEndAngle = "arcEndAngle";
+    public const string ArcStyle = "arcStyle";
+    public const string BezierPath = "bezierPath";
     public const string ScaleX = "scaleX";
     public const string ScaleY = "scaleY";
     public const string HorizontalFlip = "horizontalFlip";
@@ -319,7 +323,9 @@ public static class VisualPropertyKeys
     public const string Opacity = "opacity";
     public const string Tooltip = "tooltip";
     public const string Enabled = "enabled";
+    public const string Checked = "checked";
     public const string FillStyle = "fillStyle";
+    public const string PolygonFillRule = "polygonFillRule";
     public const string FillColor = "fillColor";
     public const string FillSecondaryColor = "fillSecondaryColor";
     public const string GradientDirection = "gradientDirection";
@@ -335,6 +341,10 @@ public static class VisualPropertyKeys
     public const string ShadowBlur = "shadowBlur";
     public const string Text = "text";
     public const string TextColor = "textColor";
+    public const string TextColorEditing = "textColorEditing";
+    public const string TextColorGood = "textColorGood";
+    public const string TextColorBad = "textColorBad";
+    public const string ValueFormat = "valueFormat";
     public const string FontFamily = "fontFamily";
     public const string FontSize = "fontSize";
     public const string FontWeight = "fontWeight";
@@ -346,18 +356,62 @@ public static class VisualPropertyKeys
     public const string HorizontalAlignment = "horizontalAlignment";
     public const string VerticalAlignment = "verticalAlignment";
     public const string AssetRef = "assetRef";
+    public const string ViewYawDeg = "viewYawDeg";
+    public const string ViewPitchDeg = "viewPitchDeg";
+    public const string RuntimeViewInteractionEnabled = "runtimeViewInteractionEnabled";
     public const string ImageFit = "imageFit";
     public const string ImagePositionX = "imagePositionX";
     public const string ImagePositionY = "imagePositionY";
+    public const string ImageZoom = "imageZoom";
+    public const string MediaAutoplay = "mediaAutoplay";
+    public const string MediaSourceId = "mediaSourceId";
+    public const string MediaMuted = "mediaMuted";
+    public const string MediaLoop = "mediaLoop";
+    public const string MediaControls = "mediaControls";
+    public const string PdfInitialPage = "pdfInitialPage";
+    public const string PdfZoom = "pdfZoom";
+    public const string PdfToolbarVisible = "pdfToolbarVisible";
+    public const string ReportKey = "reportKey";
     public const string Value = "value";
     public const string Minimum = "minimum";
     public const string Maximum = "maximum";
     public const string Step = "step";
     public const string Orientation = "orientation";
     public const string InteractionEnabled = "interactionEnabled";
+    public const string ShowApplyButton = "showApplyButton";
+    public const string DecimalPlacesEnabled = "decimalPlacesEnabled";
+    public const string DecimalPlaces = "decimalPlaces";
     public const string ReverseDirection = "reverseDirection";
     public const string TrackColor = "trackColor";
     public const string ThumbColor = "thumbColor";
+    public const string MeasurementTheme = "measurementTheme";
+    public const string MeasurementQualityVisible = "measurementQualityVisible";
+    public const string MeasurementFreshnessVisible = "measurementFreshnessVisible";
+    public const string MeasurementStaleAfterSeconds = "measurementStaleAfterSeconds";
+    public const string MeasurementUnit = "measurementUnit";
+    public const string MeasurementTarget = "measurementTarget";
+    public const string MeasurementBandOneEnd = "measurementBandOneEnd";
+    public const string MeasurementBandTwoEnd = "measurementBandTwoEnd";
+    public const string IntelligenceScopeId = "intelligenceScopeId";
+    public const string IntelligenceAssignmentId = "intelligenceAssignmentId";
+    public const string IntelligenceProfileId = "intelligenceProfileId";
+    public const string IntelligenceRuleId = "intelligenceRuleId";
+    public const string IntelligenceRuleVersion = "intelligenceRuleVersion";
+    public const string IntelligenceSignalIds = "intelligenceSignalIds";
+    public const string IntelligenceFirstContextSignalId = "intelligenceFirstContextSignalId";
+    public const string IntelligenceFirstContextLowerInclusiveCanonical = "intelligenceFirstContextLowerInclusiveCanonical";
+    public const string IntelligenceFirstContextUpperExclusiveCanonical = "intelligenceFirstContextUpperExclusiveCanonical";
+    public const string IntelligenceSecondContextSignalId = "intelligenceSecondContextSignalId";
+    public const string IntelligenceSecondContextLowerInclusiveCanonical = "intelligenceSecondContextLowerInclusiveCanonical";
+    public const string IntelligenceSecondContextUpperExclusiveCanonical = "intelligenceSecondContextUpperExclusiveCanonical";
+    public const string IntelligenceStageId = "intelligenceStageId";
+    public const string IntelligenceStageKey = "intelligenceStageKey";
+    public const string IntelligenceStageName = "intelligenceStageName";
+    public const string IntelligenceStageMembers = "intelligenceStageMembers";
+    public const string IntelligenceJointSignals = "intelligenceJointSignals";
+    public const string IntelligenceCurrentFrequencySignals = "intelligenceCurrentFrequencySignals";
+    public const string IntelligenceSingleTargetSignals = "intelligenceSingleTargetSignals";
+    public const string IntelligenceOperatingContexts = "intelligenceOperatingContexts";
 
     // Pre-Wave-07 compatibility constant. New visual schemas use AssetRef.
     public const string ImageResourceId = "imageResourceId";
@@ -365,6 +419,11 @@ public static class VisualPropertyKeys
 
 public static class CommonVisualPropertyDefinitions
 {
+    public static IReadOnlyList<VisualPropertyDefinition> CheckBox { get; } =
+    [
+        Boolean(VisualPropertyKeys.Checked, false)
+    ];
+
     public static IReadOnlyList<VisualPropertyDefinition> Geometry { get; } =
     [
         Number(VisualPropertyKeys.X, 0, animatable: true, unit: "px"),
@@ -377,6 +436,8 @@ public static class CommonVisualPropertyDefinitions
     public static IReadOnlyList<VisualPropertyDefinition> Transform { get; } =
     [
         Number(VisualPropertyKeys.Rotation, 0, animatable: true, unit: "deg"),
+        Number(VisualPropertyKeys.ArcStartAngle, 0, unit: "deg"),
+        Number(VisualPropertyKeys.ArcEndAngle, 90, unit: "deg"),
         Number(VisualPropertyKeys.ScaleX, 1, minimum: 0, animatable: true),
         Number(VisualPropertyKeys.ScaleY, 1, minimum: 0, animatable: true),
         Boolean(VisualPropertyKeys.HorizontalFlip, false),
@@ -400,12 +461,27 @@ public static class CommonVisualPropertyDefinitions
         Color(VisualPropertyKeys.BackgroundColor, "#00000000", animatable: true)
     ];
 
+    public static IReadOnlyList<VisualPropertyDefinition> Polygon { get; } =
+    [
+        EnumString(VisualPropertyKeys.PolygonFillRule, "nonzero", ["evenodd", "nonzero"])
+    ];
+
     public static IReadOnlyList<VisualPropertyDefinition> Stroke { get; } =
     [
         Color(VisualPropertyKeys.StrokeColor, "#000000", animatable: true),
         Number(VisualPropertyKeys.StrokeWidth, 1, minimum: 0, animatable: true, unit: "px"),
         EnumString(VisualPropertyKeys.StrokeStyle, "solid", ["none", "solid", "dashed", "dotted", "dash-dot", "dash-dot-dot"]),
         Number(VisualPropertyKeys.CornerRadius, 0, minimum: 0, animatable: true, unit: "px")
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> Arc { get; } =
+    [
+        EnumString(VisualPropertyKeys.ArcStyle, "pie", ["arc", "chord", "pie"])
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> Bezier { get; } =
+    [
+        String(VisualPropertyKeys.BezierPath, "M 0 50 C 20 0 80 0 100 50 C 80 100 20 100 0 50 Z")
     ];
 
     public static IReadOnlyList<VisualPropertyDefinition> Effects { get; } =
@@ -421,6 +497,10 @@ public static class CommonVisualPropertyDefinitions
     [
         String(VisualPropertyKeys.Text, string.Empty),
         Color(VisualPropertyKeys.TextColor, "#000000", animatable: true),
+        Color(VisualPropertyKeys.TextColorEditing, "#1565C0", animatable: false),
+        Color(VisualPropertyKeys.TextColorGood, "#000000", animatable: false),
+        Color(VisualPropertyKeys.TextColorBad, "#C62828", animatable: false),
+        EnumString(VisualPropertyKeys.ValueFormat, "default", ["default", "numeric", "MM/DD", "DD/MM", "MM/DD/YYYY", "DD/MM/YYYY", "HH:mm", "HH:mm:ss", "dateTime"]),
         String(VisualPropertyKeys.FontFamily, "system", presentationHint: "font-family"),
         Number(VisualPropertyKeys.FontSize, 14, minimum: 1, animatable: true, unit: "px"),
         Integer(VisualPropertyKeys.FontWeight, 400, minimum: 100, maximum: 900),
@@ -446,7 +526,37 @@ public static class CommonVisualPropertyDefinitions
             presentationHint: "project-asset"),
         EnumString(VisualPropertyKeys.ImageFit, "contain", ["contain", "cover", "fill", "native"]),
         Number(VisualPropertyKeys.ImagePositionX, 0, minimum: 0, maximum: 1, animatable: true),
-        Number(VisualPropertyKeys.ImagePositionY, 0, minimum: 0, maximum: 1, animatable: true)
+        Number(VisualPropertyKeys.ImagePositionY, 0, minimum: 0, maximum: 1, animatable: true),
+        Number(VisualPropertyKeys.ImageZoom, 1, minimum: 1, maximum: 8, animatable: true)
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> Model3dView { get; } =
+    [
+        new(VisualPropertyKeys.ViewYawDeg, new VisualNumberValue(40.1),
+            runtimeWritable: false, supportsBinding: false,
+            constraints: new VisualPropertyConstraints { Minimum = -180, Maximum = 180 }, unit: "deg"),
+        new(VisualPropertyKeys.ViewPitchDeg, new VisualNumberValue(25.8),
+            runtimeWritable: false, supportsBinding: false,
+            constraints: new VisualPropertyConstraints { Minimum = -85, Maximum = 85 }, unit: "deg"),
+        new(VisualPropertyKeys.RuntimeViewInteractionEnabled, new VisualBooleanValue(false),
+            runtimeWritable: false, supportsBinding: false)
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> Media { get; } =
+    [
+        Boolean(VisualPropertyKeys.MediaAutoplay, false),
+        String(VisualPropertyKeys.MediaSourceId, string.Empty),
+        Boolean(VisualPropertyKeys.MediaMuted, true),
+        Boolean(VisualPropertyKeys.MediaLoop, false),
+        Boolean(VisualPropertyKeys.MediaControls, true),
+        Integer(VisualPropertyKeys.PdfInitialPage, 1, minimum: 1),
+        Number(VisualPropertyKeys.PdfZoom, 100, minimum: 25, maximum: 400, unit: "%"),
+        Boolean(VisualPropertyKeys.PdfToolbarVisible, true)
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> ReportLauncher { get; } =
+    [
+        String(VisualPropertyKeys.ReportKey, string.Empty)
     ];
 
     public static IReadOnlyList<VisualPropertyDefinition> Slider { get; } =
@@ -460,6 +570,25 @@ public static class CommonVisualPropertyDefinitions
         Boolean(VisualPropertyKeys.ReverseDirection, false),
         Color(VisualPropertyKeys.TrackColor, "#6B7280", animatable: true),
         Color(VisualPropertyKeys.ThumbColor, "#E5E7EB", animatable: true)
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> NumericInput { get; } =
+    [
+        Boolean(VisualPropertyKeys.ShowApplyButton, true),
+        Boolean(VisualPropertyKeys.DecimalPlacesEnabled, false),
+        Integer(VisualPropertyKeys.DecimalPlaces, 2, minimum: 0, maximum: 12)
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> Measurement { get; } =
+    [
+        EnumString(VisualPropertyKeys.MeasurementTheme, "inherit", ["inherit", "light", "dark", "high-contrast"]),
+        Boolean(VisualPropertyKeys.MeasurementQualityVisible, true),
+        Boolean(VisualPropertyKeys.MeasurementFreshnessVisible, true),
+        Integer(VisualPropertyKeys.MeasurementStaleAfterSeconds, 30, minimum: 1, maximum: 86400),
+        String(VisualPropertyKeys.MeasurementUnit, string.Empty),
+        Number(VisualPropertyKeys.MeasurementTarget, 50),
+        Number(VisualPropertyKeys.MeasurementBandOneEnd, 33),
+        Number(VisualPropertyKeys.MeasurementBandTwoEnd, 66)
     ];
 
     private static VisualPropertyDefinition Boolean(string key, bool value) =>

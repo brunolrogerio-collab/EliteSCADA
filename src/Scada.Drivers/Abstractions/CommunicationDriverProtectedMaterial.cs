@@ -1,5 +1,11 @@
 namespace Scada.Drivers.Abstractions;
 
+/// <summary>Portable slot marker; the host's opaque protected-material reference stays outside Engineering packages.</summary>
+public static class HostMaterialSlotReference
+{
+    public const string Marker = "host-material-slot-v1:configured";
+}
+
 /// <summary>
 /// Scoped request for protected runtime material referenced by canonical
 /// Engineering. Reference identifies protected storage; it is never the secret

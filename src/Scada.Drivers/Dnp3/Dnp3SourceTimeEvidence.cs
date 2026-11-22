@@ -16,8 +16,11 @@ public static class Dnp3SourceTimeEvidence
         if (measurement.SourceTimestamp is null)
             return Dnp3SourceTimeState.Unknown;
 
-        return measurement.SourceTimestampSynchronized
-            ? Dnp3SourceTimeState.Synchronized
-            : Dnp3SourceTimeState.Unsynchronized;
+        return measurement.SourceTimestampSynchronized switch
+        {
+            true => Dnp3SourceTimeState.Synchronized,
+            false => Dnp3SourceTimeState.Unsynchronized,
+            null => Dnp3SourceTimeState.Unknown
+        };
     }
 }

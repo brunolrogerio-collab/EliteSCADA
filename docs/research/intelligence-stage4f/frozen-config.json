@@ -1,0 +1,1745 @@
+{
+  "archiveSha256": "24128AAD2EE45EEA7E6B63EBBD9992CDF25D0483A2CEBEFBFC13BC69079AF1F2",
+  "calibrationCycles": [
+    1794,
+    1795
+  ],
+  "calibrationQuantile": 0.99,
+  "candidateSelection": "No winner selected; carry the complete predeclared finite grid. Only two calibration source groups.",
+  "configVersion": 1,
+  "configurationSha256": "F0D2F8DED8F5969CD73D1BBFC549C8B621D70809461B243FF2F442C04815DF75",
+  "createdAtUtc": "2026-10-20T03:37:15.322049+00:00",
+  "dimensions": {
+    "3": {
+      "calibrationCycleIds": [
+        1794,
+        1795
+      ],
+      "calibrationRawSignalRows": 36000,
+      "calibrationSourceGroups": 2,
+      "calibrationVectorRows": 12000,
+      "dimension": 3,
+      "fitCycleIds": [
+        1788,
+        1789,
+        1790,
+        1791,
+        1792,
+        1793
+      ],
+      "fitRawSignalRows": 108000,
+      "fitSampleToDimensionRatio": 12000.0,
+      "fitSourceGroups": 6,
+      "fitVectorRows": 36000,
+      "independentControl": {
+        "calibrationCycleReferenceExceedances": {
+          "1794": {
+            "referenceExceedanceCount": 0,
+            "referenceExceedanceRate": 0.0,
+            "scoreMax": 19.32226395091553,
+            "scoreMean": 3.6481802191252974,
+            "scoreMedian": 0.703315150907219,
+            "scoreP95": 19.32226395091553,
+            "scoreP99": 19.32226395091553,
+            "vectorRows": 6000
+          },
+          "1795": {
+            "referenceExceedanceCount": 0,
+            "referenceExceedanceRate": 0.0,
+            "scoreMax": 19.32226395091553,
+            "scoreMean": 3.6466820020282285,
+            "scoreMedian": 0.6881168354256165,
+            "scoreP95": 19.32226395091553,
+            "scoreP99": 19.32226395091553,
+            "vectorRows": 6000
+          }
+        },
+        "calibrationThresholdQ99": 19.32226395091553,
+        "calibrationVectorRows": 12000,
+        "metricLabel": "calibration reference exceedance; not a false-positive rate",
+        "scoreDefinition": "max absolute robust-scaled marginal signal score"
+      },
+      "jointCandidates": [
+        {
+          "calibrationCycleReferenceExceedances": {
+            "1794": {
+              "referenceExceedanceCount": 59,
+              "referenceExceedanceRate": 0.009833333333333333,
+              "scoreMax": 64.06614270132334,
+              "scoreMean": 2.732112854219043,
+              "scoreMedian": 0.8403144171424745,
+              "scoreP95": 8.259487168512509,
+              "scoreP99": 25.003679418786714,
+              "vectorRows": 6000
+            },
+            "1795": {
+              "referenceExceedanceCount": 61,
+              "referenceExceedanceRate": 0.010166666666666666,
+              "scoreMax": 61.07249469114513,
+              "scoreMean": 2.7218529836008654,
+              "scoreMedian": 0.9223342199336804,
+              "scoreP95": 8.223782959221184,
+              "scoreP99": 25.374087520326196,
+              "vectorRows": 6000
+            }
+          },
+          "calibrationThresholdQ99": 25.040238790573223,
+          "calibrationVectorRows": 12000,
+          "metricLabel": "calibration reference exceedance; not a false-positive rate",
+          "regularizedConditionNumber": 568.8702298904896,
+          "regularizedCovariance": [
+            [
+              3.127293734475749,
+              3.206306930605434,
+              -9.436587604234377
+            ],
+            [
+              3.206306930605434,
+              3.4907472845200354,
+              -10.486744527781676
+            ],
+            [
+              -9.436587604234377,
+              -10.486744527781676,
+              46.799424758410744
+            ]
+          ],
+          "regularizedEigenvalues": [
+            0.09008848832949123,
+            2.0787182225926735,
+            51.248659066484365
+          ],
+          "regularizedRank": 3,
+          "shrinkage": 0.05
+        },
+        {
+          "calibrationCycleReferenceExceedances": {
+            "1794": {
+              "referenceExceedanceCount": 63,
+              "referenceExceedanceRate": 0.0105,
+              "scoreMax": 43.63500466493856,
+              "scoreMean": 2.6706632576865887,
+              "scoreMedian": 0.6521509536664497,
+              "scoreP95": 8.67978640108861,
+              "scoreP99": 23.19828603859603,
+              "vectorRows": 6000
+            },
+            "1795": {
+              "referenceExceedanceCount": 57,
+              "referenceExceedanceRate": 0.0095,
+              "scoreMax": 41.94811706389434,
+              "scoreMean": 2.663834081364919,
+              "scoreMedian": 0.6742564302106249,
+              "scoreP95": 8.65505793800472,
+              "scoreP99": 22.864655923367216,
+              "vectorRows": 6000
+            }
+          },
+          "calibrationThresholdQ99": 23.065617048238167,
+          "calibrationVectorRows": 12000,
+          "metricLabel": "calibration reference exceedance; not a false-positive rate",
+          "regularizedConditionNumber": 352.25755378320196,
+          "regularizedCovariance": [
+            [
+              3.015330906345447,
+              3.03755393425778,
+              -8.939925098748358
+            ],
+            [
+              3.03755393425778,
+              3.359655322176876,
+              -9.934810605266852
+            ],
+            [
+              -8.939925098748358,
+              -9.934810605266852,
+              44.3889287184944
+            ]
+          ],
+          "regularizedEigenvalues": [
+            0.13797856789109703,
+            2.021943579298323,
+            48.603992799827296
+          ],
+          "regularizedRank": 3,
+          "shrinkage": 0.1
+        },
+        {
+          "calibrationCycleReferenceExceedances": {
+            "1794": {
+              "referenceExceedanceCount": 61,
+              "referenceExceedanceRate": 0.010166666666666666,
+              "scoreMax": 34.1702299161606,
+              "scoreMean": 2.872411129545729,
+              "scoreMedian": 0.6887325623744059,
+              "scoreP95": 10.337310614773498,
+              "scoreP99": 20.783167366015476,
+              "vectorRows": 6000
+            },
+            "1795": {
+              "referenceExceedanceCount": 59,
+              "referenceExceedanceRate": 0.009833333333333333,
+              "scoreMax": 34.077454973363686,
+              "scoreMean": 2.8688008040640587,
+              "scoreMedian": 0.6630967030950043,
+              "scoreP95": 10.319714818391068,
+              "scoreP99": 20.59494642840669,
+              "vectorRows": 6000
+            }
+          },
+          "calibrationThresholdQ99": 20.708503635247272,
+          "calibrationVectorRows": 12000,
+          "metricLabel": "calibration reference exceedance; not a false-positive rate",
+          "regularizedConditionNumber": 144.39966742374273,
+          "regularizedCovariance": [
+            [
+              2.679442421954539,
+              2.5312949452148166,
+              -7.449937582290298
+            ],
+            [
+              2.5312949452148166,
+              2.966379435147396,
+              -8.279008837722376
+            ],
+            [
+              -7.449937582290298,
+              -8.279008837722376,
+              37.157440598745325
+            ]
+          ],
+          "regularizedEigenvalues": [
+            0.28164880657591435,
+            1.8516196494152684,
+            40.669993999856075
+          ],
+          "regularizedRank": 3,
+          "shrinkage": 0.25
+        },
+        {
+          "calibrationCycleReferenceExceedances": {
+            "1794": {
+              "referenceExceedanceCount": 60,
+              "referenceExceedanceRate": 0.01,
+              "scoreMax": 40.059839747931726,
+              "scoreMean": 3.770362068609114,
+              "scoreMedian": 0.810252744561967,
+              "scoreP95": 15.2742609488386,
+              "scoreP99": 21.446210125893067,
+              "vectorRows": 6000
+            },
+            "1795": {
+              "referenceExceedanceCount": 60,
+              "referenceExceedanceRate": 0.01,
+              "scoreMax": 39.95561885548976,
+              "scoreMean": 3.7679057168452244,
+              "scoreMedian": 0.7762217955321505,
+              "scoreP95": 15.254667399251849,
+              "scoreP99": 21.183511504398624,
+              "vectorRows": 6000
+            }
+          },
+          "calibrationThresholdQ99": 21.446210125893067,
+          "calibrationVectorRows": 12000,
+          "metricLabel": "calibration reference exceedance; not a false-positive rate",
+          "regularizedConditionNumber": 52.670705377527696,
+          "regularizedCovariance": [
+            [
+              2.119628281303026,
+              1.6875299634765444,
+              -4.966625054860199
+            ],
+            [
+              1.6875299634765444,
+              2.3109196234315976,
+              -5.519339225148251
+            ],
+            [
+              -4.966625054860199,
+              -5.519339225148251,
+              25.104960399163552
+            ]
+          ],
+          "regularizedEigenvalues": [
+            0.5210992043839424,
+            1.5677464329435127,
+            27.44666266657072
+          ],
+          "regularizedRank": 3,
+          "shrinkage": 0.5
+        }
+      ],
+      "robustCentersFitOnly": [
+        2472.0,
+        156.38,
+        129.915
+      ],
+      "robustScalesFitOnly": [
+        104.07851999999973,
+        7.338869999999983,
+        6.7235909999999945
+      ],
+      "sampleSizePrefixes": [
+        {
+          "conditionNumber": 1252.0932067454526,
+          "cycleIds": [
+            1788
+          ],
+          "eigenvalues": [
+            0.04547276048077152,
+            2.213024538804634,
+            56.936134489937096
+          ],
+          "rank": 3,
+          "sampleToDimensionRatio": 2000.0,
+          "sourceGroups": 1,
+          "status": "measured",
+          "vectorRows": 6000
+        },
+        {
+          "conditionNumber": 1232.330370199078,
+          "cycleIds": [
+            1788,
+            1789
+          ],
+          "eigenvalues": [
+            0.04469046087826136,
+            2.153157057586458,
+            55.07341219847524
+          ],
+          "rank": 3,
+          "sampleToDimensionRatio": 4000.0,
+          "sourceGroups": 2,
+          "status": "measured",
+          "vectorRows": 12000
+        },
+        {
+          "conditionNumber": 1239.867170962887,
+          "cycleIds": [
+            1788,
+            1789,
+            1790
+          ],
+          "eigenvalues": [
+            0.04476053867432258,
+            2.206244705387737,
+            55.49712245690723
+          ],
+          "rank": 3,
+          "sampleToDimensionRatio": 6000.0,
+          "sourceGroups": 3,
+          "status": "measured",
+          "vectorRows": 18000
+        },
+        {
+          "conditionNumber": 1292.4456949469588,
+          "cycleIds": [
+            1788,
+            1789,
+            1790,
+            1791
+          ],
+          "eigenvalues": [
+            0.042245638236695804,
+            2.1038394738500448,
+            54.60019326930413
+          ],
+          "rank": 3,
+          "sampleToDimensionRatio": 8000.0,
+          "sourceGroups": 4,
+          "status": "measured",
+          "vectorRows": 24000
+        },
+        {
+          "conditionNumber": 1296.51133784639,
+          "cycleIds": [
+            1788,
+            1789,
+            1790,
+            1791,
+            1792
+          ],
+          "eigenvalues": [
+            0.04184870442399769,
+            2.1025672758618885,
+            54.25731975989539
+          ],
+          "rank": 3,
+          "sampleToDimensionRatio": 10000.0,
+          "sourceGroups": 5,
+          "status": "measured",
+          "vectorRows": 30000
+        },
+        {
+          "conditionNumber": 1277.1411744358613,
+          "cycleIds": [
+            1788,
+            1789,
+            1790,
+            1791,
+            1792,
+            1793
+          ],
+          "eigenvalues": [
+            0.04219840876788519,
+            2.1354928658870254,
+            53.89332533314144
+          ],
+          "rank": 3,
+          "sampleToDimensionRatio": 12000.0,
+          "sourceGroups": 6,
+          "status": "measured",
+          "vectorRows": 36000
+        }
+      ],
+      "signals": [
+        "EPS1",
+        "PS1",
+        "PS2"
+      ],
+      "unregularizedCovarianceDiagnostics": {
+        "conditionNumber": 1277.1411744358613,
+        "covariance": [
+          [
+            3.239256562606052,
+            3.3750599269530888,
+            -9.933250109720397
+          ],
+          [
+            3.3750599269530888,
+            3.6218392468631952,
+            -11.038678450296501
+          ],
+          [
+            -9.933250109720397,
+            -11.038678450296501,
+            49.209920798327104
+          ]
+        ],
+        "eigenvalues": [
+          0.04219840876788519,
+          2.1354928658870254,
+          53.89332533314144
+        ],
+        "meanOfRobustScaledFit": [
+          0.5970422352491409,
+          0.6292795530283747,
+          -3.018098323086909
+        ],
+        "rank": 3
+      }
+    },
+    "5": {
+      "calibrationCycleIds": [
+        1794,
+        1795
+      ],
+      "calibrationRawSignalRows": 60000,
+      "calibrationSourceGroups": 2,
+      "calibrationVectorRows": 12000,
+      "dimension": 5,
+      "fitCycleIds": [
+        1788,
+        1789,
+        1790,
+        1791,
+        1792,
+        1793
+      ],
+      "fitRawSignalRows": 180000,
+      "fitSampleToDimensionRatio": 7200.0,
+      "fitSourceGroups": 6,
+      "fitVectorRows": 36000,
+      "independentControl": {
+        "calibrationCycleReferenceExceedances": {
+          "1794": {
+            "referenceExceedanceCount": 35,
+            "referenceExceedanceRate": 0.005833333333333334,
+            "scoreMax": 72.71973945385537,
+            "scoreMean": 4.960217970331049,
+            "scoreMedian": 1.3988060844272048,
+            "scoreP95": 22.21001715133651,
+            "scoreP99": 22.21001715133651,
+            "vectorRows": 6000
+          },
+          "1795": {
+            "referenceExceedanceCount": 37,
+            "referenceExceedanceRate": 0.006166666666666667,
+            "scoreMax": 70.45537761846965,
+            "scoreMean": 4.972283662926537,
+            "scoreMedian": 1.4136790890463151,
+            "scoreP95": 22.21001715133651,
+            "scoreP99": 22.21001715133651,
+            "vectorRows": 6000
+          }
+        },
+        "calibrationThresholdQ99": 22.21001715133651,
+        "calibrationVectorRows": 12000,
+        "metricLabel": "calibration reference exceedance; not a false-positive rate",
+        "scoreDefinition": "max absolute robust-scaled marginal signal score"
+      },
+      "jointCandidates": [
+        {
+          "calibrationCycleReferenceExceedances": {
+            "1794": {
+              "referenceExceedanceCount": 59,
+              "referenceExceedanceRate": 0.009833333333333333,
+              "scoreMax": 390.0794240064301,
+              "scoreMean": 4.547450191385163,
+              "scoreMedian": 2.6165026786032373,
+              "scoreP95": 10.290109573742543,
+              "scoreP99": 31.80716975629867,
+              "vectorRows": 6000
+            },
+            "1795": {
+              "referenceExceedanceCount": 61,
+              "referenceExceedanceRate": 0.010166666666666666,
+              "scoreMax": 362.7467153283152,
+              "scoreMean": 4.60084357884224,
+              "scoreMedian": 2.6535838613692717,
+              "scoreP95": 10.494920131223488,
+              "scoreP99": 32.74560801098885,
+              "vectorRows": 6000
+            }
+          },
+          "calibrationThresholdQ99": 32.12902215473293,
+          "calibrationVectorRows": 12000,
+          "metricLabel": "calibration reference exceedance; not a false-positive rate",
+          "regularizedConditionNumber": 1705.4908417316678,
+          "regularizedCovariance": [
+            [
+              3.127293734475749,
+              3.206306930605434,
+              -9.436587604234377,
+              -10.817882240270816,
+              0.107523173730913
+            ],
+            [
+              3.206306930605434,
+              3.4907472845200354,
+              -10.486744527781676,
+              -12.779048397708474,
+              0.1351481409634137
+            ],
+            [
+              -9.436587604234377,
+              -10.486744527781676,
+              46.799424758410744,
+              54.49217742858946,
+              -0.007338476272798034
+            ],
+            [
+              -10.817882240270816,
+              -12.779048397708474,
+              54.49217742858946,
+              79.65243265499622,
+              -0.6371021205805437
+            ],
+            [
+              0.107523173730913,
+              0.1351481409634137,
+              -0.007338476272798034,
+              -0.6371021205805437,
+              0.9212255039806935
+            ]
+          ],
+          "regularizedEigenvalues": [
+            0.07282359130239723,
+            0.8712677949817518,
+            2.088061229286378,
+            6.759003292564499,
+            124.1999680282484
+          ],
+          "regularizedRank": 5,
+          "shrinkage": 0.05
+        },
+        {
+          "calibrationCycleReferenceExceedances": {
+            "1794": {
+              "referenceExceedanceCount": 59,
+              "referenceExceedanceRate": 0.009833333333333333,
+              "scoreMax": 384.159551114343,
+              "scoreMean": 4.558668720521003,
+              "scoreMedian": 2.6472273647679962,
+              "scoreP95": 10.704834739891576,
+              "scoreP99": 27.120369822550945,
+              "vectorRows": 6000
+            },
+            "1795": {
+              "referenceExceedanceCount": 61,
+              "referenceExceedanceRate": 0.010166666666666666,
+              "scoreMax": 358.567887093005,
+              "scoreMean": 4.613200162720142,
+              "scoreMedian": 2.697667164620457,
+              "scoreP95": 10.808776559312367,
+              "scoreP99": 27.85357565735383,
+              "vectorRows": 6000
+            }
+          },
+          "calibrationThresholdQ99": 27.28547185510216,
+          "calibrationVectorRows": 12000,
+          "metricLabel": "calibration reference exceedance; not a false-positive rate",
+          "regularizedConditionNumber": 967.8793372983595,
+          "regularizedCovariance": [
+            [
+              3.015330906345447,
+              3.03755393425778,
+              -8.939925098748358,
+              -10.248520017098668,
+              0.10186405932402284
+            ],
+            [
+              3.03755393425778,
+              3.359655322176876,
+              -9.934810605266852,
+              -12.10646690309224,
+              0.12803508091270774
+            ],
+            [
+              -8.939925098748358,
+              -9.934810605266852,
+              44.3889287184944,
+              51.62416809024265,
+              -0.0069522406794928744
+            ],
+            [
+              -10.248520017098668,
+              -12.10646690309224,
+              51.62416809024265,
+              75.51283093631221,
+              -0.603570430023673
+            ],
+            [
+              0.10186405932402284,
+              0.12803508091270774,
+              -0.0069522406794928744,
+              -0.603570430023673,
+              0.9253715300869727
+            ]
+          ],
+          "regularizedEigenvalues": [
+            0.12162234965490251,
+            0.8780431741932386,
+            2.030794848797624,
+            6.455897856113733,
+            117.7157591846564
+          ],
+          "regularizedRank": 5,
+          "shrinkage": 0.1
+        },
+        {
+          "calibrationCycleReferenceExceedances": {
+            "1794": {
+              "referenceExceedanceCount": 61,
+              "referenceExceedanceRate": 0.010166666666666666,
+              "scoreMax": 423.52086295435,
+              "scoreMean": 4.9712020724009705,
+              "scoreMedian": 2.8368639446169914,
+              "scoreP95": 12.235050141558535,
+              "scoreP99": 26.648391419745156,
+              "vectorRows": 6000
+            },
+            "1795": {
+              "referenceExceedanceCount": 59,
+              "referenceExceedanceRate": 0.009833333333333333,
+              "scoreMax": 396.8150557617006,
+              "scoreMean": 5.022817652230957,
+              "scoreMedian": 2.882666526661456,
+              "scoreP95": 12.333333086214372,
+              "scoreP99": 26.610625260344523,
+              "vectorRows": 6000
+            }
+          },
+          "calibrationThresholdQ99": 26.64455346320936,
+          "calibrationVectorRows": 12000,
+          "metricLabel": "calibration reference exceedance; not a false-positive rate",
+          "regularizedConditionNumber": 366.6280011671411,
+          "regularizedCovariance": [
+            [
+              2.679442421954539,
+              2.5312949452148166,
+              -7.449937582290298,
+              -8.540433347582223,
+              0.08488671610335237
+            ],
+            [
+              2.5312949452148166,
+              2.966379435147396,
+              -8.279008837722376,
+              -10.088722419243533,
+              0.10669590076058978
+            ],
+            [
+              -7.449937582290298,
+              -8.279008837722376,
+              37.157440598745325,
+              43.02014007520221,
+              -0.005793533899577395
+            ],
+            [
+              -8.540433347582223,
+              -10.088722419243533,
+              43.02014007520221,
+              63.09402578026018,
+              -0.5029753583530608
+            ],
+            [
+              0.08488671610335237,
+              0.10669590076058978,
+              -0.005793533899577395,
+              -0.5029753583530608,
+              0.9378096084058106
+            ]
+          ],
+          "regularizedEigenvalues": [
+            0.2680186247124191,
+            0.8983693118276985,
+            1.858995707331352,
+            5.5465815467614465,
+            98.26313265388035
+          ],
+          "regularizedRank": 5,
+          "shrinkage": 0.25
+        },
+        {
+          "calibrationCycleReferenceExceedances": {
+            "1794": {
+              "referenceExceedanceCount": 57,
+              "referenceExceedanceRate": 0.0095,
+              "scoreMax": 569.8293461668017,
+              "scoreMean": 6.359742530375385,
+              "scoreMedian": 3.2543723546154144,
+              "scoreP95": 16.997814501824873,
+              "scoreP99": 33.356497782827915,
+              "vectorRows": 6000
+            },
+            "1795": {
+              "referenceExceedanceCount": 63,
+              "referenceExceedanceRate": 0.0105,
+              "scoreMax": 535.1390793431073,
+              "scoreMean": 6.4008709914071344,
+              "scoreMedian": 3.3030634286864906,
+              "scoreP95": 17.183601151930525,
+              "scoreP99": 33.619606441035806,
+              "vectorRows": 6000
+            }
+          },
+          "calibrationThresholdQ99": 33.49490264468635,
+          "calibrationVectorRows": 12000,
+          "metricLabel": "calibration reference exceedance; not a false-positive rate",
+          "regularizedConditionNumber": 128.59471043539054,
+          "regularizedCovariance": [
+            [
+              2.119628281303026,
+              1.6875299634765444,
+              -4.966625054860199,
+              -5.693622231721482,
+              0.05659114406890158
+            ],
+            [
+              1.6875299634765444,
+              2.3109196234315976,
+              -5.519339225148251,
+              -6.725814946162355,
+              0.07113060050705985
+            ],
+            [
+              -4.966625054860199,
+              -5.519339225148251,
+              25.104960399163552,
+              28.680093383468137,
+              -0.003862355933051597
+            ],
+            [
+              -5.693622231721482,
+              -6.725814946162355,
+              28.680093383468137,
+              42.39601718684012,
+              -0.33531690556870725
+            ],
+            [
+              0.05659114406890158,
+              0.07113060050705985,
+              -0.003862355933051597,
+              -0.33531690556870725,
+              0.958539738937207
+            ]
+          ],
+          "regularizedEigenvalues": [
+            0.5120124164749458,
+            0.9322462078851323,
+            1.5726638048875679,
+            4.031054364507632,
+            65.84208843592023
+          ],
+          "regularizedRank": 5,
+          "shrinkage": 0.5
+        }
+      ],
+      "robustCentersFitOnly": [
+        2472.0,
+        156.38,
+        129.915,
+        2.305,
+        10.057
+      ],
+      "robustScalesFitOnly": [
+        104.07851999999973,
+        7.338869999999983,
+        6.7235909999999945,
+        0.10378199999999976,
+        0.026686799999998376
+      ],
+      "sampleSizePrefixes": [
+        {
+          "conditionNumber": 5354.614223553212,
+          "cycleIds": [
+            1788
+          ],
+          "eigenvalues": [
+            0.02488661049999266,
+            1.2765671917255401,
+            2.221875494543672,
+            7.278466242743717,
+            133.25819855928938
+          ],
+          "rank": 5,
+          "sampleToDimensionRatio": 1200.0,
+          "sourceGroups": 1,
+          "status": "measured",
+          "vectorRows": 6000
+        },
+        {
+          "conditionNumber": 5258.793309699817,
+          "cycleIds": [
+            1788,
+            1789
+          ],
+          "eigenvalues": [
+            0.025051487693425273,
+            1.0323564543274049,
+            2.1528827275095317,
+            7.177778400397909,
+            131.7405958802121
+          ],
+          "rank": 5,
+          "sampleToDimensionRatio": 2400.0,
+          "sourceGroups": 2,
+          "status": "measured",
+          "vectorRows": 12000
+        },
+        {
+          "conditionNumber": 5223.5755842511835,
+          "cycleIds": [
+            1788,
+            1789,
+            1790
+          ],
+          "eigenvalues": [
+            0.025299049001171938,
+            0.949132989870901,
+            2.2099326673242237,
+            7.227300055614473,
+            132.15149466729602
+          ],
+          "rank": 5,
+          "sampleToDimensionRatio": 3600.0,
+          "sourceGroups": 3,
+          "status": "measured",
+          "vectorRows": 18000
+        },
+        {
+          "conditionNumber": 5488.762634822399,
+          "cycleIds": [
+            1788,
+            1789,
+            1790,
+            1791
+          ],
+          "eigenvalues": [
+            0.023929276194611052,
+            0.8998721777937135,
+            2.1189175324968974,
+            7.132117940141222,
+            131.34211705532627
+          ],
+          "rank": 5,
+          "sampleToDimensionRatio": 4800.0,
+          "sourceGroups": 4,
+          "status": "measured",
+          "vectorRows": 24000
+        },
+        {
+          "conditionNumber": 5512.401489506168,
+          "cycleIds": [
+            1788,
+            1789,
+            1790,
+            1791,
+            1792
+          ],
+          "eigenvalues": [
+            0.02375546739837057,
+            0.8836057614083074,
+            2.11613409224677,
+            7.110539234514572,
+            130.94967387069315
+          ],
+          "rank": 5,
+          "sampleToDimensionRatio": 6000.0,
+          "sourceGroups": 5,
+          "status": "measured",
+          "vectorRows": 30000
+        },
+        {
+          "conditionNumber": 5439.545704413738,
+          "cycleIds": [
+            1788,
+            1789,
+            1790,
+            1791,
+            1792,
+            1793
+          ],
+          "eigenvalues": [
+            0.024024832949891595,
+            0.8644924157702648,
+            2.1453276097751357,
+            7.062108729015263,
+            130.68417687184046
+          ],
+          "rank": 5,
+          "sampleToDimensionRatio": 7200.0,
+          "sourceGroups": 6,
+          "status": "measured",
+          "vectorRows": 36000
+        }
+      ],
+      "signals": [
+        "EPS1",
+        "PS1",
+        "PS2",
+        "PS3",
+        "PS4"
+      ],
+      "unregularizedCovarianceDiagnostics": {
+        "conditionNumber": 5439.545704413738,
+        "covariance": [
+          [
+            3.239256562606052,
+            3.3750599269530888,
+            -9.933250109720397,
+            -11.387244463442965,
+            0.11318228813780316
+          ],
+          [
+            3.3750599269530888,
+            3.6218392468631952,
+            -11.038678450296501,
+            -13.45162989232471,
+            0.1422612010141197
+          ],
+          [
+            -9.933250109720397,
+            -11.038678450296501,
+            49.209920798327104,
+            57.36018676693627,
+            -0.007724711866103194
+          ],
+          [
+            -11.387244463442965,
+            -13.45162989232471,
+            57.36018676693627,
+            83.79203437368024,
+            -0.6706338111374145
+          ],
+          [
+            0.11318228813780316,
+            0.1422612010141197,
+            -0.007724711866103194,
+            -0.6706338111374145,
+            0.9170794778744141
+          ]
+        ],
+        "eigenvalues": [
+          0.024024832949891595,
+          0.8644924157702648,
+          2.1453276097751357,
+          7.062108729015263,
+          130.68417687184046
+        ],
+        "meanOfRobustScaledFit": [
+          0.5970422352491409,
+          0.6292795530283747,
+          -3.018098323086909,
+          -2.969956789766592,
+          -0.00663145158740206
+        ],
+        "rank": 5
+      }
+    },
+    "7": {
+      "calibrationCycleIds": [
+        1794,
+        1795
+      ],
+      "calibrationRawSignalRows": 84000,
+      "calibrationSourceGroups": 2,
+      "calibrationVectorRows": 12000,
+      "dimension": 7,
+      "fitCycleIds": [
+        1788,
+        1789,
+        1790,
+        1791,
+        1792,
+        1793
+      ],
+      "fitRawSignalRows": 252000,
+      "fitSampleToDimensionRatio": 5142.857142857143,
+      "fitSourceGroups": 6,
+      "fitVectorRows": 36000,
+      "independentControl": {
+        "calibrationCycleReferenceExceedances": {
+          "1794": {
+            "referenceExceedanceCount": 35,
+            "referenceExceedanceRate": 0.005833333333333334,
+            "scoreMax": 72.71973945385537,
+            "scoreMean": 5.012809737306588,
+            "scoreMedian": 1.4092171876605823,
+            "scoreP95": 22.21001715133651,
+            "scoreP99": 22.21001715133651,
+            "vectorRows": 6000
+          },
+          "1795": {
+            "referenceExceedanceCount": 37,
+            "referenceExceedanceRate": 0.006166666666666667,
+            "scoreMax": 70.45537761846965,
+            "scoreMean": 5.021022836336398,
+            "scoreMedian": 1.4239249366729083,
+            "scoreP95": 22.21001715133651,
+            "scoreP99": 22.21001715133651,
+            "vectorRows": 6000
+          }
+        },
+        "calibrationThresholdQ99": 22.21001715133651,
+        "calibrationVectorRows": 12000,
+        "metricLabel": "calibration reference exceedance; not a false-positive rate",
+        "scoreDefinition": "max absolute robust-scaled marginal signal score"
+      },
+      "jointCandidates": [
+        {
+          "calibrationCycleReferenceExceedances": {
+            "1794": {
+              "referenceExceedanceCount": 58,
+              "referenceExceedanceRate": 0.009666666666666667,
+              "scoreMax": 392.39280245143885,
+              "scoreMean": 5.5191498874839855,
+              "scoreMedian": 3.2513100794171654,
+              "scoreP95": 11.49673632891873,
+              "scoreP99": 32.43703956497765,
+              "vectorRows": 6000
+            },
+            "1795": {
+              "referenceExceedanceCount": 62,
+              "referenceExceedanceRate": 0.010333333333333333,
+              "scoreMax": 364.545810415677,
+              "scoreMean": 5.557225664186978,
+              "scoreMedian": 3.469384645428722,
+              "scoreP95": 11.784100525904568,
+              "scoreP99": 33.43116863517948,
+              "vectorRows": 6000
+            }
+          },
+          "calibrationThresholdQ99": 32.665297131887016,
+          "calibrationVectorRows": 12000,
+          "metricLabel": "calibration reference exceedance; not a false-positive rate",
+          "regularizedConditionNumber": 1771.8020890302082,
+          "regularizedCovariance": [
+            [
+              3.127293734475749,
+              3.206306930605434,
+              -9.436587604234377,
+              -10.817882240270816,
+              0.107523173730913,
+              0.11541867519645604,
+              0.10528128074418935
+            ],
+            [
+              3.206306930605434,
+              3.4907472845200354,
+              -10.486744527781676,
+              -12.779048397708474,
+              0.1351481409634137,
+              0.14036462812183703,
+              0.13099714374087398
+            ],
+            [
+              -9.436587604234377,
+              -10.486744527781676,
+              46.799424758410744,
+              54.49217742858946,
+              -0.007338476272798034,
+              -0.06885751959650004,
+              -0.032091141572005676
+            ],
+            [
+              -10.817882240270816,
+              -12.779048397708474,
+              54.49217742858946,
+              79.65243265499622,
+              -0.6371021205805437,
+              -0.5274409221297036,
+              -0.5168263776891626
+            ],
+            [
+              0.107523173730913,
+              0.1351481409634137,
+              -0.007338476272798034,
+              -0.6371021205805437,
+              0.9212255039806935,
+              0.6401284803781989,
+              0.6206329096084938
+            ],
+            [
+              0.11541867519645604,
+              0.14036462812183703,
+              -0.06885751959650004,
+              -0.5274409221297036,
+              0.6401284803781989,
+              0.6849661926118331,
+              0.6247211230456083
+            ],
+            [
+              0.10528128074418935,
+              0.13099714374087398,
+              -0.032091141572005676,
+              -0.5168263776891626,
+              0.6206329096084938,
+              0.6247211230456083,
+              0.7099893531848528
+            ]
+          ],
+          "regularizedEigenvalues": [
+            0.07010018631287951,
+            0.07279706079836355,
+            0.2100634856758552,
+            1.7219442714813638,
+            2.32129155082166,
+            6.786226376523291,
+            124.20365655056672
+          ],
+          "regularizedRank": 7,
+          "shrinkage": 0.05
+        },
+        {
+          "calibrationCycleReferenceExceedances": {
+            "1794": {
+              "referenceExceedanceCount": 59,
+              "referenceExceedanceRate": 0.009833333333333333,
+              "scoreMax": 385.61530972921014,
+              "scoreMean": 5.356477527885453,
+              "scoreMedian": 3.1237273434323156,
+              "scoreP95": 11.639847182504118,
+              "scoreP99": 27.944574516061678,
+              "vectorRows": 6000
+            },
+            "1795": {
+              "referenceExceedanceCount": 61,
+              "referenceExceedanceRate": 0.010166666666666666,
+              "scoreMax": 359.4436244270146,
+              "scoreMean": 5.397301574581454,
+              "scoreMedian": 3.3431930394478164,
+              "scoreP95": 11.983203753846361,
+              "scoreP99": 28.662009860834402,
+              "vectorRows": 6000
+            }
+          },
+          "calibrationThresholdQ99": 28.030883680666182,
+          "calibrationVectorRows": 12000,
+          "metricLabel": "calibration reference exceedance; not a false-positive rate",
+          "regularizedConditionNumber": 988.8860648821374,
+          "regularizedCovariance": [
+            [
+              3.015330906345447,
+              3.03755393425778,
+              -8.939925098748358,
+              -10.248520017098668,
+              0.10186405932402284,
+              0.1093440080808531,
+              0.0997401607050215
+            ],
+            [
+              3.03755393425778,
+              3.359655322176876,
+              -9.934810605266852,
+              -12.10646690309224,
+              0.12803508091270774,
+              0.13297701611542456,
+              0.12410255722819641
+            ],
+            [
+              -8.939925098748358,
+              -9.934810605266852,
+              44.3889287184944,
+              51.62416809024265,
+              -0.0069522406794928744,
+              -0.0652334396177369,
+              -0.030402134120847482
+            ],
+            [
+              -10.248520017098668,
+              -12.10646690309224,
+              51.62416809024265,
+              75.51283093631221,
+              -0.603570430023673,
+              -0.4996808735965613,
+              -0.48962498938973303
+            ],
+            [
+              0.10186405932402284,
+              0.12803508091270774,
+              -0.0069522406794928744,
+              -0.603570430023673,
+              0.9253715300869727,
+              0.6064375077267149,
+              0.5879680196290994
+            ],
+            [
+              0.1093440080808531,
+              0.13297701611542456,
+              -0.0652334396177369,
+              -0.4996808735965613,
+              0.6064375077267149,
+              0.7015469193164734,
+              0.5918410639379448
+            ],
+            [
+              0.0997401607050215,
+              0.12410255722819641,
+              -0.030402134120847482,
+              -0.48962498938973303,
+              0.5879680196290994,
+              0.5918410639379448,
+              0.7252530714382815
+            ]
+          ],
+          "regularizedEigenvalues": [
+            0.11904228177009628,
+            0.12159721549318642,
+            0.2516390916929152,
+            1.6839472045612929,
+            2.2517498902521007,
+            6.481688146179958,
+            117.7192535742211
+          ],
+          "regularizedRank": 7,
+          "shrinkage": 0.1
+        },
+        {
+          "calibrationCycleReferenceExceedances": {
+            "1794": {
+              "referenceExceedanceCount": 60,
+              "referenceExceedanceRate": 0.01,
+              "scoreMax": 424.8389128530735,
+              "scoreMean": 5.637699160289513,
+              "scoreMedian": 3.161492478214364,
+              "scoreP95": 13.047614893371883,
+              "scoreP99": 27.25406972128594,
+              "vectorRows": 6000
+            },
+            "1795": {
+              "referenceExceedanceCount": 60,
+              "referenceExceedanceRate": 0.01,
+              "scoreMax": 396.9594414747015,
+              "scoreMean": 5.68224564859951,
+              "scoreMedian": 3.3580193384387202,
+              "scoreP95": 13.42372247823928,
+              "scoreP99": 27.346238907350905,
+              "vectorRows": 6000
+            }
+          },
+          "calibrationThresholdQ99": 27.346238907350905,
+          "calibrationVectorRows": 12000,
+          "metricLabel": "calibration reference exceedance; not a false-positive rate",
+          "regularizedConditionNumber": 369.6038434780079,
+          "regularizedCovariance": [
+            [
+              2.679442421954539,
+              2.5312949452148166,
+              -7.449937582290298,
+              -8.540433347582223,
+              0.08488671610335237,
+              0.09112000673404425,
+              0.08311680058751791
+            ],
+            [
+              2.5312949452148166,
+              2.966379435147396,
+              -8.279008837722376,
+              -10.088722419243533,
+              0.10669590076058978,
+              0.11081418009618713,
+              0.10341879769016367
+            ],
+            [
+              -7.449937582290298,
+              -8.279008837722376,
+              37.157440598745325,
+              43.02014007520221,
+              -0.005793533899577395,
+              -0.054361199681447404,
+              -0.025335111767372902
+            ],
+            [
+              -8.540433347582223,
+              -10.088722419243533,
+              43.02014007520221,
+              63.09402578026018,
+              -0.5029753583530608,
+              -0.41640072799713446,
+              -0.40802082449144417
+            ],
+            [
+              0.08488671610335237,
+              0.10669590076058978,
+              -0.005793533899577395,
+              -0.5029753583530608,
+              0.9378096084058106,
+              0.5053645897722624,
+              0.4899733496909162
+            ],
+            [
+              0.09112000673404425,
+              0.11081418009618713,
+              -0.054361199681447404,
+              -0.41640072799713446,
+              0.5053645897722624,
+              0.7512890994303946,
+              0.493200886614954
+            ],
+            [
+              0.08311680058751791,
+              0.10341879769016367,
+              -0.025335111767372902,
+              -0.40802082449144417,
+              0.4899733496909162,
+              0.493200886614954,
+              0.7710442261985679
+            ]
+          ],
+          "regularizedEigenvalues": [
+            0.26586856814174686,
+            0.2679976795776558,
+            0.37636590974409595,
+            1.569956003801077,
+            2.0431249085434167,
+            5.568073455149964,
+            98.26604464518428
+          ],
+          "regularizedRank": 7,
+          "shrinkage": 0.25
+        },
+        {
+          "calibrationCycleReferenceExceedances": {
+            "1794": {
+              "referenceExceedanceCount": 58,
+              "referenceExceedanceRate": 0.009666666666666667,
+              "scoreMax": 572.0435638369115,
+              "scoreMean": 7.1069343357900365,
+              "scoreMedian": 3.580407773993339,
+              "scoreP95": 17.96272560936593,
+              "scoreP99": 34.08066294022813,
+              "vectorRows": 6000
+            },
+            "1795": {
+              "referenceExceedanceCount": 62,
+              "referenceExceedanceRate": 0.010333333333333333,
+              "scoreMax": 535.3428905167992,
+              "scoreMean": 7.152628860418339,
+              "scoreMedian": 3.773965336009476,
+              "scoreP95": 18.473054207784276,
+              "scoreP99": 34.37146319721103,
+              "vectorRows": 6000
+            }
+          },
+          "calibrationThresholdQ99": 34.17580718382171,
+          "calibrationVectorRows": 12000,
+          "metricLabel": "calibration reference exceedance; not a false-positive rate",
+          "regularizedConditionNumber": 128.95952223868346,
+          "regularizedCovariance": [
+            [
+              2.119628281303026,
+              1.6875299634765444,
+              -4.966625054860199,
+              -5.693622231721482,
+              0.05659114406890158,
+              0.0607466711560295,
+              0.05541120039167861
+            ],
+            [
+              1.6875299634765444,
+              2.3109196234315976,
+              -5.519339225148251,
+              -6.725814946162355,
+              0.07113060050705985,
+              0.07387612006412475,
+              0.06894586512677578
+            ],
+            [
+              -4.966625054860199,
+              -5.519339225148251,
+              25.104960399163552,
+              28.680093383468137,
+              -0.003862355933051597,
+              -0.0362407997876316,
+              -0.016890074511581935
+            ],
+            [
+              -5.693622231721482,
+              -6.725814946162355,
+              28.680093383468137,
+              42.39601718684012,
+              -0.33531690556870725,
+              -0.27760048533142295,
+              -0.27201388299429613
+            ],
+            [
+              0.05659114406890158,
+              0.07113060050705985,
+              -0.003862355933051597,
+              -0.33531690556870725,
+              0.958539738937207,
+              0.3369097265148416,
+              0.3266488997939441
+            ],
+            [
+              0.0607466711560295,
+              0.07387612006412475,
+              -0.0362407997876316,
+              -0.27760048533142295,
+              0.3369097265148416,
+              0.8341927329535963,
+              0.328800591076636
+            ],
+            [
+              0.05541120039167861,
+              0.06894586512677578,
+              -0.016890074511581935,
+              -0.27201388299429613,
+              0.3266488997939441,
+              0.328800591076636,
+              0.847362817465712
+            ]
+          ],
+          "regularizedEigenvalues": [
+            0.5105790454278314,
+            0.5119984530517702,
+            0.5842439398293972,
+            1.3799706692007176,
+            1.695416605695611,
+            4.045382303433312,
+            65.84402976345619
+          ],
+          "regularizedRank": 7,
+          "shrinkage": 0.5
+        }
+      ],
+      "robustCentersFitOnly": [
+        2472.0,
+        156.38,
+        129.915,
+        2.305,
+        10.057,
+        9.828,
+        9.714
+      ],
+      "robustScalesFitOnly": [
+        104.07851999999973,
+        7.338869999999983,
+        6.7235909999999945,
+        0.10378199999999976,
+        0.026686799999998376,
+        0.026686799999998376,
+        0.02668680000000101
+      ],
+      "sampleSizePrefixes": [
+        {
+          "conditionNumber": 5936.844764456688,
+          "cycleIds": [
+            1788
+          ],
+          "eigenvalues": [
+            0.02244756324632113,
+            0.024314720853791355,
+            0.41788428594864246,
+            1.915040830470666,
+            2.4793361038475776,
+            7.3137195271343485,
+            133.26769833373197
+          ],
+          "rank": 7,
+          "sampleToDimensionRatio": 857.1428571428571,
+          "sourceGroups": 1,
+          "status": "measured",
+          "vectorRows": 6000
+        },
+        {
+          "conditionNumber": 6071.046519370707,
+          "cycleIds": [
+            1788,
+            1789
+          ],
+          "eigenvalues": [
+            0.021701441223007024,
+            0.024636560108299465,
+            0.27751669689860264,
+            1.810671180809055,
+            2.346036869068077,
+            7.201491164328322,
+            131.75045920226478
+          ],
+          "rank": 7,
+          "sampleToDimensionRatio": 1714.2857142857142,
+          "sourceGroups": 2,
+          "status": "measured",
+          "vectorRows": 12000
+        },
+        {
+          "conditionNumber": 6030.4207471778245,
+          "cycleIds": [
+            1788,
+            1789,
+            1790
+          ],
+          "eigenvalues": [
+            0.021914698577572785,
+            0.02511580509736926,
+            0.2251501578604729,
+            1.7918629165377729,
+            2.4143359244061857,
+            7.258952157851428,
+            132.15485297034328
+          ],
+          "rank": 7,
+          "sampleToDimensionRatio": 2571.4285714285716,
+          "sourceGroups": 3,
+          "status": "measured",
+          "vectorRows": 18000
+        },
+        {
+          "conditionNumber": 6062.843212128977,
+          "cycleIds": [
+            1788,
+            1789,
+            1790,
+            1791
+          ],
+          "eigenvalues": [
+            0.02166423780601852,
+            0.023805971019236188,
+            0.19730611144955168,
+            1.7331259531332326,
+            2.3701481218872353,
+            7.160838498440588,
+            131.34687712816734
+          ],
+          "rank": 7,
+          "sampleToDimensionRatio": 3428.5714285714284,
+          "sourceGroups": 4,
+          "status": "measured",
+          "vectorRows": 24000
+        },
+        {
+          "conditionNumber": 6151.801669454643,
+          "cycleIds": [
+            1788,
+            1789,
+            1790,
+            1791,
+            1792
+          ],
+          "eigenvalues": [
+            0.02128696151974753,
+            0.023697153043591792,
+            0.17996623633183312,
+            1.7484328443007313,
+            2.3726835427637467,
+            7.140840665335328,
+            130.9531654147996
+          ],
+          "rank": 7,
+          "sampleToDimensionRatio": 4285.714285714285,
+          "sourceGroups": 5,
+          "status": "measured",
+          "vectorRows": 30000
+        },
+        {
+          "conditionNumber": 6176.741579306374,
+          "cycleIds": [
+            1788,
+            1789,
+            1790,
+            1791,
+            1792,
+            1793
+          ],
+          "eigenvalues": [
+            0.021158090855662476,
+            0.023996906103540383,
+            0.16848787965879472,
+            1.759941338401436,
+            2.390833211391222,
+            7.090764606866622,
+            130.68805952691238
+          ],
+          "rank": 7,
+          "sampleToDimensionRatio": 5142.857142857143,
+          "sourceGroups": 6,
+          "status": "measured",
+          "vectorRows": 36000
+        }
+      ],
+      "signals": [
+        "EPS1",
+        "PS1",
+        "PS2",
+        "PS3",
+        "PS4",
+        "PS5",
+        "PS6"
+      ],
+      "unregularizedCovarianceDiagnostics": {
+        "conditionNumber": 6176.741579306374,
+        "covariance": [
+          [
+            3.239256562606052,
+            3.3750599269530888,
+            -9.933250109720397,
+            -11.387244463442965,
+            0.11318228813780316,
+            0.121493342312059,
+            0.11082240078335721
+          ],
+          [
+            3.3750599269530888,
+            3.6218392468631952,
+            -11.038678450296501,
+            -13.45162989232471,
+            0.1422612010141197,
+            0.1477522401282495,
+            0.13789173025355156
+          ],
+          [
+            -9.933250109720397,
+            -11.038678450296501,
+            49.209920798327104,
+            57.36018676693627,
+            -0.007724711866103194,
+            -0.0724815995752632,
+            -0.03378014902316387
+          ],
+          [
+            -11.387244463442965,
+            -13.45162989232471,
+            57.36018676693627,
+            83.79203437368024,
+            -0.6706338111374145,
+            -0.5552009706628459,
+            -0.5440277659885923
+          ],
+          [
+            0.11318228813780316,
+            0.1422612010141197,
+            -0.007724711866103194,
+            -0.6706338111374145,
+            0.9170794778744141,
+            0.6738194530296832,
+            0.6532977995878883
+          ],
+          [
+            0.121493342312059,
+            0.1477522401282495,
+            -0.0724815995752632,
+            -0.5552009706628459,
+            0.6738194530296832,
+            0.6683854659071927,
+            0.657601182153272
+          ],
+          [
+            0.11082240078335721,
+            0.13789173025355156,
+            -0.03378014902316387,
+            -0.5440277659885923,
+            0.6532977995878883,
+            0.657601182153272,
+            0.6947256349314239
+          ]
+        ],
+        "eigenvalues": [
+          0.021158090855662476,
+          0.023996906103540383,
+          0.16848787965879472,
+          1.759941338401436,
+          2.390833211391222,
+          7.090764606866622,
+          130.68805952691238
+        ],
+        "meanOfRobustScaledFit": [
+          0.5970422352491409,
+          0.6292795530283747,
+          -3.018098323086909,
+          -2.969956789766592,
+          -0.00663145158740206,
+          0.03818991661298305,
+          0.018531841792763373
+        ],
+        "rank": 7
+      }
+    }
+  },
+  "featureLookbackPositions": 0,
+  "finalMethodDecision": null,
+  "fitCalibrationExecution": {
+    "elapsedWallSeconds": 4.545264599999882,
+    "peakResidentBytes": 106541056,
+    "runtime": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "processor": "Intel64 Family 6 Model 191 Stepping 2, GenuineIntel",
+      "python": "3.14.6 (tags/v3.14.6:c63aec6, Jun 10 2026, 10:26:10) [MSC v.1944 64 bit (AMD64)]"
+    }
+  },
+  "fitCycles": [
+    1788,
+    1789,
+    1790,
+    1791,
+    1792,
+    1793
+  ],
+  "holdoutCycles": [
+    1796,
+    1797
+  ],
+  "holdoutOpened": false,
+  "protocolSha256": "E66D1902517C948A6B7DC588702F8AB0F95D7A7E6F1168C86EC004048E7B129F",
+  "purgeNote": "No rolling/lookback features; whole-cycle partitions are disjoint. Unknown inter-cycle dependence is not represented as a time purge.",
+  "quantileRule": "nearest-rank sorted[ceil(q*n)-1]",
+  "regularizationGrid": [
+    0.05,
+    0.1,
+    0.25,
+    0.5
+  ],
+  "researchOnly": true,
+  "runtime": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 191 Stepping 2, GenuineIntel",
+    "python": "3.14.6 (tags/v3.14.6:c63aec6, Jun 10 2026, 10:26:10) [MSC v.1944 64 bit (AMD64)]"
+  },
+  "scoreRowsWritten": false,
+  "sourceManifestSha256": "F63429A07181F3FC4E6714AC9337895D6F6B51CB24C9CFA82095C1F97E7B322E",
+  "sourceRecord": "UCI 447 / DOI 10.24432/C5CW21",
+  "splitManifestSha256": "DE96D99ACBEA092DB9DB74F1F8AF580D6EB0C0772DFDB9EC6AB09B27D61E8D98",
+  "studyCommit": "ca2fb6c97d64fd7ee7dafb9c53e567bb073119f2"
+}

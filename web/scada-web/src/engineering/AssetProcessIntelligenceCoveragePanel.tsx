@@ -1,0 +1,550 @@
+import { IntelligenceSignalStatistics } from './IntelligenceSignalStatistics';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import type { EngineeringLocale } from './i18n';
+
+const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const MAX_WINDOW_MS = 31 * 24 * 60 * 60 * 1000;
+const DEFAULT_BUCKET_SECONDS = 900;
+type CoverageBlockedReason = 'capabilities-loading' | 'authority-unavailable' | 'license-required' | 'trend-use-required' |
+  'assignment-ambiguous' | 'scope-unavailable' | 'scope-inactive' | 'permit-required' | 'signals-required' | 'duplicate-tags' |
+  'configuration-unsaved' | 'scope-selection-unsaved' | 'workspace-dirty' | 'project-unavailable';
+
+export type WindowValue = { fromUtc: string; toUtc: string };
+export type SignalSummary = {
+  firstObserved?: { timestampUtc: string; value: number } | null;
+  lastObserved?: { timestampUtc: string; value: number } | null;
+  delta?: number | null;
+  trend?: Array<{ fromUtc: string; toUtc: string; rawObservationCount: number; acceptedSampleCount: number; rejectedSampleCount: number; minimum: number | null; maximum: number | null; sampleMean: number | null }>;
+  rawObservationCount: number;
+  acceptedSampleCount: number;
+  rejectedSampleCount: number;
+  qualityCounts: Record<string, number>;
+  validSampleCount: number | null;
+  minimum: number | null;
+  maximum: number | null;
+  sampleMean: number | null;
+  completeness: string;
+  expectedSampleCount: number | null;
+};
+export type ProfileCoverageResponse = {
+  contractVersion: number;
+  ruleCatalogVersion: number;
+  ruleVersion: string;
+  projectKey: string;
+  activeRevision: number;
+  scopeKind: string | number;
+  scopeId: string;
+  profileId: string;
+  profileKey: string;
+  profileName: string;
+  window: WindowValue;
+  signals: Array<{
+    signalId: string;
+    signalKey: string;
+    signalRoleMetadata: string;
+    required: boolean;
+    tagId: string;
+    tagPath: string;
+    tagDataType: string | number;
+    unit: string | null;
+    status: string;
+    summary: SignalSummary | null;
+  }>;
+  temporalAlignment: {
+    requiredSignalCount: number;
+    requiredSignalsWithGoodSamples: number;
+    exactHistorianTimestampIntersectionCount: number;
+    status: string;
+    timestampBasis: string;
+    sourceAcquisitionAlignment: string;
+    expectedCadence: string;
+    completeness: string;
+  };
+  provenance: {
+    dataset: string;
+    datasetContractVersion: number;
+    ruleVersion: string;
+    assignments?: Array<{
+      assignmentId: string;
+      equipmentId: string;
+      profileId: string;
+      signalId: string;
+      signalKey: string;
+    }>;
+    signalRoleInterpretation: string;
+    unitConversion: string;
+    processKpiDisposition: string;
+  };
+};
+
+export function AssetProcessIntelligenceCoveragePanel({
+  locale,
+  scopeId,
+  profileId,
+  projectKey,
+  activeRevision,
+  canQuery,
+  blockedReason,
+  onCreateRuntimeScreenDraft
+}: {
+  locale: EngineeringLocale;
+  scopeId: string;
+  profileId: string;
+  projectKey: string | null;
+  activeRevision: number | null;
+  canQuery: boolean;
+  blockedReason: CoverageBlockedReason | null;
+  onCreateRuntimeScreenDraft?: () => void;
+}) {
+  const copy = useMemo(() => coverageCopy(locale), [locale]);
+  const [expanded, setExpanded] = useState(false);
+  const [fromLocal, setFromLocal] = useState(() => localDateTimeInput(new Date(Date.now() - 24 * 60 * 60 * 1000)));
+  const [toLocal, setToLocal] = useState(() => localDateTimeInput(new Date()));
+  const [bucketSeconds, setBucketSeconds] = useState(DEFAULT_BUCKET_SECONDS);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<ProfileCoverageResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const controller = useRef<AbortController | null>(null);
+  const requestVersion = useRef(0);
+
+  useEffect(() => {
+    controller.current?.abort();
+    controller.current = null;
+    requestVersion.current += 1;
+    setLoading(false);
+    setResult(null);
+    setError(null);
+    return () => controller.current?.abort();
+  }, [scopeId, profileId, projectKey, activeRevision, canQuery, blockedReason, fromLocal, toLocal, expanded, bucketSeconds]);
+
+  const windowResult = useMemo(() => parseWindow(fromLocal, toLocal), [fromLocal, toLocal]);
+
+  const query = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canQuery || !projectKey || activeRevision === null || !windowResult.window) return;
+
+    controller.current?.abort();
+    const currentController = new AbortController();
+    controller.current = currentController;
+    const version = ++requestVersion.current;
+    setLoading(true);
+    setResult(null);
+    setError(null);
+    try {
+      const response = await fetch(`${API}/api/engineering/asset-process-intelligence/analytics/profile-coverage`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({
+          scopeKind: 0,
+          scopeId,
+          profileId,
+          window: windowResult.window,
+          bucketSeconds
+        }),
+        signal: currentController.signal
+      });
+      const payload = await response.json().catch(() => null) as ProfileCoverageResponse | { code?: unknown } | null;
+      if (!response.ok) {
+        const code = payload && 'code' in payload && typeof payload.code === 'string'
+          ? payload.code
+          : `HTTP_${response.status}`;
+        throw new CoverageQueryError(code);
+      }
+      if (!isMatchingResponse(payload, scopeId, profileId, projectKey, activeRevision, windowResult.window)) {
+        throw new CoverageQueryError('INVALID_RESPONSE');
+      }
+      if (requestVersion.current === version) setResult(payload);
+    } catch (reason) {
+      if (currentController.signal.aborted) return;
+      if (requestVersion.current === version) {
+        setError(reason instanceof CoverageQueryError
+          ? coverageErrorText(reason.code, copy)
+          : copy.networkError);
+      }
+    } finally {
+      if (requestVersion.current === version) setLoading(false);
+    }
+  };
+
+  return <section className="asset-process-intelligence__coverage" data-testid={`intelligence-profile-coverage-${profileId}`}>
+    <button type="button" className="secondary" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>
+      {expanded ? copy.hide : copy.review}
+    </button>
+    {expanded ? <div className="asset-process-intelligence__coverage-body">
+      <p>{copy.description}</p>
+      {onCreateRuntimeScreenDraft ? <button type="button" className="secondary"
+        data-testid={`intelligence-coverage-create-screen-${profileId}`}
+        onClick={onCreateRuntimeScreenDraft}>{copy.createRuntimeScreen}</button> : null}
+      {!canQuery ? <p className="asset-process-intelligence__coverage-note" role="note">{blockedReason ? blockedReasonText(blockedReason, copy) : copy.unavailable}</p> : null}
+      <form className="asset-process-intelligence__coverage-form" onSubmit={event => void query(event)}>
+        <label>{copy.from}<input type="datetime-local" value={fromLocal} disabled={!canQuery || loading} onChange={event => setFromLocal(event.currentTarget.value)}/></label>
+        <label>{copy.to}<input type="datetime-local" value={toLocal} disabled={!canQuery || loading} onChange={event => setToLocal(event.currentTarget.value)}/></label>
+        {!windowResult.window ? <p className="asset-process-intelligence__coverage-error" role="alert">{windowResult.error === 'missing' ? copy.windowRequired : copy.windowInvalid}</p> : null}
+        <label>{locale === 'pt-BR' ? 'Agrupar leituras a cada' : locale === 'es' ? 'Agrupar lecturas cada' : 'Group readings every'}
+          <select value={bucketSeconds} disabled={!canQuery || loading} onChange={event=>setBucketSeconds(Number(event.currentTarget.value))}>
+            {[900,1800,3600,21600,86400].map(seconds=><option key={seconds} value={seconds}>{seconds < 3600 ? `${seconds/60} min` : `${seconds/3600} h`}</option>)}
+          </select>
+        </label>
+        <p className="asset-process-intelligence__coverage-note">{copy.utcHint}</p>
+        <button type="submit" disabled={!canQuery || !windowResult.window || loading}>
+          {loading ? copy.loading : copy.analyze}
+        </button>
+      </form>
+      {error ? <p className="asset-process-intelligence__coverage-error" role="alert">{error}</p> : null}
+      {result ? <CoverageResult result={result} locale={locale} copy={copy}/> : null}
+    </div> : null}
+  </section>;
+}
+
+export function CoverageResult({ result, locale, copy }: {
+  result: ProfileCoverageResponse;
+  locale: EngineeringLocale;
+  copy: CoverageCopy;
+}) {
+  const localeCode = locale === 'en' ? 'en-US' : locale === 'es' ? 'es-ES' : 'pt-BR';
+  const number = (value: number | null | undefined) => value === null || value === undefined || !Number.isFinite(value)
+    ? copy.unknown
+    : new Intl.NumberFormat(localeCode, { maximumFractionDigits: 6 }).format(value);
+  const alignmentText = describeAlignment(result.temporalAlignment.status, copy, locale);
+
+  return <div className="asset-process-intelligence__coverage-result" data-testid="intelligence-profile-coverage-result">
+    <p role="status"><strong>{copy.queryWindow}</strong> {formatUtc(result.window.fromUtc, localeCode)} – {formatUtc(result.window.toUtc, localeCode)}</p>
+    <section>
+      <h4>{copy.temporalAlignment}</h4>
+      <p><strong>{alignmentText}</strong></p>
+      <dl className="asset-process-intelligence__coverage-facts">
+        <Fact label={copy.requiredWithData} value={`${number(result.temporalAlignment.requiredSignalsWithGoodSamples)} / ${number(result.temporalAlignment.requiredSignalCount)}`}/>
+        <Fact label={copy.exactTimestampIntersection} value={number(result.temporalAlignment.exactHistorianTimestampIntersectionCount)}/>
+        <Fact label={copy.timestampBasis} value={describeTemporalEvidence(result.temporalAlignment.timestampBasis, locale)}/>
+        <Fact label={copy.sourceAcquisitionAlignment} value={describeTemporalEvidence(result.temporalAlignment.sourceAcquisitionAlignment, locale)}/>
+        <Fact label={copy.expectedCadence} value={describeTemporalEvidence(result.temporalAlignment.expectedCadence, locale)}/>
+        <Fact label={copy.completeness} value={describeTemporalEvidence(result.temporalAlignment.completeness, locale)}/>
+      </dl>
+    </section>
+    <section>
+      <h4>{copy.signals}</h4>
+      <div className="asset-process-intelligence__coverage-signals">
+        {result.signals.map(signal => <article key={signal.signalId}>
+          <h5>{describeSignalName(signal.signalKey, signal.signalRoleMetadata, signal.tagPath, locale)} {signal.required ? `· ${copy.required}` : `· ${copy.optional}`}</h5>
+          <p>{signal.tagPath} · {typeof signal.tagDataType === 'number'
+            ? ['Boolean', 'Int16', 'Int32', 'Int64', 'Float', 'Double', 'String', 'DateTime', 'Enum'][signal.tagDataType] ?? copy.unknown
+            : signal.tagDataType}{signal.unit ? ` · ${signal.unit}` : ''}</p>
+          <p><strong>{copy.signalStatus}:</strong> {describeSignalStatus(signal.status, copy, locale)}</p>
+          {signal.summary ? <>
+            <dl className="asset-process-intelligence__coverage-facts">
+              <Fact label={copy.rawObservations} value={number(signal.summary.rawObservationCount)}/>
+              <Fact label={copy.acceptedSamples} value={number(signal.summary.acceptedSampleCount)}/>
+              <Fact label={copy.rejectedSamples} value={number(signal.summary.rejectedSampleCount)}/>
+              <Fact label={copy.minimum} value={number(signal.summary.minimum)}/>
+              <Fact label={copy.maximum} value={number(signal.summary.maximum)}/>
+              <Fact label={copy.sampleMean} value={number(signal.summary.sampleMean)}/>
+              <Fact label={copy.completeness} value={describeTemporalEvidence(signal.summary.completeness, locale)}/>
+              <Fact label={copy.expectedSamples} value={number(signal.summary.expectedSampleCount)}/>
+            </dl>
+            <IntelligenceSignalStatistics key={JSON.stringify([result.projectKey,result.activeRevision,result.window,signal.tagId,signal.summary])} locale={locale}
+              scopeId={result.scopeId} profileId={result.profileId} tagId={signal.tagId} projectKey={result.projectKey}
+              activeRevision={result.activeRevision} window={result.window} summary={signal.summary} unit={signal.unit}/>
+            <p><strong>{copy.qualityCounts}:</strong> {Object.entries(signal.summary.qualityCounts ?? {}).sort(([left], [right]) => left.localeCompare(right))
+              .map(([quality, count]) => `${describeQuality(quality, locale)}: ${number(count)}`).join(' · ') || copy.none}</p>
+          </> : null}
+        </article>)}
+      </div>
+    </section>
+    <section>
+      <h4>{copy.provenance}</h4>
+      <dl className="asset-process-intelligence__coverage-facts">
+        <Fact label={copy.dataset} value={describeDataset(result.provenance.dataset, localeCode)}/>
+        <Fact label={copy.roleInterpretation} value={describeCoverageEvidence(result.provenance.signalRoleInterpretation, locale)}/>
+        <Fact label={copy.unitConversion} value={describeCoverageEvidence(result.provenance.unitConversion, locale)}/>
+        <Fact label={copy.processKpiDisposition} value={describeCoverageEvidence(result.provenance.processKpiDisposition, locale)}/>
+      </dl>
+      <p className="asset-process-intelligence__coverage-note">{copy.nonClaim}</p>
+    </section>
+  </div>;
+}
+
+function describeDataset(dataset: string, locale: string): string {
+  if (dataset === 'historian.samples' || dataset === 'historian.samples.v2') {
+    return locale === 'pt-BR' ? 'Amostras do Historian' : locale === 'es-ES' ? 'Muestras del Historian' : 'Historian samples';
+  }
+  return humanizeEvidence(dataset, locale === 'pt-BR' ? 'pt-BR' : locale === 'es-ES' ? 'es' : 'en');
+}
+
+function describeSignalName(signalKey: string, roleMetadata: string, tagPath: string, locale: EngineeringLocale): string {
+  const key = signalKey.trim();
+  const looksInternal = !key || /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(key) || /^(?:internal|signal|tag)[._-]/i.test(key);
+  return looksInternal ? roleMetadata || tagPath : humanizeEvidence(key, locale);
+}
+
+function describeQuality(quality: string, locale: EngineeringLocale): string {
+  const labels: Record<string, Record<EngineeringLocale, string>> = {
+    Good: { 'pt-BR': 'Boa', en: 'Good', es: 'Buena' },
+    Uncertain: { 'pt-BR': 'Incerta', en: 'Uncertain', es: 'Incierta' },
+    Bad: { 'pt-BR': 'Ruim', en: 'Bad', es: 'Mala' },
+    BadCommunication: { 'pt-BR': 'Falha de comunicação', en: 'Communication failure', es: 'Fallo de comunicación' },
+    BadConfiguration: { 'pt-BR': 'Configuração inválida', en: 'Invalid configuration', es: 'Configuración no válida' },
+    BadDevice: { 'pt-BR': 'Falha do equipamento', en: 'Device failure', es: 'Fallo del dispositivo' },
+    Stale: { 'pt-BR': 'Desatualizada', en: 'Stale', es: 'Desactualizada' },
+    Disabled: { 'pt-BR': 'Desabilitada', en: 'Disabled', es: 'Deshabilitada' },
+    Unavailable: { 'pt-BR': 'Indisponível', en: 'Unavailable', es: 'No disponible' },
+    Missing: { 'pt-BR': 'Ausente', en: 'Missing', es: 'Ausente' }
+  };
+  return labels[quality]?.[locale] ?? humanizeEvidence(quality, locale);
+}
+
+function describeTemporalEvidence(value: string, locale: EngineeringLocale): string {
+  const normalized = value.trim().toLowerCase();
+  const labels: Record<string, Record<EngineeringLocale, string>> = {
+    'historian event time': { 'pt-BR': 'Horário registrado pelo Historian', en: 'Historian-recorded time', es: 'Hora registrada por Historian' },
+    'distinct exact historian event timestamps; not source acquisition time': {
+      'pt-BR': 'Usa o horário registrado pelo Historian; isso não confirma quando os sensores fizeram a leitura.',
+      en: 'Uses the Historian-recorded time; this does not confirm when the sensors took the readings.',
+      es: 'Usa la hora registrada por Historian; no confirma cuándo los sensores tomaron las lecturas.'
+    },
+    unverified: {
+      'pt-BR': 'Não verificado: horários iguais não comprovam aquisição simultânea nem relógios sincronizados.',
+      en: 'Not verified: matching timestamps do not prove simultaneous acquisition or synchronized clocks.',
+      es: 'No verificado: las horas coincidentes no prueban adquisición simultánea ni relojes sincronizados.'
+    },
+    unknown: { 'pt-BR': 'Não informado', en: 'Not provided', es: 'No informado' },
+    unknown_without_expected_cadence: {
+      'pt-BR': 'Indeterminada: não há cadência esperada configurada para comparação.',
+      en: 'Unknown: no expected sampling interval is configured for comparison.',
+      es: 'Indeterminada: no hay una frecuencia esperada configurada para comparar.'
+    }
+  };
+  return labels[normalized]?.[locale] ?? humanizeEvidence(value, locale);
+}
+
+function describeCoverageEvidence(value: string, locale: EngineeringLocale): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'not interpreted' || normalized.startsWith('metadata only; signalrole is not interpreted')) {
+    return locale === 'pt-BR' ? 'O papel informado para o sinal é apenas descritivo; não é usado para calcular um KPI.'
+      : locale === 'es' ? 'El papel informado para la señal es descriptivo; no se usa para calcular un KPI.'
+        : 'The signal role is descriptive only; it is not used to calculate a KPI.';
+  }
+  if (normalized === 'none' || normalized.startsWith('none; each descriptive trend retains')) {
+    return locale === 'pt-BR' ? 'Os valores são apresentados na unidade original da TAG; nenhuma conversão é aplicada.'
+      : locale === 'es' ? 'Los valores se muestran en la unidad original de la TAG; no se aplica conversión.'
+        : 'Values use the TAG’s original unit; no conversion is applied.';
+  }
+  if (normalized.replaceAll('-', '_') === 'unsupported_without_a_canonical_semantic_and_unit_dimension_contract') {
+    return locale === 'pt-BR' ? 'Não calculado: ainda não existe uma definição validada para combinar esses sinais em um KPI.'
+      : locale === 'es' ? 'No calculado: todavía no existe una definición validada para combinar estas señales en un KPI.'
+        : 'Not calculated: there is no validated definition for combining these signals into a KPI yet.';
+  }
+  return humanizeEvidence(value, locale);
+}
+
+function humanizeEvidence(value: string, locale: EngineeringLocale): string {
+  if (!value || value === '—') return value;
+  const spaced = value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (locale === 'pt-BR') return spaced.charAt(0).toLocaleUpperCase('pt-BR') + spaced.slice(1);
+  return spaced.charAt(0).toLocaleUpperCase(locale === 'es' ? 'es-ES' : 'en-US') + spaced.slice(1);
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return <div><dt>{label}</dt><dd>{value}</dd></div>;
+}
+
+export type CoverageCopy = ReturnType<typeof coverageCopy>;
+
+export function coverageCopy(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    blockedCapabilitiesLoading: 'Checking authorization…', blockedAuthorityUnavailable: 'Authorization could not be verified; analysis is disabled.',
+    blockedLicenseRequired: 'The Asset & Process Intelligence license is required.', blockedTrendUseRequired: 'Runtime TrendUse is required.',
+    blockedAssignmentAmbiguous: 'The Equipment/profile assignment is missing or ambiguous.', blockedScopeUnavailable: 'A unique Equipment scope is not configured.',
+    blockedScopeInactive: 'Activate this scope before requesting historical analysis.', blockedPermitRequired: 'The current execution permit is not armed.',
+    blockedSignalsRequired: 'The profile has no signals to analyze.', blockedDuplicateTags: 'The profile contains duplicate TAG references; the query is disabled.',
+    blockedConfigurationUnsaved: 'Save or discard the local profile changes before querying.', blockedScopeSelectionUnsaved: 'Save or discard scope-selection changes before querying.',
+    blockedWorkspaceDirty: 'Publish or discard Engineering Working changes before querying the active project revision.', blockedProjectUnavailable: 'An active project revision is required.',
+    review: 'Review historical coverage', hide: 'Hide coverage', description: 'Choose a period to see which measurements have usable historical readings. This query creates a temporary report; generating a screen does not include its results.',
+    createRuntimeScreen: 'Create Runtime coverage screen', runtimeHeader: 'Data availability',
+    runtimeDescription: 'Check which measurements have usable readings in the selected period.',
+    runtimeOnly: 'This visualization runs only in the canonical Runtime screen.', runtimeUnavailable: 'Coverage queries are unavailable during historical playback or without an active Runtime View/TrendUse context.',
+    from: 'From (local time)', to: 'To (local time)', utcHint: 'The selected local times are sent to the server as UTC. Maximum window: 31 days. No query runs until Analyze is selected.',
+    analyze: 'Analyze coverage', loading: 'Analyzing…', unavailable: 'Analysis is currently unavailable.', windowTooDense: 'This time range contains too many samples. Choose a shorter range.',
+    windowRequired: 'Choose both ends of the time window.', windowInvalid: 'The end must be after the start and the window cannot exceed 31 days.',
+    queryFailed: 'Coverage query failed', networkError: 'Coverage could not be retrieved. Check connectivity and authorization, then retry explicitly.',
+    unknown: 'Not provided', none: 'none reported', queryWindow: 'Requested window:', temporalAlignment: 'Temporal alignment',
+    requiredWithData: 'Required signals with Good numeric samples', exactTimestampIntersection: 'Exact Historian timestamp intersection',
+    timestampBasis: 'Timestamp basis', sourceAcquisitionAlignment: 'Source acquisition alignment', expectedCadence: 'Expected cadence',
+    completeness: 'Completeness', signals: 'Signals', required: 'required', optional: 'optional', signalStatus: 'Status', roleMetadata: 'Role metadata',
+    rawObservations: 'Raw observations', acceptedSamples: 'Accepted Good numeric samples', rejectedSamples: 'Rejected observations',
+    minimum: 'Minimum', maximum: 'Maximum', sampleMean: 'Arithmetic sample mean (not time-weighted)', expectedSamples: 'Expected sample count',
+    qualityCounts: 'Quality counts', provenance: 'Provenance and limits', dataset: 'Dataset', contractVersion: 'Dataset contract version',
+    ruleVersion: 'Rule version', roleInterpretation: 'Signal role interpretation', unitConversion: 'Unit conversion', processKpiDisposition: 'Process KPI disposition',
+    nonClaim: 'Matching Historian times do not prove sensors measured at the same moment. Without an expected sampling interval, missing readings cannot be assessed. Signal-role labels do not establish a process KPI.',
+    unavailableResponse: 'The response did not match this profile and time window.', networkUnavailable: 'The analysis is unavailable.',
+    observed: 'Exact Historian event-time overlap observed', noOverlap: 'No exact Historian event-time overlap observed',
+    noRequired: 'No required signals configured', missingRequired: 'Required signal data is insufficient', singleRequired: 'Only one required signal; no alignment comparison',
+    descriptive: 'Descriptive trend available', noGood: 'No Good numeric samples', nonNumeric: 'Unsupported non-numeric TAG type'
+  };
+  if (locale === 'es') return {
+    blockedCapabilitiesLoading: 'Verificando autorización…', blockedAuthorityUnavailable: 'No se pudo verificar la autorización; el análisis está deshabilitado.',
+    blockedLicenseRequired: 'Se requiere la licencia de Inteligencia de Activos y Procesos.', blockedTrendUseRequired: 'Se requiere TrendUse de Runtime.',
+    blockedAssignmentAmbiguous: 'La asignación equipo/perfil falta o es ambigua.', blockedScopeUnavailable: 'No hay un alcance único de equipo configurado.',
+    blockedScopeInactive: 'Active este alcance antes de solicitar análisis histórico.', blockedPermitRequired: 'El permiso de ejecución actual no está habilitado.',
+    blockedSignalsRequired: 'El perfil no tiene señales para analizar.', blockedDuplicateTags: 'El perfil contiene referencias TAG duplicadas; la consulta está deshabilitada.',
+    blockedConfigurationUnsaved: 'Guarde o descarte los cambios locales del perfil antes de consultar.', blockedScopeSelectionUnsaved: 'Guarde o descarte los cambios de alcance antes de consultar.',
+    blockedWorkspaceDirty: 'Publique o descarte los cambios de Engineering Working antes de consultar la revisión activa.', blockedProjectUnavailable: 'Se requiere una revisión de proyecto activa.',
+    review: 'Revisar cobertura histórica', hide: 'Ocultar cobertura', description: 'Elija un período para ver qué mediciones tienen lecturas históricas utilizables. La consulta genera un informe temporal; crear una pantalla no incluye estos resultados.',
+    createRuntimeScreen: 'Crear pantalla de cobertura Runtime', runtimeHeader: 'Datos disponibles',
+    runtimeDescription: 'Revise qué mediciones tienen lecturas utilizables en el período elegido.',
+    runtimeOnly: 'Esta visualización solo funciona en la pantalla canónica de Runtime.', runtimeUnavailable: 'Las consultas de cobertura no están disponibles durante la reproducción histórica ni sin un contexto activo de Runtime View/TrendUse.',
+    from: 'Desde (hora local)', to: 'Hasta (hora local)', utcHint: 'Las horas locales se envían al servidor en UTC. Intervalo máximo: 31 días. No se consulta hasta pulsar Analizar.',
+    analyze: 'Analizar cobertura', loading: 'Analizando…', unavailable: 'El análisis no está disponible ahora.', windowTooDense: 'El intervalo contiene demasiadas muestras. Seleccione uno más corto.',
+    windowRequired: 'Seleccione ambos extremos del intervalo.', windowInvalid: 'El final debe ser posterior al inicio y el intervalo no puede superar 31 días.',
+    queryFailed: 'Falló la consulta de cobertura', networkError: 'No se pudo obtener la cobertura. Compruebe la conexión y autorización y vuelva a intentarlo explícitamente.',
+    unknown: 'No informado', none: 'sin datos', queryWindow: 'Intervalo consultado:', temporalAlignment: 'Alineación temporal',
+    requiredWithData: 'Señales requeridas con muestras numéricas Good', exactTimestampIntersection: 'Intersección exacta de marcas Historian',
+    timestampBasis: 'Base temporal', sourceAcquisitionAlignment: 'Alineación de adquisición de origen', expectedCadence: 'Cadencia esperada',
+    completeness: 'Completitud', signals: 'Señales', required: 'requerida', optional: 'opcional', signalStatus: 'Estado', roleMetadata: 'Metadatos de rol',
+    rawObservations: 'Observaciones brutas', acceptedSamples: 'Muestras numéricas Good aceptadas', rejectedSamples: 'Observaciones rechazadas',
+    minimum: 'Mínimo', maximum: 'Máximo', sampleMean: 'Media aritmética de muestras (no ponderada por tiempo)', expectedSamples: 'Muestras esperadas',
+    qualityCounts: 'Conteo por calidad', provenance: 'Procedencia y límites', dataset: 'Dataset', contractVersion: 'Versión del contrato del dataset',
+    ruleVersion: 'Versión de regla', roleInterpretation: 'Interpretación del rol', unitConversion: 'Conversión de unidades', processKpiDisposition: 'Estado KPI de proceso',
+    nonClaim: 'Que coincida la hora registrada por Historian no demuestra que los sensores midieran al mismo tiempo. Sin una frecuencia de muestreo esperada, no se pueden evaluar las lecturas faltantes. El nombre del papel de la señal no determina un KPI de proceso.',
+    unavailableResponse: 'La respuesta no coincide con este perfil e intervalo.', networkUnavailable: 'El análisis no está disponible.',
+    observed: 'Se observó solapamiento temporal exacto de Historian', noOverlap: 'No se observó solapamiento temporal exacto de Historian',
+    noRequired: 'No hay señales requeridas configuradas', missingRequired: 'Datos insuficientes para señales requeridas', singleRequired: 'Una sola señal requerida; sin comparación de alineación',
+    descriptive: 'Tendencia descriptiva disponible', noGood: 'Sin muestras numéricas Good', nonNumeric: 'Tipo de TAG no numérico no admitido'
+  };
+  return {
+    blockedCapabilitiesLoading: 'Verificando autorização…', blockedAuthorityUnavailable: 'Não foi possível confirmar a autorização; a análise está desabilitada.',
+    blockedLicenseRequired: 'É necessária a licença de Inteligência de Ativos e Processos.', blockedTrendUseRequired: 'É necessário TrendUse no Runtime.',
+    blockedAssignmentAmbiguous: 'A associação equipamento/perfil está ausente ou ambígua.', blockedScopeUnavailable: 'Não há um escopo único de equipamento configurado.',
+    blockedScopeInactive: 'Ative este escopo antes de solicitar análise histórica.', blockedPermitRequired: 'A permissão de execução atual não está armada.',
+    blockedSignalsRequired: 'O perfil não possui sinais para analisar.', blockedDuplicateTags: 'O perfil tem referências TAG duplicadas; a consulta está desabilitada.',
+    blockedConfigurationUnsaved: 'Salve ou descarte as alterações locais do perfil antes de consultar.', blockedScopeSelectionUnsaved: 'Salve ou descarte alterações na seleção de escopos antes de consultar.',
+    blockedWorkspaceDirty: 'Publique ou descarte alterações de Engineering Working antes de consultar a revisão ativa.', blockedProjectUnavailable: 'É necessária uma revisão ativa do projeto.',
+    review: 'Revisar cobertura histórica', hide: 'Ocultar cobertura', description: 'Escolha um período para conferir quais medições têm leituras históricas aproveitáveis. A consulta gera um relatório temporário; criar uma tela não inclui esses resultados.',
+    createRuntimeScreen: 'Criar tela de cobertura no Runtime', runtimeHeader: 'Dados disponíveis',
+    runtimeDescription: 'Confira quais medições têm leituras aproveitáveis no período escolhido.',
+    runtimeOnly: 'Esta visualização funciona somente em uma tela do Runtime canônico.', runtimeUnavailable: 'Consultas de cobertura ficam indisponíveis durante reprodução histórica ou sem um contexto ativo de Runtime View/TrendUse.',
+    from: 'De (horário local)', to: 'Até (horário local)', utcHint: 'Os horários locais selecionados são enviados ao servidor em UTC. Janela máxima: 31 dias. Nenhuma consulta ocorre até clicar em Analisar.',
+    analyze: 'Analisar cobertura', loading: 'Analisando…', unavailable: 'A análise não está disponível neste momento.', windowTooDense: 'O período tem amostras demais para uma única análise. Escolha um intervalo menor.',
+    windowRequired: 'Escolha os dois extremos da janela.', windowInvalid: 'O fim deve ser posterior ao início e a janela não pode exceder 31 dias.',
+    queryFailed: 'Falha na consulta de cobertura', networkError: 'Não foi possível obter a cobertura. Confira a conexão e autorização e tente novamente explicitamente.',
+    unknown: 'Não informado', none: 'nenhum informado', queryWindow: 'Janela consultada:', temporalAlignment: 'Alinhamento temporal',
+    requiredWithData: 'Sinais obrigatórios com amostras numéricas Good', exactTimestampIntersection: 'Interseção exata de timestamps do Historian',
+    timestampBasis: 'Base do timestamp', sourceAcquisitionAlignment: 'Alinhamento da aquisição de origem', expectedCadence: 'Cadência esperada',
+    completeness: 'Completude', signals: 'Sinais', required: 'obrigatório', optional: 'opcional', signalStatus: 'Estado', roleMetadata: 'Metadados do papel',
+    rawObservations: 'Observações brutas', acceptedSamples: 'Amostras numéricas Good aceitas', rejectedSamples: 'Observações rejeitadas',
+    minimum: 'Mínimo', maximum: 'Máximo', sampleMean: 'Média aritmética das amostras (não ponderada pelo tempo)', expectedSamples: 'Quantidade esperada de amostras',
+    qualityCounts: 'Contagens por qualidade', provenance: 'Proveniência e limites', dataset: 'Dataset', contractVersion: 'Versão do contrato do dataset',
+    ruleVersion: 'Versão da regra', roleInterpretation: 'Interpretação do papel do sinal', unitConversion: 'Conversão de unidade', processKpiDisposition: 'Situação do KPI de processo',
+    nonClaim: 'Horários iguais no Historian não comprovam que os sensores mediram no mesmo instante. Sem um intervalo esperado entre leituras, não é possível avaliar dados ausentes. O nome do papel do sinal não comprova um KPI de processo.',
+    unavailableResponse: 'A resposta não corresponde a este perfil e janela.', networkUnavailable: 'A análise não está disponível.',
+    observed: 'Sobreposição de timestamps exatos do Historian observada', noOverlap: 'Nenhuma sobreposição de timestamps exatos do Historian observada',
+    noRequired: 'Nenhum sinal obrigatório configurado', missingRequired: 'Dados de sinais obrigatórios insuficientes', singleRequired: 'Um único sinal obrigatório; sem comparação de alinhamento',
+    descriptive: 'Tendência descritiva disponível', noGood: 'Sem amostras numéricas Good', nonNumeric: 'Tipo de TAG não numérico não suportado'
+  };
+}
+
+function blockedReasonText(reason: CoverageBlockedReason, copy: CoverageCopy) {
+  switch (reason) {
+    case 'capabilities-loading': return copy.blockedCapabilitiesLoading;
+    case 'authority-unavailable': return copy.blockedAuthorityUnavailable;
+    case 'license-required': return copy.blockedLicenseRequired;
+    case 'trend-use-required': return copy.blockedTrendUseRequired;
+    case 'assignment-ambiguous': return copy.blockedAssignmentAmbiguous;
+    case 'scope-unavailable': return copy.blockedScopeUnavailable;
+    case 'scope-inactive': return copy.blockedScopeInactive;
+    case 'permit-required': return copy.blockedPermitRequired;
+    case 'signals-required': return copy.blockedSignalsRequired;
+    case 'duplicate-tags': return copy.blockedDuplicateTags;
+    case 'configuration-unsaved': return copy.blockedConfigurationUnsaved;
+    case 'scope-selection-unsaved': return copy.blockedScopeSelectionUnsaved;
+    case 'workspace-dirty': return copy.blockedWorkspaceDirty;
+    case 'project-unavailable': return copy.blockedProjectUnavailable;
+  }
+}
+
+export function parseWindow(fromLocal: string, toLocal: string): { window: WindowValue | null; error: 'missing' | 'invalid' | null } {
+  if (!fromLocal || !toLocal) return { window: null, error: 'missing' };
+  const from = new Date(fromLocal);
+  const to = new Date(toLocal);
+  const fromMs = from.getTime();
+  const toMs = to.getTime();
+  if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs || toMs - fromMs > MAX_WINDOW_MS) {
+    return { window: null, error: 'invalid' };
+  }
+  return { window: { fromUtc: from.toISOString(), toUtc: to.toISOString() }, error: null };
+}
+
+export function localDateTimeInput(value: Date) {
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
+}
+
+export function isMatchingResponse(
+  value: unknown,
+  scopeId: string,
+  profileId: string,
+  projectKey: string,
+  activeRevision: number,
+  window: WindowValue,
+  requiredAssignmentId?: string
+): value is ProfileCoverageResponse {
+  if (!value || typeof value !== 'object') return false;
+  const response = value as Partial<ProfileCoverageResponse>;
+  return response.projectKey === projectKey && response.activeRevision === activeRevision &&
+    (response.scopeKind === 0 || response.scopeKind === 'Equipment') &&
+    typeof response.scopeId === 'string' && response.scopeId.toLowerCase() === scopeId.toLowerCase() &&
+    response.profileId?.toLowerCase() === profileId.toLowerCase() &&
+    Date.parse(response.window?.fromUtc ?? '') === Date.parse(window.fromUtc) &&
+    Date.parse(response.window?.toUtc ?? '') === Date.parse(window.toUtc) &&
+    Array.isArray(response.signals) && Boolean(response.temporalAlignment && response.provenance) &&
+    (!requiredAssignmentId || Boolean(response.provenance?.assignments?.some(assignment =>
+      typeof assignment.assignmentId === 'string' &&
+      assignment.assignmentId.toLowerCase() === requiredAssignmentId.toLowerCase())));
+}
+
+function formatUtc(value: string, locale: string) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }).format(date) : value;
+}
+
+function describeAlignment(status: string, copy: CoverageCopy, locale: EngineeringLocale) {
+  switch (status) {
+    case 'exact_historian_timestamp_overlap_observed': return copy.observed;
+    case 'insufficient_exact_historian_timestamp_overlap': return copy.noOverlap;
+    case 'insufficient_no_required_signals': return copy.noRequired;
+    case 'insufficient_required_signal_data': return copy.missingRequired;
+    case 'single_required_signal_no_alignment_comparison': return copy.singleRequired;
+    default: return humanizeEvidence(status, locale);
+  }
+}
+
+function describeSignalStatus(status: string, copy: CoverageCopy, locale: EngineeringLocale) {
+  switch (status) {
+    case 'descriptive_trend_available': return copy.descriptive;
+    case 'insufficient_no_good_numeric_samples': return copy.noGood;
+    case 'unsupported_non_numeric_tag_type': return copy.nonNumeric;
+    default: return humanizeEvidence(status, locale);
+  }
+}
+
+export function coverageErrorText(code: string, copy: CoverageCopy) {
+  switch (code) {
+    case 'INTELLIGENCE_ENTITLEMENT_REQUIRED': return copy.blockedLicenseRequired;
+    case 'INTELLIGENCE_RUNTIME_NOT_EFFECTIVE_ACTIVE': return copy.blockedAuthorityUnavailable;
+    case 'INTELLIGENCE_SCOPE_NOT_ACTIVE_OR_AMBIGUOUS': return copy.blockedScopeInactive;
+    case 'INTELLIGENCE_EXECUTION_PERMIT_REQUIRED': return copy.blockedPermitRequired;
+    case 'INTELLIGENCE_PROFILE_WINDOW_TOO_DENSE':
+    case 'INTELLIGENCE_REFERENCE_EVIDENCE_WINDOW_TOO_DENSE':
+    case 'INTELLIGENCE_CONTEXT_ELIGIBILITY_WINDOW_TOO_DENSE':
+    case 'INTELLIGENCE_EXPERIMENTAL_JOINT_DEVIATION_WINDOW_TOO_DENSE':
+      return copy.windowTooDense;
+    case 'INTELLIGENCE_WORKSPACE_CHANGED': return copy.blockedWorkspaceDirty;
+    case 'HISTORICAL_QUERY_FORBIDDEN': return copy.runtimeUnavailable;
+    case 'INVALID_RESPONSE': return copy.unavailableResponse;
+    default: return copy.networkError;
+  }
+}
+
+class CoverageQueryError extends Error {
+  constructor(readonly code: string) { super(code); }
+}

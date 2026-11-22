@@ -19,7 +19,7 @@ public interface IGatewayRuntimeDiagnosticsProvider
 /// protocol-neutral Operational Event definition snapshot so Events change only
 /// when the underlying Active Revision successfully changes.
 /// </summary>
-public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator, IGatewayRuntimeDiagnosticsProvider, IOperationalEventRuntime
+public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator, IRuntimeTagValueSnapshotRestorer, IGatewayRuntimeDiagnosticsProvider, IOperationalEventRuntime, IRichCommandDriverExecutorResolver
 {
     private readonly EngineeringRuntimeCoordinator _inner;
     private readonly IScadaEventBus _eventBus;
@@ -49,6 +49,61 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
     public bool TryGetCurrent(Guid tagId, out TagValue? value) => _inner.TryGetCurrent(tagId, out value);
     public bool TryGetCommand(Guid commandId, out CommandDefinition? command) => _inner.TryGetCommand(commandId, out command);
     public bool IsServerMemoryTag(Guid tagId) => _inner.IsServerMemoryTag(tagId);
+    public bool TryResolve(Guid dataSourceId, out IRichCommandDriverExecutor? executor) =>
+        _inner.TryResolve(dataSourceId, out executor);
+
+    public Task<int> RestoreAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default) =>
+        _inner.RestoreAuthoritativeValuesAsync(values, cancellationToken);
+
+    public Task<int> RestoreAuthoritativeValuesForTakeoverAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default) =>
+        _inner.RestoreAuthoritativeValuesForTakeoverAsync(values, cancellationToken);
+
+    public Task<int> ApplyPassiveAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default) =>
+        _inner.ApplyPassiveAuthoritativeValuesAsync(values, cancellationToken);
+
+    public EngineeringPackage? CaptureApplication() => _inner.CaptureApplication();
+
+    public async Task<RuntimeActivationResult> MaterializePassiveAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        DateTimeOffset? authoritativeActivatedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(GatewayEngineeringRuntimeCoordinator));
+
+            // Gateway execution and Operational Event emission are Active-only process
+            // effects. Tear them down before replacing the canonical Runtime projection.
+            var previousGateway = Interlocked.Exchange(ref _gateway, null);
+            Volatile.Write(
+                ref _operationalEvents,
+                new Dictionary<Guid, OperationalEventDefinition>());
+            if (previousGateway is not null)
+                await previousGateway.DisposeAsync();
+
+            return await _inner.MaterializePassiveAsync(
+                projectKey,
+                revision,
+                package,
+                authoritativeActivatedAtUtc,
+                cancellationToken);
+        }
+        finally
+        {
+            _activationGate.Release();
+        }
+    }
 
     public IReadOnlyCollection<GatewayRouteRuntimeDiagnostic> GatewayDiagnostics() =>
         Volatile.Read(ref _gateway)?.Diagnostics() ?? Array.Empty<GatewayRouteRuntimeDiagnostic>();
@@ -100,7 +155,7 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
         long revision,
         EngineeringPackage package,
         CancellationToken cancellationToken = default) =>
-        ActivateCoreAsync(projectKey, revision, package, null, cancellationToken);
+        ActivateCoreAsync(projectKey, revision, package, null, allowDegradedSources: false, cancellationToken);
 
     public Task<RuntimeActivationResult> ActivateAsync(
         string projectKey,
@@ -110,7 +165,18 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(commitAsync);
-        return ActivateCoreAsync(projectKey, revision, package, commitAsync, cancellationToken);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: false, cancellationToken);
+    }
+
+    public Task<RuntimeActivationResult> ActivateForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(commitAsync);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: true, cancellationToken);
     }
 
     private async Task<RuntimeActivationResult> ActivateCoreAsync(
@@ -118,6 +184,7 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
         long revision,
         EngineeringPackage package,
         Func<RuntimeActivationCommitContext, CancellationToken, Task>? commitAsync,
+        bool allowDegradedSources,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(projectKey))
@@ -150,26 +217,35 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
             var previousGatewayStopped = false;
             try
             {
-                var result = await _inner.ActivateAsync(
-                    projectKey,
-                    revision,
-                    package,
-                    async (context, ct) =>
+                async Task CommitAsync(RuntimeActivationCommitContext context, CancellationToken ct)
+                {
+                    // Stop automated writes before the external commit callback can
+                    // persist/promote the candidate Active Revision. If that callback
+                    // later fails, the wrapper restarts the previous Gateway while the
+                    // proven inner coordinator keeps the previous runtime active.
+                    if (previousGateway is not null)
                     {
-                        // Stop automated writes before the external commit callback can
-                        // persist/promote the candidate Active Revision. If that callback
-                        // later fails, the wrapper restarts the previous Gateway while the
-                        // proven inner coordinator keeps the previous runtime active.
-                        if (previousGateway is not null)
-                        {
-                            await previousGateway.StopAsync();
-                            previousGatewayStopped = true;
-                        }
+                        await previousGateway.StopAsync();
+                        previousGatewayStopped = true;
+                    }
 
-                        if (commitAsync is not null)
-                            await commitAsync(context, ct);
-                    },
-                    cancellationToken);
+                    if (commitAsync is not null)
+                        await commitAsync(context, ct);
+                }
+
+                var result = allowDegradedSources
+                    ? await _inner.ActivateForHaTakeoverAsync(
+                        projectKey,
+                        revision,
+                        package,
+                        CommitAsync,
+                        cancellationToken)
+                    : await _inner.ActivateAsync(
+                        projectKey,
+                        revision,
+                        package,
+                        CommitAsync,
+                        cancellationToken);
 
                 if (!result.Activated)
                 {
@@ -315,14 +391,12 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
             if (string.IsNullOrWhiteSpace(dto.Source) || !dataSources.TryGetValue(dto.Source, out var dataSource))
                 continue;
 
-            // Client Memory has no server-authoritative scalar value and the built-in
-            // simulation source is not part of the active Engineering runtime. All other
-            // enabled server-owned sources remain protocol-neutral here: unsupported
+            // Client Memory has no server-authoritative scalar value. Simulation is
+            // server-owned and may be read by a Gateway route, but is not a destination.
+            // All other enabled server-owned sources remain protocol-neutral here: unsupported
             // communication drivers are rejected by the normal runtime compiler, while
             // future supported drivers become Gateway-eligible without editing this class.
-            var sharedRuntimeSource =
-                !InternalMemoryRuntimePlanner.IsClientMemoryDriver(dataSource.Driver) &&
-                !dataSource.Driver.Equals(EngineeringDriverCompiler.SimulationDriverKey, StringComparison.OrdinalIgnoreCase);
+            var sharedRuntimeSource = !InternalMemoryRuntimePlanner.IsClientMemoryDriver(dataSource.Driver);
             if (!sharedRuntimeSource)
                 continue;
 
@@ -348,9 +422,10 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
                 dto.Description,
                 dto.ReadOnly,
                 metadata,
-                access);
+                access,
+                ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
             registry.Register(tag);
-            if (!tag.ReadOnly)
+            if (!tag.ReadOnly && !dataSource.Driver.Equals(EngineeringDriverCompiler.SimulationDriverKey, StringComparison.OrdinalIgnoreCase))
                 writableTagIds.Add(tag.Id);
         }
 

@@ -14,6 +14,10 @@ const expectedCommonKeys = [
   'width',
   'height',
   'rotation',
+  'arcStartAngle',
+  'arcEndAngle',
+  'arcStyle',
+  'bezierPath',
   'scaleX',
   'scaleY',
   'horizontalFlip',
@@ -23,9 +27,11 @@ const expectedCommonKeys = [
   'opacity',
   'tooltip',
   'enabled',
+  'checked',
   'fillStyle',
   'fillColor',
   'fillSecondaryColor',
+  'polygonFillRule',
   'gradientDirection',
   'backgroundColor',
   'strokeColor',
@@ -39,6 +45,11 @@ const expectedCommonKeys = [
   'shadowBlur',
   'text',
   'textColor',
+  'textColorEditing',
+  'textColorGood',
+  'textColorBad',
+  'valueFormat',
+  'showEngineeringUnit',
   'fontFamily',
   'fontSize',
   'fontWeight',
@@ -50,15 +61,34 @@ const expectedCommonKeys = [
   'horizontalAlignment',
   'verticalAlignment',
   'assetRef',
+  'mediaAutoplay',
+  'mediaSourceId',
+  'mediaMuted',
+  'mediaLoop',
+  'mediaControls',
+  'pdfInitialPage',
+  'pdfZoom',
+  'pdfToolbarVisible',
+  'reportKey',
   'imageFit',
   'imagePositionX',
   'imagePositionY',
+  'imageZoom',
+  'viewYawDeg',
+  'viewPitchDeg',
+  'runtimeViewInteractionEnabled',
   'value',
+  'unit',
+  'decimalPlacesEnabled',
+  'decimalPlaces',
   'minimum',
   'maximum',
   'step',
   'orientation',
   'interactionEnabled',
+  'showApplyButton',
+  'showCancelButton',
+  'showSteppers',
   'reverseDirection',
   'trackColor',
   'thumbColor',
@@ -68,7 +98,41 @@ const expectedCommonKeys = [
   'trendLegendVisible',
   'trendGridVisible',
   'trendAxesVisible',
-  'trendQualityVisible'
+  'trendLeftAxisVisible',
+  'trendRightAxisVisible',
+  'trendAxisLabelsVisible',
+  'trendTimeAxisVisible',
+  'trendAxisFontSize',
+  'trendLegendFontSize',
+  'trendQualityVisible',
+  'measurementTheme',
+  'measurementQualityVisible',
+  'measurementFreshnessVisible',
+  'measurementStaleAfterSeconds',
+  'measurementUnit',
+  'measurementTarget',
+  'measurementBandOneEnd',
+  'measurementBandTwoEnd',
+  'intelligenceScopeId',
+  'intelligenceAssignmentId',
+  'intelligenceProfileId',
+  'intelligenceRuleId',
+  'intelligenceRuleVersion',
+  'intelligenceSignalIds',
+  'intelligenceFirstContextSignalId',
+  'intelligenceSecondContextSignalId',
+  'intelligenceStageId',
+  'intelligenceStageKey',
+  'intelligenceStageName',
+  'intelligenceStageMembers',
+  'intelligenceOperatingContexts',
+  'intelligenceJointSignals',
+  'intelligenceCurrentFrequencySignals',
+  'intelligenceSingleTargetSignals',
+  'intelligenceFirstContextLowerInclusiveCanonical',
+  'intelligenceFirstContextUpperExclusiveCanonical',
+  'intelligenceSecondContextLowerInclusiveCanonical',
+  'intelligenceSecondContextUpperExclusiveCanonical'
 ];
 
 test('common registry exposes the converged visual property family and image fit enum', () => {
@@ -100,8 +164,14 @@ test('common registry exposes the converged visual property family and image fit
     .toMatchObject({ type: 'string', defaultValue: '', runtimeReadable: true });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.enabled))
     .toMatchObject({ type: 'boolean', defaultValue: true, runtimeWritable: true, supportsBinding: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.showCancelButton))
+    .toMatchObject({ type: 'boolean', defaultValue: true, engineeringEditable: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.showSteppers))
+    .toMatchObject({ type: 'boolean', defaultValue: true, engineeringEditable: true });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fillStyle))
     .toMatchObject({ type: 'enum', defaultValue: 'solid', allowedValues: ['none', 'solid', 'gradient'] });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fillColor))
+    .toMatchObject({ type: 'color', defaultValue: '#808080FF', animatable: true });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fillSecondaryColor))
     .toMatchObject({ type: 'color', defaultValue: '#00000000', animatable: true });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.gradientDirection))

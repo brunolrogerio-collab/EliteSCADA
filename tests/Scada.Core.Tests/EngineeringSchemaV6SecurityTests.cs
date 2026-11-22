@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
@@ -30,9 +31,11 @@ public sealed class EngineeringSchemaV6SecurityTests
             }));
 
         var service = CreateService(security);
-        var parsed = service.ParseJson(service.ExportJson());
+        var json = service.ExportJson();
+        var parsed = service.ParseJson(json);
 
         Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, parsed.SchemaVersion);
+        Assert.Contains("\"capability\": \"processValueWrite\"", json, StringComparison.Ordinal);
         var role = Assert.Single(parsed.SecurityRoles!);
         Assert.Equal("area-one-operator", role.Key);
         Assert.Contains(role.Grants!, x =>
@@ -128,6 +131,118 @@ public sealed class EngineeringSchemaV6SecurityTests
         Assert.Equal(existingId, updated!.Id);
         Assert.Equal("Updated Operator", updated.Name);
         Assert.Contains(updated.Grants!, x => x.Capability == SecurityCapability.CommandExecute);
+    }
+
+    [Fact]
+    public void SchemaV16MigrationSynthesizesEngineeringViewFromLegacyModifyGrant()
+    {
+        var service = CreateService(new InMemorySecurityPolicyEngineeringRegistry());
+        const string json = """
+        {
+          "schema": "scada.engineering",
+          "schemaVersion": 16,
+          "exportedAt": "2026-09-12T00:00:00Z",
+          "tags": [],
+          "alarms": [],
+          "securityRoles": [
+            {
+              "id": "60000000-0000-0000-0000-000000000003",
+              "key": "legacy-engineer",
+              "name": "Legacy Engineer",
+              "grants": [
+                {
+                  "capability": "engineeringModify",
+                  "scope": { "tagPath": "Plant.P01.*" }
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+        var package = service.ParseJson(json);
+        var role = Assert.Single(package.SecurityRoles!);
+
+        Assert.Contains(role.Grants!, grant =>
+            grant.Capability == SecurityCapability.EngineeringModify &&
+            grant.Scope?.TagPath == "Plant.P01.*");
+        Assert.Contains(role.Grants!, grant =>
+            grant.Capability == SecurityCapability.EngineeringView &&
+            grant.Scope?.TagPath == "Plant.P01.*");
+    }
+
+    [Fact]
+    public void SchemaV17KeepsEngineeringViewIndependentFromEngineeringModify()
+    {
+        var security = new InMemorySecurityPolicyEngineeringRegistry();
+        security.UpsertRole(new SecurityRoleEngineeringDto(
+            Guid.Parse("60000000-0000-0000-0000-000000000004"),
+            "modifier",
+            "Modifier",
+            Grants: new[] { new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringModify) }));
+        var service = CreateService(security);
+
+        var package = service.ParseJson(service.ExportJson());
+        var role = Assert.Single(package.SecurityRoles!);
+
+        Assert.Contains(role.Grants!, grant => grant.Capability == SecurityCapability.EngineeringModify);
+        Assert.DoesNotContain(role.Grants!, grant => grant.Capability == SecurityCapability.EngineeringView);
+    }
+
+    [Theory]
+    [InlineData("\"futureUnknownCapability\"")]
+    [InlineData("999")]
+    public void ParserRejectsUnknownOrOrdinalCapabilityInput(string capabilityJson)
+    {
+        var service = CreateService(new InMemorySecurityPolicyEngineeringRegistry());
+        var json = $$"""
+        {
+          "schema": "scada.engineering",
+          "schemaVersion": 17,
+          "exportedAt": "2026-09-12T00:00:00Z",
+          "tags": [],
+          "alarms": [],
+          "securityRoles": [
+            {
+              "key": "invalid",
+              "name": "Invalid",
+              "grants": [{ "capability": {{capabilityJson}} }]
+            }
+          ]
+        }
+        """;
+
+        Assert.Throws<JsonException>(() => service.ParseJson(json));
+    }
+
+    [Fact]
+    public void PreviewRejectsUnknownAndAmbiguousTagAccessRoleReferences()
+    {
+        var service = CreateService(new InMemorySecurityPolicyEngineeringRegistry());
+        var duplicateRole = new SecurityRoleEngineeringDto(null, "operator", "Operator");
+        var package = service.ExportPackage() with
+        {
+            Tags = new[]
+            {
+                new TagEngineeringDto(
+                    Guid.Parse("60000000-0000-0000-0000-000000000005"),
+                    "Setpoint",
+                    "Plant.P01.Setpoint",
+                    TagDataType.Double,
+                    ReadOnly: false,
+                    AccessPolicy: new TagAccessPolicyDto(
+                        ReadRoles: new[] { "missing" },
+                        WriteRoles: new[] { "operator" }))
+            },
+            SecurityRoles = new[] { duplicateRole, duplicateRole with { Id = Guid.NewGuid() } }
+        };
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+        var issues = preview.Items.SelectMany(item => item.Issues).ToArray();
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(issues, issue => issue.Code == "TAG_ACCESS_ROLE_NOT_FOUND");
+        Assert.Contains(issues, issue => issue.Code == "TAG_ACCESS_ROLE_AMBIGUOUS");
     }
 
     private static EngineeringExchangeService CreateService(ISecurityPolicyEngineeringRegistry security)

@@ -1,3 +1,4 @@
+import { createBrowserUuid } from '../browserUuid';
 import type { VisualEngineeringDefinitionProjection } from './visualEngineeringProjection';
 import type { VisualObjectPropertySchema } from './visualPropertyRegistry';
 import { isStableVisualToken } from './visualPropertyTypes';
@@ -436,14 +437,14 @@ function firstPresent(
 }
 
 function createRuntimeInstanceId(): string {
-  const randomUuid = globalThis.crypto?.randomUUID;
-  if (typeof randomUuid !== 'function') {
+  try {
+    return createBrowserUuid();
+  } catch {
     throw new RuntimeVisualInstanceError(
       'VISUAL_RUNTIME_INSTANCE_ID_FACTORY_UNAVAILABLE',
       'Browser UUID generation is required when no Runtime Visual Instance ID is supplied.'
     );
   }
-  return randomUuid.call(globalThis.crypto);
 }
 
 function requireIdentityPart(value: string, field: string): void {

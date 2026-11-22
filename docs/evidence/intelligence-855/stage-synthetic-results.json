@@ -1,0 +1,67 @@
+{
+  "syntheticOnly": true,
+  "sharedSyntheticDataset": true,
+  "revision": 29,
+  "generatedScreens": [
+    {
+      "id": "80d0451c-d8e3-4a1c-9252-4453aac02b08",
+      "key": "intelligence-bombeamento-855",
+      "role": "values-trend"
+    },
+    {
+      "id": "bd4948ac-d939-4c84-a5ce-85c6d8ad9240",
+      "key": "intelligence-process-stage-insights-bombeamento-855",
+      "role": "process-stage-insights"
+    },
+    {
+      "id": "f9dc84bd-b468-4100-b14d-8b2bb8d35c27",
+      "key": "intelligence-stage-coverage-bombeamento-855",
+      "role": "process-stage-coverage"
+    }
+  ],
+  "queriesDuringGeneration": 0,
+  "coverage": {
+    "scopeId": "85500000-0000-0000-0000-000000000501",
+    "accepted": [
+      120,
+      120
+    ]
+  },
+  "performance": [
+    {
+      "assignmentId": "85500000-0000-0000-0000-000000000401",
+      "scopeId": "85300000-0000-0000-0000-000000000200",
+      "summary": {
+        "status": "available",
+        "unit": "kWh/m³",
+        "reasonCodes": [],
+        "qualifiedTupleCount": 120,
+        "minimum": 0.00015631357103800154,
+        "maximum": 0.00017807660855930033,
+        "arithmeticMean": 0.00016665286390744858,
+        "meanSemantics": "arithmetic mean of qualified pointwise formula results; not time-weighted"
+      }
+    },
+    {
+      "assignmentId": "85500000-0000-0000-0000-000000000403",
+      "scopeId": "85500000-0000-0000-0000-000000000501",
+      "summary": {
+        "status": "available",
+        "unit": "kWh/m³",
+        "reasonCodes": [],
+        "qualifiedTupleCount": 120,
+        "minimum": 0.00015631357103800154,
+        "maximum": 0.00017807660855930033,
+        "arithmeticMean": 0.00016665286390744858,
+        "meanSemantics": "arithmetic mean of qualified pointwise formula results; not time-weighted"
+      }
+    }
+  ],
+  "deviation": {
+    "scopeId": "85300000-0000-0000-0000-000000000200",
+    "referenceVectors": 120,
+    "evaluationVectors": 120
+  },
+  "oldResultsCleared": true,
+  "partialMemberDeviationDisabled": true
+}

@@ -27,6 +27,8 @@ type Copy = {
   activeRuntime: string;
   activeIdentity: string;
   activeSimulation: string;
+  noActiveRuntime: string;
+  noActiveRuntimeBoundary: string;
   activeUnavailable: string;
   activatedAt: string;
   alignment: string;
@@ -48,6 +50,8 @@ const copy: Record<EngineeringLocale, Copy> = {
     activeRuntime: 'Active Runtime',
     activeIdentity: 'Identidade ativa',
     activeSimulation: 'Simulação / demo',
+    noActiveRuntime: 'Nenhuma revisão Active',
+    noActiveRuntimeBoundary: 'Nenhuma revisão Active está selecionada; não há identidade Runtime para comparar.',
     activeUnavailable: 'Contexto do Active Runtime indisponível',
     activatedAt: 'Ativado em',
     alignment: 'Working x Active',
@@ -67,6 +71,8 @@ const copy: Record<EngineeringLocale, Copy> = {
     activeRuntime: 'Active Runtime',
     activeIdentity: 'Active identity',
     activeSimulation: 'Simulation / demo',
+    noActiveRuntime: 'No Active revision',
+    noActiveRuntimeBoundary: 'No Active revision is selected; there is no Runtime identity to compare.',
     activeUnavailable: 'Active Runtime context unavailable',
     activatedAt: 'Activated at',
     alignment: 'Working vs Active',
@@ -86,6 +92,8 @@ const copy: Record<EngineeringLocale, Copy> = {
     activeRuntime: 'Active Runtime',
     activeIdentity: 'Identidad activa',
     activeSimulation: 'Simulación / demo',
+    noActiveRuntime: 'No hay revisión Active',
+    noActiveRuntimeBoundary: 'No hay una revisión Active seleccionada; no existe una identidad Runtime para comparar.',
     activeUnavailable: 'Contexto del Active Runtime no disponible',
     activatedAt: 'Activado en',
     alignment: 'Working vs Active',
@@ -148,16 +156,19 @@ export function EngineeringTagMonitorWorkspace({
     ? `${activeRuntime.projectName ?? activeRuntime.projectKey ?? '—'} · rev ${activeRuntime.revision ?? '—'}`
     : activeRuntime?.mode === 'simulation'
       ? text.activeSimulation
-      : '—';
+      : activeRuntime?.mode === 'neutral'
+        ? text.noActiveRuntime
+        : '—';
   const boundary = useMemo(() => {
     if (!activeRuntime) return text.activeUnavailable;
     if (activeRuntime.mode === 'simulation') return text.simulationBoundary;
+    if (activeRuntime.mode === 'neutral') return text.noActiveRuntimeBoundary;
     const sameProject = !workspace.projectKey || !activeRuntime.projectKey ||
       workspace.projectKey.localeCompare(activeRuntime.projectKey, undefined, { sensitivity: 'accent' }) === 0;
     const sameRevision = workspace.baseRevision != null && activeRuntime.revision != null &&
       workspace.baseRevision === activeRuntime.revision;
     return !workspace.isDirty && sameProject && sameRevision ? text.aligned : text.differs;
-  }, [activeRuntime, text.activeUnavailable, text.aligned, text.differs, text.simulationBoundary, workspace.baseRevision, workspace.isDirty, workspace.projectKey]);
+  }, [activeRuntime, text.activeUnavailable, text.aligned, text.differs, text.noActiveRuntimeBoundary, text.simulationBoundary, workspace.baseRevision, workspace.isDirty, workspace.projectKey]);
 
   return (
     <div

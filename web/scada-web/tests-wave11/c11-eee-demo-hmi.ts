@@ -1,5 +1,4 @@
 import { buildEeeFoundationPackage, EEE_IDS, EEE_PATHS } from './c11-eee-demo-foundation-canonical';
-import { EEE_SECURITY_ROLES } from './c11-eee-demo-security';
 
 const vid = (group: number, value: number) =>
   `c11${group}0000-0000-4000-8000-${String(value).padStart(12, '0')}`;
@@ -742,7 +741,6 @@ function pumpPopup(
 
 export function buildEeeDemoPackage(base: any): any {
   const packageData = buildEeeFoundationPackage(base);
-  packageData.securityRoles = [...EEE_SECURITY_ROLES];
   packageData.dynamos = [pumpDynamo()];
   packageData.screens = [
     mainScreen(),

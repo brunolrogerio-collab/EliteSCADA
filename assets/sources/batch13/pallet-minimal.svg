@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="26" y="70" width="76" height="14" rx="2" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="deck" />
+  <line x1="34" y1="84" x2="34" y2="98" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="block" />
+  <line x1="49" y1="84" x2="49" y2="98" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="block" />
+  <line x1="64" y1="84" x2="64" y2="98" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="block" />
+  <line x1="79" y1="84" x2="79" y2="98" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="block" />
+  <line x1="94" y1="84" x2="94" y2="98" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="block" />
+  <line x1="24" y1="102" x2="104" y2="102" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="floor" />
+</svg>

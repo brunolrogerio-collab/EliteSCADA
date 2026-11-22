@@ -1,0 +1,41 @@
+{
+  "syntheticOnly": true,
+  "revision": 71,
+  "persistedScreens": [
+    {
+      "id": "7243ab16-ef8d-40cd-b2fa-66ce90741742",
+      "key": "intelligence-bombeamento-855-5"
+    },
+    {
+      "id": "9861d5f4-9a09-4557-822b-0a98320d7bd3",
+      "key": "intelligence-planta.bomba-validacao-painel-855-5"
+    },
+    {
+      "id": "9e8a453d-89da-43cd-8134-6a20a4de189a",
+      "key": "intelligence-process-stage-insights-bombeamento-855-5"
+    },
+    {
+      "id": "425eaf68-a66f-4c1f-ac69-72ab52ea74bc",
+      "key": "intelligence-single-target-bomba-de-validacao-local-painel-analitico-sintetico"
+    },
+    {
+      "id": "b0c28bb9-71e3-4fb0-bf46-34082032efea",
+      "key": "intelligence-stage-coverage-bombeamento-855-5"
+    }
+  ],
+  "profileAssignmentUnitsAndSourcePreserved": true,
+  "closedAfterRestartStatus": 409,
+  "closedCode": "INTELLIGENCE_EXECUTION_PERMIT_REQUIRED",
+  "explicitRearm": true,
+  "referenceVectors": 120,
+  "evaluationVectors": 120,
+  "firstScores": [
+    9.131625939596386,
+    0.823393073810156
+  ],
+  "noReferenceRange": {
+    "qualified": 0,
+    "allMediansMadsDifferencesScoresNull": true
+  },
+  "overlappingTargetConditionStatus": 400
+}

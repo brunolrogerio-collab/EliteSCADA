@@ -1,0 +1,9 @@
+.intelligence-single-target { min-width: 0; overflow-wrap: anywhere; }
+.intelligence-single-target form { display: grid; gap: .65rem; }
+.intelligence-single-target label { display: flex; flex-direction: column; gap: .25rem; min-width: 0; }
+.intelligence-single-target input, .intelligence-single-target select { max-width: 100%; min-width: 0; }
+.intelligence-single-target__table { max-width: 100%; overflow-x: auto; }
+.intelligence-single-target__table th, .intelligence-single-target__table td { padding: .4rem; white-space: nowrap; }
+
+.intelligence-single-target .asset-process-intelligence__deviation-body > * { min-width: 0; }
+.intelligence-single-target button { white-space: normal; overflow-wrap: anywhere; }

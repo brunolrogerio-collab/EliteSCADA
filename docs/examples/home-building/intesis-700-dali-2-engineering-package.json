@@ -1,0 +1,384 @@
+{
+  "schema": "scada.engineering",
+  "schemaVersion": 23,
+  "exportedAt": "2026-10-10T00:00:00Z",
+  "tags": [
+    {
+      "id": "70700000-0000-4000-8000-000000000001",
+      "name": "Lamp powered",
+      "path": "Home.Dali.Channel0.Ballast00.LampPowered",
+      "dataType": "boolean",
+      "source": "intesis700.tcp",
+      "address": "input:5",
+      "engineeringUnit": null,
+      "description": "Ballast Status bit 2 (LampPwrOn), channel 0, short address 0.",
+      "readOnly": true,
+      "scaleMinimum": null,
+      "scaleMaximum": null,
+      "metadata": {
+        "modbus.valueType": "Boolean",
+        "intesis.manualVersion": "1.0.11",
+        "intesis.mapSection": "5.2.1.1",
+        "intesis.registerAccess": "R"
+      },
+      "addressSelector": { "kind": "bit", "index": 2 },
+      "communicationBinding": {
+        "contractVersion": 1,
+        "schemaId": "modbus.tcp.engineering",
+        "schemaVersion": 1,
+        "portableAddress": "input:5",
+        "settings": { "modbus.valueType": "Boolean" }
+      },
+      "dataSourceId": "70700000-0000-4000-8000-000000000100"
+    },
+    {
+      "id": "70700000-0000-4000-8000-000000000002",
+      "name": "Lamp failure",
+      "path": "Home.Dali.Channel0.Ballast00.LampFailure",
+      "dataType": "boolean",
+      "source": "intesis700.tcp",
+      "address": "input:5",
+      "description": "Ballast Status bit 1 (LampFail), channel 0, short address 0.",
+      "readOnly": true,
+      "metadata": {
+        "modbus.valueType": "Boolean",
+        "intesis.manualVersion": "1.0.11",
+        "intesis.mapSection": "5.2.1.1",
+        "intesis.registerAccess": "R"
+      },
+      "addressSelector": { "kind": "bit", "index": 1 },
+      "communicationBinding": {
+        "contractVersion": 1,
+        "schemaId": "modbus.tcp.engineering",
+        "schemaVersion": 1,
+        "portableAddress": "input:5",
+        "settings": { "modbus.valueType": "Boolean" }
+      },
+      "dataSourceId": "70700000-0000-4000-8000-000000000100"
+    },
+    {
+      "id": "70700000-0000-4000-8000-000000000003",
+      "name": "Ballast failure",
+      "path": "Home.Dali.Channel0.Ballast00.BallastFailure",
+      "dataType": "boolean",
+      "source": "intesis700.tcp",
+      "address": "input:5",
+      "description": "Ballast Status bit 0 (BallFail), channel 0, short address 0.",
+      "readOnly": true,
+      "metadata": {
+        "modbus.valueType": "Boolean",
+        "intesis.manualVersion": "1.0.11",
+        "intesis.mapSection": "5.2.1.1",
+        "intesis.registerAccess": "R"
+      },
+      "addressSelector": { "kind": "bit", "index": 0 },
+      "communicationBinding": {
+        "contractVersion": 1,
+        "schemaId": "modbus.tcp.engineering",
+        "schemaVersion": 1,
+        "portableAddress": "input:5",
+        "settings": { "modbus.valueType": "Boolean" }
+      },
+      "dataSourceId": "70700000-0000-4000-8000-000000000100"
+    },
+    {
+      "id": "70700000-0000-4000-8000-000000000004",
+      "name": "Actual level",
+      "path": "Home.Dali.Channel0.Ballast00.ActualLevel",
+      "dataType": "int16",
+      "source": "intesis700.tcp",
+      "address": "input:6",
+      "engineeringUnit": "%",
+      "description": "Actual Level, documented range 0..100 percent.",
+      "readOnly": true,
+      "scaleMinimum": 0,
+      "scaleMaximum": 100,
+      "metadata": {
+        "modbus.valueType": "Int16",
+        "intesis.manualVersion": "1.0.11",
+        "intesis.mapSection": "5.2.1.1",
+        "intesis.registerAccess": "R"
+      },
+      "communicationBinding": {
+        "contractVersion": 1,
+        "schemaId": "modbus.tcp.engineering",
+        "schemaVersion": 1,
+        "portableAddress": "input:6",
+        "settings": { "modbus.valueType": "Int16" }
+      },
+      "dataSourceId": "70700000-0000-4000-8000-000000000100"
+    },
+    {
+      "id": "70700000-0000-4000-8000-000000000005",
+      "name": "Arc power level",
+      "path": "Home.Dali.Channel0.Ballast00.ArcPowerLevel",
+      "dataType": "int16",
+      "source": "intesis700.tcp",
+      "address": "holding:15",
+      "engineeringUnit": "%",
+      "description": "RW Arc Power Level, documented range 0..100 percent.",
+      "readOnly": false,
+      "scaleMinimum": 0,
+      "scaleMaximum": 100,
+      "metadata": {
+        "modbus.valueType": "Int16",
+        "intesis.manualVersion": "1.0.11",
+        "intesis.mapSection": "5.2.1.1",
+        "intesis.registerAccess": "RW"
+      },
+      "communicationBinding": {
+        "contractVersion": 1,
+        "schemaId": "modbus.tcp.engineering",
+        "schemaVersion": 1,
+        "portableAddress": "holding:15",
+        "settings": { "modbus.valueType": "Int16" }
+      },
+      "dataSourceId": "70700000-0000-4000-8000-000000000100"
+    },
+    {
+      "id": "70700000-0000-4000-8000-000000000006",
+      "name": "Arc power on off",
+      "path": "Home.Dali.Channel0.Ballast00.ArcPowerOnOff",
+      "dataType": "int16",
+      "source": "intesis700.tcp",
+      "address": "holding:16",
+      "description": "RW Arc Power Off / On: 0=off, 1=100 percent.",
+      "readOnly": false,
+      "scaleMinimum": 0,
+      "scaleMaximum": 1,
+      "metadata": {
+        "modbus.valueType": "Int16",
+        "intesis.manualVersion": "1.0.11",
+        "intesis.mapSection": "5.2.1.1",
+        "intesis.registerAccess": "RW"
+      },
+      "communicationBinding": {
+        "contractVersion": 1,
+        "schemaId": "modbus.tcp.engineering",
+        "schemaVersion": 1,
+        "portableAddress": "holding:16",
+        "settings": { "modbus.valueType": "Int16" }
+      },
+      "dataSourceId": "70700000-0000-4000-8000-000000000100"
+    },
+    {
+      "id": "70700000-0000-4000-8000-000000000007",
+      "name": "Control gear overall failure",
+      "path": "Home.Dali.Channel0.Ballast00.ControlGearOverallFailure",
+      "dataType": "boolean",
+      "source": "intesis700.tcp",
+      "address": "input:25065",
+      "description": "Control Gear Failure bit 0, Type 52.",
+      "readOnly": true,
+      "metadata": { "modbus.valueType": "Boolean", "intesis.manualVersion": "1.0.11", "intesis.mapSection": "5.2.1.10", "intesis.registerAccess": "R" },
+      "addressSelector": { "kind": "bit", "index": 0 },
+      "communicationBinding": { "contractVersion": 1, "schemaId": "modbus.tcp.engineering", "schemaVersion": 1, "portableAddress": "input:25065", "settings": { "modbus.valueType": "Boolean" } },
+      "dataSourceId": "70700000-0000-4000-8000-000000000100"
+    },
+    {
+      "id": "70700000-0000-4000-8000-000000000008",
+      "name": "External supply undervoltage",
+      "path": "Home.Dali.Channel0.Ballast00.ExternalSupplyUndervoltage",
+      "dataType": "boolean",
+      "source": "intesis700.tcp",
+      "address": "input:25065",
+      "description": "Control Gear Failure bit 1, Type 52.",
+      "readOnly": true,
+      "metadata": { "modbus.valueType": "Boolean", "intesis.manualVersion": "1.0.11", "intesis.mapSection": "5.2.1.10", "intesis.registerAccess": "R" },
+      "addressSelector": { "kind": "bit", "index": 1 },
+      "communicationBinding": { "contractVersion": 1, "schemaId": "modbus.tcp.engineering", "schemaVersion": 1, "portableAddress": "input:25065", "settings": { "modbus.valueType": "Boolean" } },
+      "dataSourceId": "70700000-0000-4000-8000-000000000100"
+    },
+    {
+      "id": "70700000-0000-4000-8000-000000000009",
+      "name": "External supply overvoltage",
+      "path": "Home.Dali.Channel0.Ballast00.ExternalSupplyOvervoltage",
+      "dataType": "boolean",
+      "source": "intesis700.tcp",
+      "address": "input:25065",
+      "description": "Control Gear Failure bit 2, Type 52.",
+      "readOnly": true,
+      "metadata": { "modbus.valueType": "Boolean", "intesis.manualVersion": "1.0.11", "intesis.mapSection": "5.2.1.10", "intesis.registerAccess": "R" },
+      "addressSelector": { "kind": "bit", "index": 2 },
+      "communicationBinding": { "contractVersion": 1, "schemaId": "modbus.tcp.engineering", "schemaVersion": 1, "portableAddress": "input:25065", "settings": { "modbus.valueType": "Boolean" } },
+      "dataSourceId": "70700000-0000-4000-8000-000000000100"
+    },
+    {
+      "id": "70700000-0000-4000-8000-000000000010",
+      "name": "ECG output power limit",
+      "path": "Home.Dali.Channel0.Ballast00.EcgOutputPowerLimit",
+      "dataType": "boolean",
+      "source": "intesis700.tcp",
+      "address": "input:25065",
+      "description": "Control Gear Failure bit 3, Type 52.",
+      "readOnly": true,
+      "metadata": { "modbus.valueType": "Boolean", "intesis.manualVersion": "1.0.11", "intesis.mapSection": "5.2.1.10", "intesis.registerAccess": "R" },
+      "addressSelector": { "kind": "bit", "index": 3 },
+      "communicationBinding": { "contractVersion": 1, "schemaId": "modbus.tcp.engineering", "schemaVersion": 1, "portableAddress": "input:25065", "settings": { "modbus.valueType": "Boolean" } },
+      "dataSourceId": "70700000-0000-4000-8000-000000000100"
+    },
+    {
+      "id": "70700000-0000-4000-8000-000000000011",
+      "name": "Thermal derating",
+      "path": "Home.Dali.Channel0.Ballast00.ThermalDerating",
+      "dataType": "boolean",
+      "source": "intesis700.tcp",
+      "address": "input:25065",
+      "description": "Control Gear Failure bit 4, Type 52.",
+      "readOnly": true,
+      "metadata": { "modbus.valueType": "Boolean", "intesis.manualVersion": "1.0.11", "intesis.mapSection": "5.2.1.10", "intesis.registerAccess": "R" },
+      "addressSelector": { "kind": "bit", "index": 4 },
+      "communicationBinding": { "contractVersion": 1, "schemaId": "modbus.tcp.engineering", "schemaVersion": 1, "portableAddress": "input:25065", "settings": { "modbus.valueType": "Boolean" } },
+      "dataSourceId": "70700000-0000-4000-8000-000000000100"
+    },
+    {
+      "id": "70700000-0000-4000-8000-000000000012",
+      "name": "Thermal shutdown",
+      "path": "Home.Dali.Channel0.Ballast00.ThermalShutdown",
+      "dataType": "boolean",
+      "source": "intesis700.tcp",
+      "address": "input:25065",
+      "description": "Control Gear Failure bit 5, Type 52.",
+      "readOnly": true,
+      "metadata": { "modbus.valueType": "Boolean", "intesis.manualVersion": "1.0.11", "intesis.mapSection": "5.2.1.10", "intesis.registerAccess": "R" },
+      "addressSelector": { "kind": "bit", "index": 5 },
+      "communicationBinding": { "contractVersion": 1, "schemaId": "modbus.tcp.engineering", "schemaVersion": 1, "portableAddress": "input:25065", "settings": { "modbus.valueType": "Boolean" } },
+      "dataSourceId": "70700000-0000-4000-8000-000000000100"
+    },
+    {
+      "id": "70700000-0000-4000-8000-000000000013",
+      "name": "Group color temperature",
+      "path": "Home.Dali.Channel0.Group00.ColorTemperature",
+      "dataType": "int16",
+      "source": "intesis700.tcp",
+      "address": "holding:6416",
+      "engineeringUnit": "K",
+      "description": "DALI Type 8 group Arc Colour level Tc, documented range 1000..10000 K; group 0 must already be commissioned in Intesis MAPS.",
+      "readOnly": false,
+      "scaleMinimum": 1000,
+      "scaleMaximum": 10000,
+      "metadata": {
+        "modbus.valueType": "Int16",
+        "intesis.manualVersion": "1.0.11",
+        "intesis.mapSection": "5.2.1.7",
+        "intesis.registerAccess": "RW",
+        "intesis.groupMustBeCommissioned": "true"
+      },
+      "communicationBinding": {
+        "contractVersion": 1,
+        "schemaId": "modbus.tcp.engineering",
+        "schemaVersion": 1,
+        "portableAddress": "holding:6416",
+        "settings": { "modbus.valueType": "Int16" }
+      },
+      "dataSourceId": "70700000-0000-4000-8000-000000000100"
+    }
+  ],
+  "alarms": [],
+  "dataSources": [
+    {
+      "id": "70700000-0000-4000-8000-000000000100",
+      "key": "intesis700.tcp",
+      "name": "Intesis 700 DALI Gateway",
+      "driver": "modbus.tcp",
+      "enabled": true,
+      "settings": {
+        "host": "192.0.2.10",
+        "port": "502",
+        "unitId": "1",
+        "scanIntervalMilliseconds": "1000",
+        "requestTimeoutMilliseconds": "3000",
+        "maxGapElements": "8"
+      },
+      "metadata": {
+        "profile": "HOME-DALI-2-INTESIS-700",
+        "fixtureOnly": "true"
+      }
+    }
+  ],
+  "equipment": [
+    {
+      "id": "70700000-0000-4000-8000-000000000020",
+      "path": "Home.Dali.Channel0.Ballast00",
+      "name": "DALI Channel 0 Ballast 0",
+      "metadata": {
+        "modelFamily": "Intesis 700 Series",
+        "channel": "0",
+        "daliShortAddress": "0"
+      },
+      "sourceBindings": [
+        {
+          "dataSourceId": "70700000-0000-4000-8000-000000000100",
+          "stableDeviceIdentity": "intesis:site-1:channel-0:ballast-0",
+          "role": "gateway"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "onOff",
+          "kind": "OnOff",
+          "bindings": [
+            { "role": "state", "tagId": "70700000-0000-4000-8000-000000000001" },
+            { "role": "set", "tagId": "70700000-0000-4000-8000-000000000006" }
+          ]
+        },
+        {
+          "id": "dimmer",
+          "kind": "Dimmer",
+          "bindings": [
+            { "role": "level", "tagId": "70700000-0000-4000-8000-000000000004" },
+            { "role": "set", "tagId": "70700000-0000-4000-8000-000000000005" }
+          ]
+        },
+        {
+          "id": "ballastStatus",
+          "kind": "BinaryInput",
+          "bindings": [
+            { "role": "lampFailure", "tagId": "70700000-0000-4000-8000-000000000002" },
+            { "role": "ballastFailure", "tagId": "70700000-0000-4000-8000-000000000003" }
+          ]
+        },
+        {
+          "id": "controlGearDiagnostics",
+          "kind": "BinaryInput",
+          "bindings": [
+            { "role": "overallFailure", "tagId": "70700000-0000-4000-8000-000000000007" },
+            { "role": "externalSupplyUndervoltage", "tagId": "70700000-0000-4000-8000-000000000008" },
+            { "role": "externalSupplyOvervoltage", "tagId": "70700000-0000-4000-8000-000000000009" },
+            { "role": "ecgOutputPowerLimit", "tagId": "70700000-0000-4000-8000-000000000010" },
+            { "role": "thermalDerating", "tagId": "70700000-0000-4000-8000-000000000011" },
+            { "role": "thermalShutdown", "tagId": "70700000-0000-4000-8000-000000000012" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "70700000-0000-4000-8000-000000000021",
+      "path": "Home.Dali.Channel0.Group00",
+      "name": "DALI Channel 0 Group 0 Color",
+      "metadata": {
+        "modelFamily": "Intesis 700 Series",
+        "channel": "0",
+        "daliGroup": "0",
+        "commissionedExternally": "true"
+      },
+      "sourceBindings": [
+        {
+          "dataSourceId": "70700000-0000-4000-8000-000000000100",
+          "stableDeviceIdentity": "intesis:site-1:channel-0:group-0",
+          "role": "gateway"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "colorTemperature",
+          "kind": "ColorLight",
+          "bindings": [
+            { "role": "colorTemperature", "tagId": "70700000-0000-4000-8000-000000000013" }
+          ]
+        }
+      ]
+    }
+  ],
+  "commands": []
+}

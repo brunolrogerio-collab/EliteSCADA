@@ -122,6 +122,16 @@
   background: var(--eng-panel-bg, #151d29);
 }
 
+.eng-project-management__card--tabular {
+  grid-column: 1 / -1;
+}
+
+.eng-project-management__tabular-identity-hint {
+  margin: -0.35rem 0 0;
+  color: var(--eng-muted, #9aa8ba);
+  line-height: 1.45;
+}
+
 .eng-project-management__file-field,
 .eng-project-management__mode {
   display: grid;

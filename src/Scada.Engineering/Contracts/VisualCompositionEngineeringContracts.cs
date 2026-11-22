@@ -12,13 +12,20 @@ public static class VisualCompositionEngineeringVersions
     public const int Current = 1;
 }
 
+public static class VisualNavigationActionVersions
+{
+    public const int RichCommand = 2;
+}
+
 public enum DynamoParameterKind
 {
     Boolean,
     Number,
     String,
     EquipmentPath,
-    TagReference
+    TagReference,
+    ValueSource,
+    Command
 }
 
 public sealed record DynamoParameterDefinitionEngineeringDto(
@@ -27,28 +34,34 @@ public sealed record DynamoParameterDefinitionEngineeringDto(
     bool Required = false,
     JsonElement? DefaultValue = null,
     TagValueReference? DefaultTagReference = null,
-    int Version = VisualCompositionEngineeringVersions.Current);
+    int Version = VisualCompositionEngineeringVersions.Current,
+    VisualValueSourceEngineeringDto? DefaultValueSource = null,
+    VisualExpressionValueType? ValueSourceType = null);
 
 public sealed record DynamoParameterValueEngineeringDto(
     string Key,
     DynamoParameterKind Kind,
     JsonElement? Value = null,
     TagValueReference? TagReference = null,
-    int Version = VisualCompositionEngineeringVersions.Current);
+    int Version = VisualCompositionEngineeringVersions.Current,
+    Guid? CommandId = null,
+    VisualValueSourceEngineeringDto? ValueSource = null);
 
 public enum VisualNavigationActionKind
 {
     NavigateScreen,
     OpenPopup,
     ClosePopup,
-    ExecuteCommand
+    ExecuteCommand,
+    SetTagValue,
+    ToggleTagBoolean,
+    ExecuteRichCommand
 }
 
 /// <summary>
-/// Canonical visual action intent. TargetKey is Engineering identity by key for
-/// navigation targets; CommandId is the stable Command entity identity for
-/// ExecuteCommand. Parameters are JSON-native authoring values passed to the
-/// target context and are not runtime-calculated state.
+/// Canonical visual action intent. CommandId selects either the legacy Command
+/// action or the separately versioned Active Rich Command action. Rich command
+/// parameter values are collected at invocation time and never stored here.
 /// </summary>
 public sealed record VisualNavigationActionEngineeringDto(
     string EventKey,
@@ -56,4 +69,5 @@ public sealed record VisualNavigationActionEngineeringDto(
     string? TargetKey = null,
     Dictionary<string, JsonElement>? Parameters = null,
     int Version = VisualCompositionEngineeringVersions.Current,
-    Guid? CommandId = null);
+    Guid? CommandId = null,
+    string? CommandParameterKey = null);

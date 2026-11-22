@@ -33,6 +33,34 @@ public sealed class EngineeringImportBodyReaderTests
     }
 
     [Fact]
+    public async Task ReadXlsxAsync_RoundTripsBinaryPayloadExactly()
+    {
+        var expected = new byte[] { 0x50, 0x4b, 0x03, 0x04, 0x00, 0xff };
+        var context = new DefaultHttpContext();
+        context.Request.ContentLength = expected.Length;
+        context.Request.Body = new MemoryStream(expected);
+
+        var actual = await EngineeringImportBodyReader.ReadXlsxAsync(context.Request);
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public async Task ReadXlsxAsync_RejectsDeclaredOversizeBeforeReadingBody()
+    {
+        var body = new GeneratedStream(0);
+        var context = new DefaultHttpContext();
+        context.Request.ContentLength = EngineeringImportBodyReader.MaximumXlsxBytes + 1L;
+        context.Request.Body = body;
+
+        var exception = await Assert.ThrowsAsync<EngineeringImportBodyTooLargeException>(() =>
+            EngineeringImportBodyReader.ReadXlsxAsync(context.Request));
+
+        Assert.Equal(EngineeringImportBodyReader.MaximumXlsxBytes, exception.LimitBytes);
+        Assert.Equal(0, body.ReadCount);
+    }
+
+    [Fact]
     public async Task ReadCsvAsync_RejectsStreamThatExceedsMisleadingContentLength()
     {
         var context = new DefaultHttpContext();

@@ -1,0 +1,1233 @@
+name: Wave 15 T1 PR validation
+
+on:
+  pull_request:
+    branches: [wave15/corrections-integration]
+  workflow_dispatch:
+    inputs:
+      validation_profile:
+        description: Optional additive VALIDATION_PROFILE override (comma-separated)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  classify:
+    name: Classify Wave 15 validation profile
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      coordination_exempt: ${{ steps.router.outputs.coordination_exempt }}
+      run_common_sanity: ${{ steps.router.outputs.run_common_sanity }}
+      run_web: ${{ steps.router.outputs.run_web }}
+      run_dotnet: ${{ steps.router.outputs.run_dotnet }}
+      run_intelligence_hardening: ${{ steps.router.outputs.run_intelligence_hardening }}
+      run_intelligence_ui: ${{ steps.router.outputs.run_intelligence_ui }}
+      run_e2e: ${{ steps.router.outputs.run_e2e }}
+      run_driver: ${{ steps.router.outputs.run_driver }}
+      run_ha_two_process: ${{ steps.router.outputs.run_ha_two_process }}
+      run_ha_d2_acceptance: ${{ steps.router.outputs.run_ha_d2_acceptance }}
+      run_installation_linux: ${{ steps.router.outputs.run_installation_linux }}
+      effective_profiles: ${{ steps.router.outputs.effective_profiles }}
+      dotnet_projects: ${{ steps.router.outputs.dotnet_projects }}
+      dotnet_test_filter: ${{ steps.router.outputs.dotnet_test_filter }}
+      e2e_specs: ${{ steps.router.outputs.e2e_specs }}
+      e2e_config: ${{ steps.router.outputs.e2e_config }}
+      driver_gate: ${{ steps.router.outputs.driver_gate }}
+      run_native_zigbee: ${{ steps.native_scope.outputs.run_native_zigbee }}
+      run_knx_sidecar: ${{ steps.knx_scope.outputs.run_knx_sidecar }}
+      run_zwave_sidecar: ${{ steps.zwave_scope.outputs.run_zwave_sidecar }}
+      run_matter_fake_sidecar: ${{ steps.matter_scope.outputs.run_matter_fake_sidecar }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: router
+        name: Resolve declared, inferred and effective profiles
+        env:
+          PR_BODY: ${{ github.event.pull_request.body || '' }}
+          PROFILE_OVERRIDE: ${{ inputs.validation_profile || '' }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$PR_BODY" > /tmp/pr-body.txt
+          if [ -n "$PR_BASE_SHA" ]; then
+            target_base="$PR_BASE_SHA"
+            router_mode='pr'
+          else
+            git fetch --no-tags origin '+refs/heads/wave15/corrections-integration:refs/remotes/origin/wave15/corrections-integration'
+            target_base='origin/wave15/corrections-integration'
+            router_mode='dispatch'
+          fi
+          comparison_base="$(git merge-base "$target_base" "$PR_HEAD_SHA")"
+          git diff --name-only "$comparison_base" "$PR_HEAD_SHA" > /tmp/changed-files.txt
+          python3 scripts/ci/wave15_profile_router.py \
+            --changed-files /tmp/changed-files.txt \
+            --pr-body-file /tmp/pr-body.txt \
+            --manual-override "$PROFILE_OVERRIDE" \
+            --mode "$router_mode" \
+            --github-output "$GITHUB_OUTPUT" \
+            --summary-file /tmp/profile-summary.md
+          cat /tmp/profile-summary.md >> "$GITHUB_STEP_SUMMARY"
+      # The shared PR workflow owns unrelated jobs too; sidecar evidence is selected by driver artifacts/configuration.
+      - id: native_scope
+        name: Select Native Zigbee sidecar evidence
+        env:
+          NATIVE_CHANGED_FILES_PATH: /tmp/changed-files.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+
+          changed = Path(os.environ["NATIVE_CHANGED_FILES_PATH"]).read_text().splitlines()
+          pattern = re.compile(r"^(scripts/ci/wave15_profile_router\.py|src/Scada.DriverHost/(Sidecars/(ZigbeeNative/.*|ManagedSidecar.*|SystemManagedSidecar.*)|Engineering/(ZigbeeNative.*|CommunicationDriverRuntime.*))|src/Scada.Drivers/HostResources/.*|tests/Scada.Drivers.Tests/(ZigbeeNative.*|ManagedSidecar.*|HostResource.*))$")
+          artifact = Path("src/Scada.DriverHost/Sidecars/ZigbeeNative")
+          component = Path("src/Scada.DriverHost/Engineering/ZigbeeNativeCommunicationRuntimeComponents.cs")
+          selected = any(pattern.fullmatch(path) for path in changed) and (artifact.exists() or component.exists())
+          if selected and not (artifact / "package.json").is_file():
+              raise RuntimeError("Native Zigbee evidence requires its sidecar package.json")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"run_native_zigbee={str(selected).lower()}\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"Native Zigbee sidecar evidence selected: {selected}\n")
+          PY
+      - id: knx_scope
+        name: Select KNX/IP Secure sidecar evidence
+        env:
+          KNX_CHANGED_FILES_PATH: /tmp/changed-files.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+
+          changed = Path(os.environ["KNX_CHANGED_FILES_PATH"]).read_text().splitlines()
+          pattern = re.compile(r"^(docs/examples/home-building/KNX-IP-SECURE-SETUP\.md|docs/research/home-building-drivers/KNX-IP-IMPLEMENTATION-ADR\.md|src/Scada\.Api/(Engineering/(EngineeringDriverCatalogApi|ManagedProtocolHostConfiguration)\.cs|ProjectPackages/IntegrationProtectedMaterialEndpoints\.cs|Scada\.Api\.csproj|Security/(HostAuthorityDriverMaterialResolver|IntegrationProtectedMaterialReferences)\.cs)|src/Scada\.DriverHost/(Engineering/(CommunicationDriverRuntimeComposition|KnxIpCommunicationRuntimeComponents)\.cs|Sidecars/KnxIp/.*)|tests/Scada\.Drivers\.Tests/(KnxIpRuntimeTests|IntegrationProtectedMaterialServiceTests|HostAuthorityDriverMaterialResolverTests|ManagedProtocolHostConfigurationTests)\.cs)$")
+          directory = Path("src/Scada.DriverHost/Sidecars/KnxIp")
+          selected = any(pattern.fullmatch(path) for path in changed) and (directory / "main.py").is_file()
+          if selected:
+              required = ("main.py", "security.py", "requirements.lock", "SBOM.cdx.json", "THIRD-PARTY-NOTICES.md", "test_security.py")
+              missing = [name for name in required if not (directory / name).is_file()]
+              if missing:
+                  raise RuntimeError("KNX/IP sidecar evidence is missing: " + ", ".join(missing))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"run_knx_sidecar={str(selected).lower()}\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"KNX/IP Secure sidecar evidence selected: {selected}\n")
+
+      - id: zwave_scope
+        name: Select Z-Wave JS sidecar evidence
+        env:
+          ZWAVE_CHANGED_FILES_PATH: /tmp/changed-files.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+
+          changed = Path(os.environ["ZWAVE_CHANGED_FILES_PATH"]).read_text().splitlines()
+          pattern = re.compile(r"^(docs/examples/home-building/ZWAVE-JS-CONTROLLER-SETUP\.md|src/Scada\.Api/(Engineering/(EngineeringDriverCatalogApi|ManagedProtocolHostConfiguration)\.cs|Scada\.Api\.csproj|Security/IntegrationProtectedMaterialReferences\.cs)|src/Scada\.DriverHost/(Engineering/(CommunicationDriverRuntimeComposition|ZWaveJsCommunicationRuntimeComponents)\.cs|Sidecars/ZWaveJs/.*)|tests/Scada\.Drivers\.Tests/(EngineeringDataSourceTypeCatalogTests|ManagedProtocolHostConfigurationTests|ZWaveJs.*)\.cs)$")
+          directory = Path("src/Scada.DriverHost/Sidecars/ZWaveJs")
+          selected = any(pattern.fullmatch(path) for path in changed) and (directory / "package.json").is_file()
+          # Owner-authorized temporary quarantine; restore after investigation #856.
+          requested = selected
+          quarantined = True
+          selected = requested and not quarantined
+          if selected:
+              required = ("package.json", "package-lock.json", "SBOM.cdx.json", "THIRD-PARTY-NOTICES.md", "src/sidecar.mjs", "test/sidecar-contract.test.mjs")
+              missing = [name for name in required if not (directory / name).is_file()]
+              if missing:
+                  raise RuntimeError("Z-Wave JS sidecar evidence is incomplete: " + ", ".join(missing))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"run_zwave_sidecar={str(selected).lower()}\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"Z-Wave JS sidecar evidence requested: {requested}; selected: {selected}\n")
+              if quarantined:
+                  summary.write("Z-Wave JS Windows/Linux evidence temporarily quarantined by owner authorization (#856); not validated. Restore selection after the dedicated correction.\n")
+          PY
+      - id: matter_scope
+        name: Select isolated Matter Wi-Fi preview evidence
+        env:
+          MATTER_CHANGED_FILES_PATH: /tmp/changed-files.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+
+          changed = Path(os.environ["MATTER_CHANGED_FILES_PATH"]).read_text().splitlines()
+          pattern = re.compile(r"^(docs/research/home-building-drivers/MATTER-WIFI-V1-IMPLEMENTATION-ADR\.md|src/Scada\.Api/(Engineering/EngineeringDriverCatalogApi\.cs|ProjectPackages/(MatterWifiProtectedMaterialEndpoints|ProjectPackageEndpoints)\.cs|Scada\.Api\.csproj|Security/(MatterWifiProtectedMaterial|ProtectedMaterialAuthorityComposition)\.cs)|src/Scada\.DriverHost/(Engineering/(CommunicationDriverRuntimeComposition|MatterWifiCommunicationDriver|MatterWifiCommunicationRuntimeFactory|MatterWifiCommunicationRuntimePlanner)\.cs|Sidecars/MatterWifi/.*)|tests/Scada\.Drivers\.Tests/MatterWifi.*\.cs)$")
+          directory = Path("src/Scada.DriverHost/Sidecars/MatterWifi")
+          selected = any(pattern.fullmatch(path) for path in changed) and (directory / "package.json").is_file()
+          if selected:
+              required = ("package.json", "package-lock.json", "SBOM.cdx.json", "THIRD-PARTY-NOTICES.md", "licenses/LICENSE-0BSD.txt", "licenses/LICENSE-Apache-2.0-OR-MIT.txt", "licenses/LICENSE-Apache-2.0.txt", "licenses/LICENSE-BlueOak-1.0.0.txt", "licenses/LICENSE-BSD-2-Clause.txt", "licenses/LICENSE-BSD-3-Clause.txt", "licenses/LICENSE-ISC.txt", "licenses/LICENSE-MIT-OR-Apache-2.0.txt", "licenses/LICENSE-MIT-X11.txt", "licenses/LICENSE-MIT.txt", "licenses/LICENSE-Public-Domain.txt", "scripts/generate-compliance.mjs", "scripts/verify-dependencies.mjs", "src/bootstrap.mjs", "src/bridge.mjs", "test/bootstrap-preflight.test.mjs", "test/linux-fake-startup-harness.mjs", "test/pinned-upstream-security-regressions.test.mjs")
+              missing = [name for name in required if not (directory / name).is_file()]
+              if missing:
+                  raise RuntimeError("Matter Wi-Fi pinned-artifact evidence is incomplete: " + ", ".join(missing))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"run_matter_fake_sidecar={str(selected).lower()}\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"Matter Wi-Fi exact-pin artifact evidence selected: {selected}\n")
+          PY
+
+  common-sanity:
+    name: Common T1 sanity
+    needs: classify
+    if: needs.classify.outputs.run_common_sanity == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check the PR delta from its merge base
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "$PR_BASE_SHA" ]; then
+            target_base="$PR_BASE_SHA"
+          else
+            git fetch --no-tags origin '+refs/heads/wave15/corrections-integration:refs/remotes/origin/wave15/corrections-integration'
+            target_base='origin/wave15/corrections-integration'
+          fi
+          comparison_base="$(git merge-base "$target_base" "$PR_HEAD_SHA")"
+          git diff --check "$comparison_base" "$PR_HEAD_SHA"
+      - run: python3 -m unittest tests/ci/test_wave15_profile_router.py
+
+  web-semantic:
+    name: Web semantic build
+    needs: classify
+    if: needs.classify.outputs.run_web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+          cache: npm
+          cache-dependency-path: web/scada-web/package-lock.json
+      - working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - working-directory: web/scada-web
+        run: npm run build
+
+  dotnet-focused:
+    name: Focused .NET evidence
+    needs: classify
+    if: needs.classify.outputs.run_dotnet == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ELITESCADA_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false
+      ConnectionStrings__EliteScada: Host=127.0.0.1;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Run owning focused test projects
+        env:
+          DOTNET_PROJECTS: ${{ needs.classify.outputs.dotnet_projects }}
+          DOTNET_TEST_FILTER: ${{ needs.classify.outputs.dotnet_test_filter }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/dotnet-projects.txt
+          import json, os
+          print(*json.loads(os.environ['DOTNET_PROJECTS']), sep='\n')
+          PY
+          while IFS= read -r project; do
+            dotnet restore "$project"
+            if [[ "$project" == "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj" ]]; then
+              if [[ -n "$DOTNET_TEST_FILTER" ]]; then
+                dotnet test "$project" --no-restore --configuration Release --verbosity minimal --filter "$DOTNET_TEST_FILTER"
+                continue
+              fi
+              # Quarantine #423: HA-D2 process cases run in the dedicated HA gate
+              # when HA contracts change, not in every unrelated product PR.
+              dotnet test "$project" --no-restore --configuration Release --verbosity minimal \
+                --filter 'FullyQualifiedName!~RealApiProcesses_HaD2&FullyQualifiedName!~RealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation&FullyQualifiedName!~L3DriverInteractionS6Tests'
+            elif [[ "$project" == "tests/Scada.Historian.TimescaleDb.Tests/Scada.Historian.TimescaleDb.Tests.csproj" ]]; then
+              dotnet test "$project" --no-restore --configuration Release --verbosity minimal \
+                --filter "FullyQualifiedName!~L3DriverInteractionS6Tests" \
+                -- xUnit.ParallelizeTestCollections=false
+            else
+              dotnet test "$project" --no-restore --configuration Release --verbosity minimal --filter "FullyQualifiedName!~L3DriverInteractionS6Tests"
+            fi
+          done < /tmp/dotnet-projects.txt
+
+  intelligence-windows-focus:
+    name: Intelligence Stage 6B focused Windows regression and characterization
+    needs: classify
+    if: needs.classify.outputs.run_intelligence_hardening == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Restore focused Intelligence test projects
+        shell: pwsh
+        run: |
+          dotnet restore tests/Scada.Core.Tests/Scada.Core.Tests.csproj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet restore tests/Scada.Security.Tests/Scada.Security.Tests.csproj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run platform-neutral Intelligence and Authority regressions
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence|FullyQualifiedName~EngineeringIntelligence'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence&FullyQualifiedName!~AssetProcessIntelligenceDurableRestartTests&FullyQualifiedName!~Stage6BResourceCharacterization'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test tests/Scada.Security.Tests/Scada.Security.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AuthorityPolicyContractTests'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run isolated Stage 6B resource characterization
+        env:
+          ELITESCADA_INTELLIGENCE_CHARACTERIZATION_OUTPUT: ${{ runner.temp }}/intelligence-stage6b-windows.json
+          ELITESCADA_DOTNET_SDK: '10.0.400'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName=Scada.Drivers.Tests.AssetProcessIntelligenceAnalyticsTests.Stage6BResourceCharacterization_ExercisesBoundedProfileCoveragePathAndEmitsEvidence'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve Windows characterization JSON and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intelligence-stage6b-windows
+          path: |
+            ${{ runner.temp }}/intelligence-stage6b-windows.json
+            ${{ runner.temp }}/intelligence-stage6b-windows.md
+          if-no-files-found: warn
+      - name: Record Windows evidence provenance
+        if: always()
+        shell: pwsh
+        run: |
+          @(
+            '## Intelligence Stage 6B Windows regression and resource characterization',
+            "Tested checkout: $(git rev-parse HEAD)",
+            "SDK: $(dotnet --version)",
+            'Scope: Core and Drivers Intelligence-focused tests, isolated synthetic resource characterization, plus Authority policy contract tests; PostgreSQL durable restart is independently required on Linux.'
+          ) | Add-Content $env:GITHUB_STEP_SUMMARY
+
+  intelligence-postgres-restart:
+    name: Intelligence Stage 6B Linux regression, characterization, and PostgreSQL durable restart
+    needs: classify
+    if: needs.classify.outputs.run_intelligence_hardening == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_intelligence_restart
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_intelligence_restart"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ELITESCADA_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Database=elitescada_intelligence_restart;Username=postgres;Password=postgres;Pooling=false
+      ELITESCADA_REQUIRE_INTELLIGENCE_POSTGRES: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Restore focused Intelligence test projects
+        run: |
+          set -euo pipefail
+          dotnet restore tests/Scada.Core.Tests/Scada.Core.Tests.csproj
+          dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          dotnet restore tests/Scada.Security.Tests/Scada.Security.Tests.csproj
+      - name: Run platform-neutral Intelligence and Authority regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence|FullyQualifiedName~EngineeringIntelligence'
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AssetProcessIntelligence&FullyQualifiedName!~AssetProcessIntelligenceDurableRestartTests&FullyQualifiedName!~Stage6BResourceCharacterization'
+          dotnet test tests/Scada.Security.Tests/Scada.Security.Tests.csproj --no-restore --configuration Release --verbosity minimal --filter 'FullyQualifiedName~AuthorityPolicyContractTests'
+      - name: Run real PostgreSQL revision restart evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/intelligence-restart-results"
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
+            --no-restore --configuration Release --verbosity minimal \
+            --filter 'FullyQualifiedName=Scada.Drivers.Tests.AssetProcessIntelligenceDurableRestartTests.PostgreSqlRevisionReloadPreservesIntelligenceConfigurationButDoesNotRearmPermit' \
+            --logger 'trx;LogFileName=intelligence-durable-restart.trx' \
+            --results-directory "$RUNNER_TEMP/intelligence-restart-results"
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          paths = list(Path(os.environ['RUNNER_TEMP'], 'intelligence-restart-results').glob('*.trx'))
+          results = [
+              item
+              for path in paths
+              for item in ET.parse(path).getroot().iter()
+              if item.tag.endswith('UnitTestResult')
+              and 'PostgreSqlRevisionReloadPreservesIntelligenceConfigurationButDoesNotRearmPermit' in item.attrib.get('testName', '')
+          ]
+          if len(results) != 1 or results[0].attrib.get('outcome') != 'Passed':
+              raise SystemExit('The required PostgreSQL durable-restart test did not pass exactly once.')
+          print('Required PostgreSQL durable-restart test passed exactly once.')
+          PY
+      - name: Record PostgreSQL evidence provenance
+        if: always()
+        run: |
+          {
+            echo '## Intelligence Stage 6B Linux regression and PostgreSQL durable-restart evidence'
+            echo "Tested checkout: $(git rev-parse HEAD)"
+            echo "SDK: $(dotnet --version)"
+            echo 'Database: isolated Timescale PostgreSQL service; no Preview database, project, volume or port used.'
+            echo 'Required test: revision saved, fresh store/process rehydrated stable Intelligence IDs/configuration, active permit not recreated.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve durable-restart test result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave15-intelligence-durable-restart-trx
+          path: ${{ runner.temp }}/intelligence-restart-results
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Run isolated Stage 6B resource characterization
+        env:
+          ELITESCADA_INTELLIGENCE_CHARACTERIZATION_OUTPUT: ${{ runner.temp }}/intelligence-stage6b-linux.json
+          ELITESCADA_DOTNET_SDK: '10.0.400'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
+            --no-restore --configuration Release --verbosity minimal \
+            --filter 'FullyQualifiedName=Scada.Drivers.Tests.AssetProcessIntelligenceAnalyticsTests.Stage6BResourceCharacterization_ExercisesBoundedProfileCoveragePathAndEmitsEvidence'
+      - name: Preserve Linux characterization JSON and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intelligence-stage6b-linux
+          path: |
+            ${{ runner.temp }}/intelligence-stage6b-linux.json
+            ${{ runner.temp }}/intelligence-stage6b-linux.md
+          if-no-files-found: warn
+
+  intelligence-ui-regression:
+    name: Intelligence dashboard and Runtime UI regression (${{ matrix.shard }}/3)
+    needs: classify
+    if: needs.classify.outputs.run_intelligence_ui == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+          cache: npm
+          cache-dependency-path: web/scada-web/package-lock.json
+      - working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - name: Cache Playwright browser
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('web/scada-web/package-lock.json') }}
+      - name: Prefer the reachable HTTPS Ubuntu archive for browser libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f /etc/apt/apt-mirrors.txt ]]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          if [[ -f /etc/apt/sources.list.d/ubuntu.sources ]]; then
+            sudo sed -i -E 's#http://azure\.archive\.ubuntu\.com/ubuntu/?#https://archive.ubuntu.com/ubuntu/#g' /etc/apt/sources.list.d/ubuntu.sources
+          fi
+      - working-directory: web/scada-web
+        run: npx playwright install-deps chromium
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: web/scada-web
+        run: npx playwright install chromium
+      - name: Run the same focused Intelligence UI configs used locally
+        working-directory: web/scada-web
+        env:
+          PLAYWRIGHT_SHARD: ${{ matrix.shard }}/3
+        run: |
+          npx playwright test --config=playwright.intelligence-ui.config.ts --fully-parallel --shard="$PLAYWRIGHT_SHARD"
+          npx playwright test --config=playwright.intelligence-runtime-local.config.ts --fully-parallel --shard="$PLAYWRIGHT_SHARD"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intelligence-ui-playwright-evidence-${{ matrix.shard }}
+          path: |
+            web/scada-web/test-results
+            web/scada-web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
+  chromium-focused:
+    name: Focused Chromium evidence (${{ matrix.shard }})
+    needs: classify
+    if: needs.classify.outputs.run_e2e == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.classify.outputs.run_intelligence_ui == 'true' && '[1,2,3]' || '[1]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_e2e"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ConnectionStrings__EliteScada: Host=127.0.0.1;Port=5432;Database=elitescada_e2e;Username=postgres;Password=postgres;Pooling=false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+          cache: npm
+          cache-dependency-path: web/scada-web/package-lock.json
+      - run: dotnet restore src/Scada.Api/Scada.Api.csproj
+      - working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - name: Cache Playwright browser
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('web/scada-web/package-lock.json') }}
+      - name: Prefer the reachable HTTPS Ubuntu archive for browser libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f /etc/apt/apt-mirrors.txt ]]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          if [[ -f /etc/apt/sources.list.d/ubuntu.sources ]]; then
+            sudo sed -i -E 's#http://azure\.archive\.ubuntu\.com/ubuntu/?#https://archive.ubuntu.com/ubuntu/#g' /etc/apt/sources.list.d/ubuntu.sources
+          fi
+      - working-directory: web/scada-web
+        run: npx playwright install-deps chromium
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: web/scada-web
+        run: npx playwright install chromium
+      - name: Run profile-owned specs
+        working-directory: web/scada-web
+        env:
+          E2E_SPECS: ${{ needs.classify.outputs.e2e_specs }}
+          E2E_CONFIG: ${{ needs.classify.outputs.e2e_config }}
+          E2E_SHARD: ${{ matrix.shard }}
+          E2E_SHARDS: ${{ needs.classify.outputs.run_intelligence_ui == 'true' && '3' || '1' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/e2e-specs.txt
+          import json, os
+          print(*json.loads(os.environ['E2E_SPECS']), sep='\n')
+          PY
+          mapfile -t specs < /tmp/e2e-specs.txt
+          if [[ -n "$E2E_CONFIG" ]]; then
+            if [[ "$E2E_SHARDS" == "3" ]]; then
+              npm run test:e2e -- --config="$E2E_CONFIG" --fully-parallel --shard="$E2E_SHARD/$E2E_SHARDS" "${specs[@]}"
+            else
+              npm run test:e2e -- --config="$E2E_CONFIG" "${specs[@]}"
+            fi
+          else
+            if [[ "$E2E_SHARDS" == "3" ]]; then
+              npm run test:e2e -- --fully-parallel --shard="$E2E_SHARD/$E2E_SHARDS" "${specs[@]}"
+            else
+              npm run test:e2e -- "${specs[@]}"
+            fi
+          fi
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave15-focused-playwright-report-${{ matrix.shard }}
+          path: web/scada-web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
+  ha-two-process:
+    name: HA two-process evidence
+    needs: classify
+    if: needs.classify.outputs.run_ha_two_process == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_ha_d1
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_ha_d1"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ConnectionStrings__EliteScada: Host=127.0.0.1;Port=5432;Database=elitescada_ha_d1;Username=postgres;Password=postgres;Pooling=false
+      DatabaseTopology__RequireDurable: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - run: dotnet restore src/Scada.Api/Scada.Api.csproj
+      - run: dotnet build src/Scada.Api/Scada.Api.csproj --no-restore --configuration Release
+      - name: Run real two-process HA evidence
+        run: python3 scripts/ci/ha_d1_two_process_evidence.py
+
+  ha-d2-acceptance:
+    name: HA D2 shared-database lifecycle and session continuity
+    needs: classify
+    if: needs.classify.outputs.run_ha_d2_acceptance == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_ha_d2_seed
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_ha_d2_seed"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+          --cpus=1 --memory=3g --memory-swap=3g
+    env:
+      ELITESCADA_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres;Password=postgres;Pooling=false
+      ELITESCADA_REQUIRE_HA_D2_POSTGRES: 'true'
+      DOTNET_PROCESSOR_COUNT: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Restore API used by the child processes
+        run: dotnet restore src/Scada.Api/Scada.Api.csproj
+      - name: Build API used by the child processes
+        run: dotnet build src/Scada.Api/Scada.Api.csproj --no-restore --configuration Release
+      - name: Restore HA acceptance test project
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+      - name: Run serial HA-D2, Intelligence restart, and session-lease evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ha-d2-results"
+          allowed_cpus="$(awk '/Cpus_allowed_list/ {print $2}' /proc/self/status)"
+          cpu="${allowed_cpus%%[-,]*}"
+          echo "Serial HA-D2 test CPU: $cpu (allowed set: $allowed_cpus)"
+          taskset --cpu-list "$cpu" env DOTNET_PROCESSOR_COUNT=1 dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
+            --no-restore --configuration Release --verbosity minimal \
+            --filter 'FullyQualifiedName~RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack|FullyQualifiedName~RealApiProcesses_HaNormalRestartRecoversIntelligenceReceipt|FullyQualifiedName~StandaloneRealApiRestartRecoversExplicitlyActivatedScope|FullyQualifiedName~RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission|FullyQualifiedName~SessionContinuityImport_PreservesOneLogicalLeaseAndRejectsStaleOrResurrectedState' \
+            --logger 'trx;LogFileName=ha-d2-acceptance.trx' \
+            --results-directory "$RUNNER_TEMP/ha-d2-results"
+      - name: Require selected shared-database/session cases to pass (no empty or skipped evidence)
+        env:
+          HA_D2_RESULTS: ${{ runner.temp }}/ha-d2-results
+        run: |
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          expected = {
+              "RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack",
+              "RealApiProcesses_HaNormalRestartRecoversIntelligenceReceipt",
+              "StandaloneRealApiRestartRecoversExplicitlyActivatedScope",
+              "RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission",
+              "SessionContinuityImport_PreservesOneLogicalLeaseAndRejectsStaleOrResurrectedState",
+          }
+          results = []
+          for path in Path(os.environ["HA_D2_RESULTS"]).glob("*.trx"):
+              root = ET.parse(path).getroot()
+              results.extend(element for element in root.iter() if element.tag.endswith("UnitTestResult"))
+          passed = {
+              method
+              for result in results
+              if result.attrib.get("outcome") == "Passed"
+              for method in expected
+              if method in result.attrib.get("testName", "")
+          }
+          missing = sorted(expected - passed)
+          if missing:
+              raise SystemExit("HA-D2 acceptance did not pass every required case: " + ", ".join(missing))
+          print("Passed shared-database HA-D2, HA and standalone Intelligence normal-restart recovery, and both runtime session lease cases.")
+          PY
+      - name: Preserve HA-D2 test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave15-ha-d2-acceptance-trx
+          path: ${{ runner.temp }}/ha-d2-results
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Record D2 scope and database limitation
+        run: |
+          {
+            echo '## Serial HA-D2, Intelligence restart and session process-level acceptance'
+            echo "Tested checkout: $(git rev-parse HEAD)"
+            echo 'Evidence: two real API child processes; automatic Ready-standby promotion; same-NodeId restart reconciliation; authenticated, V3-HaRuntime-licensed explicit failback in the shared database-name topology; standalone API restart recovery from the exact durable Intelligence receipt.'
+            echo 'Execution profile: the selected .NET test/API process is pinned to one logical CPU and reports one processor to .NET; the disposable Timescale service is limited to one CPU and 3 GiB RAM with swap disabled. HA-D2 remains enabled and executes in this serial profile.'
+            echo 'The same-server, separate-database variant remains quarantined as a timing-sensitive synthetic case. A second serialized job exercises independent PostgreSQL servers; it does not model API hosts on separate machines.'
+            echo 'Runtime session lease continuity/no-double-seat: exact in-process takeover and stale/resurrection rejection tests also passed in this gate; this is not a client-session reconnection E2E test.'
+            echo 'Database scope: this run covers the shared-name topology on one configured disposable PostgreSQL server; it makes no separate-name or independent PostgreSQL server-failure/durability claim.'
+            echo 'D1 protocol evidence remains a separate job and is not relabeled as D2.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  ha-d2-independent-database:
+    name: HA D2 independent PostgreSQL servers (serialized)
+    needs: [classify, ha-d2-acceptance]
+    if: needs.classify.outputs.run_ha_d2_acceptance == 'true' && needs.ha-d2-acceptance.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres_primary:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_ha_d2_seed
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_ha_d2_seed"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+          --cpus=1 --memory=3g --memory-swap=3g
+      postgres_secondary:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_ha_d2_seed
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_ha_d2_seed"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+          --cpus=1 --memory=3g --memory-swap=3g
+    env:
+      ELITESCADA_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres;Password=postgres;Pooling=false
+      ELITESCADA_TEST_POSTGRES_B: Host=127.0.0.1;Port=5433;Database=postgres;Username=postgres;Password=postgres;Pooling=false
+      ELITESCADA_REQUIRE_HA_D2_POSTGRES: 'true'
+      ELITESCADA_REQUIRE_HA_D2_INDEPENDENT_POSTGRES: 'true'
+      DOTNET_PROCESSOR_COUNT: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Restore API used by the child processes
+        run: dotnet restore src/Scada.Api/Scada.Api.csproj
+      - name: Build API used by the child processes
+        run: dotnet build src/Scada.Api/Scada.Api.csproj --no-restore --configuration Release
+      - name: Restore HA acceptance test project
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+      - name: Run independent-server HA-D2 evidence after the shared-database gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ha-d2-independent-results"
+          allowed_cpus="$(awk '/Cpus_allowed_list/ {print $2}' /proc/self/status)"
+          cpu="${allowed_cpus%%[-,]*}"
+          echo "Serial independent-server HA-D2 test CPU: $cpu (allowed set: $allowed_cpus)"
+          taskset --cpu-list "$cpu" env DOTNET_PROCESSOR_COUNT=1 dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
+            --no-restore --configuration Release --verbosity minimal \
+            --filter 'FullyQualifiedName~RealApiProcesses_HaD2IndependentPostgreSqlServersPromotesAndFailsBack|FullyQualifiedName~RealApiProcesses_HaD2RestartDuringFailback' \
+            --logger 'trx;LogFileName=ha-d2-independent-postgres.trx' \
+            --results-directory "$RUNNER_TEMP/ha-d2-independent-results"
+      - name: Require distinct PostgreSQL server evidence (no empty or skipped test)
+        env:
+          HA_D2_INDEPENDENT_RESULTS: ${{ runner.temp }}/ha-d2-independent-results
+        run: |
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          expected = {
+              "RealApiProcesses_HaD2IndependentPostgreSqlServersPromotesAndFailsBack",
+              "RealApiProcesses_HaD2RestartDuringFailback",
+          }
+          results = []
+          for path in Path(os.environ["HA_D2_INDEPENDENT_RESULTS"]).glob("*.trx"):
+              root = ET.parse(path).getroot()
+              results.extend(element for element in root.iter() if element.tag.endswith("UnitTestResult"))
+          for name in expected:
+              passed = [result for result in results
+                        if result.attrib.get("testName", "").endswith("." + name)
+                        and result.attrib.get("outcome") == "Passed"]
+              if len(passed) != 1:
+                  raise SystemExit(f"Expected one passing {name} case, found {len(passed)}")
+          print("Passed independent-server HA-D2 failback and restart during transfer.")
+          PY
+      - name: Preserve independent-server HA-D2 test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave15-ha-d2-independent-postgres-trx
+          path: ${{ runner.temp }}/ha-d2-independent-results
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Record independent PostgreSQL scope
+        run: |
+          {
+            echo '## Serialized HA-D2 independent PostgreSQL server evidence'
+            echo "Tested checkout: $(git rev-parse HEAD)"
+            echo 'Evidence: two API child processes each use a disposable TimescaleDB service; pg_control_system system identifiers must differ before the lifecycle runs.'
+            echo 'Execution: this job starts only after the shared-database HA-D2 job succeeds. The test/API process uses one logical CPU; each disposable database service is limited to one CPU and 3 GiB RAM.'
+            echo 'Limit: both API processes and database services run on one GitHub-hosted runner. This validates independent PostgreSQL servers, not cross-machine API transport, WAN behavior, host failure, or durable production storage.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  native-zigbee-sidecar:
+    name: Native Zigbee Node and SBOM evidence (${{ matrix.os }})
+    needs: classify
+    if: needs.classify.outputs.run_native_zigbee == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: src/Scada.DriverHost/Sidecars/ZigbeeNative
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+          cache: npm
+          cache-dependency-path: src/Scada.DriverHost/Sidecars/ZigbeeNative/package-lock.json
+      - name: Use the qualified npm version
+        run: npm install --global npm@11.19.0 --no-audit --no-fund
+      - name: Verify exact runtime pins and install the locked sidecar
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = v24.21.0
+          test "$(npm --version)" = 11.19.0
+          npm ci --no-audit --no-fund
+      - name: Verify SBOM and complete dependency notices
+        run: npm run verify:dependencies
+      - name: Load the pinned coordinator modules and native serial binding
+        run: |
+          node --input-type=module -e "await import('zigbee-herdsman'); await import('zigbee-herdsman-converters'); await import('zigbee-herdsman/dist/adapter/z-stack/adapter/manager.js');"
+          node -e "require('@serialport/bindings-cpp').autoDetect()"
+      - name: Run sidecar tests including the independent child-process peer
+        run: npm test
+      - name: Audit the exact production dependency lock
+        run: npm audit --omit=dev
+      - name: Record source and sidecar lock provenance
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+        run: |
+          {
+            echo '## Native Zigbee sidecar evidence'
+            echo "Source head: $PR_HEAD_SHA"
+            echo "Source base: $PR_BASE_SHA"
+            echo "Tested checkout: $(git rev-parse HEAD)"
+            echo "Node: $(node --version); npm: $(npm --version)"
+            sha256sum package-lock.json SBOM.cdx.json THIRD-PARTY-NOTICES.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  knx-ip-sidecar:
+    name: KNX/IP Secure Python and SBOM evidence (${{ matrix.os }})
+    needs: classify
+    if: needs.classify.outputs.run_knx_sidecar == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: src/Scada.DriverHost/Sidecars/KnxIp
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.16'
+          architecture: 'x64'
+          cache: pip
+          cache-dependency-path: src/Scada.DriverHost/Sidecars/KnxIp/requirements.lock
+      - name: Install only hash-locked binary dependencies
+        run: |
+          set -euo pipefail
+          python -c "import platform,sys; assert sys.version_info[:3] == (3,13,16), sys.version; assert platform.machine().lower() in ('x86_64','amd64'), platform.machine(); print(sys.version)"
+          python -m pip install --require-hashes --only-binary=:all: -r requirements.lock
+          python -m pip check
+      - name: Compile sidecar and run security contract tests
+        run: |
+          set -euo pipefail
+          python -m compileall -q main.py security.py test_security.py
+          python -m unittest -v test_security.py
+      - name: Verify SBOM structure and production pins
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          bom = json.loads(Path('SBOM.cdx.json').read_text())
+          assert bom['bomFormat'] == 'CycloneDX' and bom['specVersion'] == '1.6'
+          names = {(item['name'], item['version']) for item in bom['components']}
+          assert names == {('xknx','3.20.0'),('cryptography','50.0.2'),('ifaddr','0.2.0'),('cffi','2.1.1'),('pycparser','3.11')}
+          assert len(bom['dependencies']) == 6
+          print('CycloneDX components and complete dependency graph verified.')
+          PY
+          sha256sum requirements.lock SBOM.cdx.json THIRD-PARTY-NOTICES.md
+
+  zwave-js-sidecar:
+    name: Z-Wave JS Node and SBOM evidence (${{ matrix.os }})
+    needs: classify
+    if: needs.classify.outputs.run_zwave_sidecar == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: src/Scada.DriverHost/Sidecars/ZWaveJs
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+          cache: npm
+          cache-dependency-path: src/Scada.DriverHost/Sidecars/ZWaveJs/package-lock.json
+      - name: Use the qualified npm version
+        run: npm install --global npm@11.19.0 --no-audit --no-fund
+      - name: Install the exact sidecar lock
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = v24.21.0
+          test "$(npm --version)" = 11.19.0
+          npm ci --no-audit --no-fund
+      - name: Verify lock, SBOM, notices and upstream safety patch
+        run: npm run verify:dependencies
+      - name: Load the pinned server, driver and native serial binding
+        run: |
+          node --input-type=module -e "await import('@zwave-js/server'); await import('zwave-js');"
+          node -e "require('@serialport/bindings-cpp').autoDetect()"
+      - name: Run sidecar protocol and security contract tests
+        run: npm test
+      - name: Audit the exact production dependency graph
+        run: npm audit --omit=dev
+      - name: Record source and sidecar lock provenance
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { appendFileSync, readFileSync } from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const files = ['package-lock.json', 'SBOM.cdx.json', 'THIRD-PARTY-NOTICES.md'];
+          const npmVersion = process.platform === 'win32'
+            ? execFileSync('cmd.exe', ['/d', '/s', '/c', 'npm --version'], { encoding: 'utf8' }).trim()
+            : execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim();
+          const lines = [
+            '## Z-Wave JS sidecar evidence',
+            `Source head: ${process.env.PR_HEAD_SHA}`,
+            `Source base: ${process.env.PR_BASE_SHA}`,
+            `Tested checkout: ${process.env.GITHUB_SHA}`,
+            `Node: ${process.version}; npm: ${npmVersion}`,
+            ...files.map(file => `${file} SHA-256: ${createHash('sha256').update(readFileSync(file)).digest('hex')}`),
+          ];
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
+          NODE
+
+  matter-wifi-fake-sidecar:
+    name: Matter Wi-Fi pinned artifact and isolated fake-only Node evidence
+    needs: classify
+    if: needs.classify.outputs.run_matter_fake_sidecar == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+          cache: npm
+          cache-dependency-path: src/Scada.DriverHost/Sidecars/MatterWifi/package-lock.json
+      - name: Use the qualified npm version
+        run: npm install --global npm@11.19.0 --no-audit --no-fund
+      - name: Install the exact pinned Matter dependency graph without lifecycle scripts
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = v24.21.0
+          test "$(npm --version)" = 11.19.0
+          npm ci --no-audit --no-fund --ignore-scripts
+      - name: Verify exact pins, complete SBOM and third-party notices
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
+        run: npm run verify:dependencies
+      - name: Verify registry signatures and provenance attestations
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
+        env:
+          MATTER_SIGNATURE_REPORT: ${{ runner.temp }}/matter-npm-signatures.json
+        run: |
+          set -euo pipefail
+          npm audit signatures --json --include-attestations > "$MATTER_SIGNATURE_REPORT"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const report = JSON.parse(readFileSync(process.env.MATTER_SIGNATURE_REPORT, 'utf8'));
+          const invalid = Array.isArray(report.invalid) ? report.invalid : [];
+          const missing = Array.isArray(report.missing) ? report.missing : [];
+          if (invalid.length || missing.length || !Array.isArray(report.verified)) {
+            throw new Error(`NPM_PROVENANCE_VERIFICATION_FAILED: invalid=${invalid.length}, missing=${missing.length}`);
+          }
+          const verified = report.verified;
+          const required = new Set([
+            'matter-server@1.5.0-alpha.0-20261013-75a39cb',
+            '@matter-server/ble-proxy@1.5.0-alpha.0-20261013-75a39cb',
+            '@matter-server/custom-clusters@1.5.0-alpha.0-20261013-75a39cb',
+            '@matter-server/dashboard@1.5.0-alpha.0-20261013-75a39cb',
+            '@matter-server/ws-client@1.5.0-alpha.0-20261013-75a39cb',
+            '@matter-server/ws-controller@1.5.0-alpha.0-20261013-75a39cb',
+            '@matter/general@0.18.0-alpha.0-20261008-6066b7499',
+            '@matter/main@0.18.0-alpha.0-20261008-6066b7499',
+            '@matter/model@0.18.0-alpha.0-20261008-6066b7499',
+            '@matter/node@0.18.0-alpha.0-20261008-6066b7499',
+            '@matter/nodejs@0.18.0-alpha.0-20261008-6066b7499',
+            '@matter/protocol@0.18.0-alpha.0-20261008-6066b7499',
+            '@matter/types@0.18.0-alpha.0-20261008-6066b7499',
+          ]);
+          const verifiedIds = new Set(verified.map(item => `${item.name}@${item.version}`));
+          const missingMatter = [...required].filter(item => !verifiedIds.has(item));
+          if (missingMatter.length) throw new Error(`MATTER_ATTESTATION_MISSING:${missingMatter.join(',')}`);
+          const line = `npm registry signatures/provenance: invalid=${invalid.length}, missing=${missing.length}, verified=${verified.length}`;
+          console.log(line);
+          await import('node:fs/promises').then(fs => fs.appendFile(process.env.GITHUB_STEP_SUMMARY, `${line}\n`));
+          NODE
+      - name: Audit production dependency graph for known vulnerabilities
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
+        run: npm audit --omit=dev
+      - name: Run installed pinned-artifact regression tests
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
+        run: npm test
+      - name: Run Linux x64 fake-server startup and RPC harness (no Matter network)
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
+        env:
+          MATTER_FAKE_ONLY: '1'
+          MATTER_TEST_ARTIFACT_PATH: ${{ runner.temp }}/matter-wifi-fake-linux-startup.json
+        run: node test/linux-fake-startup-harness.mjs
+      - name: Record fake-only evidence
+        if: always()
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
+        run: |
+          {
+            echo '## Matter Wi-Fi exact-pin and isolated preview evidence'
+            echo "Tested checkout: $(git rev-parse HEAD)"
+            echo "Node: $(node --version)"
+            echo "npm: $(npm --version)"
+            sha256sum package-lock.json SBOM.cdx.json THIRD-PARTY-NOTICES.md
+            echo 'Exact dependency installation and import-level protocol tests: performed'
+            echo 'Matter Server process start, Matter network and commissioning: not used'
+            if [ -f '${{ runner.temp }}/matter-wifi-fake-linux-startup.json' ]; then
+              sha256sum '${{ runner.temp }}/matter-wifi-fake-linux-startup.json'
+              cat '${{ runner.temp }}/matter-wifi-fake-linux-startup.json'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  installation-linux:
+    name: Stable Docker installation on Linux
+    needs: classify
+    if: needs.classify.outputs.run_installation_linux == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise two isolated installations, port change and collision preflight
+        shell: bash
+        run: bash scripts/ci/test_stable_installation_linux.sh
+      - name: Test installation-scoped host executor, IPC and recovery contract
+        shell: bash
+        run: python3 -m unittest tests.ci.test_network_host_executor -v
+      - name: Test registered Docker-host executor with isolated typed IPC fixtures
+        shell: bash
+        run: python3 -m unittest tests.ci.test_docker_host_executor -v
+      - name: Exercise native adapters with an isolated transient systemd service
+        shell: bash
+        run: sudo python3 scripts/ci/test_native_linux_systemd.py
+
+  installation-windows:
+    name: Native port adapters on Windows
+    needs: classify
+    if: needs.classify.outputs.run_installation_linux == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exercise database and media adapters with Windows file permissions
+        shell: powershell
+        run: |
+          python -m unittest tests.ci.test_native_database_port tests.ci.test_native_media_ports tests.ci.test_native_operation_coordination tests.ci.test_native_authenticated_readiness -v
+          if ($LASTEXITCODE -ne 0) { throw 'Native database/media adapter evidence failed.' }
+      - name: Exercise protected profiles, adapters and real temporary SCM service
+        shell: powershell
+        run: |
+          & ./scripts/ci/test_native_profile_provisioning.ps1
+          & ./scripts/ci/test_native_network_profile.ps1
+          # Invoke in a fresh process: the focused tests intentionally define
+          # simulated Get-Service/Restart-Service functions in their own scope.
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/test_native_windows_service.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Real SCM fixture evidence failed.' }
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Build the independent Windows ACL Named Pipe host executor
+        shell: powershell
+        run: |
+          dotnet build tools/Scadivo.InstallationExecutor.Windows/Scadivo.InstallationExecutor.Windows.csproj --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'Windows host executor failed to compile.' }
+      - name: Prove Named Pipe preflight, SCM apply, collision rejection and recovery
+        shell: powershell
+        run: |
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/test_windows_host_executor.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Windows host executor SCM/IPC integration failed.' }
+      - name: Prove API-to-host Windows Named Pipe transport
+        shell: powershell
+        run: |
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --configuration Release --verbosity minimal --filter 'FullyQualifiedName~InstallationHostNetworkIpcTests'
+          if ($LASTEXITCODE -ne 0) { throw 'API to Windows host IPC integration failed.' }
+      - name: Prove Docker Desktop Windows protected host HTTPS and preflight (mock Docker CLI)
+        shell: powershell
+        run: |
+          $files=@('web/scada-web/public/installation/apply-docker-host-network-profile.ps1',
+                   'scripts/ci/test_windows_docker_host_executor.ps1')
+          foreach($file in $files) {
+            $tokens=$null; $errors=$null
+            [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file).Path,[ref]$tokens,[ref]$errors)
+            if($errors.Count -gt 0) { throw "Windows Docker host PowerShell syntax failure: $file" }
+          }
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/test_windows_docker_host_executor.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Windows Docker Desktop host TLS/preflight fixture failed.' }
+
+  t1-gate:
+    name: Wave 15 T1 gate
+    needs: [classify, common-sanity, web-semantic, dotnet-focused, intelligence-windows-focus, intelligence-postgres-restart, intelligence-ui-regression, chromium-focused, ha-two-process, ha-d2-acceptance, ha-d2-independent-database, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar, installation-linux, installation-windows]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      CLASSIFY: ${{ needs.classify.result }}
+      COMMON: ${{ needs.common-sanity.result }}
+      WEB: ${{ needs.web-semantic.result }}
+      DOTNET: ${{ needs.dotnet-focused.result }}
+      INTELLIGENCE_WINDOWS: ${{ needs.intelligence-windows-focus.result }}
+      INTELLIGENCE_POSTGRES: ${{ needs.intelligence-postgres-restart.result }}
+      INTELLIGENCE_UI: ${{ needs.intelligence-ui-regression.result }}
+      E2E: ${{ needs.chromium-focused.result }}
+      HA_TWO_PROCESS: ${{ needs.ha-two-process.result }}
+      HA_D2: ${{ needs.ha-d2-acceptance.result }}
+      HA_D2_INDEPENDENT: ${{ needs.ha-d2-independent-database.result }}
+      NATIVE_ZIGBEE: ${{ needs.native-zigbee-sidecar.result }}
+      KNX_SIDECAR: ${{ needs.knx-ip-sidecar.result }}
+      ZWAVE_SIDECAR: ${{ needs.zwave-js-sidecar.result }}
+      MATTER_SIDECAR: ${{ needs.matter-wifi-fake-sidecar.result }}
+      INSTALLATION_LINUX: ${{ needs.installation-linux.result }}
+      INSTALLATION_WINDOWS: ${{ needs.installation-windows.result }}
+      EXEMPT: ${{ needs.classify.outputs.coordination_exempt }}
+      NEED_WEB: ${{ needs.classify.outputs.run_web }}
+      NEED_DOTNET: ${{ needs.classify.outputs.run_dotnet }}
+      NEED_INTELLIGENCE_HARDENING: ${{ needs.classify.outputs.run_intelligence_hardening }}
+      NEED_INTELLIGENCE_UI: ${{ needs.classify.outputs.run_intelligence_ui }}
+      NEED_E2E: ${{ needs.classify.outputs.run_e2e }}
+      NEED_HA_TWO_PROCESS: ${{ needs.classify.outputs.run_ha_two_process }}
+      NEED_HA_D2: ${{ needs.classify.outputs.run_ha_d2_acceptance }}
+      NEED_NATIVE_ZIGBEE: ${{ needs.classify.outputs.run_native_zigbee }}
+      NEED_KNX_SIDECAR: ${{ needs.classify.outputs.run_knx_sidecar }}
+      NEED_ZWAVE_SIDECAR: ${{ needs.classify.outputs.run_zwave_sidecar }}
+      NEED_MATTER_SIDECAR: ${{ needs.classify.outputs.run_matter_fake_sidecar }}
+      NEED_INSTALLATION_LINUX: ${{ needs.classify.outputs.run_installation_linux }}
+      PROFILES: ${{ needs.classify.outputs.effective_profiles }}
+      DRIVER_GATE: ${{ needs.classify.outputs.driver_gate }}
+    steps:
+      - name: Require all selected evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CLASSIFY" = success
+          if [ "$EXEMPT" != true ]; then test "$COMMON" = success; fi
+          if [ "$NEED_WEB" = true ]; then test "$WEB" = success; fi
+          if [ "$NEED_DOTNET" = true ]; then test "$DOTNET" = success; fi
+          if [ "$NEED_INTELLIGENCE_HARDENING" = true ]; then test "$INTELLIGENCE_WINDOWS" = success; fi
+          if [ "$NEED_INTELLIGENCE_HARDENING" = true ]; then test "$INTELLIGENCE_POSTGRES" = success; fi
+          if [ "$NEED_INTELLIGENCE_UI" = true ]; then test "$INTELLIGENCE_UI" = success; fi
+          if [ "$NEED_E2E" = true ]; then test "$E2E" = success; fi
+          if [ "$NEED_HA_TWO_PROCESS" = true ]; then test "$HA_TWO_PROCESS" = success; fi
+          if [ "$NEED_HA_D2" = true ]; then test "$HA_D2" = success; fi
+          if [ "$NEED_HA_D2" = true ]; then test "$HA_D2_INDEPENDENT" = success; fi
+          if [ "$NEED_NATIVE_ZIGBEE" = true ]; then test "$NATIVE_ZIGBEE" = success; fi
+          if [ "$NEED_KNX_SIDECAR" = true ]; then test "$KNX_SIDECAR" = success; fi
+          if [ "$NEED_ZWAVE_SIDECAR" = true ]; then test "$ZWAVE_SIDECAR" = success; fi
+          if [ "$NEED_MATTER_SIDECAR" = true ]; then test "$MATTER_SIDECAR" = success; fi
+          if [ "$NEED_INSTALLATION_LINUX" = true ]; then test "$INSTALLATION_LINUX" = success; fi
+          if [ "$NEED_INSTALLATION_LINUX" = true ]; then test "$INSTALLATION_WINDOWS" = success; fi
+          {
+            echo '## Wave 15 T1 gate';
+            echo "Effective profiles: \`$PROFILES\`";
+            echo "Web: $WEB; .NET: $DOTNET; Intelligence Windows: $INTELLIGENCE_WINDOWS; Intelligence PostgreSQL restart: $INTELLIGENCE_POSTGRES; Intelligence UI regressions: $INTELLIGENCE_UI; Chromium: $E2E; HA D1 two-process: $HA_TWO_PROCESS; HA D2 shared-database acceptance: $HA_D2; HA D2 independent PostgreSQL servers: $HA_D2_INDEPENDENT; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR; Matter fake-only: $MATTER_SIDECAR; Stable Docker Linux: $INSTALLATION_LINUX";
+            echo 'Z-Wave JS Windows/Linux: temporarily quarantined by owner authorization (#856); not validated.';
+            echo "Driver/Seven-Driver/Interop: $DRIVER_GATE (specialized heavy gates are not claimed PASS by T1).";
+            echo 'Universal integrated/main gate: REQUIRED NOW only for push checkpoint or main PR; otherwise UNCHANGED/TRUSTED.';
+          } >> "$GITHUB_STEP_SUMMARY"

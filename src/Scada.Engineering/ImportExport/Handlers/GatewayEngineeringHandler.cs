@@ -91,7 +91,12 @@ internal sealed class GatewayEngineeringHandler
                 continue;
             }
 
-            _registry.Upsert(route with { Id = existing?.Id ?? route.Id ?? Guid.NewGuid() });
+            _registry.Upsert(route with
+            {
+                Id = existing?.Id ?? route.Id ?? Guid.NewGuid(),
+                SourceTagId = route.SourceTagId ?? ResolveTagId(route.SourceTagPath, package),
+                DestinationTagId = route.DestinationTagId ?? ResolveTagId(route.DestinationTagPath, package)
+            });
             if (existing is null) created++; else updated++;
         }
     }
@@ -105,6 +110,15 @@ internal sealed class GatewayEngineeringHandler
         }
 
         return string.IsNullOrWhiteSpace(route.Key) ? null : _registry.FindByKey(route.Key);
+    }
+
+    private Guid? ResolveTagId(string? path, EngineeringPackage package)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return null;
+        var imported = package.Tags.FirstOrDefault(tag =>
+            tag.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+        if (imported?.Id.HasValue == true) return imported.Id;
+        return _tags.TryGetByPath(path, out var existing) ? existing?.Id : null;
     }
 
     private (Dictionary<Guid, GatewayRouteEngineeringDto> Routes, Dictionary<int, Guid> IncomingIds) BuildEffectiveRoutes(

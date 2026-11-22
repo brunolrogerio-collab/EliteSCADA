@@ -5,7 +5,7 @@ import {
   EEE_PATHS,
   EEE_PROJECT_NAME
 } from './c11-eee-demo-foundation-canonical';
-import { EEE_SECURITY_ROLES } from './c11-eee-demo-security';
+import { admitInteractiveRuntimeSession, terminateRuntimeSession } from '../tests-e2e/runtimeSessionLease';
 
 // The shared Wave11 host is deliberately bound to this CI project key. The
 // Engineering package itself is project-key agnostic; final Preview persistence
@@ -25,7 +25,8 @@ test('C11 canonical EEE foundation lives through normal Engineering, Script, Ala
 
   try {
     const candidate = buildEeeFoundationPackage(original);
-    candidate.securityRoles = structuredClone(EEE_SECURITY_ROLES);
+    expect(candidate.authorityPolicyReference).toEqual(original.authorityPolicyReference);
+    expect(candidate.securityRoles).toEqual([]);
 
     // Engineering owns the authored project graph. The Runtime HMI projection
     // intentionally does not expose Sources, TAGs, Events or Commands, so prove
@@ -229,13 +230,23 @@ async function readCurrent(request: APIRequestContext, path: string): Promise<{ 
 }
 
 async function writeTag(request: APIRequestContext, tagId: string, value: unknown) {
-  const response = await request.post(`/api/tags/${tagId}/write`, { data: { value } });
-  expect(response.ok(), `TAG ${tagId} write failed: HTTP ${response.status()} ${await response.text()}`).toBeTruthy();
+  const leaseHeaders = await admitInteractiveRuntimeSession(request);
+  try {
+    const response = await request.post(`/api/tags/${tagId}/write`, { data: { value }, headers: leaseHeaders });
+    expect(response.ok(), `TAG ${tagId} write failed: HTTP ${response.status()} ${await response.text()}`).toBeTruthy();
+  } finally {
+    await terminateRuntimeSession(request, leaseHeaders);
+  }
 }
 
 async function executeCommand(request: APIRequestContext, commandId: string) {
-  const response = await request.post(`/api/commands/${commandId}/execute`);
-  expect(response.ok(), `Command ${commandId} failed: HTTP ${response.status()} ${await response.text()}`).toBeTruthy();
+  const leaseHeaders = await admitInteractiveRuntimeSession(request);
+  try {
+    const response = await request.post(`/api/commands/${commandId}/execute`, { headers: leaseHeaders });
+    expect(response.ok(), `Command ${commandId} failed: HTTP ${response.status()} ${await response.text()}`).toBeTruthy();
+  } finally {
+    await terminateRuntimeSession(request, leaseHeaders);
+  }
 }
 
 async function activeAlarmExists(request: APIRequestContext, definitionId: string): Promise<boolean> {

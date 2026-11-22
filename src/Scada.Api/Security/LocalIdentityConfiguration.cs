@@ -1,6 +1,11 @@
+using Scada.Api.Persistence;
+using Scada.Core.Persistence;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.Security;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Authentication;
+using System.Text;
 
 namespace Scada.Api.Security;
 
@@ -101,7 +106,31 @@ public static class LocalIdentityConfiguration
 {
     public const string DefaultCookieName = "elitescada_access";
 
-    public static bool AddLocalIdentity(this WebApplicationBuilder builder, bool authenticationEnabled)
+    internal static string ResolveCookieName(IConfiguration configuration)
+    {
+        var configuredName = configuration["Authentication:Local:CookieName"]?.Trim();
+        if (!string.IsNullOrWhiteSpace(configuredName)) return configuredName;
+
+        // Browsers scope cookies by host and path, not port. Two HA nodes exposed
+        // as localhost on different ports therefore need distinct cookie names.
+        // Keep standalone installs backward-compatible, but isolate each HA node.
+        var nodeId = configuration["HighAvailability:NodeId"]?.Trim();
+        if (string.IsNullOrWhiteSpace(nodeId)) return DefaultCookieName;
+
+        var suffix = new string(nodeId
+            .ToLowerInvariant()
+            .Select(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_'
+                ? character
+                : '-')
+            .ToArray())
+            .Trim('-');
+        if (string.IsNullOrWhiteSpace(suffix))
+            suffix = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(nodeId)))[..12].ToLowerInvariant();
+
+        return $"{DefaultCookieName}_{suffix}";
+    }
+
+    public static bool AddLocalIdentity(this WebApplicationBuilder builder, bool authenticationEnabled, DatabaseRuntimeConnectionSet? database = null)
     {
         builder.Services.AddSingleton<InitialInstallationGate>();
 
@@ -121,12 +150,11 @@ public static class LocalIdentityConfiguration
         if (!authenticationEnabled)
             throw new InvalidOperationException("Authentication:Local:Enabled requires Authentication:Enabled=true.");
 
-        var cookieName = local["CookieName"]?.Trim();
-        if (string.IsNullOrWhiteSpace(cookieName)) cookieName = DefaultCookieName;
+        var cookieName = ResolveCookieName(builder.Configuration);
         if (cookieName.Any(char.IsWhiteSpace) || cookieName.Contains(';'))
             throw new InvalidOperationException("Authentication:Local:CookieName contains invalid characters.");
 
-        var connectionString = builder.Configuration.GetConnectionString("EliteScada");
+        var connectionString = database?.PrimaryConnectionString ?? builder.Configuration.GetConnectionString("EliteScada");
         var durableStore = !string.IsNullOrWhiteSpace(connectionString);
         var secureCookie = local.GetValue<bool?>("SecureCookie") ?? true;
         builder.Services.AddSingleton(new LocalIdentityRuntimeOptions(
@@ -135,14 +163,31 @@ public static class LocalIdentityConfiguration
             secureCookie,
             cookieName,
             durableStore));
+        builder.Services.AddSingleton<IAuthorityLifecycleStore>(sp =>
+            durableStore
+                ? new PostgreSqlAuthorityLifecycleStore(
+                    connectionString!,
+                    sp.GetService<IDurableWriteAdmission>())
+                : new InMemoryAuthorityLifecycleStore());
+        builder.Services.AddSingleton<ILocalAuthenticationSessionPolicyStore>(sp =>
+            durableStore
+                ? new PostgreSqlLocalAuthenticationSessionPolicyStore(
+                    connectionString!,
+                    sp.GetService<IDurableWriteAdmission>())
+                : new InMemoryLocalAuthenticationSessionPolicyStore());
         builder.Services.AddSingleton<JwtTokenIssuer>();
         builder.Services.AddSingleton<LocalLoginAttemptLimiter>();
         builder.Services.AddSingleton<AuthorityBackupService>();
-        builder.Services.AddSingleton<ILocalIdentityStore>(_ =>
+        builder.Services.AddSingleton<ILocalIdentityStore>(sp =>
             durableStore
-                ? new PostgreSqlLocalIdentityStore(connectionString!)
+                ? new PostgreSqlLocalIdentityStore(
+                    connectionString!,
+                    sp.GetService<IDurableWriteAdmission>())
                 : new InMemoryLocalIdentityStore());
         builder.Services.AddSingleton<LocalIdentityBootstrapService>();
+        builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(
+            builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath]));
+        builder.Services.TryAddSingleton<AuthorityPolicyBootstrapService>();
 
         return true;
     }
@@ -154,6 +199,20 @@ public static class LocalIdentityConfiguration
 
         var store = app.Services.GetRequiredService<ILocalIdentityStore>();
         await store.InitializeAsync();
+        var initialSessionMinutes = app.Configuration.GetValue<int?>("Authentication:Local:AccessTokenMinutes")
+            ?? LocalAuthenticationSessionPolicy.DefaultAccessTokenMinutes;
+        await app.Services.GetRequiredService<ILocalAuthenticationSessionPolicyStore>()
+            .InitializeAsync(initialSessionMinutes);
+        var lifecycle = app.Services.GetRequiredService<IAuthorityLifecycleStore>();
+        await lifecycle.InitializeAsync();
+        var lifecycleSnapshot = await lifecycle.GetAsync();
+        if (lifecycleSnapshot.State == AuthorityLifecycleState.Invalid)
+            throw new InvalidOperationException(
+                "Authority lifecycle is not authoritatively recoverable. Startup is fail-closed until the durable Authority transition is resolved.");
+        if (lifecycleSnapshot.State is AuthorityLifecycleState.DetachInProgress or AuthorityLifecycleState.AttachInProgress or AuthorityLifecycleState.DeliberatelyDetached)
+            return;
+        if (lifecycleSnapshot.State == AuthorityLifecycleState.AuthorityPresent && await store.CountAsync() == 0)
+            throw new InvalidOperationException("Authority lifecycle says attached but no local Authority identity exists. Startup is fail-closed.");
         if (await store.CountAsync() > 0) return;
 
         var bootstrap = app.Configuration.GetSection("Authentication:Local:Bootstrap");
@@ -218,6 +277,8 @@ public static class LocalIdentityConfiguration
             if (await store.CountAsync() > 0) return;
             await store.CreateAsync(account);
         }
+
+        await lifecycle.MarkAuthorityPresentAsync();
 
         app.Logger.LogWarning(
             "Created first local EliteSCADA identity '{Username}' from bootstrap configuration. Remove the bootstrap password from deployment configuration after successful initialization.",

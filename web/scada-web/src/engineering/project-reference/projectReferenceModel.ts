@@ -4,6 +4,7 @@ import type {
   TagValueReferenceEngineering,
   VisualAssetEngineering
 } from '../types';
+import { listUserVisualAssets } from '../visualAssetCatalogModel';
 
 export type ProjectReferenceFamily =
   | 'tag'
@@ -97,7 +98,7 @@ export function buildProjectReferenceCatalog(
     }));
   }
 
-  for (const asset of model.visualAssets ?? []) {
+  for (const asset of listUserVisualAssets(model.visualAssets)) {
     if (!asset.id?.trim()) continue;
     result.push(assetReference(asset));
   }

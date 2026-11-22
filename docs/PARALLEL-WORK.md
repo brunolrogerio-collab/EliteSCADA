@@ -19,7 +19,7 @@ Workers:
 
 ## 2. Mandatory read protocol
 
-Before any EliteSCADA action, every fixed chat reads current `main`:
+At mission bootstrap, every fixed chat reads the current authority documents below. During an active Wave, use its designated integration branch for current operational state; `main` alone may lag the approved work:
 
 1. `PROJECT GOAL.md`;
 2. `LAST CHANGE.md`;
@@ -34,18 +34,24 @@ For product planning through first owner validation, coordinator and relevant wo
 
 GitHub branch/PR/head/CI state is operational truth. Documentation is coordination truth and must be synchronized promptly when it lags.
 
+Continuation of an established mission follows `docs/CHAT-COLLABORATION-PROTOCOL.md` section 9: revalidate changed authoritative inputs and the active issue/PR, rather than reading every historical document again. Context loss, conflicting evidence, or a changed dependency requires the relevant baseline to be read again.
+
 ## 3. Permanent `siga` / `continue`
 
 When the user sends only `siga` or `continue`, the chat:
 
 1. identifies its fixed role;
-2. performs the mandatory read protocol;
+2. establishes the baseline once or performs incremental revalidation under the global protocol;
 3. locates its exact assignment;
 4. verifies branch/PR/head/CI and wave state;
 5. checks StartCondition/status;
 6. continues only explicitly authorized work without asking the user to repeat old prompts.
 
 Workers with delivered work and `WAIT_FOR_COORDINATOR` do not create new branches or start queued work. A `NextQueuedTask` is not authorization until promoted according to the board and `docs/DEVELOPMENT-WAVES.md`.
+
+Main directly dispatches to an authorized existing executor chat when the messaging tool is available and names the next owner at delivery/review boundaries. A GitHub comment alone is not a chat wake signal. The Product Owner need not relay routine instructions or repeat authorization already applicable to the package.
+
+The current Wave-specific Main order supersedes old completed assignment-board entries for that mission; it must explicitly identify the active worker, scope, exact base, target, validation, and report destination. This does not let workers self-select new work.
 
 ## 4. Development Waves
 

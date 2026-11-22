@@ -1,3 +1,6 @@
+using System.Data.Common;
+using System.IO;
+using System.Net.Sockets;
 using Scada.Core.Sources;
 using Scada.Core.Tags;
 
@@ -31,6 +34,10 @@ public sealed class ServerMemorySourceProvider : IQualifiedSourceProvider
     private readonly object _stateGate = new();
     private Dictionary<Guid, MemoryTagDefinition> _definitions = new();
     private Dictionary<Guid, TagValue> _values = new();
+    private readonly Dictionary<Guid, RetainedMemoryValue> _pendingRetentionValues = new();
+    private bool _retentionAvailable = true;
+    private DateTimeOffset _retryRetentionAtUtc;
+    private static readonly TimeSpan RetentionRetryDelay = TimeSpan.FromSeconds(2);
 
     public ServerMemorySourceProvider(
         string instanceKey,
@@ -78,11 +85,27 @@ public sealed class ServerMemorySourceProvider : IQualifiedSourceProvider
         try
         {
             var stagedValues = new Dictionary<Guid, TagValue>(stagedDefinitions.Count);
+            var retentionAvailable = true;
 
             foreach (var definition in stagedDefinitions.Values)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var retained = await _retentionStore.ReadAsync(definition.Tag.Id, cancellationToken);
+                RetainedMemoryValue? retained = null;
+                if (retentionAvailable)
+                {
+                    try
+                    {
+                        retained = await _retentionStore.ReadAsync(definition.Tag.Id, cancellationToken);
+                    }
+                    catch (Exception exception) when (IsTransientRetentionFailure(exception))
+                    {
+                        // A database outage must not prevent the runtime from coming
+                        // up. HA overlays the peer's authoritative snapshot after
+                        // activation; until then, use engineered initial values.
+                        retentionAvailable = false;
+                        _retryRetentionAtUtc = _timeProvider.GetUtcNow() + RetentionRetryDelay;
+                    }
+                }
 
                 if (retained is not null && retained.TypedValue.DataType != definition.Tag.DataType)
                 {
@@ -99,11 +122,35 @@ public sealed class ServerMemorySourceProvider : IQualifiedSourceProvider
                 stagedValues.Add(definition.Tag.Id, current);
             }
 
+            var activeTagIds = stagedDefinitions.Keys.ToHashSet();
+            foreach (var pendingTagId in _pendingRetentionValues.Keys.Where(id => !activeTagIds.Contains(id)).ToArray())
+                _pendingRetentionValues.Remove(pendingTagId);
+
+            foreach (var pending in _pendingRetentionValues.Values)
+            {
+                if (!stagedDefinitions.TryGetValue(pending.TagId, out var definition)) continue;
+                if (pending.TypedValue.DataType != definition.Tag.DataType)
+                    throw new MemoryRetentionTypeMismatchException(
+                        pending.TagId,
+                        pending.TypedValue.DataType,
+                        definition.Tag.DataType);
+
+                stagedValues[pending.TagId] = CreateValue(
+                    pending.TagId,
+                    pending.TypedValue.Value,
+                    pending.StoredAt,
+                    TagQuality.Good);
+            }
+
             lock (_stateGate)
             {
                 _definitions = stagedDefinitions;
                 _values = stagedValues;
+                _retentionAvailable = retentionAvailable;
             }
+
+            if (retentionAvailable && _pendingRetentionValues.Count > 0)
+                await FlushPendingRetentionAsync(cancellationToken);
         }
         finally
         {
@@ -172,11 +219,30 @@ public sealed class ServerMemorySourceProvider : IQualifiedSourceProvider
             var timestamp = _timeProvider.GetUtcNow();
 
             // Retention stores the typed process value, not transient runtime
-            // communication quality. On the next activation the retained value
-            // starts Good until its server-side Source publishes a new sample.
-            await _retentionStore.WriteAsync(
-                new RetainedMemoryValue(tagId, typedValue, timestamp),
-                cancellationToken);
+            // communication quality. During a transient database outage, keep
+            // values in this process and periodically retry persistence. This is
+            // explicitly degraded/non-durable behavior.
+            var retainedValue = new RetainedMemoryValue(tagId, typedValue, timestamp);
+            if (_retentionAvailable || _timeProvider.GetUtcNow() >= _retryRetentionAtUtc)
+            {
+                try
+                {
+                    await _retentionStore.WriteAsync(retainedValue, cancellationToken);
+                    _retentionAvailable = true;
+                    _pendingRetentionValues.Remove(tagId);
+                    await FlushPendingRetentionAsync(cancellationToken);
+                }
+                catch (Exception exception) when (IsTransientRetentionFailure(exception))
+                {
+                    _retentionAvailable = false;
+                    _retryRetentionAtUtc = _timeProvider.GetUtcNow() + RetentionRetryDelay;
+                    _pendingRetentionValues[tagId] = retainedValue;
+                }
+            }
+            else
+            {
+                _pendingRetentionValues[tagId] = retainedValue;
+            }
 
             var current = CreateValue(
                 tagId,
@@ -246,4 +312,39 @@ public sealed class ServerMemorySourceProvider : IQualifiedSourceProvider
             SourceTimestamp = sourceTimestamp,
             ServerTimestamp = serverTimestamp
         };
+
+    private static bool IsTransientRetentionFailure(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is DbException { IsTransient: true } or TimeoutException or IOException or SocketException)
+                return true;
+
+            // PostgreSQL reports an administrative shutdown as SQLSTATE 57P01;
+            // some provider versions do not classify that exception as transient.
+            var sqlState = current.GetType().GetProperty("SqlState")?.GetValue(current) as string;
+            if (sqlState is "57P01" || sqlState?.StartsWith("08", StringComparison.Ordinal) == true)
+                return true;
+        }
+
+        return false;
+    }
+
+    private async ValueTask FlushPendingRetentionAsync(CancellationToken cancellationToken)
+    {
+        foreach (var pending in _pendingRetentionValues.Values.ToArray())
+        {
+            try
+            {
+                await _retentionStore.WriteAsync(pending, cancellationToken);
+                _pendingRetentionValues.Remove(pending.TagId);
+            }
+            catch (Exception exception) when (IsTransientRetentionFailure(exception))
+            {
+                _retentionAvailable = false;
+                _retryRetentionAtUtc = _timeProvider.GetUtcNow() + RetentionRetryDelay;
+                return;
+            }
+        }
+    }
 }

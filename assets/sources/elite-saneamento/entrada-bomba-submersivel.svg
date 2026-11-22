@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 220" width="100%" height="100%">
+  <!-- Grupo estrutural com contorno preto e preenchimento cinza padrão -->
+  <g stroke="#000000" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Extensão Retangular Direita (Atrás do trapézio principal) -->
+    <path d="M 330 95 L 500 95 L 500 160 L 440 160" fill="#A6A6A6" />
+    <!-- Carcaça Principal (Formato Trapezoidal) -->
+    <path d="M 40 160
+             L 45 200
+             L 460 200
+             L 460 160
+             L 420 145
+             L 330 95
+             L 180 95 Z" fill="#9E9E9E" />
+    <!-- Grupo dos Indicadores/Janelas Roxas -->
+    <g fill="#1A0066" stroke="#000000" stroke-width="2">
+      <rect x="110" y="145" width="22" height="36" rx="5" />
+      <rect x="155" y="145" width="22" height="36" rx="5" />
+      <rect x="200" y="145" width="22" height="36" rx="5" />
+      <rect x="245" y="145" width="22" height="36" rx="5" />
+      <rect x="290" y="145" width="22" height="36" rx="5" />
+      <rect x="335" y="145" width="22" height="36" rx="5" />
+    </g>
+  </g>
+</svg>

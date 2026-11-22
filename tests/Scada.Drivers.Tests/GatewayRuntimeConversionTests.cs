@@ -1,16 +1,65 @@
 using System.Text.Json;
 using Scada.Core.Events;
+using Scada.Api.Runtime;
 using Scada.Core.InternalMemory;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Gateways;
 
 namespace Scada.Drivers.Tests;
 
 public sealed class GatewayRuntimeConversionTests
 {
+    [Theory]
+    [InlineData("pt-BR")]
+    [InlineData("en")]
+    [InlineData("es")]
+    public async Task ExactPublishedGatewayCsvTransfersElevenToTwentySevenThroughActualRuntime(string locale)
+    {
+        var guide = ContextualHelpCatalog.Build(locale).Topics.Single(topic => topic.Id == "gateway.configure-test");
+        var csv = Assert.Single(guide.Sections, section => section.Code is not null).Code!;
+        var sourceId = Guid.NewGuid();
+        var destinationId = Guid.NewGuid();
+        var sourceTag = MemoryTag(sourceId, "Server.Source", TagDataType.Int16, (short)0);
+        var destinationTag = MemoryTag(destinationId, "Server.Destination", TagDataType.Int32, 0);
+        var current = new EngineeringPackage(EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion, DateTimeOffset.UtcNow,
+            [sourceTag, destinationTag], [], DataSources: [new DataSourceEngineeringDto(
+                Guid.NewGuid(), "memory.server", "Server Memory", InternalMemoryRuntimePlanner.ServerMemoryDriverKey)]);
+        var route = Assert.Single(new EngineeringTabularExchange().ParseCsv(current,
+            EngineeringTabularEntity.GatewayRoutes, csv).Gateways!);
+        // Follow the documented Preview/Apply boundary: CSV references are readable
+        // paths; Apply owns allocating stable route IDs and resolving TAG IDs.
+        using var workspace = new EngineeringWorkspace();
+        var routes = new InMemoryGatewayEngineeringRegistry();
+        var exchange = new EngineeringExchangeService(workspace.Tags, workspace.Alarms,
+            workspace.DataSources, workspace.Assets, workspace.Views, workspace.SecurityPolicies,
+            workspace.Commands, routes, workspace.Scripts, workspace.VisualAssets);
+        var candidate = current with { Gateways = [route] };
+        var preview = exchange.Preview(candidate, ImportMode.CreateAndUpdate);
+        Assert.True(preview.CanApply, string.Join("; ", preview.Items.SelectMany(item => item.Issues).Select(issue => issue.Message)));
+        Assert.Empty(exchange.Apply(candidate, ImportMode.CreateAndUpdate).Issues);
+        var package = exchange.ParseJson(exchange.ExportJson());
+        var appliedRoute = Assert.Single(package.Gateways!);
+        Assert.NotNull(appliedRoute.Id);
+        Assert.NotEqual(Guid.Empty, appliedRoute.Id);
+        Assert.Equal(sourceId, appliedRoute.SourceTagId);
+        Assert.Equal(destinationId, appliedRoute.DestinationTagId);
+        await using var runtime = CreateRuntime(new InMemoryScadaEventBus());
+        var activation = await runtime.ActivateAsync("help-gateway", 1, package);
+        Assert.True(activation.Activated, Describe(activation));
+        await runtime.WriteAsync(sourceId, (short)11);
+        await WaitForRouteActivityAsync(runtime, route.Key, TimeSpan.FromSeconds(2));
+        var diagnostic = Assert.Single(runtime.GatewayDiagnostics(), item => item.Key == route.Key);
+        Assert.Equal(1, diagnostic.TransferCount);
+        Assert.Equal(0, diagnostic.WriteFailureCount);
+        Assert.Equal(27, CurrentValue<int>(runtime, destinationId));
+        Assert.Equal((short)11, CurrentValue<short>(runtime, sourceId));
+    }
+
     [Fact]
     public async Task CheckedNumeric_AppliesTransform_AndOverflowFailsClosedPerRoute()
     {

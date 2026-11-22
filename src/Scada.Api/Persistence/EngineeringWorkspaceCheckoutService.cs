@@ -5,6 +5,7 @@ using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.DataQueries;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
@@ -56,7 +57,14 @@ public sealed class EngineeringWorkspaceCheckoutService(
             var snapshot = await store.LoadRevisionAsync(projectKey.Trim(), revision, cancellationToken);
             if (snapshot is null) return null;
 
-            var (package, importContext) = await ParseAndValidateAsync(snapshot, cancellationToken);
+            var (parsedPackage, importContext) = await ParseAndValidateAsync(snapshot, cancellationToken);
+            // A checkout replaces the complete Working project. Older revisions
+            // without RuntimePresentation therefore mean the documented defaults,
+            // unlike partial imports where an omitted field means "leave unchanged".
+            var package = parsedPackage with
+            {
+                RuntimePresentation = parsedPackage.RuntimePresentation ?? new RuntimePresentationEngineeringDto()
+            };
             var preview = PreviewInIsolation(package, importContext);
             if (!preview.CanApply)
             {
@@ -75,7 +83,8 @@ public sealed class EngineeringWorkspaceCheckoutService(
                 .Select(x => x.Sha256)
                 .ToArray();
             var backupContext = new EngineeringImportContext(
-                workspace.VisualAssets.SnapshotPayloads(backupHashes));
+                workspace.VisualAssets.SnapshotPayloads(backupHashes),
+                PreserveActivatedIntelligenceScopes: true);
             var backupDescriptor = workspace.Describe();
             ImportResult apply;
 
@@ -141,7 +150,7 @@ public sealed class EngineeringWorkspaceCheckoutService(
         {
             if (stored.Count != 0)
                 throw new InvalidDataException("Stored revision contains unexpected visual asset payload links.");
-            return (package, EngineeringImportContext.Empty);
+            return (package, new EngineeringImportContext(PreserveActivatedIntelligenceScopes: true));
         }
 
         if (stored.Count != metadata.Count)
@@ -171,7 +180,7 @@ public sealed class EngineeringWorkspaceCheckoutService(
             byHash[payload.Sha256] = payload;
         }
 
-        return (package, new EngineeringImportContext(byHash));
+        return (package, new EngineeringImportContext(byHash, PreserveActivatedIntelligenceScopes: true));
     }
 
     private static ImportPreview PreviewInIsolation(
@@ -180,12 +189,16 @@ public sealed class EngineeringWorkspaceCheckoutService(
     {
         var bus = new InMemoryScadaEventBus();
         using var alarms = new InMemoryAlarmEngine(bus);
-        var isolated = new EngineeringExchangeService(
+        IEngineeringExchangeService isolated = new EngineeringExchangeService(
             new InMemoryTagRegistry(),
             alarms,
             new InMemoryDataSourceEngineeringRegistry(),
             new InMemoryEngineeringAssetRegistry(),
             new InMemoryEngineeringViewRegistry());
+        isolated = new DataQueryEngineeringExchangeDecorator(
+            isolated,
+            new InMemoryDataQueryEngineeringRegistry(),
+            new InMemoryAlarmViewEngineeringRegistry());
 
         return isolated.Preview(package, ImportMode.CreateAndUpdate, context);
     }

@@ -42,6 +42,15 @@ public interface IEngineeringProjectPersistenceService
         string projectKey,
         CancellationToken cancellationToken = default);
 
+    async Task<EngineeringProjectSnapshot?> LoadRevisionAsync(
+        string projectKey,
+        long revision,
+        CancellationToken cancellationToken = default)
+    {
+        var published = await LoadPublishedAsync(projectKey, cancellationToken);
+        return published?.Revision == revision ? published : null;
+    }
+
     Task<EngineeringProjectSnapshot?> LoadActiveAsync(
         string projectKey,
         CancellationToken cancellationToken = default);
@@ -64,6 +73,32 @@ public interface IEngineeringProjectPersistenceService
         long revision,
         string? activatedBy = null,
         CancellationToken cancellationToken = default);
+
+    Task<EngineeringProjectActivation?> ResumeRuntimeAsync(
+        string projectKey,
+        long activeRevision,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Engineering persistence does not support operator Runtime controls.");
+
+    Task<EngineeringProjectActivation?> SetRuntimeStatusAsync(
+        string projectKey,
+        long activeRevision,
+        EngineeringRuntimeStatus status,
+        string? changedBy = null,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Engineering persistence does not support operator Runtime controls.");
+
+    Task<EngineeringProjectActivation?> RecordActivationForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default) =>
+        RecordActivationAsync(projectKey, revision, activatedBy, cancellationToken);
+
+    Task DeleteProjectAsync(
+        string projectKey,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Engineering persistence does not support installation detach.");
 
     Task<EngineeringPublicationResult?> PublishRevisionAsync(
         string projectKey,
@@ -99,15 +134,18 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
     private readonly IEngineeringExchangeService _exchange;
     private readonly IEngineeringProjectStore _store;
     private readonly IVisualAssetEngineeringRegistry? _visualAssets;
+    private readonly IEngineeringInstallationBindingStore? _installationBinding;
 
     public EngineeringProjectPersistenceService(
         IEngineeringExchangeService exchange,
         IEngineeringProjectStore store,
-        IVisualAssetEngineeringRegistry? visualAssets = null)
+        IVisualAssetEngineeringRegistry? visualAssets = null,
+        IEngineeringInstallationBindingStore? installationBinding = null)
     {
         _exchange = exchange;
         _store = store;
         _visualAssets = visualAssets;
+        _installationBinding = installationBinding;
     }
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) =>
@@ -132,6 +170,7 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         string? savedBy = null,
         CancellationToken cancellationToken = default)
     {
+        await EnsureWritableBindingAsync(projectKey, cancellationToken);
         var json = _exchange.ExportJson(indented: false);
         var package = _exchange.ParseJson(json);
         var revisionAssets = BuildCurrentRevisionAssets(package);
@@ -162,6 +201,12 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
             ? null
             : await _store.LoadRevisionAsync(projectKey, publication.PublishedRevision, cancellationToken);
     }
+
+    public Task<EngineeringProjectSnapshot?> LoadRevisionAsync(
+        string projectKey,
+        long revision,
+        CancellationToken cancellationToken = default) =>
+        _store.LoadRevisionAsync(projectKey, revision, cancellationToken);
 
     public async Task<EngineeringProjectSnapshot?> LoadActiveAsync(
         string projectKey,
@@ -195,7 +240,9 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
                     ? EngineeringProjectLifecycleStatus.Published
                     : EngineeringProjectLifecycleStatus.ChangesPending;
 
-        var runtimeStatus = publication is null
+        var runtimeStatus = activation?.RuntimeStatus is EngineeringRuntimeStatus.OperatorStopped or EngineeringRuntimeStatus.StopFailed
+            ? activation.RuntimeStatus
+            : publication is null
             ? EngineeringRuntimeStatus.Inactive
             : activation is not null && activation.ActiveRevision == publication.PublishedRevision
                 ? EngineeringRuntimeStatus.Active
@@ -219,12 +266,51 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         CancellationToken cancellationToken = default) =>
         _store.GetActivationAsync(projectKey, cancellationToken);
 
-    public Task<EngineeringProjectActivation?> RecordActivationAsync(
+    public Task<EngineeringProjectActivation?> SetRuntimeStatusAsync(
+        string projectKey,
+        long activeRevision,
+        EngineeringRuntimeStatus status,
+        string? changedBy = null,
+        CancellationToken cancellationToken = default) =>
+        _store.SetRuntimeStatusAsync(projectKey, activeRevision, status, changedBy, cancellationToken);
+
+    public async Task<EngineeringProjectActivation?> ResumeRuntimeAsync(
+        string projectKey,
+        long activeRevision,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureActivatableBindingAsync(projectKey, cancellationToken);
+        return await _store.ResumeRuntimeAsync(projectKey, activeRevision, cancellationToken);
+    }
+
+    public async Task<EngineeringProjectActivation?> RecordActivationAsync(
         string projectKey,
         long revision,
         string? activatedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureActivatableBindingAsync(projectKey, cancellationToken);
+        return await _store.RecordActivationAsync(projectKey, revision, activatedBy, cancellationToken);
+    }
+
+    public async Task<EngineeringProjectActivation?> RecordActivationForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureActivatableBindingAsync(projectKey, cancellationToken);
+        return await _store.RecordActivationForHaTakeoverAsync(
+            projectKey,
+            revision,
+            activatedBy,
+            cancellationToken);
+    }
+
+    public Task DeleteProjectAsync(
+        string projectKey,
         CancellationToken cancellationToken = default) =>
-        _store.RecordActivationAsync(projectKey, revision, activatedBy, cancellationToken);
+        _store.DeleteProjectAsync(projectKey, cancellationToken);
 
     public async Task<EngineeringPublicationResult?> PublishRevisionAsync(
         string projectKey,
@@ -232,6 +318,7 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         string? publishedBy = null,
         CancellationToken cancellationToken = default)
     {
+        await EnsureWritableBindingAsync(projectKey, cancellationToken);
         var snapshot = await _store.LoadRevisionAsync(projectKey, revision, cancellationToken);
         if (snapshot is null) return null;
 
@@ -330,6 +417,43 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         return (package, context);
     }
 
+    private async Task EnsureWritableBindingAsync(
+        string projectKey,
+        CancellationToken cancellationToken)
+    {
+        if (_installationBinding is null) return;
+
+        var binding = await _installationBinding.GetAsync(cancellationToken);
+        var allowed = binding.State == EngineeringInstallationBindingState.Legacy ||
+            ((binding.State == EngineeringInstallationBindingState.Attached ||
+              binding.State == EngineeringInstallationBindingState.AttachInProgress) &&
+             string.Equals(binding.ProjectKey, projectKey?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (!allowed)
+        {
+            throw new InvalidOperationException(
+                $"Engineering project '{projectKey}' is not the current installation Application binding " +
+                $"(state '{binding.State}', project '{binding.ProjectKey ?? "none"}').");
+        }
+    }
+
+    private async Task EnsureActivatableBindingAsync(
+        string projectKey,
+        CancellationToken cancellationToken)
+    {
+        if (_installationBinding is null) return;
+
+        var binding = await _installationBinding.GetAsync(cancellationToken);
+        var allowed = binding.State == EngineeringInstallationBindingState.Legacy ||
+            (binding.State == EngineeringInstallationBindingState.Attached &&
+             string.Equals(binding.ProjectKey, projectKey?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (!allowed)
+        {
+            throw new InvalidOperationException(
+                $"Engineering project '{projectKey}' is not the current Attached installation Application binding " +
+                $"(state '{binding.State}', project '{binding.ProjectKey ?? "none"}').");
+        }
+    }
+
     private IReadOnlyCollection<EngineeringRevisionAssetPayload> BuildCurrentRevisionAssets(EngineeringPackage package)
     {
         var assets = package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>();
@@ -372,7 +496,7 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         {
             if (stored.Count != 0)
                 throw new InvalidDataException("Stored revision contains unexpected visual asset payload links.");
-            return EngineeringImportContext.Empty;
+            return new EngineeringImportContext(PreserveActivatedIntelligenceScopes: true);
         }
 
         var byAssetId = stored.ToDictionary(x => x.AssetId);
@@ -403,7 +527,7 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
             byHash[payload.Sha256] = payload;
         }
 
-        return new EngineeringImportContext(byHash);
+        return new EngineeringImportContext(byHash, PreserveActivatedIntelligenceScopes: true);
     }
 
     private static void ValidatePayloadAgainstMetadata(

@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <circle cx="64" cy="38" r="18" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="head" />
+  <path d="M 28 104 C 34 72 46 62 64 62 C 82 62 94 72 100 104 Z" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" data-elitescada-slot="body" />
+</svg>

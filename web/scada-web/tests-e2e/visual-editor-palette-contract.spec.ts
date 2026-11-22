@@ -4,10 +4,20 @@ import {
   getBuiltinVisualObjectSchema
 } from '../src/visual-runtime/builtinVisualObjectSchemas';
 import { VISUAL_PROPERTY_KEYS } from '../src/visual-runtime/visualPropertyRegistry';
+import { createClosedBezierGeometry, insertBezierAnchor, readEditableBezierPath, removeBezierAnchor } from '../src/engineering/visual-editor/bezierGeometry';
+import { visualAssetContentUrl } from '../src/engineering/visualAssetContentUrl';
 import {
   createObjectAddIntent,
   listVisualObjectPaletteItems
 } from '../src/engineering/visual-editor/object-palette/objectPaletteModel';
+
+test('visual asset content URLs resolve both asset-prefixed and bare GUID references', () => {
+  const assetId = '15000000-0000-0000-0000-000000000021';
+  const expectedUrl = `/api/engineering/visual-assets/${assetId}/content`;
+
+  expect(visualAssetContentUrl(`asset:${assetId}`)).toBe(expectedUrl);
+  expect(visualAssetContentUrl(assetId)).toBe(expectedUrl);
+});
 
 test('palette is derived from the complete registered built-in set', () => {
   const items = listVisualObjectPaletteItems();
@@ -17,17 +27,36 @@ test('palette is derived from the complete registered built-in set', () => {
     BUILTIN_VISUAL_OBJECT_TYPES.rectangle,
     BUILTIN_VISUAL_OBJECT_TYPES.ellipse,
     BUILTIN_VISUAL_OBJECT_TYPES.line,
+    BUILTIN_VISUAL_OBJECT_TYPES.arc,
+    BUILTIN_VISUAL_OBJECT_TYPES.bezier,
     BUILTIN_VISUAL_OBJECT_TYPES.polygon,
     BUILTIN_VISUAL_OBJECT_TYPES.text,
     BUILTIN_VISUAL_OBJECT_TYPES.image,
+    BUILTIN_VISUAL_OBJECT_TYPES.model3d,
+    BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer,
+    BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer,
+    BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher,
+    BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol,
     BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,
     BUILTIN_VISUAL_OBJECT_TYPES.trend,
     BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser,
     BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser,
     BUILTIN_VISUAL_OBJECT_TYPES.button,
-    BUILTIN_VISUAL_OBJECT_TYPES.slider
+    BUILTIN_VISUAL_OBJECT_TYPES.checkBox,
+    BUILTIN_VISUAL_OBJECT_TYPES.comboBox,
+    BUILTIN_VISUAL_OBJECT_TYPES.slider,
+    BUILTIN_VISUAL_OBJECT_TYPES.numericInput,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementDial,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementRing,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementBar,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementBands,
+    BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget
   ]);
   expect(new Set(items.map(item => item.objectType)).size).toBe(items.length);
+  expect(items.some(item => item.objectType === BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B)).toBe(false);
+  expect(items.some(item => item.objectType === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1)).toBe(false);
+  expect(items.some(item => item.objectType === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2)).toBe(false);
 
   for (const item of items) {
     const schema = getBuiltinVisualObjectSchema(item.objectType);
@@ -37,16 +66,37 @@ test('palette is derived from the complete registered built-in set', () => {
   }
 });
 
-test('Image palette entry consumes the registered assetRef contract without inventing asset persistence', () => {
+test('Image and SVG symbol palette entries consume the registered assetRef contract', () => {
   const items = listVisualObjectPaletteItems();
   const image = items.find(item => item.objectType === BUILTIN_VISUAL_OBJECT_TYPES.image);
+  const svgSymbol = items.find(item => item.objectType === BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol);
   expect(image).toBeDefined();
   expect(image?.supportsAssetReference).toBe(true);
   expect(image?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.assetRef);
+  expect(svgSymbol?.supportsAssetReference).toBe(true);
+  expect(svgSymbol?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.assetRef);
 
-  for (const item of items.filter(item => item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.image)) {
+  for (const item of items.filter(item => item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.image && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.model3d && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer)) {
     expect(item.supportsAssetReference).toBe(false);
   }
+});
+
+test('Report launcher inserts a configured-size object with an editable label and report reference property', () => {
+  const item = listVisualObjectPaletteItems().find(candidate => candidate.objectType === BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher);
+  expect(item).toMatchObject({ labelKey: 'reportLauncher', category: 'content' });
+  expect(item?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.reportKey);
+  expect(item?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.text);
+  expect(createObjectAddIntent(BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher)).toMatchObject({
+    objectType: BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher,
+    initialProperties: { width: 190, height: 44 }
+  });
+});
+
+test('Report launcher Runtime link encodes its stable report identity and rejects empty/control values', async () => {
+  const { runtimeReportHref } = await import('../src/visual-runtime/reportLauncherModel');
+  expect(runtimeReportHref('daily totals / area A')).toBe('/runtime/reports?report=daily%20totals%20%2F%20area%20A');
+  expect(runtimeReportHref('   ')).toBeNull();
+  expect(runtimeReportHref('report\nother')).toBeNull();
 });
 
 test('Trend palette entry is first-class content backed by the registered scalar schema', () => {
@@ -55,6 +105,25 @@ test('Trend palette entry is first-class content backed by the registered scalar
   expect(trend?.category).toBe('content');
   expect(trend?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.trendWindowSeconds);
   expect(trend?.propertyKeys).not.toContain('pens');
+});
+
+test('six measurement displays are generic content with configured first-use geometry and no asset/license dependency', () => {
+  const expected = [
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementDial, 'measurementDial', 150, 130],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementRing, 'measurementRing', 130, 130],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementBar, 'measurementBar', 220, 90],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer, 'measurementThermometer', 90, 190],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementBands, 'measurementBands', 220, 90],
+    [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, 'measurementTarget', 220, 90]
+  ] as const;
+  for (const [objectType, labelKey, width, height] of expected) {
+    const item = listVisualObjectPaletteItems().find(candidate => candidate.objectType === objectType);
+    expect(item).toMatchObject({ category: 'content', labelKey, supportsAssetReference: false });
+    expect(createObjectAddIntent(objectType)).toMatchObject({
+      objectType,
+      initialProperties: { width, height }
+    });
+  }
 });
 
 test('object add intent delegates defaults and identity to canonical coordinator composition', () => {
@@ -73,6 +142,58 @@ test('object add intent delegates defaults and identity to canonical coordinator
   expect('id' in intent).toBe(false);
   expect('key' in intent).toBe(false);
   expect(Object.isFrozen(intent)).toBe(true);
+});
+
+test('Bezier is an editable first-class canvas shape with a path property', () => {
+  const bezier = listVisualObjectPaletteItems().find(item => item.objectType === BUILTIN_VISUAL_OBJECT_TYPES.bezier);
+  expect(bezier?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.bezierPath);
+  expect(createObjectAddIntent(BUILTIN_VISUAL_OBJECT_TYPES.bezier)).toMatchObject({
+    kind: 'object.add',
+    objectType: BUILTIN_VISUAL_OBJECT_TYPES.bezier,
+    initialProperties: {
+      width: 120,
+      height: 80,
+      bezierPath: 'M 0 50 C 20 0 80 0 100 50 C 80 100 20 100 0 50 Z'
+    }
+  });
+});
+
+test('Bezier anchor insertion splits a cubic segment without changing its curve and removal is bounded', () => {
+  const original = 'M 0 0 C 10 10 20 20 30 30';
+  const split = insertBezierAnchor(original);
+  expect(split).toBe('M 0 0 C 5 5 10 10 15 15 C 20 20 25 25 30 30');
+  expect(removeBezierAnchor(split!)).toBe('M 0 0 C 5 5 10 10 15 15');
+  expect(removeBezierAnchor(original)).toBeNull();
+  expect(insertBezierAnchor('M 0 0 L 10 0')).toBe('M 0 0 L 5 0 L 10 0');
+  expect(removeBezierAnchor('M 0 0 L 5 0 L 10 0')).toBe('M 0 0 L 5 0');
+  expect(insertBezierAnchor('M 0 0 Q 10 20 20 0')).toBe('M 0 0 Q 5 10 10 10 Q 15 10 20 0');
+  expect(insertBezierAnchor('M 0 0 C 10 10 20 20 30 30 Z')).toBe('M 0 0 C 5 5 10 10 15 15 C 20 20 25 25 30 30 Z');
+  expect(insertBezierAnchor('M 0 0 c 10 10 20 20 30 30')).toBeNull();
+  expect(readEditableBezierPath('M 0 0 C 10 10 20 20 30 30')?.anchorIndexes).toEqual([0, 3]);
+});
+
+test('Bezier click geometry closes smoothly and exposes only its distinct anchors for editing', () => {
+  const geometry = createClosedBezierGeometry([
+    { x: 40, y: 50 }, { x: 180, y: 40 }, { x: 210, y: 170 }, { x: 70, y: 210 }
+  ]);
+  expect(geometry).not.toBeNull();
+  const path = geometry!.path;
+  expect(path.endsWith('Z')).toBe(true);
+  const model = readEditableBezierPath(path);
+  expect(model?.anchorIndexes).toHaveLength(4);
+  expect(model?.anchorIndexes.map(index => model.points[index])).toEqual([
+    expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) })
+  ]);
+
+  const withInsertedAnchor = insertBezierAnchor(path, 1);
+  expect(readEditableBezierPath(withInsertedAnchor!)?.anchorIndexes).toHaveLength(5);
+  expect(readEditableBezierPath(removeBezierAnchor(withInsertedAnchor!, 2)!)?.anchorIndexes).toHaveLength(4);
+  const threeAnchorCurve = removeBezierAnchor(path, 1);
+  expect(readEditableBezierPath(threeAnchorCurve!)?.anchorIndexes).toHaveLength(3);
+  expect(removeBezierAnchor(threeAnchorCurve!, 1)).toBeNull();
 });
 
 test('palette fails closed for private/unknown object types and invalid placement data', () => {

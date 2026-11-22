@@ -209,14 +209,16 @@ public sealed class S7IsoEngineeringAdapter :
             "Siemens S7 ISO-on-TCP",
             1,
             DriverCapabilities.Read | DriverCapabilities.Write | DriverCapabilities.Diagnostics,
-            DriverEngineeringCapabilities.ConnectionTest | DriverEngineeringCapabilities.FileImport,
+            DriverEngineeringCapabilities.ConnectionTest | DriverEngineeringCapabilities.FileImport | DriverEngineeringCapabilities.PointReadTest,
             new[] { DriverAcquisitionMode.Polling },
             new DriverConfigurationSchemaDescriptor(
                 "siemens.s7.iso",
                 1,
                 dataSourceFields,
                 tagFields),
-            Description: "Classic Siemens S7 communication over ISO-on-TCP / RFC1006 with Engineering-side TIA XLSX, XML and SDF PLC-tag import.");
+            Description: "Classic Siemens S7 communication over ISO-on-TCP / RFC1006 with Engineering-side TIA XLSX, XML and SDF PLC-tag import.",
+            TagBindingSchemaId: S7IsoTagBinding.SchemaId,
+            TagBindingSchemaVersion: S7IsoTagBinding.CurrentSchemaVersion);
     }
 
     private static IReadOnlyDictionary<string, string> ConnectionObservedProperties(

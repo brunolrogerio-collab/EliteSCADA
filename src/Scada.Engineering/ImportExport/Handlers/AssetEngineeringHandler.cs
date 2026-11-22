@@ -1,8 +1,11 @@
 using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Commands;
+using Scada.Engineering.DataSources;
 using Scada.Engineering.Validation;
 using Scada.Engineering.VisualScripting;
+using Scada.Engineering.VisualAssets;
 
 namespace Scada.Engineering.ImportExport.Handlers;
 
@@ -10,15 +13,27 @@ internal sealed class AssetEngineeringHandler
 {
     private readonly IEngineeringAssetRegistry _assets;
     private readonly ITagRegistry _tags;
+    private readonly IVisualAssetEngineeringRegistry _visualAssets;
+    private readonly IDataSourceEngineeringRegistry _dataSources;
+    private readonly ICommandEngineeringRegistry _commands;
 
-    public AssetEngineeringHandler(IEngineeringAssetRegistry assets, ITagRegistry tags)
+    public AssetEngineeringHandler(
+        IEngineeringAssetRegistry assets,
+        ITagRegistry tags,
+        IVisualAssetEngineeringRegistry visualAssets,
+        IDataSourceEngineeringRegistry dataSources,
+        ICommandEngineeringRegistry commands)
     {
         _assets = assets;
         _tags = tags;
+        _visualAssets = visualAssets;
+        _dataSources = dataSources;
+        _commands = commands;
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
     {
+        PreviewLocations(package, mode, items);
         PreviewTemplates(package, mode, items);
         PreviewEquipment(package, mode, items);
         PreviewDynamos(package, mode, items);
@@ -26,6 +41,15 @@ internal sealed class AssetEngineeringHandler
 
     public void Apply(EngineeringPackage package, ImportMode mode, ref int created, ref int updated, ref int skipped)
     {
+        foreach (var dto in package.Locations ?? Array.Empty<LocationEngineeringDto>())
+        {
+            var existing = dto.Id.HasValue ? _assets.FindLocation(dto.Id.Value) : null;
+            var operation = EngineeringHandlerSupport.Decide(existing is not null, mode);
+            if (operation == ImportOperation.Skip) { skipped++; continue; }
+            _assets.UpsertLocation(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
+            if (existing is null) created++; else updated++;
+        }
+
         foreach (var dto in package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>())
         {
             var existing = ResolveExistingTemplate(dto);
@@ -40,7 +64,8 @@ internal sealed class AssetEngineeringHandler
             var existing = ResolveExistingEquipment(dto);
             var operation = EngineeringHandlerSupport.Decide(existing is not null, mode);
             if (operation == ImportOperation.Skip) { skipped++; continue; }
-            _assets.UpsertEquipment(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
+            var normalized = NormalizeEquipmentTemplateReference(dto);
+            _assets.UpsertEquipment(normalized with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
             if (existing is null) created++; else updated++;
         }
 
@@ -49,9 +74,45 @@ internal sealed class AssetEngineeringHandler
             var existing = ResolveExistingDynamo(dto);
             var operation = EngineeringHandlerSupport.Decide(existing is not null, mode);
             if (operation == ImportOperation.Skip) { skipped++; continue; }
-            _assets.UpsertDynamo(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
+            var normalized = NormalizeDynamoTemplateReference(dto);
+            _assets.UpsertDynamo(normalized with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
             if (existing is null) created++; else updated++;
         }
+    }
+
+    private void PreviewLocations(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
+    {
+        var locations = package.Locations ?? Array.Empty<LocationEngineeringDto>();
+        var ids = locations.Where(x => x.Id.HasValue).Select(x => x.Id!.Value).ToHashSet();
+        foreach (var dto in locations)
+        {
+            var issues = EngineeringValidator.ValidateLocation(dto).ToList();
+            var key = dto.Id?.ToString("D") ?? dto.Name;
+            if (dto.Id.HasValue && locations.Count(x => x.Id == dto.Id) > 1)
+                issues.Add(new("LOCATION_DUPLICATE_ID_IN_FILE", $"Location identity '{dto.Id:D}' appears more than once.", ImportEntityKind.Location, key, true));
+            if (dto.ParentLocationId.HasValue &&
+                _assets.FindLocation(dto.ParentLocationId.Value) is null &&
+                !ids.Contains(dto.ParentLocationId.Value))
+                issues.Add(new("LOCATION_PARENT_NOT_FOUND", $"Parent Location '{dto.ParentLocationId:D}' was not found.", ImportEntityKind.Location, key, true));
+            if (CreatesLocationCycle(dto, locations))
+                issues.Add(new("LOCATION_PARENT_CYCLE", "Location parent relationship would create a cycle.", ImportEntityKind.Location, key, true));
+            EngineeringHandlerSupport.AddPreview(items, ImportEntityKind.Location, key, dto.Id.HasValue && _assets.FindLocation(dto.Id.Value) is not null, mode, issues);
+        }
+    }
+
+    private bool CreatesLocationCycle(LocationEngineeringDto candidate, IReadOnlyCollection<LocationEngineeringDto> incoming)
+    {
+        if (!candidate.Id.HasValue || !candidate.ParentLocationId.HasValue) return false;
+        var seen = new HashSet<Guid> { candidate.Id.Value };
+        var current = candidate.ParentLocationId;
+        while (current.HasValue)
+        {
+            if (!seen.Add(current.Value)) return true;
+            var next = incoming.FirstOrDefault(x => x.Id == current)?.ParentLocationId
+                ?? _assets.FindLocation(current.Value)?.ParentLocationId;
+            current = next;
+        }
+        return false;
     }
 
     private void PreviewTemplates(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -69,6 +130,7 @@ internal sealed class AssetEngineeringHandler
                     ImportEntityKind.Template,
                     dto.Key,
                     true));
+            ValidateTemplateIdentityCollision(dto, issues);
 
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags, dto.Bindings, ImportEntityKind.Template, dto.Key, package, issues);
@@ -93,17 +155,19 @@ internal sealed class AssetEngineeringHandler
                     ImportEntityKind.Equipment,
                     dto.Path,
                     true));
-
-            if (!string.IsNullOrWhiteSpace(dto.TemplateKey) && !TemplateExists(dto.TemplateKey, package))
-                issues.Add(new(
-                    "EQUIPMENT_TEMPLATE_NOT_FOUND",
-                    $"Template '{dto.TemplateKey}' referenced by equipment '{dto.Path}' was not found.",
-                    ImportEntityKind.Equipment,
-                    dto.Path,
-                    true));
+            ValidateEquipmentIdentityCollision(dto, issues);
+            ValidateTemplateReference(
+                dto.TemplateId,
+                dto.TemplateKey,
+                "EQUIPMENT",
+                ImportEntityKind.Equipment,
+                dto.Path,
+                package,
+                issues);
 
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags, dto.Bindings, ImportEntityKind.Equipment, dto.Path, package, issues);
+            ValidateEquipmentHomeReferences(dto, package, issues);
 
             EngineeringHandlerSupport.AddPreview(
                 items, ImportEntityKind.Equipment, dto.Path, ResolveExistingEquipment(dto) is not null, mode, issues);
@@ -126,14 +190,15 @@ internal sealed class AssetEngineeringHandler
                     ImportEntityKind.Dynamo,
                     dto.Key,
                     true));
-
-            if (!string.IsNullOrWhiteSpace(dto.TemplateKey) && !TemplateExists(dto.TemplateKey, package))
-                issues.Add(new(
-                    "DYNAMO_TEMPLATE_NOT_FOUND",
-                    $"Template '{dto.TemplateKey}' referenced by dynamo '{dto.Key}' was not found.",
-                    ImportEntityKind.Dynamo,
-                    dto.Key,
-                    true));
+            ValidateDynamoIdentityCollision(dto, issues);
+            ValidateTemplateReference(
+                dto.TemplateId,
+                dto.TemplateKey,
+                "DYNAMO",
+                ImportEntityKind.Dynamo,
+                dto.Key,
+                package,
+                issues);
 
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags, dto.Bindings, ImportEntityKind.Dynamo, dto.Key, package, issues);
@@ -163,16 +228,24 @@ internal sealed class AssetEngineeringHandler
                 element,
                 ImportEntityKind.Dynamo,
                 entityKey));
+            issues.AddRange(VisualAssetReferenceEngineeringValidation.Validate(
+                element,
+                ImportEntityKind.Dynamo,
+                entityKey,
+                package,
+                _visualAssets));
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags,
                 element.Bindings,
                 ImportEntityKind.Dynamo,
                 entityKey,
                 package,
-                issues);
+                issues,
+                element.Type);
             ValidateDynamoVisualElements(element.Children, entityKey, package, issues);
         }
     }
+
 
     private void ValidateDynamoParameterReferences(
         DynamoEngineeringDto dynamo,
@@ -227,10 +300,190 @@ internal sealed class AssetEngineeringHandler
         return false;
     }
 
-    private bool TemplateExists(string key, EngineeringPackage package) =>
-        _assets.FindTemplateByKey(key) is not null ||
+    private EquipmentEngineeringDto NormalizeEquipmentTemplateReference(EquipmentEngineeringDto dto)
+    {
+        if (!dto.TemplateId.HasValue && string.IsNullOrWhiteSpace(dto.TemplateKey))
+            return dto;
+
+        var template = dto.TemplateId.HasValue
+            ? _assets.FindTemplate(dto.TemplateId.Value)
+            : null;
+        template ??= string.IsNullOrWhiteSpace(dto.TemplateKey)
+            ? null
+            : _assets.FindTemplateByKey(dto.TemplateKey);
+        if (template?.Id is null || template.Id == Guid.Empty)
+            throw new InvalidOperationException(
+                $"Equipment '{dto.Path}' Template reference could not be normalized to a stable identity.");
+
+        return dto with
+        {
+            TemplateId = template.Id,
+            TemplateKey = template.Key
+        };
+    }
+
+    private DynamoEngineeringDto NormalizeDynamoTemplateReference(DynamoEngineeringDto dto)
+    {
+        if (!dto.TemplateId.HasValue && string.IsNullOrWhiteSpace(dto.TemplateKey))
+            return dto;
+
+        var template = dto.TemplateId.HasValue
+            ? _assets.FindTemplate(dto.TemplateId.Value)
+            : null;
+        template ??= string.IsNullOrWhiteSpace(dto.TemplateKey)
+            ? null
+            : _assets.FindTemplateByKey(dto.TemplateKey);
+        if (template?.Id is null || template.Id == Guid.Empty)
+            throw new InvalidOperationException(
+                $"Dynamo '{dto.Key}' Template reference could not be normalized to a stable identity.");
+
+        return dto with
+        {
+            TemplateId = template.Id,
+            TemplateKey = template.Key
+        };
+    }
+
+    private void ValidateTemplateIdentityCollision(
+        EquipmentTemplateEngineeringDto dto,
+        List<ImportIssue> issues)
+    {
+        if (!dto.Id.HasValue || dto.Id == Guid.Empty || string.IsNullOrWhiteSpace(dto.Key))
+            return;
+        var byKey = _assets.FindTemplateByKey(dto.Key);
+        if (byKey?.Id.HasValue == true && byKey.Id != dto.Id)
+            issues.Add(new(
+                "TEMPLATE_STABLE_ID_KEY_COLLISION",
+                $"Template key '{dto.Key}' already belongs to stable identity '{byKey.Id.Value:D}', not incoming identity '{dto.Id.Value:D}'.",
+                ImportEntityKind.Template,
+                dto.Key,
+                true));
+    }
+
+    private void ValidateEquipmentIdentityCollision(
+        EquipmentEngineeringDto dto,
+        List<ImportIssue> issues)
+    {
+        if (!dto.Id.HasValue || dto.Id == Guid.Empty || string.IsNullOrWhiteSpace(dto.Path))
+            return;
+        var byPath = _assets.FindEquipmentByPath(dto.Path);
+        if (byPath?.Id.HasValue == true && byPath.Id != dto.Id)
+            issues.Add(new(
+                "EQUIPMENT_STABLE_ID_PATH_COLLISION",
+                $"Equipment path '{dto.Path}' already belongs to stable identity '{byPath.Id.Value:D}', not incoming identity '{dto.Id.Value:D}'.",
+                ImportEntityKind.Equipment,
+                dto.Path,
+                true));
+    }
+
+    private void ValidateDynamoIdentityCollision(
+        DynamoEngineeringDto dto,
+        List<ImportIssue> issues)
+    {
+        if (!dto.Id.HasValue || dto.Id == Guid.Empty || string.IsNullOrWhiteSpace(dto.Key))
+            return;
+        var byKey = _assets.FindDynamoByKey(dto.Key);
+        if (byKey?.Id.HasValue == true && byKey.Id != dto.Id)
+            issues.Add(new(
+                "DYNAMO_STABLE_ID_KEY_COLLISION",
+                $"Dynamo key '{dto.Key}' already belongs to stable identity '{byKey.Id.Value:D}', not incoming identity '{dto.Id.Value:D}'.",
+                ImportEntityKind.Dynamo,
+                dto.Key,
+                true));
+    }
+
+    private void ValidateTemplateReference(
+        Guid? templateId,
+        string? templateKey,
+        string codePrefix,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        if (templateId == Guid.Empty)
+        {
+            issues.Add(new(
+                $"{codePrefix}_TEMPLATE_ID_INVALID",
+                $"{kind} '{entityKey}' declares an empty Template identity.",
+                kind,
+                entityKey,
+                true));
+            return;
+        }
+        if (!templateId.HasValue && string.IsNullOrWhiteSpace(templateKey))
+            return;
+
+        var byId = templateId.HasValue ? FindTemplate(templateId.Value, package) : null;
+        var byKey = !string.IsNullOrWhiteSpace(templateKey) ? FindTemplate(templateKey!, package) : null;
+
+        if (templateId.HasValue && byId is null)
+            issues.Add(new(
+                $"{codePrefix}_TEMPLATE_ID_NOT_FOUND",
+                $"Template identity '{templateId.Value:D}' referenced by {kind.ToString().ToLowerInvariant()} '{entityKey}' was not found.",
+                kind,
+                entityKey,
+                true));
+        if (!templateId.HasValue && !string.IsNullOrWhiteSpace(templateKey) && byKey is null)
+            issues.Add(new(
+                $"{codePrefix}_TEMPLATE_NOT_FOUND",
+                $"Template '{templateKey}' referenced by {kind.ToString().ToLowerInvariant()} '{entityKey}' was not found.",
+                kind,
+                entityKey,
+                true));
+        if (byId?.Id.HasValue == true &&
+            byKey?.Id.HasValue == true &&
+            byId.Id != byKey.Id)
+        {
+            issues.Add(new(
+                $"{codePrefix}_TEMPLATE_REFERENCE_MISMATCH",
+                $"Template identity '{templateId:D}' and alias '{templateKey}' resolve to different Templates for '{entityKey}'.",
+                kind,
+                entityKey,
+                true));
+        }
+    }
+
+    private void ValidateEquipmentHomeReferences(
+        EquipmentEngineeringDto dto,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        if (dto.LocationId.HasValue &&
+            _assets.FindLocation(dto.LocationId.Value) is null &&
+            !(package.Locations ?? Array.Empty<LocationEngineeringDto>()).Any(x => x.Id == dto.LocationId))
+            issues.Add(new("EQUIPMENT_LOCATION_NOT_FOUND", $"Location '{dto.LocationId:D}' was not found.", ImportEntityKind.Equipment, dto.Path, true));
+
+        foreach (var source in dto.SourceBindings ?? Array.Empty<EquipmentSourceBindingEngineeringDto>())
+        {
+            var prospective = (package.DataSources ?? Array.Empty<DataSourceEngineeringDto>()).Any(x => x.Id == source.DataSourceId);
+            if (_dataSources.Find(source.DataSourceId) is null && !prospective)
+                issues.Add(new("EQUIPMENT_SOURCE_DATASOURCE_NOT_FOUND", $"Data Source '{source.DataSourceId:D}' was not found.", ImportEntityKind.Equipment, dto.Path, true));
+        }
+
+        foreach (var capability in dto.Capabilities ?? Array.Empty<EquipmentCapabilityEngineeringDto>())
+        foreach (var binding in capability.Bindings ?? Array.Empty<CapabilityRoleBindingEngineeringDto>())
+        {
+            if (binding.TagId.HasValue &&
+                !_tags.TryGet(binding.TagId.Value, out _) &&
+                !package.Tags.Any(x => x.Id == binding.TagId))
+                issues.Add(new("EQUIPMENT_CAPABILITY_TAG_NOT_FOUND", $"Capability '{capability.Id}' role '{binding.Role}' references missing TAG '{binding.TagId:D}'.", ImportEntityKind.Equipment, dto.Path, true));
+            if (binding.CommandId.HasValue &&
+                _commands.Find(binding.CommandId.Value) is null &&
+                !(package.Commands ?? Array.Empty<CommandEngineeringDto>()).Any(x => x.Id == binding.CommandId))
+                issues.Add(new("EQUIPMENT_CAPABILITY_COMMAND_NOT_FOUND", $"Capability '{capability.Id}' role '{binding.Role}' references missing Command '{binding.CommandId:D}'.", ImportEntityKind.Equipment, dto.Path, true));
+        }
+    }
+
+    private EquipmentTemplateEngineeringDto? FindTemplate(Guid id, EngineeringPackage package) =>
+        _assets.FindTemplate(id) ??
         (package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>())
-            .Any(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(x => x.Id == id);
+
+    private EquipmentTemplateEngineeringDto? FindTemplate(string key, EngineeringPackage package) =>
+        _assets.FindTemplateByKey(key) ??
+        (package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>())
+            .FirstOrDefault(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
 
     private EquipmentTemplateEngineeringDto? ResolveExistingTemplate(EquipmentTemplateEngineeringDto dto)
     {

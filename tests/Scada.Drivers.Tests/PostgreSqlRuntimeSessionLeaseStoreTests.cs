@@ -1,0 +1,513 @@
+using Npgsql;
+using Scada.Persistence.PostgreSql;
+using Scada.Security.Authorization;
+
+namespace Scada.Drivers.Tests;
+
+[Collection("RuntimeSessionPostgreSql")]
+public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
+{
+    [Fact]
+    public async Task PostgreSqlLeaseStore_InitializationWaitsForInFlightLeaseMutation()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        const string initializerApplicationName = "Scada.Drivers.Tests.RuntimeSessionLeaseStore.InitWait";
+        var initializerConnectionString = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            ApplicationName = initializerApplicationName
+        }.ConnectionString;
+
+        await using var store = new PostgreSqlRuntimeSessionLeaseStore(initializerConnectionString);
+        await store.InitializeAsync();
+
+        await using var writerConnection = new NpgsqlConnection(connectionString);
+        await writerConnection.OpenAsync();
+        await using var writerTransaction = await writerConnection.BeginTransactionAsync();
+        await using (var acquire = new NpgsqlCommand(
+                         "SELECT pg_advisory_xact_lock(@lock_key);",
+                         writerConnection,
+                         writerTransaction))
+        {
+            acquire.Parameters.AddWithValue(
+                "lock_key",
+                NpgsqlTypes.NpgsqlDbType.Bigint,
+                4993446713136202566L);
+            await acquire.ExecuteNonQueryAsync();
+        }
+
+        await using (var holdAuthority = new NpgsqlCommand(
+                         "SELECT authority_revision FROM elitescada.runtime_session_authority_state WHERE singleton_id = 1 FOR UPDATE;",
+                         writerConnection,
+                         writerTransaction))
+            _ = await holdAuthority.ExecuteScalarAsync();
+
+        var initialization = store.InitializeAsync();
+        bool isWaitingForMutationLock;
+        try
+        {
+            isWaitingForMutationLock = await WaitForMutationLockWaitAsync(
+                connectionString,
+                initializerApplicationName,
+                TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            await writerTransaction.CommitAsync();
+        }
+
+        await initialization.WaitAsync(TimeSpan.FromSeconds(15));
+        Assert.True(isWaitingForMutationLock,
+            "Schema initialization must acquire the runtime-session mutation lock before executing DDL.");
+        Assert.True((await store.GetAuthorityStateAsync()).AuthorityRevision > 0);
+    }
+
+    [Fact]
+    public async Task PostgreSqlLeaseStore_ConvergesLogicalAdmissionAcrossInstances_AndUsesGenerationCas()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var subject = $"fnd03-session-{Guid.NewGuid():N}";
+        var client = "elitego-logical-client";
+        var runtime = Runtime("project-a", 7);
+        await using var first = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await using var second = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await first.InitializeAsync();
+        await second.InitializeAsync();
+
+        try
+        {
+            var admission = Admission(subject, client, runtime, TimeSpan.FromMinutes(1));
+            var concurrent = await Task.WhenAll(
+                first.AdmitAsync(admission),
+                second.AdmitAsync(admission));
+            var lease = Assert.Single(concurrent.DistinctBy(candidate => candidate.SessionId));
+            Assert.Equal(1, lease.Generation);
+
+            var renewed = await first.HeartbeatAsync(
+                lease.SessionId,
+                subject,
+                client,
+                runtime,
+                expectedGeneration: lease.Generation);
+            Assert.True(renewed.IsValid);
+            Assert.Equal(2, renewed.Lease!.Generation);
+
+            var staleTerminate = await second.TerminateAsync(
+                lease.SessionId,
+                subject,
+                client,
+                runtime,
+                expectedGeneration: lease.Generation);
+            Assert.False(staleTerminate.IsValid);
+            Assert.Equal("session-changed", staleTerminate.FailureCode);
+
+            var terminated = await second.TerminateAsync(
+                lease.SessionId,
+                subject,
+                client,
+                runtime,
+                expectedGeneration: renewed.Lease.Generation);
+            Assert.True(terminated.IsValid);
+        }
+        finally
+        {
+            await DeleteSubjectAsync(connectionString, subject);
+        }
+    }
+
+    [Fact]
+    public async Task PostgreSqlLeaseStore_ExpiresReAdmits_BindsIdentity_AndRollsBackPostMutationFailure()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var subject = $"fnd03-expiry-{Guid.NewGuid():N}";
+        var client = "web-logical-client";
+        var runtime = Runtime("project-a", 7);
+        await using var store = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await store.InitializeAsync();
+
+        try
+        {
+            var first = await store.AdmitAsync(Admission(subject, client, runtime, TimeSpan.FromMilliseconds(2)));
+            await Task.Delay(TimeSpan.FromMilliseconds(25));
+            var reAdmitted = await store.AdmitAsync(Admission(subject, client, runtime, TimeSpan.FromMinutes(1)));
+            Assert.NotEqual(first.SessionId, reAdmitted.SessionId);
+
+            var subjectMismatch = await store.ValidateAsync(reAdmitted.SessionId, "another-subject", runtime, client);
+            Assert.Equal("session-user-mismatch", subjectMismatch.FailureCode);
+            var clientMismatch = await store.ValidateAsync(reAdmitted.SessionId, subject, runtime, "other-client");
+            Assert.Equal("session-client-mismatch", clientMismatch.FailureCode);
+            var runtimeMismatch = await store.ValidateAsync(reAdmitted.SessionId, subject, Runtime("project-a", 8), client);
+            Assert.Equal("runtime-changed", runtimeMismatch.FailureCode);
+
+            var valid = await store.AdmitAsync(Admission(subject, client, runtime, TimeSpan.FromMinutes(1)));
+            // The changed runtime makes the store deactivate this logical identity first. The
+            // positive extreme duration overflows only while building the replacement lease,
+            // inside the already-open PostgreSQL transaction. Rollback must restore `valid`.
+            var postMutationFailure = new RuntimeSessionLeaseAdmission(
+                subject,
+                client,
+                "viewer",
+                Runtime("project-b", 9),
+                TimeSpan.MaxValue);
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => store.AdmitAsync(postMutationFailure));
+
+            var stillValid = await store.ValidateAsync(valid.SessionId, subject, runtime, client);
+            Assert.True(stillValid.IsValid);
+            Assert.Equal(valid.SessionId, stillValid.Lease!.SessionId);
+
+            // A second initialization is the migration-compatibility check: the versioned DDL is idempotent.
+            await store.InitializeAsync();
+            Assert.True((await store.ValidateAsync(valid.SessionId, subject, runtime, client)).IsValid);
+        }
+        finally
+        {
+            await DeleteSubjectAsync(connectionString, subject);
+        }
+    }
+
+    [Fact]
+    public async Task PostgreSqlLeaseStore_ReconnectDownscopesViewOnly_WithoutChangingLogicalIdentity()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var subject = $"fnd03-downscope-{Guid.NewGuid():N}";
+        const string client = "runtime-admission-client";
+        var runtime = Runtime("project-a", 7);
+        await using var store = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await store.InitializeAsync();
+
+        try
+        {
+            var interactive = await store.AdmitAsync(
+                Admission(subject, client, runtime, TimeSpan.FromMinutes(1), "interactive"));
+            var viewOnly = await store.AdmitAsync(
+                Admission(subject, client, runtime, TimeSpan.FromMinutes(1), "viewer"));
+            var changedBackToInteractive = await store.AdmitAsync(
+                Admission(subject, client, runtime, TimeSpan.FromMinutes(1), "interactive"));
+
+            Assert.Equal(interactive.SessionId, viewOnly.SessionId);
+            Assert.Equal("viewer", viewOnly.GrantedConnectionClass);
+            Assert.Equal(interactive.Generation + 1, viewOnly.Generation);
+            Assert.Equal(viewOnly.SessionId, changedBackToInteractive.SessionId);
+            Assert.Equal("viewer", changedBackToInteractive.GrantedConnectionClass);
+            Assert.Equal(viewOnly.Generation, changedBackToInteractive.Generation);
+        }
+        finally
+        {
+            await DeleteSubjectAsync(connectionString, subject);
+        }
+    }
+
+    [Fact]
+    public async Task PostgreSqlLeaseStore_AtomicallyEnforcesSharedSeatCapacityAcrossStoreInstances()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var subject = $"fnd03-capacity-{Guid.NewGuid():N}";
+        var runtime = Runtime("project-a", 7);
+        var capacity = new RuntimeSessionSeatCapacity(InteractiveSeats: 1, ViewOnlySeats: 0);
+        await using var first = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await using var second = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await first.InitializeAsync();
+        await second.InitializeAsync();
+
+        try
+        {
+            var authority = await first.GetAuthorityStateAsync();
+            Assert.False(authority.TransitionPending);
+
+            var sameIdentity = new RuntimeSessionLeaseCapacityAdmission(
+                Admission(subject, "logical-client", runtime, TimeSpan.FromMinutes(1), "interactive"),
+                capacity,
+                authority.AuthorityRevision);
+            var concurrent = await Task.WhenAll(
+                first.AdmitWithCapacityAsync(sameIdentity),
+                second.AdmitWithCapacityAsync(sameIdentity));
+            Assert.All(concurrent, result => Assert.True(result.IsAdmitted));
+            Assert.Single(concurrent.Select(result => result.Lease!.SessionId).Distinct());
+
+            var anotherIdentity = new RuntimeSessionLeaseCapacityAdmission(
+                Admission(subject, "other-client", runtime, TimeSpan.FromMinutes(1), "interactive"),
+                capacity,
+                authority.AuthorityRevision);
+            var rejected = await second.AdmitWithCapacityAsync(anotherIdentity);
+            Assert.False(rejected.IsAdmitted);
+            Assert.Equal(RuntimeSessionSeatReservationReasonCode.InteractiveQuotaExhaustedNoEligibleViewOnly, rejected.ReasonCode);
+        }
+        finally
+        {
+            await DeleteSubjectAsync(connectionString, subject);
+        }
+    }
+
+    [Fact]
+    public async Task PostgreSqlLeaseStore_AdoptsAndRenewsReplicaWhenPreviousLocalSeatExpired()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var subject = $"ha-rejoin-{Guid.NewGuid():N}";
+        const string client = "runtime-client";
+        const string cluster = "ha-rejoin";
+        var runtime = Runtime("project-a", 7);
+        await using var store = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await store.InitializeAsync();
+
+        try
+        {
+            var previous = await store.AdmitAsync(
+                Admission(subject, client, runtime, TimeSpan.FromMilliseconds(2)) with
+                {
+                    ServerNode = "node-b",
+                    ClusterId = cluster
+                });
+            await Task.Delay(TimeSpan.FromMilliseconds(25));
+            var now = DateTimeOffset.UtcNow;
+            Assert.True(previous.ExpiresAtUtc <= now);
+            var incoming = previous with
+            {
+                SessionId = Guid.NewGuid(),
+                Generation = 1,
+                IssuedAtUtc = now,
+                LastHeartbeatUtc = now,
+                ExpiresAtUtc = now.AddMinutes(1),
+                ServerNode = "node-a"
+            };
+
+            var adopted = await store.AdoptReplicatedAsync(
+                incoming, cluster, "node-a", runtime, incoming.AuthorityRevision);
+            Assert.True(adopted.Accepted, adopted.ReasonCode);
+            Assert.Equal(incoming.SessionId, adopted.Lease!.SessionId);
+
+            var renewed = incoming with
+            {
+                Generation = 2,
+                LastHeartbeatUtc = now.AddSeconds(2),
+                ExpiresAtUtc = now.AddMinutes(1).AddSeconds(2)
+            };
+            var updated = await store.AdoptReplicatedAsync(
+                renewed, cluster, "node-a", runtime, incoming.AuthorityRevision);
+            Assert.True(updated.Accepted, updated.ReasonCode);
+            Assert.Equal(incoming.SessionId, updated.Lease!.SessionId);
+            Assert.Equal(renewed.Generation, updated.Lease.Generation);
+
+            var conflicting = await store.AdoptReplicatedAsync(
+                incoming with { SessionId = Guid.NewGuid() },
+                cluster, "node-a", runtime, incoming.AuthorityRevision);
+            Assert.False(conflicting.Accepted);
+            Assert.Equal("replicated-logical-session-conflict", conflicting.ReasonCode);
+
+            var oldHeartbeat = await store.HeartbeatAsync(previous.SessionId, subject, client, runtime);
+            Assert.False(oldHeartbeat.IsValid);
+            Assert.Equal("session-not-found", oldHeartbeat.FailureCode);
+        }
+        finally
+        {
+            await DeleteSubjectAsync(connectionString, subject);
+        }
+    }
+
+    [Fact]
+    public async Task PostgreSqlLeaseStore_AdoptsReplicatedLeaseAsOneSeat_AndPersistsTombstone()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var suffix = Guid.NewGuid().ToString("N");
+        var subject = $"ha-adopt-{suffix}";
+        var client = "ha-logical-client";
+        var cluster = $"ha-cluster-{suffix}";
+        var runtime = Runtime("project-a", 7);
+        var now = DateTimeOffset.UtcNow;
+        await using var store = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await store.InitializeAsync();
+
+        var authority = await store.GetAuthorityStateAsync();
+        if (authority.TransitionPending) return;
+
+        var replicated = new RuntimeSessionLeaseState(
+            Guid.NewGuid(),
+            subject,
+            client,
+            "interactive",
+            Generation: 4,
+            IssuedAtUtc: now.AddMinutes(-1),
+            LastHeartbeatUtc: now.AddSeconds(-10),
+            ExpiresAtUtc: now.AddMinutes(5),
+            runtime,
+            ServerNode: "node-a",
+            ClusterId: cluster,
+            IsActive: true,
+            AuthorityRevision: authority.AuthorityRevision);
+
+        try
+        {
+            var adopted = await store.AdoptReplicatedAsync(
+                replicated,
+                cluster,
+                "node-a",
+                runtime,
+                authority.AuthorityRevision);
+            Assert.True(adopted.Accepted, adopted.ReasonCode);
+            Assert.Equal(replicated.SessionId, adopted.Lease!.SessionId);
+            Assert.Equal(replicated.Generation, adopted.Lease.Generation);
+
+            var capacity = new RuntimeSessionSeatCapacity(
+                InteractiveSeats: 1,
+                ViewOnlySeats: 0);
+            var resumed = await store.AdmitWithCapacityAsync(
+                new RuntimeSessionLeaseCapacityAdmission(
+                    Admission(
+                        subject,
+                        client,
+                        runtime,
+                        TimeSpan.FromMinutes(1),
+                        "interactive"),
+                    capacity,
+                    authority.AuthorityRevision));
+            Assert.True(resumed.IsAdmitted, resumed.ReasonCode.ToString());
+            Assert.Equal(replicated.SessionId, resumed.Lease!.SessionId);
+
+            var second = await store.AdmitWithCapacityAsync(
+                new RuntimeSessionLeaseCapacityAdmission(
+                    Admission(
+                        subject,
+                        "ha-second-client",
+                        runtime,
+                        TimeSpan.FromMinutes(1),
+                        "interactive"),
+                    capacity,
+                    authority.AuthorityRevision));
+            Assert.False(second.IsAdmitted);
+            Assert.Equal(
+                RuntimeSessionSeatReservationReasonCode.InteractiveQuotaExhaustedNoEligibleViewOnly,
+                second.ReasonCode);
+
+            var tombstone = new RuntimeSessionLeaseTombstoneState(
+                cluster,
+                subject,
+                client,
+                replicated.SessionId,
+                resumed.Lease.Generation + 1,
+                authority.AuthorityRevision,
+                replicated.IssuedAtUtc,
+                "node-a",
+                now,
+                "terminated");
+            var terminated = await store.ApplyReplicatedTombstoneAsync(
+                tombstone,
+                cluster,
+                "node-a");
+            Assert.True(terminated.Accepted, terminated.ReasonCode);
+
+            var resurrected = await store.AdoptReplicatedAsync(
+                replicated with
+                {
+                    Generation = tombstone.Generation + 1,
+                    LastHeartbeatUtc = now,
+                    ExpiresAtUtc = now.AddMinutes(5)
+                },
+                cluster,
+                "node-a",
+                runtime,
+                authority.AuthorityRevision);
+            Assert.False(resurrected.Accepted);
+            Assert.Equal("session-resurrection-rejected", resurrected.ReasonCode);
+
+            await using var dataSource = NpgsqlDataSource.Create(connectionString);
+            await using var tombstoneCount = dataSource.CreateCommand("""
+                SELECT count(*)
+                FROM elitescada.runtime_session_lease_tombstones
+                WHERE cluster_id = @cluster_id
+                  AND subject_id = @subject_id
+                  AND client_instance_id = @client_instance_id;
+                """);
+            tombstoneCount.Parameters.AddWithValue("cluster_id", cluster);
+            tombstoneCount.Parameters.AddWithValue("subject_id", subject);
+            tombstoneCount.Parameters.AddWithValue("client_instance_id", client);
+            Assert.Equal(1L, Convert.ToInt64(await tombstoneCount.ExecuteScalarAsync()));
+
+            await using var migration = dataSource.CreateCommand("""
+                SELECT count(*) FROM elitescada.schema_migrations
+                WHERE migration_key = '025_runtime_session_replication_adoption_v1';
+                """);
+            Assert.Equal(1L, Convert.ToInt64(await migration.ExecuteScalarAsync()));
+        }
+        finally
+        {
+            await DeleteSubjectAsync(connectionString, subject);
+        }
+    }
+
+    private static RuntimeSessionLeaseAdmission Admission(
+        string subject,
+        string client,
+        RuntimeSessionRuntimeIdentity runtime,
+        TimeSpan duration,
+        string grantedConnectionClass = "viewer") =>
+        new(subject, client, grantedConnectionClass, runtime, duration);
+
+    private static RuntimeSessionRuntimeIdentity Runtime(string project, long revision) =>
+        new("engineering", project, revision, DateTimeOffset.Parse("2026-09-15T00:00:00Z"));
+
+    private static async Task<bool> WaitForMutationLockWaitAsync(
+        string connectionString,
+        string applicationName,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        await using var monitor = new NpgsqlConnection(connectionString);
+        await monitor.OpenAsync();
+        await using var command = new NpgsqlCommand("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_stat_activity
+                WHERE datname = current_database()
+                  AND pid <> pg_backend_pid()
+                  AND application_name = @application_name
+                  AND state = 'active'
+                  AND wait_event_type = 'Lock'
+                  AND query LIKE '%pg_advisory_xact_lock%');
+            """, monitor);
+        command.Parameters.AddWithValue("application_name", applicationName);
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (await command.ExecuteScalarAsync() is true)
+                return true;
+            await Task.Delay(TimeSpan.FromMilliseconds(25));
+        }
+
+        return false;
+    }
+
+    private static async Task DeleteSubjectAsync(string connectionString, string subject)
+    {
+        await using var dataSource = NpgsqlDataSource.Create(connectionString);
+        await using (var tombstones = dataSource.CreateCommand(
+            "DELETE FROM elitescada.runtime_session_lease_tombstones WHERE subject_id = @subject_id;"))
+        {
+            tombstones.Parameters.AddWithValue("subject_id", subject);
+            await tombstones.ExecuteNonQueryAsync();
+        }
+
+        await using var command = dataSource.CreateCommand(
+            "DELETE FROM elitescada.runtime_session_leases WHERE subject_id = @subject_id;");
+        command.Parameters.AddWithValue("subject_id", subject);
+        await command.ExecuteNonQueryAsync();
+    }
+}

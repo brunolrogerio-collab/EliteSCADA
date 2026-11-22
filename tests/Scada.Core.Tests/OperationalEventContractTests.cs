@@ -117,6 +117,6 @@ public sealed class OperationalEventContractTests
         var roundTrip = Assert.Single(exported.OperationalEvents!);
         Assert.Equal(definition.Id, roundTrip.Id);
         Assert.Equal(definition.Key, roundTrip.Key);
-        Assert.Equal(16, exported.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, exported.SchemaVersion);
     }
 }

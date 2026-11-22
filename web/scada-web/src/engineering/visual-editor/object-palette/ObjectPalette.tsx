@@ -24,15 +24,31 @@ const DEFAULT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   rectangle: 'Rectangle',
   ellipse: 'Ellipse',
   line: 'Line',
+  arc: 'Arc',
+  bezier: 'Bezier curve',
   polygon: 'Polygon',
   text: 'Text',
   image: 'Image',
+  model3d: '3D model',
+  videoPlayer: 'Video',
+  pdfViewer: 'PDF viewer',
+  reportLauncher: 'Report launcher',
   valueDisplay: 'Value display',
   trend: 'Trend',
   alarmBrowser: 'Alarm Browser',
   eventBrowser: 'Event Browser',
   button: 'Button',
-  slider: 'Slider'
+  checkBox: 'CheckBox',
+  comboBox: 'ComboBox',
+  slider: 'Slider',
+  numericInput: 'Numeric input',
+  measurementDial: 'Measurement dial',
+  measurementRing: 'Measurement ring',
+  measurementBar: 'Graduated bar',
+  measurementThermometer: 'Vertical thermometer',
+  measurementBands: 'Range bands',
+  intelligenceSingleTargetDeviationV1: 'Measurements under one condition',
+  measurementTarget: 'Actual vs target'
 });
 
 export function ObjectPalette({
@@ -103,12 +119,23 @@ function paletteGlyph(item: VisualObjectPaletteItem): string {
     case 'polygon': return '⬠';
     case 'text': return 'T';
     case 'image': return '▧';
+    case 'model3d': return '◈';
+    case 'videoPlayer': return '▶';
+    case 'pdfViewer': return 'PDF';
+    case 'reportLauncher': return '▤';
     case 'valueDisplay': return '#';
     case 'trend': return '⌁';
     case 'alarmBrowser': return '⚠';
     case 'eventBrowser': return '≣';
     case 'button': return '▰';
     case 'slider': return '↔';
+    case 'numericInput': return '123';
+    case 'measurementDial': return '◔';
+    case 'measurementRing': return '◉';
+    case 'measurementBar': return '▰';
+    case 'measurementThermometer': return '↕';
+    case 'measurementBands': return '▥';
+    case 'measurementTarget': return '⊙';
     default: return '□';
   }
 }

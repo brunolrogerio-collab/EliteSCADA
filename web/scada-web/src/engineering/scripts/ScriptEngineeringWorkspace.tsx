@@ -16,6 +16,7 @@ import {
   extractDeleteDependencies,
   loadScriptEngineeringContext,
   previewScriptMutation,
+  validateServerScriptPython,
   ScriptEngineeringApiError
 } from './scriptEngineeringApi';
 import {
@@ -36,9 +37,11 @@ import {
   scopeLabel,
   scriptWorkspaceCopy
 } from './ScriptEngineeringWorkspace.copy';
+import { ScriptEntryPointsEditor } from './ScriptEntryPointsEditor';
 import { scriptPythonPreviewCopy } from './scriptPythonPreviewCopy';
 import type {
   ScriptDeleteDependency,
+  ScriptEngineeringDependencyKind,
   ScriptEngineeringContext,
   ScriptEngineeringDefinition,
   ScriptMutationPreviewToken
@@ -114,7 +117,9 @@ export function ScriptEngineeringWorkspace({
     [context, draft]
   );
   const mode = context && draft ? scriptMutationMode(draft, context.scripts) : 'CreateOnly';
-  const currentPackage = draft ? buildCanonicalScriptPackage(draft, context?.visualEventReferences ?? []) : null;
+  const currentPackage = draft
+    ? buildCanonicalScriptPackage(draft, context?.visualEventReferences ?? [], undefined, context?.workspace.authorityPolicyReference)
+    : null;
   const previewCurrent = Boolean(currentPackage && previewToken && previewTokenMatches(previewToken, currentPackage, mode));
   const localIssues = draft ? validateScriptDraft(draft) : [];
   const pythonDiagnosticSnapshot = draft && localPythonDiagnostics?.scriptId === draft.id
@@ -182,26 +187,26 @@ export function ScriptEngineeringWorkspace({
     setNotice(null);
     setDeleteDependencies([]);
     try {
-      if (draft.scope === 'clientVisual') {
-        let compiled: PythonEditorDiagnosticSnapshot;
-        try {
-          compiled = await compileEngineeringClientVisualPython({
-            scriptId: draft.id,
-            source: draft.source,
-            handlerNames: pythonHandlerNames
-          });
-        } catch {
-          setPreviewToken(null);
-          setError(pythonCopy.compileUnavailable);
-          return;
-        }
+      let compiled: PythonEditorDiagnosticSnapshot;
+      try {
+        compiled = draft.scope === 'clientVisual'
+          ? await compileEngineeringClientVisualPython({
+              scriptId: draft.id,
+              source: draft.source,
+              handlerNames: pythonHandlerNames
+            })
+          : await validateServerScriptPython(draft.source);
+      } catch {
+        setPreviewToken(null);
+        setError(pythonCopy.compileUnavailable);
+        return;
+      }
 
-        setLocalPythonDiagnostics({ scriptId: draft.id, snapshot: compiled });
-        if (hasBlockingPythonDiagnostics(compiled.diagnostics)) {
-          setPreviewToken(null);
-          setNotice(pythonCopy.compileFailed);
-          return;
-        }
+      setLocalPythonDiagnostics({ scriptId: draft.id, snapshot: compiled });
+      if (hasBlockingPythonDiagnostics(compiled.diagnostics)) {
+        setPreviewToken(null);
+        setNotice(pythonCopy.compileFailed);
+        return;
       }
 
       const token = await previewScriptMutation(draft, context.visualEventReferences, mode);
@@ -296,7 +301,7 @@ export function ScriptEngineeringWorkspace({
         <div>
           <div className="script-workspace__eyebrow">PYTHON-WAVE-06</div>
           <h2>{copy.title}</h2>
-          <p>{copy.subtitle}</p>
+          <details className="script-workspace__help"><summary>{copy.help}</summary><p>{copy.subtitle}</p></details>
         </div>
         <div className="script-workspace__status">
           <span className="script-badge">{copy.working} v{context?.workspace.changeVersion ?? '—'}</span>
@@ -355,8 +360,8 @@ export function ScriptEngineeringWorkspace({
               </div>
 
               <div className="script-grid script-grid--two">
-                <label>{copy.name}<input value={draft.name} onChange={event => patchDraft({ name: event.target.value })} /></label>
-                <label>{copy.path}<input value={draft.path} onChange={event => patchDraft({ path: event.target.value })} /></label>
+                <label>{copy.name}<input aria-description={copy.nameHint} value={draft.name} onChange={event => patchDraft({ name: event.target.value })} /><small aria-hidden="true">{copy.nameHint}</small></label>
+                <label>{copy.path}<input aria-description={copy.pathHint} value={draft.path} onChange={event => patchDraft({ path: event.target.value })} /><small aria-hidden="true">{copy.pathHint}</small></label>
                 <label>{copy.scope}
                   <select value={draft.scope} onChange={event => patchDraft({ scope: event.target.value as ScriptEngineeringDefinition['scope'] })}>
                     {SCRIPT_SCOPES.map(scope => <option key={scope} value={scope}>{scopeLabel(scope, locale)}</option>)}
@@ -380,6 +385,16 @@ export function ScriptEngineeringWorkspace({
                   locale={locale}
                   diagnostics={pythonDiagnostics}
                   onSourceChange={source => patchDraft({ source })}
+                  onAssistantEntryPointNeeded={handlerName => {
+                    const exists = draft.entryPoints.some(entry => entry.eventKind === 'initialize' && entry.handlerName === handlerName);
+                    if (!exists) patchDraft({ entryPoints: [...draft.entryPoints, {
+                      eventKind: 'initialize',
+                      handlerName,
+                      targetReference: null,
+                      tagReference: null,
+                      timerIntervalMs: null
+                    }] });
+                  }}
                 />
                 <small className="script-muted">{copy.sourceHint}</small>
               </div>
@@ -413,27 +428,74 @@ export function ScriptEngineeringWorkspace({
                 </div>
               )}
 
-              <EditorCollectionHeader title={copy.entryPoints} hint={copy.entryPointsHint} action={copy.addEntryPoint} onAdd={() => patchDraft({ entryPoints: [...draft.entryPoints, { eventKind: 'initialize', handlerName: 'initialize', targetReference: null }] })} />
-              <div className="script-rows">
-                {draft.entryPoints.map((entry, index) => (
-                  <div className="script-row script-row--entry" key={`entry-${index}`}>
-                    <label>{copy.event}<select value={entry.eventKind} onChange={event => patchDraft({ entryPoints: draft.entryPoints.map((item, itemIndex) => itemIndex === index ? { ...item, eventKind: event.target.value as typeof entry.eventKind } : item) })}>{SCRIPT_EVENT_KINDS.map(kind => <option key={kind} value={kind}>{eventKindLabel(kind, locale)}</option>)}</select></label>
-                    <label>{copy.handler}<input value={entry.handlerName} onChange={event => patchDraft({ entryPoints: draft.entryPoints.map((item, itemIndex) => itemIndex === index ? { ...item, handlerName: event.target.value } : item) })} /></label>
-                    <label>{copy.target}<input value={entry.targetReference ?? ''} onChange={event => patchDraft({ entryPoints: draft.entryPoints.map((item, itemIndex) => itemIndex === index ? { ...item, targetReference: event.target.value || null } : item) })} /></label>
-                    <button type="button" className="danger ghost" onClick={() => patchDraft({ entryPoints: draft.entryPoints.filter((_, itemIndex) => itemIndex !== index) })}>{copy.remove}</button>
-                  </div>
-                ))}
-              </div>
+              <EditorCollectionHeader
+                title={copy.entryPoints}
+                hint={copy.entryPointsHint}
+                action={copy.addEntryPoint}
+                onAdd={() => patchDraft({
+                  entryPoints: [
+                    ...draft.entryPoints,
+                    {
+                      eventKind: 'initialize',
+                      handlerName: 'initialize',
+                      targetReference: null,
+                      tagReference: null,
+                      timerIntervalMs: null
+                    }
+                  ]
+                })}
+              />
+              <ScriptEntryPointsEditor
+                locale={locale}
+                scope={draft.scope}
+                entries={draft.entryPoints}
+                disabled={busy}
+                onChange={entryPoints => patchDraft({ entryPoints })}
+              />
 
               <EditorCollectionHeader title={copy.dependencies} hint={copy.dependenciesHint} action={copy.addDependency} onAdd={() => patchDraft({ dependencies: [...draft.dependencies, { kind: 'script', stableReference: '' }] })} />
               <div className="script-rows">
-                {draft.dependencies.map((dependency, index) => (
-                  <div className="script-row script-row--dependency" key={`dependency-${index}`}>
-                    <label>{copy.kind}<select value={dependency.kind} onChange={event => patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index ? { ...item, kind: event.target.value as typeof dependency.kind } : item) })}>{SCRIPT_DEPENDENCY_KINDS.map(kind => <option key={kind} value={kind}>{dependencyKindLabel(kind, locale)}</option>)}</select></label>
-                    <label>{copy.stableReference}<input value={dependency.stableReference} onChange={event => patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index ? { ...item, stableReference: event.target.value } : item) })} /></label>
+                {draft.dependencies.map((dependency, index) => {
+                  const allTags = context?.tags ?? [];
+                  const dependencyTags = dependency.kind === 'serverMemoryTag'
+                    ? allTags.filter(tag => context?.dataSources?.find(dataSource => dataSource.id === tag.dataSourceId)?.driver === 'builtin.memory.server')
+                    : allTags;
+                  const selectableTags = dependencyTags.filter(tag => Boolean(tag.id));
+                  // Only the stable TAG identity may select a catalog entry. A matching
+                  // readable path is not proof of identity and could hide drift/reuse.
+                  const selectedTag = allTags.find(tag => tag.id === dependency.tagBinding?.expected.tagId ||
+                    tag.id === dependency.stableReference);
+                  const selectedOption = selectableTags.some(tag => tag.id === selectedTag?.id) ? selectedTag : undefined;
+                  const tagKind = isTagDependencyKind(dependency.kind);
+                  return (
+                    <div className={`script-row script-row--dependency${tagKind ? ' script-row--dependency-tag' : ''}`} key={`dependency-${index}`}>
+                    <label>{copy.kind}<select value={dependency.kind} onChange={event => {
+                      const kind = event.target.value as typeof dependency.kind;
+                      patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index
+                        ? { ...item, kind, tagBinding: isTagDependencyKind(kind) ? item.tagBinding : null }
+                        : item) });
+                    }}>{SCRIPT_DEPENDENCY_KINDS.map(kind => <option key={kind} value={kind}>{dependencyKindLabel(kind, locale)}</option>)}</select></label>
+                    {tagKind && selectableTags.length > 0
+                      ? <>
+                        <label>{copy.tagPath}<select value={selectedOption?.id ?? ''} onChange={event => {
+                          const tag = selectableTags.find(item => item.id === event.target.value);
+                          if (!tag?.id) return;
+                          patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index
+                            ? { ...item, stableReference: tag.id!, tagBinding: { version: 1, reference: tag.path, expected: { tagId: tag.id!, selector: null } } }
+                            : item) });
+                        }}>
+                          <option value="">{copy.selectTag}</option>
+                          {selectableTags.map(tag => <option key={tag.id} value={tag.id}>{tag.path}</option>)}
+                        </select></label>
+                        <span className="script-dependency-identity" title={selectedOption?.id ?? dependency.stableReference}>
+                          {selectedOption ? copy.identityManaged : `${copy.unresolvedTagReference}: ${dependency.stableReference || '—'}`}
+                        </span>
+                      </>
+                      : <label>{copy.stableReference}<input value={dependency.stableReference} onChange={event => patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index ? { ...item, stableReference: event.target.value, tagBinding: null } : item) })} /></label>}
                     <button type="button" className="danger ghost" onClick={() => patchDraft({ dependencies: draft.dependencies.filter((_, itemIndex) => itemIndex !== index) })}>{copy.remove}</button>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="script-preserved">
@@ -483,6 +545,10 @@ export function ScriptEngineeringWorkspace({
       </div>
     </section>
   );
+}
+
+function isTagDependencyKind(kind: ScriptEngineeringDependencyKind): boolean {
+  return kind === 'tag' || kind === 'clientMemoryTag' || kind === 'serverMemoryTag';
 }
 
 function EditorCollectionHeader({ title, hint, action, onAdd }: { title: string; hint: string; action: string; onAdd: () => void }) {

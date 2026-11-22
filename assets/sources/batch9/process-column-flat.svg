@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="42" y="16" width="44" height="96" rx="18" fill="#E5E7EB" stroke="#374151" stroke-width="6" data-elitescada-slot="body" />
+  <line x1="46" y1="38" x2="82" y2="38" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="tray" />
+  <line x1="46" y1="55" x2="82" y2="55" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="tray" />
+  <line x1="46" y1="72" x2="82" y2="72" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="tray" />
+  <line x1="46" y1="89" x2="82" y2="89" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="tray" />
+</svg>

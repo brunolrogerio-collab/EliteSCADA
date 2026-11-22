@@ -133,6 +133,27 @@ async function installUnlockedLibraryContract(page: Page) {
   await page.route(`**/api/engineering/libraries/${libraryId}/resources`, route => route.fulfill({
     json: { library: descriptor, resources: libraryResources }
   }));
+  await page.route(`**/api/engineering/libraries/${libraryId}/resources/${dynamoId}/preview`, route => route.fulfill({
+    json: {
+      library: descriptor,
+      resource: libraryResources[1],
+      payload: {
+        id: dynamoId,
+        key: 'dynamo.pump',
+        name: 'Pump Dynamo',
+        properties: { category: 'pump', defaultWidth: '132', defaultHeight: '92', libraryVersion: '2.1.0' },
+        parameters: [{ key: 'running', kind: 'TagReference', required: false, version: 1 }],
+        elements: [{
+          id: '43100000-0000-0000-0000-000000000001',
+          key: 'body',
+          type: 'core.ellipse',
+          properties: { x: 20, y: 12, width: 68, height: 68, fillColor: '#D1D5DB', strokeColor: '#374151', strokeWidth: 3 }
+        }]
+      },
+      dynamos: [],
+      workingChanged: false
+    }
+  }));
   await page.route(`**/api/engineering/libraries/${libraryId}/resources/${screenId}/incorporate`, async route => {
     incorporateRequests++;
     expect(route.request().headers()['x-elitescada-workspace-version']).toBe('4');
@@ -185,7 +206,7 @@ test('library association stays non-mutating, selective use advances Working, an
   await expect(page.getByTestId('reusable-library-workspace')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Bibliotecas reutilizáveis' })).toBeVisible();
   await expect(page.getByTestId('reusable-library-boundary')).toContainText('Associar não é importar');
-  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Working: v4');
+  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Em edição: v4');
 
   await page.getByTestId('reusable-library-associate-input').setInputFiles({
     name: 'process.escadalib',
@@ -193,17 +214,44 @@ test('library association stays non-mutating, selective use advances Working, an
     buffer: Buffer.from('catalog-only-e2e')
   });
 
-  await expect(page.getByRole('status')).toContainText('Biblioteca associada sem alterar o Working.');
-  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Working: v4');
+  await expect(page.getByRole('status')).toContainText('Biblioteca associada. Você já pode explorar os recursos.');
+  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Em edição: v4');
   expect(contract.changeVersion).toBe(4);
   expect(contract.dirty).toBe(false);
+
+  const unifiedCatalog = page.getByTestId('library-catalog-browser');
+  await expect(unifiedCatalog).toBeVisible();
+  await unifiedCatalog.getByTestId('library-catalog-origin-filter').selectOption('associated');
+  await expect(unifiedCatalog.getByTestId('library-catalog-entry')).toHaveCount(2);
+  const catalogPump = unifiedCatalog.getByTestId('library-catalog-entry').filter({ hasText: 'Pump Dynamo' });
+  await catalogPump.click();
+  const catalogUse = unifiedCatalog.getByTestId('library-catalog-use');
+  await expect(catalogUse).toBeDisabled();
+  await unifiedCatalog.getByTestId('library-catalog-load-preview').click();
+  await expect(unifiedCatalog.getByTestId('library-catalog-associated-preview')).toBeVisible();
+  await expect(catalogUse).toBeEnabled();
+  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Em edição: v4');
+  expect(contract.changeVersion).toBe(4);
+  expect(contract.dirty).toBe(false);
+  expect(contract.incorporateRequests).toBe(0);
+
+  const pump = page.getByTestId('reusable-library-resource').filter({ hasText: 'Pump Dynamo' });
+  await pump.getByTestId('reusable-library-preview').click();
+  const visualPreview = page.getByTestId('reusable-library-visual-preview');
+  await expect(visualPreview).toBeVisible();
+  await expect(visualPreview).toContainText('Process Library · v2.1.0');
+  await expect(page.getByTestId('reusable-library-canonical-preview').locator('[data-object-id="43100000-0000-0000-0000-000000000001"]')).toBeVisible();
+  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Em edição: v4');
+  expect(contract.changeVersion).toBe(4);
+  expect(contract.dirty).toBe(false);
+  expect(contract.incorporateRequests).toBe(0);
 
   const operator = page.getByTestId('reusable-library-resource').filter({ hasText: 'Operator Overview' });
   await expect(operator).toContainText('Dependências: 1');
   await expect(operator).toContainText(dynamoId);
   await operator.getByTestId('reusable-library-use').click();
 
-  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Working: v5');
+  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Em edição: v5');
   await expect(page.getByText('Alterações não salvas')).toBeVisible();
   expect(contract.incorporateRequests).toBe(1);
   expect(contract.changeVersion).toBe(5);
@@ -222,7 +270,7 @@ test('library association stays non-mutating, selective use advances Working, an
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('Process-Library.escadalib');
   expect(contract.exportRequest).toMatchObject({
-    name: 'EliteSCADA Library',
+    name: 'SCADIVO Library',
     version: '1.0.0',
     resources: [{ kind: 'screen', resourceId: screenId }]
   });
@@ -231,7 +279,7 @@ test('library association stays non-mutating, selective use advances Working, an
   await expect(page.getByRole('status')).toContainText('Biblioteca desassociada.');
   await expect(page.getByText('Nenhuma biblioteca reutilizável está associada.')).toBeVisible();
   await expect(provenance).toContainText('Operator Overview');
-  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Working: v5');
+  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Em edição: v5');
 });
 
 test('direct Libraries route stays hidden and never calls library APIs while Engineering Lock is active', async ({ page }) => {

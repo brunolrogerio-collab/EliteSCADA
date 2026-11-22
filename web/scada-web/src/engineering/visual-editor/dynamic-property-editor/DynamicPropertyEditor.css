@@ -94,6 +94,17 @@
   color: var(--danger-color, #b42318);
 }
 
+.eng-shell .dynamic-property-editor {
+  border-color:var(--eng-border,#283544);
+  background:var(--eng-panel,#121922);
+  color:var(--eng-text,#e8edf3);
+}
+.eng-shell .dynamic-property-editor__panel,.eng-shell .dynamic-property-editor__analog-fill {
+  border-color:var(--eng-border,#283544);
+  background:var(--eng-panel-soft,#17212c);
+}
+.eng-shell .dynamic-property-editor > header span,.eng-shell .dynamic-property-editor label > span,.eng-shell .dynamic-property-editor__panel > p,.eng-shell .dynamic-property-editor__warning { color:var(--eng-muted,#a7b4c2); }
+
 @media (max-width: 900px) {
   .dynamic-property-editor__grid,
   .dynamic-property-editor__insert {

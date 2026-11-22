@@ -11,6 +11,7 @@ using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.ProjectPackages;
+using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
 
@@ -22,7 +23,9 @@ public sealed class EngineeringLockExchangeTests
     public void LegacyV16Json_WithoutEngineeringLock_ParsesAsUnconfiguredUnlocked()
     {
         using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
-        var exchange = CreateExchange(new InMemoryTagRegistry(), alarms, new InMemoryEngineeringLockRegistry());
+        var registry = new InMemoryEngineeringLockRegistry();
+        registry.Replace(new EngineeringLockSecretService().Configure("legacy-restore-secret", locked: true));
+        var exchange = CreateExchange(new InMemoryTagRegistry(), alarms, registry);
         var json = """
         {
           "schema": "scada.engineering",
@@ -38,6 +41,8 @@ public sealed class EngineeringLockExchangeTests
         Assert.NotNull(package.EngineeringLock);
         Assert.False(package.EngineeringLock!.Locked);
         Assert.Null(package.EngineeringLock.Verifier);
+        Assert.Empty(exchange.Apply(package, ImportMode.CreateAndUpdate).Issues);
+        Assert.Equal(EngineeringLockContract.UnconfiguredUnlocked, registry.Snapshot());
     }
 
     [Fact]
@@ -58,6 +63,68 @@ public sealed class EngineeringLockExchangeTests
         Assert.True(parsed.EngineeringLock!.Locked);
         Assert.True(secrets.Verify(parsed.EngineeringLock, secret));
     }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void PartialScriptJsonImport_PreservesConfiguredEngineeringLock(bool locked, bool explicitNull)
+    {
+        var registry = new InMemoryEngineeringLockRegistry();
+        var configured = new EngineeringLockSecretService().Configure("script-import-secret", locked);
+        registry.Replace(configured);
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        IEngineeringExchangeService exchange = CreateExchange(new InMemoryTagRegistry(), alarms, registry);
+        var scriptId = Guid.NewGuid();
+        var seed = exchange.ExportPackage() with
+        {
+            Scripts = [new ScriptEngineeringDefinition(scriptId, "scripts/pump", "Pump",
+                ScriptEngineeringScope.Server, "current = 20")],
+            ResourceOrganizations =
+            [
+                new EngineeringResourceOrganizationEntryEngineeringDto(
+                    "tags",
+                    new EngineeringResourceOrganizationEngineeringDto(
+                        1, [new EngineeringResourceFolderEngineeringDto("pumps", "Pumps")],
+                        new Dictionary<string, string>()))
+            ]
+        };
+        Assert.Empty(exchange.Apply(seed, ImportMode.CreateAndUpdate).Issues);
+
+        var lockField = explicitNull ? "\"EngineeringLock\": null," : string.Empty;
+        var json = $$"""
+        {
+          "schema": "scada.engineering",
+          "schemaVersion": 29,
+          "exportedAt": "2026-11-19T00:00:00Z",
+          "tags": [],
+          "alarms": [],
+          {{lockField}}
+          "scripts": [{
+            "id": "{{scriptId:D}}",
+            "path": "scripts/pump",
+            "name": "Pump",
+            "scope": "server",
+            "source": "current = 30",
+            "enabled": true,
+            "language": "python",
+            "languageVersion": "3"
+          }]
+        }
+        """;
+
+        var partial = exchange.ParseJsonForImport(json);
+        Assert.Null(partial.EngineeringLock);
+        Assert.True(exchange.Preview(partial, ImportMode.UpdateExisting).CanApply);
+        Assert.Empty(exchange.Apply(partial, ImportMode.UpdateExisting).Issues);
+
+        var exported = exchange.ExportPackage();
+        Assert.Equal("current = 30", Assert.Single(exported.Scripts!).Source);
+        Assert.Equal("pumps", Assert.Single(Assert.Single(exported.ResourceOrganizations!).Organization.Folders).Id);
+        Assert.Equal(configured, exported.EngineeringLock);
+    }
+
 
     [Fact]
     public void PartialCsvPackages_PreserveCurrentEngineeringLockState()

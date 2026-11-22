@@ -1,4 +1,5 @@
 import type { TagValueReferenceEngineering } from '../types';
+import type { DataSourceEngineering, TagEngineering } from '../types';
 
 export type ScriptEngineeringScope = 'clientVisual' | 'server';
 
@@ -33,6 +34,13 @@ export type ScriptEngineeringEntryPoint = {
 export type ScriptEngineeringDependency = {
   kind: ScriptEngineeringDependencyKind;
   stableReference: string;
+  tagBinding?: ScriptTagReferenceBinding | null;
+};
+
+export type ScriptTagReferenceBinding = {
+  version: number;
+  reference: string;
+  expected: TagValueReferenceEngineering;
 };
 
 export type ScriptEngineeringDefinition = {
@@ -54,6 +62,8 @@ export type ScriptVisualEventReference = {
   visualDefinitionId: string;
   visualObjectId?: string | null;
   eventKind: ScriptEngineeringEventKind;
+  /** Defaults to click when reading references authored before interaction subtypes existed. */
+  eventKey?: string | null;
   scriptId: string;
   entryPoint: string;
   targetReference?: string | null;
@@ -67,6 +77,15 @@ export type ScriptEngineeringWorkspaceDescriptor = {
   baseRevision?: number | null;
   isDirty: boolean;
   changeVersion: number;
+  authorityPolicyReference?: AuthorityPolicyReferenceEngineering | null;
+};
+
+export type AuthorityPolicyReferenceEngineering = {
+  contract: string;
+  contractVersion: number;
+  policyVersion: number;
+  roleIds: string[];
+  scopeIds: string[];
 };
 
 export type ScriptImportMode = 'CreateOnly' | 'UpdateExisting';
@@ -121,7 +140,7 @@ export type ScriptDeleteResult = {
 
 export type CanonicalScriptPackage = {
   schema: 'scada.engineering';
-  schemaVersion: 10;
+  schemaVersion: 29;
   exportedAt: string;
   tags: never[];
   alarms: never[];
@@ -140,6 +159,7 @@ export type CanonicalScriptPackage = {
     metadata: Record<string, string>;
   }>;
   scriptVisualEventReferences: ScriptVisualEventReference[];
+  authorityPolicyReference?: AuthorityPolicyReferenceEngineering | null;
 };
 
 export type ScriptMutationPreviewToken = {
@@ -154,4 +174,6 @@ export type ScriptEngineeringContext = {
   workspace: ScriptEngineeringWorkspaceDescriptor;
   scripts: ScriptEngineeringDefinition[];
   visualEventReferences: ScriptVisualEventReference[];
+  tags?: TagEngineering[];
+  dataSources?: DataSourceEngineering[];
 };

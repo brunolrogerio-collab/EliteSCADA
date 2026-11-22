@@ -1,9 +1,12 @@
 import React, { type CSSProperties } from 'react';
-import { visualAssetContentUrl } from '../api';
+import { MediaPlayer } from './MediaPlayer';
+import { visualAssetContentUrl } from '../visualAssetContentUrl';
 import type { EngineeringLocale } from '../i18n';
 import type {
   BindingEngineering,
   DynamoEngineering,
+  EquipmentEngineering,
+  TemplateEngineering,
   VisualElementEngineering,
   VisualEngineeringPropertyValue
 } from '../types';
@@ -13,6 +16,8 @@ import {
   getBuiltinVisualObjectSchema,
   supportsAnalogFill,
   VISUAL_PROPERTY_KEYS,
+  runtimeReportHref,
+  type BuiltinVisualObjectType,
   type VisualObjectPropertySchema,
   type VisualPropertyValue
 } from '../../visual-runtime';
@@ -32,7 +37,24 @@ import {
 } from './visualEditorLiveValues';
 import { resolveVisualDynamicState } from './visualDynamicRuntime';
 import { SliderVisualElement, type SliderTagWrite } from './SliderVisualElement';
+import { NumericInputVisualElement } from './NumericInputVisualElement';
+import { CheckBoxVisualElement, ComboBoxVisualElement } from './ControlVisualElements';
+import { MeasurementVisualElement } from './MeasurementVisualElement';
+import { IntelligencePerformanceVisualElement } from './IntelligencePerformanceVisualElement';
+import { IntelligenceSingleTargetVisualElement } from './IntelligenceSingleTargetVisualElement';
+import { IntelligenceCurrentFrequencyVisualElement } from './IntelligenceCurrentFrequencyVisualElement';
+import { IntelligenceExperimentalJointVisualElement } from './IntelligenceExperimentalJointVisualElement';
+import { IntelligenceContextEligibilityVisualElement } from './IntelligenceContextEligibilityVisualElement';
+import { IntelligenceReferenceEvidenceVisualElement } from './IntelligenceReferenceEvidenceVisualElement';
+import { IntelligenceProfileCoverageVisualElement } from './IntelligenceProfileCoverageVisualElement';
+import { IntelligenceProcessStageCoverageVisualElement } from './IntelligenceProcessStageCoverageVisualElement';
+import { IntelligenceProcessStageInsightsVisualElement } from './IntelligenceProcessStageInsightsVisualElement';
+import { IntelligenceContextualDeviationVisualElement } from './IntelligenceContextualDeviationVisualElement';
+import './CanonicalVisualInteraction.css';
 import { TrendVisualElement } from './TrendVisualElement';
+import { SvgSymbolVisualElement } from './SvgSymbolVisualElement';
+import { Model3dVisualElement } from './Model3dVisualElement';
+import { projectDynamoRuntimeElements, resolveDynamoRuntimeEquipmentPath } from '../../runtime/visual-navigation/dynamoRuntimeBindingProjection';
 import {
   cssStrokeStyle,
   effectiveStrokeWidth,
@@ -53,31 +75,56 @@ export type CanonicalVisualRendererProps = {
   emptyLabel: string;
   locale?: EngineeringLocale;
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
+  equipmentDefinitions?: readonly EquipmentEngineering[] | null;
+  templateDefinitions?: readonly TemplateEngineering[] | null;
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   onTagWrite?: SliderTagWrite;
   visualAssetUrl?: VisualAssetUrlResolver;
   showTechnicalFallbackText?: boolean;
+  liveBindings?: boolean;
+  bindingSamples?: ReadonlyMap<string, VisualLiveScalarSample>;
+  operatorTimeRangeControls?: boolean;
+  historicalQueriesEnabled?: boolean;
+  processValueWriteEnabled?: boolean;
+  alarmShelveEnabled?: boolean;
 };
 
 const builtinVisualTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
 const emptyElements = Object.freeze([]) as readonly VisualElementEngineering[];
+const measurementTypes = new Set<string>([
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementDial,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementRing,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementBar,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementBands,
+  BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget
+]);
 
 export function CanonicalVisualRenderer({
   elements,
   emptyLabel,
   locale = 'pt-BR',
   dynamoDefinitions,
+  equipmentDefinitions,
+  templateDefinitions,
   onVisualEvent,
   onTagWrite,
   visualAssetUrl = visualAssetContentUrl,
-  showTechnicalFallbackText = true
+  showTechnicalFallbackText = true,
+  liveBindings = true,
+  bindingSamples,
+  operatorTimeRangeControls = false,
+  historicalQueriesEnabled = true,
+  processValueWriteEnabled = false,
+  alarmShelveEnabled = false
 }: CanonicalVisualRendererProps) {
   const rootElements = elements ?? emptyElements;
   const runtimeBindingElements = React.useMemo(
-    () => collectRuntimeBindingElements(rootElements, dynamoDefinitions),
-    [rootElements, dynamoDefinitions]
+    () => collectRuntimeBindingElements(rootElements, dynamoDefinitions, equipmentDefinitions, templateDefinitions),
+    [rootElements, dynamoDefinitions, equipmentDefinitions, templateDefinitions]
   );
-  const liveSamples = useVisualBindingSamples(runtimeBindingElements);
+  const liveSamples = useVisualBindingSamples(runtimeBindingElements, liveBindings && bindingSamples === undefined);
+  const resolvedSamples = bindingSamples ?? liveSamples;
   if (rootElements.length === 0) return <div className="visual-editor-renderer-empty">{emptyLabel}</div>;
 
   return <div className="visual-editor-renderer-stage" data-testid="visual-editor-canonical-renderer">
@@ -85,12 +132,18 @@ export function CanonicalVisualRenderer({
       key={element.id ?? `${element.key}-${index}`}
       element={element}
       locale={locale}
-      liveSamples={liveSamples}
+      liveSamples={resolvedSamples}
       dynamoDefinitions={dynamoDefinitions}
+      equipmentDefinitions={equipmentDefinitions}
+      templateDefinitions={templateDefinitions}
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
       showTechnicalFallbackText={showTechnicalFallbackText}
+      operatorTimeRangeControls={operatorTimeRangeControls}
+      historicalQueriesEnabled={historicalQueriesEnabled}
+      processValueWriteEnabled={processValueWriteEnabled}
+      alarmShelveEnabled={alarmShelveEnabled}
     />)}
   </div>;
 }
@@ -100,32 +153,61 @@ function CanonicalElement({
   locale,
   liveSamples,
   dynamoDefinitions,
+  equipmentDefinitions,
+  templateDefinitions,
   onVisualEvent,
   runtimeIdentityPrefix,
   onTagWrite,
   visualAssetUrl,
-  showTechnicalFallbackText
+  showTechnicalFallbackText,
+  operatorTimeRangeControls,
+  historicalQueriesEnabled = true,
+  processValueWriteEnabled = false,
+  alarmShelveEnabled = false
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
   liveSamples: ReadonlyMap<string, VisualLiveScalarSample>;
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
+  equipmentDefinitions?: readonly EquipmentEngineering[] | null;
+  templateDefinitions?: readonly TemplateEngineering[] | null;
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   runtimeIdentityPrefix?: string;
   onTagWrite?: SliderTagWrite;
   visualAssetUrl: VisualAssetUrlResolver;
   showTechnicalFallbackText: boolean;
+  operatorTimeRangeControls: boolean;
+  historicalQueriesEnabled?: boolean;
+  processValueWriteEnabled?: boolean;
+  alarmShelveEnabled?: boolean;
 }) {
-  if (element.dynamoKey && dynamoDefinitions) {
+  if ((element.dynamoDefinitionId || element.dynamoKey) && dynamoDefinitions) {
     return <CanonicalDynamoElement
       element={element}
       locale={locale}
       liveSamples={liveSamples}
       dynamoDefinitions={dynamoDefinitions}
+      equipmentDefinitions={equipmentDefinitions}
+      templateDefinitions={templateDefinitions}
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
       showTechnicalFallbackText={showTechnicalFallbackText}
+      operatorTimeRangeControls={operatorTimeRangeControls}
+      processValueWriteEnabled={processValueWriteEnabled}
+      alarmShelveEnabled={alarmShelveEnabled}
+    />;
+  }
+
+  if (element.equipmentId && equipmentDefinitions && templateDefinitions) {
+    return <CanonicalEquipmentElement
+      element={element} locale={locale} liveSamples={liveSamples}
+      equipmentDefinitions={equipmentDefinitions} templateDefinitions={templateDefinitions}
+      onVisualEvent={onVisualEvent} onTagWrite={onTagWrite} visualAssetUrl={visualAssetUrl}
+      showTechnicalFallbackText={showTechnicalFallbackText}
+      operatorTimeRangeControls={operatorTimeRangeControls}
+      processValueWriteEnabled={processValueWriteEnabled}
+      alarmShelveEnabled={alarmShelveEnabled}
     />;
   }
 
@@ -138,6 +220,7 @@ function CanonicalElement({
       runtimeObjectId={runtimeObjectId}
       onClick={onClick}
       showTechnicalFallbackText={showTechnicalFallbackText}
+      operatorTimeRangeControls={operatorTimeRangeControls}
     />;
   }
 
@@ -158,6 +241,23 @@ function CanonicalElement({
     const elementTitle = combineTitles(tooltipTitle, diagnosticTitle);
     const diagnosticState = dynamic.diagnostics.length > 0 ? 'unavailable' : 'available';
 
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.checkBox) {
+      return <CheckBoxVisualElement
+        element={element} values={values} liveSamples={liveSamples} style={style}
+        runtimeObjectId={runtimeObjectId} locale={locale} title={elementTitle}
+        processValueWriteEnabled={processValueWriteEnabled} alarmShelveEnabled={alarmShelveEnabled} onTagWrite={onTagWrite}
+      />;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.comboBox) {
+      return <ComboBoxVisualElement
+        element={element} values={values} liveSamples={liveSamples} style={style}
+        runtimeObjectId={runtimeObjectId} locale={locale} title={elementTitle}
+        processValueWriteEnabled={processValueWriteEnabled} alarmShelveEnabled={alarmShelveEnabled} onTagWrite={onTagWrite}
+        onVisualEvent={onVisualEvent}
+      />;
+    }
+
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.group) {
       return <div
         className="visual-editor-object visual-editor-group"
@@ -175,12 +275,155 @@ function CanonicalElement({
           locale={locale}
           liveSamples={liveSamples}
           dynamoDefinitions={dynamoDefinitions}
+          equipmentDefinitions={equipmentDefinitions}
+          templateDefinitions={templateDefinitions}
           onVisualEvent={onVisualEvent}
           runtimeIdentityPrefix={runtimeIdentityPrefix}
           onTagWrite={onTagWrite}
           visualAssetUrl={visualAssetUrl}
           showTechnicalFallbackText={showTechnicalFallbackText}
+          operatorTimeRangeControls={operatorTimeRangeControls}
+          processValueWriteEnabled={processValueWriteEnabled}
+          alarmShelveEnabled={alarmShelveEnabled}
         />)}
+      </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B) {
+      return <IntelligencePerformanceVisualElement
+        scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
+        assignmentId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceAssignmentId])}
+        profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
+        ruleId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceRuleId])}
+        ruleVersion={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceRuleVersion])}
+        signalIdsJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceSignalIds], '[]')}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        locale={locale}
+        title={elementTitle}
+      />;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceCurrentFrequencyComparisonV1) {
+      return <IntelligenceCurrentFrequencyVisualElement scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
+        assignmentId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceAssignmentId])} profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
+        signalsJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceCurrentFrequencySignals], '[]')}
+        style={style} runtimeObjectId={runtimeObjectId} locale={locale} title={elementTitle}/>;
+    }
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceSingleTargetDeviationV1) {
+      return <IntelligenceSingleTargetVisualElement scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
+        assignmentId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceAssignmentId])} profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
+        signalsJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceSingleTargetSignals], '[]')}
+        style={style} runtimeObjectId={runtimeObjectId} locale={locale} title={elementTitle}/>;
+    }
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceExperimentalJointDeviationV1) {
+      return <IntelligenceExperimentalJointVisualElement scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
+        assignmentId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceAssignmentId])} profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
+        contextsJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceOperatingContexts], '[]')}
+        signalsJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceJointSignals], '[]')}
+        style={style} runtimeObjectId={runtimeObjectId} locale={locale} title={elementTitle}/>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextEligibilityV1) {
+      return <IntelligenceContextEligibilityVisualElement
+        scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
+        assignmentId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceAssignmentId])}
+        profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
+        contextsJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceOperatingContexts], '[]')}
+        style={style} runtimeObjectId={runtimeObjectId} locale={locale} title={elementTitle}/>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1) {
+      return <IntelligenceReferenceEvidenceVisualElement
+        scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
+        profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
+        style={style} runtimeObjectId={runtimeObjectId} locale={locale} title={elementTitle}/>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1) {
+      return <IntelligenceProfileCoverageVisualElement
+        scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
+        profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        locale={locale}
+        title={elementTitle}
+      />;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageCoverageV1) {
+      return <IntelligenceProcessStageCoverageVisualElement
+        stageId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageId])}
+        stageKey={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageKey])}
+        stageName={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageName])}
+        membersJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageMembers], '[]')}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        locale={locale}
+        title={elementTitle}
+      />;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1) {
+      return <IntelligenceProcessStageInsightsVisualElement
+        stageId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageId])}
+        stageKey={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageKey])}
+        stageName={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageName])}
+        membersJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceStageMembers], '[]')}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        locale={locale}
+        title={elementTitle}
+      />;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2) {
+      return <IntelligenceContextualDeviationVisualElement
+        scopeId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceScopeId])}
+        assignmentId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceAssignmentId])}
+        profileId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceProfileId])}
+        targetSignalIdsJson={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceSignalIds], '[]')}
+        firstContextSignalId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceFirstContextSignalId])}
+        firstContextLowerInclusiveCanonical={numberValue(values[VISUAL_PROPERTY_KEYS.intelligenceFirstContextLowerInclusiveCanonical], Number.NaN)}
+        firstContextUpperExclusiveCanonical={numberValue(values[VISUAL_PROPERTY_KEYS.intelligenceFirstContextUpperExclusiveCanonical], Number.NaN)}
+        secondContextSignalId={stringValue(values[VISUAL_PROPERTY_KEYS.intelligenceSecondContextSignalId])}
+        secondContextLowerInclusiveCanonical={numberValue(values[VISUAL_PROPERTY_KEYS.intelligenceSecondContextLowerInclusiveCanonical], Number.NaN)}
+        secondContextUpperExclusiveCanonical={numberValue(values[VISUAL_PROPERTY_KEYS.intelligenceSecondContextUpperExclusiveCanonical], Number.NaN)}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        locale={locale}
+        title={elementTitle}
+      />;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol) {
+      const assetId = assetReferenceId(values[VISUAL_PROPERTY_KEYS.assetRef]);
+      return <div
+        className="visual-editor-object visual-editor-svg-symbol"
+        // Fill/stroke on an SVG symbol paint its vector paths, not a rectangular
+        // HTML backing plate. Preserve transparent space around the artwork.
+        style={{ ...style, background: 'transparent', borderWidth: 0 }}
+        data-object-id={element.id ?? undefined}
+        data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled}
+        data-dynamo-interaction={element.metadata?.dynamoInteraction}
+        role={element.metadata?.dynamoInteraction === 'momentary-button' ? 'button' : undefined}
+        tabIndex={element.metadata?.dynamoInteraction === 'momentary-button' && enabled ? 0 : undefined}
+        title={elementTitle}
+        data-dynamic-state={diagnosticState}
+        onClick={onClick}
+        onKeyDown={element.metadata?.dynamoInteraction === 'momentary-button' ? event => {
+          if ((event.key === 'Enter' || event.key === ' ') && onClick) {
+            event.preventDefault();
+            onClick(event as unknown as React.MouseEvent);
+          }
+        } : undefined}
+      >
+        {assetId ? <SvgSymbolVisualElement
+          element={element}
+          values={values}
+          assetUrl={visualAssetUrl(assetId)}
+        /> : showTechnicalFallbackText ? <span className="visual-editor-image-placeholder">{element.key}</span> : null}
       </div>;
     }
 
@@ -198,8 +441,78 @@ function CanonicalElement({
       >
         {assetId ? <img
           src={visualAssetUrl(assetId)} alt={element.key} draggable={false}
-          style={{ width: '100%', height: '100%', objectFit: imageFit(values[VISUAL_PROPERTY_KEYS.imageFit]), objectPosition: `${percent(values[VISUAL_PROPERTY_KEYS.imagePositionX])}% ${percent(values[VISUAL_PROPERTY_KEYS.imagePositionY])}%` }}
+          style={{ width: '100%', height: '100%', objectFit: imageFit(values[VISUAL_PROPERTY_KEYS.imageFit]), objectPosition: `${percent(values[VISUAL_PROPERTY_KEYS.imagePositionX])}% ${percent(values[VISUAL_PROPERTY_KEYS.imagePositionY])}%`, transform: `scale(${numberValue(values[VISUAL_PROPERTY_KEYS.imageZoom], 1)})`, transformOrigin: `${percent(values[VISUAL_PROPERTY_KEYS.imagePositionX])}% ${percent(values[VISUAL_PROPERTY_KEYS.imagePositionY])}%` }}
         /> : showTechnicalFallbackText ? <span className="visual-editor-image-placeholder">{element.key}</span> : null}
+      </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.model3d) {
+      const assetId = assetReferenceId(values[VISUAL_PROPERTY_KEYS.assetRef]);
+      return <div className="visual-editor-object" style={style}
+        data-object-id={element.id ?? undefined} data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled} title={elementTitle} data-dynamic-state={diagnosticState}>
+        {assetId ? <Model3dVisualElement src={visualAssetUrl(assetId)} label={element.key || '3D model'}
+          viewYawDeg={numberValue(values[VISUAL_PROPERTY_KEYS.viewYawDeg], 40.1)}
+          viewPitchDeg={numberValue(values[VISUAL_PROPERTY_KEYS.viewPitchDeg], 25.8)}
+          runtimeInteractionEnabled={operatorTimeRangeControls && enabled && values[VISUAL_PROPERTY_KEYS.runtimeViewInteractionEnabled] === true} />
+          : showTechnicalFallbackText ? <span className="visual-editor-image-placeholder">{element.key}</span> : null}
+      </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer) {
+      const assetId = assetReferenceId(values[VISUAL_PROPERTY_KEYS.assetRef]);
+      return <div className="visual-editor-object visual-editor-video-player" style={style}
+        data-object-id={element.id ?? undefined} data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled} title={elementTitle} data-dynamic-state={diagnosticState}>
+        <MediaPlayer
+          assetUrl={assetId ? visualAssetUrl(assetId) : undefined}
+          sourceId={String(values[VISUAL_PROPERTY_KEYS.mediaSourceId] ?? '') || undefined}
+          runtime={operatorTimeRangeControls}
+          autoPlay={values[VISUAL_PROPERTY_KEYS.mediaAutoplay] === true}
+          muted={values[VISUAL_PROPERTY_KEYS.mediaMuted] !== false}
+          loop={values[VISUAL_PROPERTY_KEYS.mediaLoop] === true}
+          controls={values[VISUAL_PROPERTY_KEYS.mediaControls] !== false}
+          fit={imageFit(values[VISUAL_PROPERTY_KEYS.imageFit])}
+        />
+      </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer) {
+      const assetId = assetReferenceId(values[VISUAL_PROPERTY_KEYS.assetRef]);
+      const page = Math.max(1, Math.trunc(numberValue(values[VISUAL_PROPERTY_KEYS.pdfInitialPage], 1)));
+      const zoom = Math.max(25, Math.min(400, numberValue(values[VISUAL_PROPERTY_KEYS.pdfZoom], 100)));
+      const toolbar = values[VISUAL_PROPERTY_KEYS.pdfToolbarVisible] !== false ? 1 : 0;
+      return <div className="visual-editor-object visual-editor-pdf-viewer" style={style}
+        data-object-id={element.id ?? undefined} data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled} title={elementTitle} data-dynamic-state={diagnosticState}>
+        {assetId ? <iframe
+          title={element.key || 'PDF document'}
+          src={`${visualAssetUrl(assetId)}#page=${page}&zoom=${zoom}&toolbar=${toolbar}`}
+          sandbox="allow-scripts"
+          referrerPolicy="no-referrer"
+          style={{ width: '100%', height: '100%', border: 0 }}
+        /> : showTechnicalFallbackText ? <span className="visual-editor-image-placeholder">{element.key}</span> : null}
+      </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher) {
+      const reportKey = stringValue(values[VISUAL_PROPERTY_KEYS.reportKey], '').trim();
+      const label = stringValue(values[VISUAL_PROPERTY_KEYS.text], '').trim() ||
+        (locale === 'en' ? 'Open report' : locale === 'es' ? 'Abrir informe' : 'Abrir relatório');
+      const reportHref = runtimeReportHref(reportKey);
+      const contentStyle: CSSProperties = {
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: '100%', height: '100%', padding: '0 8px', boxSizing: 'border-box',
+        color: 'inherit', textAlign: 'center', textDecoration: 'none'
+      };
+      return <div className="visual-editor-object visual-editor-report-launcher"
+        style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+        data-object-id={element.id ?? undefined} data-runtime-object-id={runtimeObjectId}
+        data-report-key={reportKey || undefined} data-enabled={enabled} title={elementTitle}
+        data-dynamic-state={diagnosticState}>
+        {operatorTimeRangeControls && enabled && reportHref
+          ? <a style={{ ...contentStyle, cursor: 'pointer' }} href={reportHref} aria-label={label}>{label}</a>
+          : <span style={contentStyle} aria-disabled={operatorTimeRangeControls ? !enabled || !reportHref : undefined}>{label}</span>}
       </div>;
     }
 
@@ -214,6 +527,99 @@ function CanonicalElement({
         data-dynamic-state={diagnosticState}
         onClick={onClick}
       />;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.arc) {
+      const width = Math.max(numberValue(values[VISUAL_PROPERTY_KEYS.width], 1), 1);
+      const height = Math.max(numberValue(values[VISUAL_PROPERTY_KEYS.height], 1), 1);
+      const startAngle = numberValue(values[VISUAL_PROPERTY_KEYS.arcStartAngle], 0);
+      const endAngle = numberValue(values[VISUAL_PROPERTY_KEYS.arcEndAngle], 90);
+      const arcStyle = stringValue(values[VISUAL_PROPERTY_KEYS.arcStyle], 'pie');
+      const path = ellipseArcPath(width, height, startAngle, endAngle, arcStyle);
+      const strokeStyle = normalizeCanonicalStrokeStyle(values[VISUAL_PROPERTY_KEYS.strokeStyle]);
+      const strokeWidth = effectiveStrokeWidth(
+        strokeStyle,
+        numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 1)
+      );
+      const gradient = polygonGradient(values);
+      const gradientId = gradient
+        ? `visual-arc-gradient-${stableDomToken(runtimeObjectId ?? element.id ?? element.key)}`
+        : undefined;
+      const fill = arcStyle === 'arc'
+        ? 'none'
+        : stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid') === 'none'
+          ? 'none'
+          : gradientId ? `url(#${gradientId})` : polygonSolidFill(values);
+      return <div
+        className="visual-editor-object visual-editor-arc"
+        style={{ ...style, background: 'transparent', border: 0, overflow: 'visible' }}
+        data-object-id={element.id ?? undefined}
+        data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled}
+        title={elementTitle}
+        data-dynamic-state={diagnosticState}
+        onClick={onClick}
+      >
+        <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-label={element.key}>
+          {gradient && gradientId ? <defs>
+            <linearGradient id={gradientId} x1={gradient.x1} y1={gradient.y1} x2={gradient.x2} y2={gradient.y2}>
+              <stop offset="0%" stopColor={gradient.primary} />
+              <stop offset="100%" stopColor={gradient.secondary} />
+            </linearGradient>
+          </defs> : null}
+          <path
+            d={path}
+            fill={fill}
+            stroke={strokeStyle === 'none' ? 'none' : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000')}
+            strokeWidth={strokeWidth}
+            strokeDasharray={svgStrokeDasharray(strokeStyle)}
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+      </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.bezier) {
+      const path = safeBezierPath(stringValue(values[VISUAL_PROPERTY_KEYS.bezierPath]));
+      const strokeStyle = normalizeCanonicalStrokeStyle(values[VISUAL_PROPERTY_KEYS.strokeStyle]);
+      const strokeWidth = effectiveStrokeWidth(
+        strokeStyle,
+        numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 1)
+      );
+      const gradient = polygonGradient(values);
+      const gradientId = gradient
+        ? `visual-bezier-gradient-${stableDomToken(runtimeObjectId ?? element.id ?? element.key)}`
+        : undefined;
+      return <div
+        className="visual-editor-object visual-editor-bezier"
+        style={{ ...style, background: 'transparent', border: 0, overflow: 'visible' }}
+        data-object-id={element.id ?? undefined}
+        data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled}
+        title={elementTitle}
+        data-dynamic-state={diagnosticState}
+        onClick={onClick}
+      >
+        <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label={element.key}>
+          {gradient && gradientId ? <defs>
+            <linearGradient id={gradientId} x1={gradient.x1} y1={gradient.y1} x2={gradient.x2} y2={gradient.y2}>
+              <stop offset="0%" stopColor={gradient.primary} />
+              <stop offset="100%" stopColor={gradient.secondary} />
+            </linearGradient>
+          </defs> : null}
+          <path
+            d={path}
+            fill={stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid') === 'none'
+              ? 'none'
+              : gradientId ? `url(#${gradientId})` : polygonSolidFill(values)}
+            fillRule="evenodd"
+            stroke={strokeStyle === 'none' ? 'none' : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000')}
+            strokeWidth={strokeWidth}
+            strokeDasharray={svgStrokeDasharray(strokeStyle)}
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+      </div>;
     }
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon) {
@@ -250,6 +656,7 @@ function CanonicalElement({
           <polygon
             points={polygonPointsAttribute(normalizedPoints)}
             fill={gradientId ? `url(#${gradientId})` : polygonSolidFill(values)}
+            fillRule={stringValue(values[VISUAL_PROPERTY_KEYS.polygonFillRule], 'nonzero') === 'evenodd' ? 'evenodd' : 'nonzero'}
             stroke={strokeStyle === 'none' ? 'none' : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000')}
             strokeWidth={strokeWidth}
             strokeDasharray={svgStrokeDasharray(strokeStyle)}
@@ -268,6 +675,8 @@ function CanonicalElement({
         title={elementTitle}
         locale={locale}
         enabled={enabled}
+        operatorTimeRangeControls={operatorTimeRangeControls}
+        dataQueriesEnabled={historicalQueriesEnabled}
         onClick={onClick}
       />;
     }
@@ -298,11 +707,64 @@ function CanonicalElement({
       />;
     }
 
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.numericInput) {
+      const numericInputStyle = {
+        ...style,
+        '--numeric-input-color-editing': stringValue(values[VISUAL_PROPERTY_KEYS.textColorEditing], '#1565C0'),
+        '--numeric-input-color-good': stringValue(values[VISUAL_PROPERTY_KEYS.textColorGood], stringValue(values[VISUAL_PROPERTY_KEYS.textColor], '#000000')),
+        '--numeric-input-color-bad': stringValue(values[VISUAL_PROPERTY_KEYS.textColorBad], '#C62828')
+      } as CSSProperties;
+      return <NumericInputVisualElement
+        element={element}
+        values={values}
+        diagnostics={dynamic.diagnostics}
+        liveSamples={liveSamples}
+        style={numericInputStyle}
+        runtimeObjectId={runtimeObjectId}
+        locale={locale}
+        title={elementTitle}
+        onTagWrite={onTagWrite}
+      />;
+    }
+
+    if (measurementTypes.has(element.type)) {
+      const valueBinding = element.bindings?.find(binding => {
+        const kind = binding.kind?.trim().toLowerCase();
+        return binding.key === VISUAL_PROPERTY_KEYS.value && (kind === 'tag' || kind === 'clientmemory');
+      });
+      return <MeasurementVisualElement
+        element={element}
+        objectType={element.type as BuiltinVisualObjectType}
+        values={values}
+        sample={valueBinding ? bindingSample(liveSamples, valueBinding) : undefined}
+        hasValueBinding={Boolean(valueBinding)}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        title={elementTitle}
+        locale={locale}
+        onClick={onClick}
+      />;
+    }
+
     const staticText = stringValue(values[VISUAL_PROPERTY_KEYS.text]);
     const textBinding = dynamicTextBinding(element.bindings);
     const textSample = textBinding ? bindingSample(liveSamples, textBinding) : undefined;
+    const valueFormat = element.type === BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay
+      ? stringValue(values[VISUAL_PROPERTY_KEYS.valueFormat], 'default')
+      : undefined;
+    const configuredDecimals = element.type === BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay
+      && values[VISUAL_PROPERTY_KEYS.decimalPlacesEnabled] === true
+      ? numberValue(values[VISUAL_PROPERTY_KEYS.decimalPlaces], 2)
+      : undefined;
     const dynamicText = textBinding
-      ? formatVisualScalarText(textSample, textBinding, locale)
+      ? formatVisualScalarText(
+        textSample,
+        textBinding,
+        locale,
+        valueFormat,
+        configuredDecimals,
+        element.type !== BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay || values[VISUAL_PROPERTY_KEYS.showEngineeringUnit] !== false
+      )
       : null;
     const className = `visual-editor-object visual-editor-${element.type.replace('core.', '')}${dynamicText && !dynamicText.available ? ' visual-editor-dynamic-unavailable' : ''}`;
     const content = dynamicText?.text || staticText || (showTechnicalFallbackText ? element.key : '');
@@ -328,9 +790,14 @@ function CanonicalElement({
         {fill}{content}
       </button>;
     }
+    const dynamicValueStyle = element.type === BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay && dynamicText
+      ? { ...style, color: dynamicText.available
+        ? stringValue(values[VISUAL_PROPERTY_KEYS.textColorGood], stringValue(values[VISUAL_PROPERTY_KEYS.textColor], '#000000'))
+        : stringValue(values[VISUAL_PROPERTY_KEYS.textColorBad], '#C62828') }
+      : style;
     return <div
       className={className}
-      style={style}
+      style={dynamicValueStyle}
       data-object-id={element.id ?? undefined}
       data-runtime-object-id={runtimeObjectId}
       data-enabled={enabled}
@@ -351,23 +818,37 @@ function CanonicalDynamoElement({
   locale,
   liveSamples,
   dynamoDefinitions,
+  equipmentDefinitions,
+  templateDefinitions,
   onVisualEvent,
   onTagWrite,
   visualAssetUrl,
-  showTechnicalFallbackText
+  showTechnicalFallbackText,
+  operatorTimeRangeControls,
+  processValueWriteEnabled,
+  alarmShelveEnabled
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
   liveSamples: ReadonlyMap<string, VisualLiveScalarSample>;
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
+  equipmentDefinitions?: readonly EquipmentEngineering[] | null;
+  templateDefinitions?: readonly TemplateEngineering[] | null;
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   onTagWrite?: SliderTagWrite;
   visualAssetUrl: VisualAssetUrlResolver;
   showTechnicalFallbackText: boolean;
+  operatorTimeRangeControls: boolean;
+  processValueWriteEnabled: boolean;
+  alarmShelveEnabled: boolean;
 }) {
   try {
-    const definition = resolveDynamoDefinition(dynamoDefinitions, element.dynamoKey!);
+    const definition = resolveDynamoDefinition(dynamoDefinitions, element.dynamoKey, element.dynamoDefinitionId);
     const composition = composeDynamoRuntime(element, definition);
+    // Authoring previews share Runtime's public-parameter projection. Otherwise
+    // fixed states, configured colors and labels appear unchanged until publish.
+    const projectedChildren = projectDynamoRuntimeElements(composition.elements, composition.parameters,
+      resolveDynamoRuntimeEquipmentPath(element.equipmentPath ?? null, composition.parameters), false);
     const schema = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.group);
     const baseValues: Readonly<Record<string, VisualPropertyValue>> = {
       ...schema.createDefaultValues(),
@@ -378,6 +859,12 @@ function CanonicalDynamoElement({
     const enabled = booleanValue(dynamic.values[VISUAL_PROPERTY_KEYS.enabled], true);
     const runtimeObjectId = composition.instanceId;
     const onClick = visualClickHandler(element, onVisualEvent, runtimeObjectId);
+    const designWidth = positiveDynamoDimension(definition.properties?.defaultWidth, 120);
+    const designHeight = positiveDynamoDimension(definition.properties?.defaultHeight, 100);
+    const frameWidth = positiveDynamoDimension(dynamic.values[VISUAL_PROPERTY_KEYS.width], 100);
+    const frameHeight = positiveDynamoDimension(dynamic.values[VISUAL_PROPERTY_KEYS.height], 100);
+    const scaleX = frameWidth / designWidth;
+    const scaleY = frameHeight / designHeight;
     const diagnosticTitle = dynamic.diagnostics.length > 0
       ? dynamic.diagnostics.map(item => `${item.propertyKey ? `${item.propertyKey}: ` : ''}${item.message}`).join('\n')
       : undefined;
@@ -388,7 +875,7 @@ function CanonicalDynamoElement({
 
     return <div
       className="visual-editor-object visual-editor-group visual-editor-dynamo"
-      style={style}
+      style={{ ...style, overflow: 'hidden' }}
       data-object-id={element.id ?? undefined}
       data-runtime-object-id={runtimeObjectId}
       data-enabled={enabled}
@@ -396,22 +883,39 @@ function CanonicalDynamoElement({
       data-dynamo-definition-id={composition.definitionId}
       data-dynamo-instance-id={composition.instanceId}
       data-dynamo-parameter-count={composition.parameters.size}
+      data-dynamo-design-width={designWidth}
+      data-dynamo-design-height={designHeight}
+      data-dynamo-frame-width={frameWidth}
+      data-dynamo-frame-height={frameHeight}
       data-dynamic-state={dynamic.diagnostics.length > 0 ? 'unavailable' : 'available'}
       title={title}
       onClick={onClick}
     >
-      {composition.elements.map((child, index) => <CanonicalElement
-        key={child.id ?? `${child.key}-${index}`}
-        element={child}
-        locale={locale}
-        liveSamples={liveSamples}
-        dynamoDefinitions={dynamoDefinitions}
-        onVisualEvent={onVisualEvent}
-        runtimeIdentityPrefix={composition.instanceId}
-        onTagWrite={onTagWrite}
-        visualAssetUrl={visualAssetUrl}
-        showTechnicalFallbackText={showTechnicalFallbackText}
-      />)}
+      <div
+        data-testid="visual-dynamo-content"
+        style={{
+          position: 'absolute', left: 0, top: 0, width: designWidth, height: designHeight,
+          transform: `scale(${scaleX}, ${scaleY})`, transformOrigin: 'top left', overflow: 'hidden'
+        }}
+      >
+        {projectedChildren.map((child, index) => <CanonicalElement
+          key={child.id ?? `${child.key}-${index}`}
+          element={child}
+          locale={locale}
+          liveSamples={liveSamples}
+          dynamoDefinitions={dynamoDefinitions}
+          equipmentDefinitions={equipmentDefinitions}
+          templateDefinitions={templateDefinitions}
+          onVisualEvent={onVisualEvent}
+          runtimeIdentityPrefix={composition.instanceId}
+          onTagWrite={onTagWrite}
+          visualAssetUrl={visualAssetUrl}
+          showTechnicalFallbackText={showTechnicalFallbackText}
+          operatorTimeRangeControls={operatorTimeRangeControls}
+          processValueWriteEnabled={processValueWriteEnabled}
+          alarmShelveEnabled={alarmShelveEnabled}
+        />)}
+      </div>
     </div>;
   } catch (reason) {
     const message = reason instanceof Error ? reason.message : String(reason);
@@ -425,6 +929,76 @@ function CanonicalDynamoElement({
       title={message}
     >{element.key || element.dynamoKey || 'invalid Dynamo'}</div>;
   }
+}
+
+function positiveDynamoDimension(value: unknown, fallback: number): number {
+  const parsed = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  return typeof parsed === 'number' && Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function CanonicalEquipmentElement({
+  element, locale, liveSamples, equipmentDefinitions, templateDefinitions,
+  onVisualEvent, onTagWrite, visualAssetUrl, showTechnicalFallbackText, operatorTimeRangeControls,
+  processValueWriteEnabled,
+  alarmShelveEnabled
+}: {
+  element: VisualElementEngineering;
+  locale: EngineeringLocale;
+  liveSamples: ReadonlyMap<string, VisualLiveScalarSample>;
+  equipmentDefinitions: readonly EquipmentEngineering[];
+  templateDefinitions: readonly TemplateEngineering[];
+  onVisualEvent?: (event: CanonicalVisualEvent) => void;
+  onTagWrite?: SliderTagWrite;
+  visualAssetUrl: VisualAssetUrlResolver;
+  showTechnicalFallbackText: boolean;
+  operatorTimeRangeControls: boolean;
+  processValueWriteEnabled: boolean;
+  alarmShelveEnabled: boolean;
+}) {
+  const equipment = equipmentDefinitions.find(item => item.id === element.equipmentId);
+  const template = equipment && templateDefinitions.find(item =>
+    Boolean(equipment.templateId && item.id === equipment.templateId) ||
+    Boolean(equipment.templateKey && item.key === equipment.templateKey)
+  );
+  if (!equipment || !template) {
+    return <div className="visual-editor-object-error" data-testid="visual-runtime-equipment-diagnostic">
+      {equipment ? `Template não encontrado: ${equipment.templateKey ?? equipment.templateId ?? ''}` : 'Equipamento não encontrado'}
+    </div>;
+  }
+  const instanceId = `equipment:${equipment.id}`;
+  const schema = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.group);
+  const baseValues: Readonly<Record<string, VisualPropertyValue>> = {
+    ...schema.createDefaultValues(),
+    ...decodeVisualEngineeringProperties(registeredScalarProperties(element, schema), schema)
+  };
+  const dynamic = resolveVisualDynamicState(element, baseValues, liveSamples);
+  const children = bindTemplateElements(template.elements ?? [], equipment.path);
+  return <div className="visual-editor-object visual-editor-group visual-editor-equipment-instance"
+    style={elementStyle(dynamic.values)} data-object-id={element.id ?? undefined}
+    data-runtime-object-id={instanceId} data-equipment-id={equipment.id}
+    data-template-id={template.id} data-template-key={template.key} data-equipment-path={equipment.path}
+    onClick={visualClickHandler(element, onVisualEvent, instanceId)}>
+    {children.map((child, index) => <CanonicalElement
+      key={`${instanceId}:${child.id ?? `${child.key}-${index}`}`}
+      element={child} locale={locale} liveSamples={liveSamples}
+      equipmentDefinitions={equipmentDefinitions} templateDefinitions={templateDefinitions}
+      onVisualEvent={onVisualEvent} runtimeIdentityPrefix={instanceId}
+      onTagWrite={onTagWrite} visualAssetUrl={visualAssetUrl}
+      showTechnicalFallbackText={showTechnicalFallbackText}
+      operatorTimeRangeControls={operatorTimeRangeControls}
+      processValueWriteEnabled={processValueWriteEnabled}
+      alarmShelveEnabled={alarmShelveEnabled}
+    />)}
+  </div>;
+}
+
+function bindTemplateElements(elements: readonly VisualElementEngineering[], equipmentPath: string): VisualElementEngineering[] {
+  const substitute = (value: string) => value.replaceAll('{equipmentPath}', equipmentPath);
+  return elements.map(element => ({
+    ...element,
+    bindings: element.bindings?.map(binding => ({ ...binding, target: substitute(binding.target) })),
+    children: element.children ? bindTemplateElements(element.children, equipmentPath) : element.children
+  }));
 }
 
 function analogFillOverlay(
@@ -482,6 +1056,7 @@ function LegacyCompatibilityElement({
   runtimeObjectId?: string;
   onClick?: (event: React.MouseEvent) => void;
   showTechnicalFallbackText: boolean;
+  operatorTimeRangeControls: boolean;
 }) {
   const x = legacyNumber(element.properties?.x, 18);
   const y = legacyNumber(element.properties?.y, 18);
@@ -530,13 +1105,30 @@ function runtimeElementIdentity(
 
 function collectRuntimeBindingElements(
   rootElements: readonly VisualElementEngineering[],
-  dynamoDefinitions: readonly DynamoEngineering[] | null | undefined
+  dynamoDefinitions: readonly DynamoEngineering[] | null | undefined,
+  equipmentDefinitions: readonly EquipmentEngineering[] | null | undefined,
+  templateDefinitions: readonly TemplateEngineering[] | null | undefined
 ): readonly VisualElementEngineering[] {
-  if (!dynamoDefinitions || dynamoDefinitions.length === 0) return rootElements;
-  const definitionElements = dynamoDefinitions.flatMap(definition =>
+  const dynamoElements = (dynamoDefinitions ?? []).flatMap(definition =>
     [...(asCanonicalDynamo(definition).elements ?? [])]
   );
-  return Object.freeze([...rootElements, ...definitionElements]);
+  const equipmentElements: VisualElementEngineering[] = [];
+  const addEquipmentTemplates = (elements: readonly VisualElementEngineering[]) => {
+    for (const element of elements) {
+      if (element.equipmentId) {
+        const equipment = equipmentDefinitions?.find(item => item.id === element.equipmentId);
+        const template = equipment && templateDefinitions?.find(item =>
+          Boolean(equipment.templateId && item.id === equipment.templateId) ||
+          Boolean(equipment.templateKey && item.key === equipment.templateKey)
+        );
+        if (equipment && template) equipmentElements.push(...bindTemplateElements(template.elements ?? [], equipment.path));
+      }
+      if (element.children) addEquipmentTemplates(element.children);
+    }
+  };
+  addEquipmentTemplates(rootElements);
+  if (dynamoDefinitions) addEquipmentTemplates(dynamoElements);
+  return Object.freeze([...rootElements, ...dynamoElements, ...equipmentElements]);
 }
 
 function elementStyle(values: Readonly<Record<string, VisualPropertyValue>>): CSSProperties {
@@ -603,11 +1195,53 @@ function lineStyle(base: CSSProperties, values: Readonly<Record<string, VisualPr
   };
 }
 
+function ellipseArcPath(
+  width: number,
+  height: number,
+  startDegrees: number,
+  endDegrees: number,
+  arcStyle: string
+): string {
+  const normalize = (degrees: number) => ((degrees % 360) + 360) % 360;
+  const start = normalize(startDegrees);
+  const end = normalize(endDegrees);
+  let sweep = (end - start + 360) % 360;
+  if (Math.abs(endDegrees - startDegrees) >= 360) sweep = 359.999;
+  if (sweep < 0.001) return '';
+
+  const point = (degrees: number) => {
+    const radians = degrees * Math.PI / 180;
+    return {
+      x: width / 2 + (width / 2) * Math.cos(radians),
+      y: height / 2 - (height / 2) * Math.sin(radians)
+    };
+  };
+  const from = point(start);
+  const to = point(start + sweep);
+  const largeArc = sweep > 180 ? 1 : 0;
+  const arc = `M ${from.x} ${from.y} A ${width / 2} ${height / 2} 0 ${largeArc} 0 ${to.x} ${to.y}`;
+  if (arcStyle === 'chord') return `${arc} Z`;
+  if (arcStyle === 'pie') return `${arc} L ${width / 2} ${height / 2} Z`;
+  return arc;
+}
+
+function safeBezierPath(path: string): string {
+  const normalized = path.trim();
+  if (!normalized || !/^[MmLlHhVvCcSsQqTtAaZz0-9eE+\-.,\s]+$/.test(normalized)) {
+    return 'M 0 50 C 20 0 80 0 100 50 C 80 100 20 100 0 50 Z';
+  }
+  return normalized;
+}
+
 function fillBackground(values: Readonly<Record<string, VisualPropertyValue>>): string | undefined {
   const backgroundColor = stringValue(values[VISUAL_PROPERTY_KEYS.backgroundColor]);
-  if (backgroundColor) return backgroundColor;
+  if (backgroundColor && !isTransparentColor(backgroundColor)) return backgroundColor;
 
-  const primary = stringValue(values[VISUAL_PROPERTY_KEYS.fillColor]);
+  const hasFill = Object.prototype.hasOwnProperty.call(values, VISUAL_PROPERTY_KEYS.fillStyle) ||
+    Object.prototype.hasOwnProperty.call(values, VISUAL_PROPERTY_KEYS.fillColor);
+  if (!hasFill) return backgroundColor || undefined;
+
+  const primary = stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#808080FF');
   if (!Object.prototype.hasOwnProperty.call(values, VISUAL_PROPERTY_KEYS.fillStyle)) return primary || undefined;
 
   const fillStyle = stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid');
@@ -615,7 +1249,16 @@ function fillBackground(values: Readonly<Record<string, VisualPropertyValue>>): 
   if (fillStyle !== 'gradient') return primary || undefined;
 
   const secondary = stringValue(values[VISUAL_PROPERTY_KEYS.fillSecondaryColor], '#00000000');
-  return `linear-gradient(${gradientAngle(values[VISUAL_PROPERTY_KEYS.gradientDirection])}, ${primary || '#00000000'}, ${secondary})`;
+  return `linear-gradient(${gradientAngle(values[VISUAL_PROPERTY_KEYS.gradientDirection])}, ${primary}, ${secondary})`;
+}
+
+function isTransparentColor(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'transparent') return true;
+  if (/^#[\da-f]{4}$/.test(normalized)) return normalized.endsWith('0');
+  if (/^#[\da-f]{8}$/.test(normalized)) return normalized.endsWith('00');
+  const rgba = /^rgba\(\s*[^,]+\s*,\s*[^,]+\s*,\s*[^,]+\s*,\s*([\d.]+)\s*\)$/.exec(normalized);
+  return rgba?.[1] !== undefined && Number(rgba[1]) === 0;
 }
 
 function shadowFilter(values: Readonly<Record<string, VisualPropertyValue>>): string | undefined {
@@ -641,7 +1284,7 @@ function polygonGradient(values: Readonly<Record<string, VisualPropertyValue>>):
   const direction = stringValue(values[VISUAL_PROPERTY_KEYS.gradientDirection], 'vertical');
   const coordinates = gradientCoordinates(direction);
   return {
-    primary: stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#00000000'),
+    primary: stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#808080FF'),
     secondary: stringValue(values[VISUAL_PROPERTY_KEYS.fillSecondaryColor], '#00000000'),
     ...coordinates
   };
@@ -649,7 +1292,7 @@ function polygonGradient(values: Readonly<Record<string, VisualPropertyValue>>):
 
 function polygonSolidFill(values: Readonly<Record<string, VisualPropertyValue>>): string {
   if (stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid') === 'none') return 'none';
-  return stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#00000000');
+  return stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#808080FF');
 }
 
 function gradientAngle(value: VisualPropertyValue | undefined): string {

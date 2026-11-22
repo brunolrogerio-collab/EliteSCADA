@@ -7,8 +7,21 @@
   --eng-control-readonly-fg: #bac4ce;
   --eng-control-readonly-border: #44505c;
   --eng-control-disabled-bg: #0d1319;
-  --eng-control-disabled-fg: #788593;
+  --eng-control-disabled-fg: #7f8c98;
   --eng-control-disabled-border: #293440;
+}
+
+.eng-shell {
+  --eng-control-editable-bg: var(--eng-input-bg, #0d141a);
+  --eng-control-editable-fg: var(--eng-text, #edf3f7);
+  --eng-control-editable-border: var(--eng-border, #2a3947);
+  --eng-control-placeholder-fg: var(--eng-muted, #9eacb8);
+  --eng-control-readonly-bg: var(--eng-panel-soft, #17212b);
+  --eng-control-readonly-fg: var(--eng-text, #edf3f7);
+  --eng-control-readonly-border: var(--eng-border, #2a3947);
+  --eng-control-disabled-bg: var(--eng-bg, #0b0f14);
+  --eng-control-disabled-fg: var(--eng-disabled, #7f8c98);
+  --eng-control-disabled-border: var(--eng-border-soft, #26333e);
 }
 
 /* C26.7: field-state authority is visual only. These rules intentionally stay
@@ -78,6 +91,6 @@
 .eng-shell .script-row input:focus-visible,
 .eng-shell .script-row select:focus-visible,
 .eng-shell .script-preserved .script-actions select:focus-visible {
-  outline: 2px solid var(--eng-accent, #58a6d6);
+  outline: 2px solid var(--eng-focus, #8bd3ff);
   outline-offset: 1px;
 }

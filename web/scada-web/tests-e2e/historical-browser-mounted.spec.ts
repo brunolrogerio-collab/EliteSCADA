@@ -54,7 +54,7 @@ function historicalResponse(datasetKey: 'historian.samples' | 'alarm.events', op
         'alarm.id': { kind: 'guid', value: '22222222-2222-2222-2222-222222222222' },
         'tag.path': { kind: 'string', value: 'Demo.Level' },
         state: { kind: 'enum', value: options.state ?? 'Active' },
-        priority: { kind: 'number', value: '800' },
+        priority: { kind: 'number', value: '3' },
         message: { kind: 'string', value: 'High level' },
         timestamp: { kind: 'dateTime', value: '2026-08-30T01:05:00Z' }
       }
@@ -66,8 +66,8 @@ function historicalResponse(datasetKey: 'historian.samples' | 'alarm.events', op
   };
 }
 
-async function openHarness(page: Page) {
-  await page.goto(harnessPath);
+async function openHarness(page: Page, query = '') {
+  await page.goto(harnessPath + query);
   await expect(page.getByTestId('historical-data-browser-runtime')).toBeVisible();
 }
 
@@ -90,16 +90,20 @@ test('mounted Historical Browser queries historian data and preserves exact Int6
   await page.getByRole('button', { name: 'Query', exact: true }).click();
 
   await expect(page.getByRole('cell', { name: '9223372036854775807' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '11111111-1111-1111-1111-111111111111' })).toHaveCount(0);
   expect(capturedRequest).toMatchObject({
     version: 1,
     datasetKey: 'historian.samples',
     timeRange: { kind: 'relative', durationSeconds: 3600, anchor: 'now' },
     page: { limit: 100 }
   });
+  await page.getByText('Advanced filters', { exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Search' })).toBeEnabled();
-  await expect(page.getByRole('combobox', { name: 'Sort field' })).toContainText('timestamp');
-  await expect(page.getByRole('combobox', { name: 'Filter field' })).toContainText('tag.path');
-  await expect(page.getByText('2026-08-30T00:00:00Z → 2026-08-30T01:00:00Z')).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Sort by' })).toContainText('Timestamp');
+  await expect(page.getByRole('combobox', { name: 'Field' })).toContainText('TAG / Path');
+  await expect(page.getByRole('combobox', { name: 'Field' })).not.toContainText('TAG / ID');
+  await expect(page.getByText(/2026.*→.*2026.*·/)).toBeVisible();
+  await expect(page.getByText(/2026-08-30T00:00:00Z/)).toHaveCount(0);
 });
 
 test('mounted Historical Browser builds typed filters only from returned schema metadata', async ({ page }) => {
@@ -110,22 +114,23 @@ test('mounted Historical Browser builds typed filters only from returned schema 
   });
 
   await openHarness(page);
-  await page.getByRole('combobox', { name: 'Dataset' }).selectOption('alarm.events');
+  await page.getByRole('group', { name: 'Dataset' }).getByRole('button', { name: 'Alarms', exact: true }).click();
   await page.getByRole('button', { name: 'Query', exact: true }).click();
-  await expect(page.getByRole('combobox', { name: 'Filter field' })).toBeEnabled();
+  await page.getByText('Advanced filters', { exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Field' })).toBeEnabled();
 
-  await page.getByRole('combobox', { name: 'Filter field' }).selectOption('priority');
-  await expect(page.getByRole('combobox', { name: 'Operator' })).toHaveValue('eq');
-  await expect(page.getByRole('combobox', { name: 'Operator' })).toContainText('gte');
-  await expect(page.getByRole('combobox', { name: 'Operator' })).not.toContainText('contains');
-  await page.getByRole('combobox', { name: 'Operator' }).selectOption('gte');
-  await page.getByRole('textbox', { name: 'Value' }).fill('800');
+  await page.getByRole('combobox', { name: 'Field' }).selectOption('priority');
+  await expect(page.getByRole('combobox', { name: 'Condition' })).toHaveValue('eq');
+  await expect(page.getByRole('combobox', { name: 'Condition' }).locator('option[value="gte"]')).toHaveCount(1);
+  await expect(page.getByRole('combobox', { name: 'Condition' }).locator('option[value="contains"]')).toHaveCount(0);
+  await page.getByRole('combobox', { name: 'Condition' }).selectOption('gte');
+  await page.getByRole('textbox', { name: 'Value' }).fill('3');
   await page.getByRole('button', { name: 'Add filter' }).click();
-  await expect(page.getByText('priority gte 800', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Apply query' }).click();
+  await expect(page.getByText('Priority greater than or equal to 3', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Query', exact: true }).click();
 
   await expect.poll(() => requests.length).toBe(2);
-  expect(requests[1].filters).toEqual([{ field: 'priority', operator: 'gte', values: [{ kind: 'number', value: '800' }] }]);
+  expect(requests[1].filters).toEqual([{ field: 'priority', operator: 'gte', values: [{ kind: 'number', value: '3' }] }]);
 });
 
 test('mounted Historical Browser alarm history remains read-only with no operational commands', async ({ page }) => {
@@ -136,14 +141,40 @@ test('mounted Historical Browser alarm history remains read-only with no operati
   });
 
   await openHarness(page);
-  await page.getByRole('combobox', { name: 'Dataset' }).selectOption('alarm.events');
+  await page.getByRole('group', { name: 'Dataset' }).getByRole('button', { name: 'Alarms', exact: true }).click();
   await page.getByRole('button', { name: 'Query', exact: true }).click();
   await expect(page.getByRole('cell', { name: 'High level' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '22222222-2222-2222-2222-222222222222' })).toHaveCount(0);
+  await page.getByText('Advanced filters', { exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Field' })).not.toContainText('Alarm / ID');
 
-  await page.getByRole('row', { name: /Demo.Level Active 800 High level/ }).click();
+  await page.getByRole('row', { name: /Demo.Level Active 3 High level/ }).click();
   await expect(page.getByTestId('historical-row-detail')).toContainText('Read-only context');
   await expect(page.getByTestId('historical-row-detail')).toContainText('High level');
   await expect(page.getByRole('button', { name: /ack|shelve|reset|command/i })).toHaveCount(0);
+});
+
+test('mounted History formats alarm and historian instants in local pt-BR time and exposes exact UTC on hover', async ({ browser }) => {
+  const context = await browser.newContext({ timezoneId: 'America/Sao_Paulo', locale: 'pt-BR' });
+  const page = await context.newPage();
+  await page.route('**/api/historical/query', async route => {
+    const request = route.request().postDataJSON();
+    await fulfillJson(route, historicalResponse(request.datasetKey));
+  });
+
+  await openHarness(page, '?locale=pt-BR');
+  await page.getByRole('button', { name: 'Consultar', exact: true }).click();
+  const timestamp = page.getByRole('cell', { name: '29/08/2026, 22:00:00' });
+  await expect(timestamp).toBeVisible();
+  await expect(timestamp).toHaveAttribute('title', '2026-08-30T01:00:00Z');
+  await expect(page.getByText(/29\/08\/2026, 21:00:00 → 29\/08\/2026, 22:00:00 · America\/Sao_Paulo/)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Alarmes', exact: true }).click();
+  await page.getByRole('button', { name: 'Consultar', exact: true }).click();
+  const alarmTimestamp = page.getByRole('cell', { name: '29/08/2026, 22:05:00' });
+  await expect(alarmTimestamp).toBeVisible();
+  await expect(alarmTimestamp).toHaveAttribute('title', '2026-08-30T01:05:00Z');
+  await context.close();
 });
 
 test('mounted Historical Browser transports opaque cursor unchanged for next-page query', async ({ page }) => {
@@ -177,6 +208,93 @@ test('mounted Historical Browser exposes forbidden state without fabricating emp
   await openHarness(page);
   await page.getByRole('button', { name: 'Query', exact: true }).click();
 
-  await expect(page.getByRole('alert')).toContainText('Not authorized to query this historical dataset.');
+  await expect(page.getByRole('alert')).toContainText('You are not authorized to query this history.');
   await expect(page.locator('tbody tr')).toHaveCount(0);
+});
+
+
+test('mounted Historical Browser keeps the required pt-BR absolute range deterministic across refresh', async ({ browser }) => {
+  const context = await browser.newContext({ timezoneId: 'America/Sao_Paulo', locale: 'pt-BR' });
+  const page = await context.newPage();
+  const requests: any[] = [];
+
+  await page.route('**/api/historical/query', async route => {
+    requests.push(route.request().postDataJSON());
+    await fulfillJson(route, historicalResponse('historian.samples'));
+  });
+
+  await openHarness(page, '?locale=pt-BR');
+  const rangeControls = page.getByTestId('historical-data-browser-runtime').locator('.historical-browser__primary');
+  await expect(rangeControls).toHaveCount(1);
+  await rangeControls.getByRole('button', { name: 'Personalizado', exact: true }).click();
+  await rangeControls.getByLabel('De', { exact: true }).fill('2026-09-27T01:00');
+  await rangeControls.getByLabel('Até', { exact: true }).fill('2026-09-28T12:00');
+  await page.getByRole('button', { name: 'Consultar', exact: true }).click();
+
+  await expect.poll(() => requests.length).toBe(1);
+  expect(requests[0].timeRange).toEqual({
+    kind: 'absolute',
+    fromUtc: '2026-09-27T04:00:00.000Z',
+    toUtc: '2026-09-28T15:00:00.000Z'
+  });
+
+  await page.getByRole('button', { name: 'Consultar', exact: true }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1].timeRange).toEqual(requests[0].timeRange);
+
+  await page.getByLabel('De', { exact: true }).fill('2026-09-28T12:00');
+  await expect(page.getByRole('button', { name: 'Consultar', exact: true })).toBeDisabled();
+  expect(requests).toHaveLength(2);
+
+  await context.close();
+});
+
+test('saved Data Query uses its original range and forwards the cursor to the same active definition', async ({ page }) => {
+  const requests: unknown[] = [];
+  await page.route('**/api/runtime/saved-history/query/shared-measurements', async route => {
+    requests.push(route.request().postDataJSON());
+    const response = historicalResponse('historian.samples', { nextCursor: requests.length === 1 ? 'saved-next' : null });
+    await fulfillJson(route, { ...response, rows: response.rows.map(data => ({ data })), resultLimit: response.pageSize });
+  });
+
+  await openHarness(page, '?saved');
+  await page.getByLabel('Saved query').selectOption('shared-measurements');
+  await expect(page.getByRole('group', { name: 'Dataset' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Query', exact: true }).click();
+  await expect(page.getByRole('cell', { name: 'Demo.Flow' })).toBeVisible();
+  expect(requests).toEqual([{ cursor: null, parameters: {} }]);
+  await page.getByRole('button', { name: /next/i }).click();
+  await expect.poll(() => requests).toEqual([{ cursor: null, parameters: {} }, { cursor: 'saved-next', parameters: {} }]);
+});
+
+test('alarm history sends the selected active Alarm View to the server', async ({ page }) => {
+  await page.route('**/api/runtime/saved-history/alarms/high-only', async route => {
+    expect(route.request().postDataJSON().datasetKey).toBe('alarm.events');
+    await fulfillJson(route, historicalResponse('alarm.events'));
+  });
+
+  await openHarness(page, '?saved');
+  await page.getByRole('group', { name: 'Dataset' }).getByRole('button', { name: 'Alarms', exact: true }).click();
+  await expect(page.getByLabel('Saved alarm filter')).toHaveValue('high-only');
+  await page.getByRole('button', { name: 'Query', exact: true }).click();
+  await expect(page.getByRole('cell', { name: 'High level' })).toBeVisible();
+});
+
+test('alarm center counts exactly the visible rows of the saved Alarm View', async ({ page }) => {
+  await page.route('**/api/alarms?*', async route => {
+    const request = new URL(route.request().url());
+    expect(request.searchParams.get('alarmViewKey')).toBe('high-only');
+    await fulfillJson(route, [{
+      definitionId: '11111111-1111-1111-1111-111111111111',
+      tagId: '22222222-2222-2222-2222-222222222222',
+      name: 'High control', type: 1, priority: 3, state: 1, area: 'Lab',
+      lastTransition: '2026-08-30T01:05:00Z'
+    }]);
+  });
+  await page.route('**/api/alarms/definitions', route => fulfillJson(route, []));
+  await page.route('**/api/alarms/suppressions', route => fulfillJson(route, {}, 503));
+  await page.goto(harnessPath + '?alarm-center');
+  await expect(page.locator('.runtime-alarm-list').getByRole('button')).toHaveCount(1);
+  await expect(page.locator('.runtime-alarm-list').getByRole('button', { name: /High control/ })).toBeVisible();
+  await expect(page.locator('.runtime-alarm-summary-item').filter({ hasText: 'Visible alarms' }).locator('strong')).toHaveText('1');
 });

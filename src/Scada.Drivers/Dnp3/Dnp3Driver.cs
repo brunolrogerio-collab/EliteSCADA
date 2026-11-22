@@ -192,6 +192,53 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
             throw new Dnp3CommandException(result.Status, SanitizeText(result.Message));
     }
 
+    /// <summary>
+    /// Executes one server-bound CROB PulseOn against a configured Binary Output
+    /// Status point. This is intentionally separate from TAG writes: command
+    /// completion never synthesizes a TAG value and the request is never replayed.
+    /// </summary>
+    public async ValueTask<Dnp3CommandResult> ExecutePulseOnAsync(
+        ushort index,
+        TimeSpan onTime,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (onTime < TimeSpan.FromMilliseconds(100) || onTime > TimeSpan.FromSeconds(10))
+            throw new ArgumentOutOfRangeException(nameof(onTime), "PulseOn duration must be between 100 ms and 10 s.");
+        if (!_pointsByPhysicalIdentity.TryGetValue((Dnp3PointKind.BinaryOutputStatus, index), out var point))
+            throw new ArgumentException($"DNP3 Binary Output Status target index {index} is not configured.", nameof(index));
+        if (!point.Binding.Writable || point.Tag.ReadOnly)
+            throw new ArgumentException($"DNP3 Binary Output Status target index {index} is not configured writable.", nameof(index));
+        if (Status.State != DriverState.Running || _session.State != Dnp3SessionState.Online)
+            throw new InvalidOperationException("DNP3 association is not online; PulseOn was not queued or retained for replay.");
+
+        var profile = new Dnp3BinaryCommandProfile
+        {
+            Mode = Dnp3CommandMode.SelectBeforeOperate,
+            TrueOperation = Dnp3BinaryOperation.PulseOn,
+            FalseOperation = Dnp3BinaryOperation.LatchOff,
+            TripCloseCode = Dnp3TripCloseCode.None,
+            Count = 1,
+            OnTime = onTime,
+            OffTime = TimeSpan.Zero
+        };
+        profile.Validate();
+
+        return await ExecuteBoundedUserRequestAsync(
+            token =>
+            {
+                if (Status.State != DriverState.Running)
+                    throw new InvalidOperationException("DNP3 driver stopped before PulseOn dispatch; command was not replayed.");
+                return _session.ExecuteBinaryAsync(index, Dnp3BinaryOperation.PulseOn, profile, token);
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public bool HasWritableBinaryOutputTarget(ushort index) =>
+        _pointsByPhysicalIdentity.TryGetValue((Dnp3PointKind.BinaryOutputStatus, index), out var point) &&
+        point.Binding.Writable &&
+        !point.Tag.ReadOnly;
+
     public CommunicationDriverDiagnosticSnapshot GetCommunicationDiagnostics()
     {
         var session = _session.GetDiagnostics();
@@ -325,7 +372,11 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
         if (!variationValid || (inferredType is not null && inferredType != point.Tag.DataType))
         {
             Interlocked.Increment(ref _rejectedMeasurements);
-            await PublishBadConfigurationAsync(point, measurement.SourceTimestamp, cancellationToken);
+            await PublishBadConfigurationAsync(
+                point,
+                measurement.SourceTimestamp,
+                measurement.SourceTimestampSynchronized,
+                cancellationToken);
             return;
         }
 
@@ -337,7 +388,11 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
         catch (ArgumentException)
         {
             Interlocked.Increment(ref _rejectedMeasurements);
-            await PublishBadConfigurationAsync(point, measurement.SourceTimestamp, cancellationToken);
+            await PublishBadConfigurationAsync(
+                point,
+                measurement.SourceTimestamp,
+                measurement.SourceTimestampSynchronized,
+                cancellationToken);
             return;
         }
 
@@ -420,7 +475,9 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
             TagQuality.BadCommunication,
             DriverId)
         {
-            SourceTimestamp = previous?.SourceTimestamp
+            SourceTimestamp = previous?.SourceTimestamp,
+            SourceTimestampEvidenceState = previous?.SourceTimestampEvidenceState ??
+                TimestampEvidenceState.NotProvided
         };
 
         await _cache.UpdateAsync(point.Tag, sample, cancellationToken);
@@ -430,9 +487,14 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
     private async ValueTask PublishBadConfigurationAsync(
         Dnp3Point point,
         DateTimeOffset? sourceTimestamp,
+        bool? sourceTimestampSynchronized,
         CancellationToken cancellationToken)
     {
         _cache.TryGet(point.Tag.Id, out var previous);
+        var retainedSourceTimestamp = sourceTimestamp ?? previous?.SourceTimestamp;
+        var sourceTimestampEvidence = sourceTimestamp.HasValue
+            ? Dnp3MeasurementMapper.MapSourceTimestampEvidence(sourceTimestamp, sourceTimestampSynchronized)
+            : previous?.SourceTimestampEvidenceState ?? TimestampEvidenceState.NotProvided;
         var sample = new TagValue(
             point.Tag.Id,
             previous?.Value,
@@ -440,7 +502,8 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
             TagQuality.BadConfiguration,
             DriverId)
         {
-            SourceTimestamp = sourceTimestamp ?? previous?.SourceTimestamp
+            SourceTimestamp = retainedSourceTimestamp,
+            SourceTimestampEvidenceState = sourceTimestampEvidence
         };
 
         await _cache.UpdateAsync(point.Tag, sample, cancellationToken);

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Npgsql;
 using Scada.Persistence.PostgreSql;
 
 namespace Scada.Persistence.PostgreSql.Tests;
@@ -21,35 +22,53 @@ public sealed class PostgreSqlCanonicalReportPersistenceTests
         var firstJson = CanonicalPackage(reportId, sectionId, controlId, "Process History A", "9223372036854775807");
         var secondJson = CanonicalPackage(reportId, sectionId, controlId, "Process History B", "-9223372036854775808");
 
-        var first = await store.SaveAsync(
-            projectKey,
-            "Report Persistence",
-            "scada.engineering",
-            14,
-            firstJson,
-            "wave-09-test");
-        var second = await store.SaveAsync(
-            projectKey,
-            "Report Persistence",
-            "scada.engineering",
-            14,
-            secondJson,
-            "wave-09-test");
+        try
+        {
+            var first = await store.SaveAsync(
+                projectKey,
+                "Report Persistence",
+                "scada.engineering",
+                14,
+                firstJson,
+                "wave-09-test");
+            var second = await store.SaveAsync(
+                projectKey,
+                "Report Persistence",
+                "scada.engineering",
+                14,
+                secondJson,
+                "wave-09-test");
 
-        var storedFirst = await store.LoadRevisionAsync(projectKey, first.Revision);
-        var storedSecond = await store.LoadRevisionAsync(projectKey, second.Revision);
-        var latest = await store.LoadLatestAsync(projectKey);
+            var storedFirst = await store.LoadRevisionAsync(projectKey, first.Revision);
+            var storedSecond = await store.LoadRevisionAsync(projectKey, second.Revision);
+            var latest = await store.LoadLatestAsync(projectKey);
 
-        Assert.NotNull(storedFirst);
-        Assert.NotNull(storedSecond);
-        Assert.NotNull(latest);
-        Assert.Equal(14, storedFirst!.EngineeringSchemaVersion);
-        Assert.Equal(14, storedSecond!.EngineeringSchemaVersion);
-        Assert.Equal(second.Revision, latest!.Revision);
+            Assert.NotNull(storedFirst);
+            Assert.NotNull(storedSecond);
+            Assert.NotNull(latest);
+            Assert.Equal(14, storedFirst!.EngineeringSchemaVersion);
+            Assert.Equal(14, storedSecond!.EngineeringSchemaVersion);
+            Assert.Equal(second.Revision, latest!.Revision);
 
-        AssertReport(storedFirst.EngineeringJson, reportId, sectionId, controlId, "Process History A", "9223372036854775807");
-        AssertReport(storedSecond.EngineeringJson, reportId, sectionId, controlId, "Process History B", "-9223372036854775808");
-        AssertReport(latest.EngineeringJson, reportId, sectionId, controlId, "Process History B", "-9223372036854775808");
+            AssertReport(storedFirst.EngineeringJson, reportId, sectionId, controlId, "Process History A", "9223372036854775807");
+            AssertReport(storedSecond.EngineeringJson, reportId, sectionId, controlId, "Process History B", "-9223372036854775808");
+            AssertReport(latest.EngineeringJson, reportId, sectionId, controlId, "Process History B", "-9223372036854775808");
+        }
+        finally
+        {
+            await DeleteProjectAsync(connectionString, projectKey);
+        }
+    }
+
+    private static async Task DeleteProjectAsync(string connectionString, string projectKey)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            "DELETE FROM elitescada.engineering_revisions WHERE project_key = @project_key;",
+            connection);
+        command.Parameters.AddWithValue("project_key", projectKey);
+        await command.ExecuteNonQueryAsync();
     }
 
     private static void AssertReport(

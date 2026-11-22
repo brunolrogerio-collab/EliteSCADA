@@ -1,28 +1,82 @@
 import type {
   CommunicationDriverDiagnostic,
+  DataSourceEngineering,
+  DriverHostHealth,
   EngineeringPackageView,
   EngineeringSnapshot,
   EngineeringWorkspaceDescriptor,
   GatewayRuntimeDiagnostic,
   ImportPreviewView,
   ImportResultView,
+  MediaSourceEngineering,
+  NetworkReachabilityProbeResponse,
   RuntimeDiagnosticsView,
   VisualAssetEngineering,
   VisualEngineeringAssetReference
 } from './types';
+export { visualAssetContentUrl } from './visualAssetContentUrl';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
-async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API}${path}`, {
-    headers: { accept: 'application/json' }
-  });
-
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
+export class EngineeringSnapshotLoadError extends Error {
+  constructor(
+    public readonly kind: 'transport' | 'http' | 'response' | 'timeout',
+    public readonly path: string,
+    public readonly status?: number,
+    cause?: unknown
+  ) {
+    const detail = kind === 'timeout'
+      ? `Timed out while loading ${path}.`
+      : kind === 'transport'
+      ? `Transport unavailable while loading ${path}.`
+      : kind === 'http'
+        ? `HTTP ${status ?? 'unknown'} response while loading ${path}.`
+        : `Invalid HTTP response while loading ${path}.`;
+    super(detail, cause === undefined ? undefined : { cause });
+    this.name = 'EngineeringSnapshotLoadError';
   }
+}
 
-  return await response.json() as T;
+async function getJson<T>(path: string): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await getJsonOnce<T>(path);
+    } catch (reason) {
+      const retryable = reason instanceof EngineeringSnapshotLoadError
+        && (reason.kind === 'transport' || reason.kind === 'response');
+      if (!retryable || attempt >= 1) throw reason;
+      await new Promise(resolve => window.setTimeout(resolve, 250));
+    }
+  }
+}
+
+async function getJsonOnce<T>(path: string): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(`${API}${path}`, {
+      headers: { accept: 'application/json' },
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new EngineeringSnapshotLoadError('http', path, response.status);
+    }
+
+    try {
+      return await response.json() as T;
+    } catch (reason) {
+      throw new EngineeringSnapshotLoadError('response', path, response.status, reason);
+    }
+  } catch (reason) {
+    if (reason instanceof EngineeringSnapshotLoadError) throw reason;
+    if (controller.signal.aborted) {
+      throw new EngineeringSnapshotLoadError('timeout', path, undefined, reason);
+    }
+    throw new EngineeringSnapshotLoadError('transport', path, undefined, reason);
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 }
 
 async function readError(response: Response): Promise<Error> {
@@ -32,6 +86,22 @@ async function readError(response: Response): Promise<Error> {
 
 export async function loadEngineeringWorkspace(): Promise<EngineeringWorkspaceDescriptor> {
   return await getJson<EngineeringWorkspaceDescriptor>('/api/engineering/workspace');
+}
+
+export async function ensureMatterWifiFabricStorageKey(dataSourceId: string): Promise<void> {
+  if (!dataSourceId.trim()) throw new Error('A saved Matter Wi-Fi Data Source is required.');
+  const workspace = await loadEngineeringWorkspace();
+  const response = await fetch(`${API}/api/engineering/data-sources/${encodeURIComponent(dataSourceId)}/matter-wifi/fabric-storage-key`, {
+    method: 'PUT',
+    headers: {
+      accept: 'application/json',
+      'x-elitescada-workspace-version': String(workspace.changeVersion)
+    }
+  });
+  if (!response.ok) throw await readError(response);
+  const result = await response.json() as { configured?: boolean; dataSource?: DataSourceEngineering };
+  if (result.configured !== true || result.dataSource?.secretReferences?.fabricStorageKey !== 'host-material-slot-v1:configured')
+    throw new Error('Matter host key provisioning returned an invalid configuration response.');
 }
 
 export async function loadEngineeringSnapshot(): Promise<EngineeringSnapshot> {
@@ -54,7 +124,8 @@ export async function loadEngineeringSnapshot(): Promise<EngineeringSnapshot> {
       popups: engineeringPackage.popups ?? [],
       securityRoles: engineeringPackage.securityRoles ?? [],
       gateways: engineeringPackage.gateways ?? [],
-      visualAssets: engineeringPackage.visualAssets ?? []
+      visualAssets: engineeringPackage.visualAssets ?? [],
+      mediaSources: engineeringPackage.mediaSources ?? []
     }
   };
 }
@@ -98,8 +169,95 @@ export async function importVisualAsset(
   return await response.json() as VisualAssetImportResult;
 }
 
-export function visualAssetContentUrl(assetId: string): string {
-  return `${API}/api/engineering/visual-assets/${encodeURIComponent(assetId)}/content`;
+export async function renameVisualAsset(assetId: string, name: string, expectedChangeVersion: number): Promise<void> {
+  const response = await fetch(`${API}/api/engineering/visual-assets/${encodeURIComponent(assetId)}`, {
+    method: 'PUT',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json; charset=utf-8',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    },
+    body: JSON.stringify({ name })
+  });
+  if (!response.ok) throw await readError(response);
+}
+
+export async function deleteVisualAsset(assetId: string, expectedChangeVersion: number): Promise<void> {
+  const response = await fetch(`${API}/api/engineering/visual-assets/${encodeURIComponent(assetId)}`, {
+    method: 'DELETE',
+    headers: {
+      accept: 'application/json',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    }
+  });
+  if (!response.ok) throw await readError(response);
+}
+
+export type MediaSourceCredentialState = { configured: boolean; code?: string };
+export async function loadMediaSources(): Promise<MediaSourceEngineering[]> {
+  return await getJson<MediaSourceEngineering[]>('/api/engineering/media-sources');
+}
+export type MediaSourceCredentialInput = { username?: string | null; password?: string | null; bearerToken?: string | null };
+
+export async function createMediaSource(source: MediaSourceEngineering, expectedChangeVersion: number): Promise<MediaSourceEngineering> {
+  const response = await fetch(`${API}/api/engineering/media-sources`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json; charset=utf-8',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    },
+    body: JSON.stringify(source)
+  });
+  if (!response.ok) throw await readError(response);
+  return await response.json() as MediaSourceEngineering;
+}
+
+export async function updateMediaSource(source: MediaSourceEngineering, expectedChangeVersion: number): Promise<void> {
+  if (!source.id) throw new Error('A saved media source ID is required.');
+  const response = await fetch(`${API}/api/engineering/media-sources/${encodeURIComponent(source.id)}`, {
+    method: 'PUT',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json; charset=utf-8',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    },
+    body: JSON.stringify(source)
+  });
+  if (!response.ok) throw await readError(response);
+}
+
+export async function deleteMediaSource(id: string, expectedChangeVersion: number): Promise<void> {
+  const response = await fetch(`${API}/api/engineering/media-sources/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: {
+      accept: 'application/json',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    }
+  });
+  if (!response.ok) throw await readError(response);
+}
+
+export async function loadMediaSourceCredentialState(id: string): Promise<MediaSourceCredentialState> {
+  return await getJson<MediaSourceCredentialState>(`/api/engineering/media-sources/${encodeURIComponent(id)}/credential-state`);
+}
+
+export async function configureMediaSourceCredential(id: string, credential: MediaSourceCredentialInput): Promise<MediaSourceCredentialState> {
+  const response = await fetch(`${API}/api/engineering/media-sources/${encodeURIComponent(id)}/credential`, {
+    method: 'PUT',
+    headers: { accept: 'application/json', 'content-type': 'application/json; charset=utf-8' },
+    body: JSON.stringify(credential)
+  });
+  if (!response.ok) throw await readError(response);
+  return await response.json() as MediaSourceCredentialState;
+}
+
+export async function deleteMediaSourceCredential(id: string): Promise<void> {
+  const response = await fetch(`${API}/api/engineering/media-sources/${encodeURIComponent(id)}/credential`, {
+    method: 'DELETE',
+    headers: { accept: 'application/json' }
+  });
+  if (!response.ok) throw await readError(response);
 }
 
 export async function loadGatewayDiagnostics(): Promise<GatewayRuntimeDiagnostic[]> {
@@ -109,6 +267,23 @@ export async function loadGatewayDiagnostics(): Promise<GatewayRuntimeDiagnostic
 export async function loadCommunicationDiagnostics(): Promise<CommunicationDriverDiagnostic[]> {
   const diagnostics = await getJson<RuntimeDiagnosticsView>('/api/diagnostics/runtime');
   return diagnostics.runtime?.communicationDrivers ?? [];
+}
+
+export async function loadDriverHostHealth(): Promise<DriverHostHealth> {
+  return await getJson<DriverHostHealth>('/api/engineering/diagnostics/driver-host');
+}
+
+export async function probeNetworkReachability(host: string, port: number): Promise<NetworkReachabilityProbeResponse> {
+  const response = await fetch(`${API}/api/engineering/diagnostics/network-probe`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json; charset=utf-8'
+    },
+    body: JSON.stringify({ host, port, timeoutMilliseconds: 3000 })
+  });
+  if (!response.ok) throw await readError(response);
+  return await response.json() as NetworkReachabilityProbeResponse;
 }
 
 export async function previewEngineeringPackage(

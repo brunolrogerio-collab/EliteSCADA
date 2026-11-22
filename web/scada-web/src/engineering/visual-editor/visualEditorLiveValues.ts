@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import type { EngineeringLocale } from '../i18n';
 import type {
   BindingEngineering,
@@ -11,9 +11,13 @@ import { initializeClientMemory, readClientMemoryValue } from '../../runtime/cli
 import {
   loadReadableRuntimeTags,
   openRuntimeTagSocket,
-  parseRuntimeTagRealtimeMessage
+  parseRuntimeTagRealtimeMessage,
+  RuntimeTagSessionRequiredContext
 } from '../../runtime/liveTagTransport';
+import { getActiveRuntimeSession } from '../../runtime/runtimeSessionAdmissionApi';
 import { visualTagSampleKey, type VisualDynamicSample } from './visualDynamicRuntime';
+
+const TAG_SOCKET_RECONNECT_INTERVALS_MS = [1000, 2000, 5000] as const;
 
 export type VisualLiveScalarSample = VisualDynamicSample;
 
@@ -25,10 +29,12 @@ type RuntimeSourceRequest = Readonly<{
 }>;
 
 export function useVisualBindingSamples(
-  elements: readonly VisualElementEngineering[] | null | undefined
+  elements: readonly VisualElementEngineering[] | null | undefined,
+  enabled = true
 ): ReadonlyMap<string, VisualLiveScalarSample> {
-  const bindings = useMemo(() => collectBindings(elements), [elements]);
-  const requests = useMemo(() => collectRuntimeSourceRequests(elements), [elements]);
+  const requireRuntimeSession = useContext(RuntimeTagSessionRequiredContext);
+  const bindings = useMemo(() => enabled ? collectBindings(elements) : Object.freeze([]), [elements, enabled]);
+  const requests = useMemo(() => enabled ? collectRuntimeSourceRequests(elements) : Object.freeze([]), [elements, enabled]);
   const tagRequests = useMemo(() => requests.filter(request => request.kind === 'tag'), [requests]);
   const clientRequests = useMemo(() => requests.filter(request => request.kind === 'clientmemory'), [requests]);
   const [samples, setSamples] = useState<ReadonlyMap<string, VisualLiveScalarSample>>(() => new Map());
@@ -41,7 +47,7 @@ export function useVisualBindingSamples(
 
     const refresh = async () => {
       try {
-        const tags = await loadReadableRuntimeTags();
+        const tags = await loadReadableRuntimeTags(undefined, requireRuntimeSession);
         if (cancelled) return;
         setSamples(current => {
           const next = new Map(current);
@@ -95,8 +101,14 @@ export function useVisualBindingSamples(
 
     void refresh();
     const refreshTimer = window.setInterval(() => void refresh(), 3000);
-    const socket = openRuntimeTagSocket();
-    socket.addEventListener('message', event => {
+    let socket: WebSocket | undefined;
+    let socketSessionId: string | undefined;
+    let reconnectTimer: number | undefined;
+    let reconnectAttempt = 0;
+
+    const onMessage = (event: MessageEvent) => {
+      if (cancelled || event.currentTarget !== socket ||
+          (requireRuntimeSession && getActiveRuntimeSession()?.sessionId !== socketSessionId)) return;
       const message = parseRuntimeTagRealtimeMessage(String(event.data));
       if (!message) return;
       const id = message.tag.id.trim().toLocaleLowerCase();
@@ -117,17 +129,41 @@ export function useVisualBindingSamples(
         next.set(visualTagSampleKey(message.tag.id), sample);
         return next;
       });
-    });
-    socket.addEventListener('close', () => {
-      if (!cancelled) markRequestsUnavailable(setSamples, tagRequests, bindings, true);
-    });
+    };
+
+    const scheduleReconnect = () => {
+      const delay = TAG_SOCKET_RECONNECT_INTERVALS_MS[reconnectAttempt];
+      reconnectAttempt = Math.min(reconnectAttempt + 1, TAG_SOCKET_RECONNECT_INTERVALS_MS.length - 1);
+      reconnectTimer = window.setTimeout(connect, delay);
+    };
+
+    const connect = () => {
+      try {
+        const connection = openRuntimeTagSocket(requireRuntimeSession);
+        socketSessionId = getActiveRuntimeSession()?.sessionId;
+        socket = connection;
+        connection.addEventListener('open', () => { reconnectAttempt = 0; });
+        connection.addEventListener('message', onMessage);
+        connection.addEventListener('close', () => {
+          if (cancelled || socket !== connection) return;
+          socket = undefined;
+          markRequestsUnavailable(setSamples, tagRequests, bindings, true);
+          scheduleReconnect();
+        });
+      } catch {
+        scheduleReconnect();
+      }
+    };
+
+    connect();
 
     return () => {
       cancelled = true;
       window.clearInterval(refreshTimer);
-      socket.close();
+      window.clearTimeout(reconnectTimer);
+      socket?.close();
     };
-  }, [tagRequests, bindings]);
+  }, [tagRequests, bindings, requireRuntimeSession]);
 
   useEffect(() => {
     if (clientRequests.length === 0) return undefined;
@@ -167,13 +203,16 @@ export function useVisualBindingSamples(
 export function formatVisualScalarText(
   sample: VisualLiveScalarSample | undefined,
   binding: BindingEngineering,
-  locale: EngineeringLocale
+  locale: EngineeringLocale,
+  valueFormat = 'default',
+  configuredDecimals?: number,
+  showEngineeringUnit = true
 ): Readonly<{ text: string; available: boolean; state: string }> {
   if (!sample) return Object.freeze({ text: '—', available: false, state: unavailableLabel(locale) });
   const state = qualityState(sample);
   const available = state.available;
   const sourceType = binding.metadata?.sourceDataType || sample.dataType || 'String';
-  const unit = binding.metadata?.engineeringUnit?.trim() || '';
+  const unit = showEngineeringUnit ? binding.metadata?.engineeringUnit?.trim() || '' : '';
   if (!available || sample.value === null || sample.value === undefined) {
     return Object.freeze({ text: '—', available: false, state: state.label });
   }
@@ -185,11 +224,14 @@ export function formatVisualScalarText(
       ? localizedBoolean(sample.value, locale)
       : String(sample.value);
   } else if (['int16', 'int32', 'int64', 'enum'].includes(normalizedType)) {
-    text = typeof sample.value === 'string' ? sample.value : String(sample.value);
+    const numeric = typeof sample.value === 'number' ? sample.value : Number(sample.value);
+    text = Number.isFinite(numeric) && configuredDecimals !== undefined
+      ? new Intl.NumberFormat(locale, { minimumFractionDigits: configuredDecimals, maximumFractionDigits: configuredDecimals, useGrouping: false }).format(numeric)
+      : typeof sample.value === 'string' ? sample.value : String(sample.value);
   } else if (['float', 'double'].includes(normalizedType)) {
     const numeric = typeof sample.value === 'number' ? sample.value : Number(sample.value);
     if (!Number.isFinite(numeric)) return Object.freeze({ text: '—', available: false, state: state.label });
-    const decimalPlaces = parseDecimalPlaces(binding.metadata?.decimalPlaces);
+    const decimalPlaces = configuredDecimals ?? parseDecimalPlaces(binding.metadata?.decimalPlaces);
     text = new Intl.NumberFormat(locale, {
       maximumFractionDigits: decimalPlaces ?? 6,
       minimumFractionDigits: decimalPlaces ?? 0,
@@ -197,9 +239,7 @@ export function formatVisualScalarText(
     }).format(numeric);
   } else if (normalizedType === 'datetime') {
     const date = new Date(String(sample.value));
-    text = Number.isNaN(date.getTime())
-      ? String(sample.value)
-      : new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'medium' }).format(date);
+    text = Number.isNaN(date.getTime()) ? String(sample.value) : formatDateTime(date, valueFormat, locale);
   } else {
     text = String(sample.value);
   }
@@ -208,6 +248,19 @@ export function formatVisualScalarText(
   const suffix = binding.metadata?.suffix ?? '';
   const joined = `${prefix}${text}${unit ? ` ${unit}` : ''}${suffix}`;
   return Object.freeze({ text: joined, available: true, state: state.label });
+}
+
+function formatDateTime(date: Date, format: string, locale: EngineeringLocale): string {
+  const optionsByFormat: Record<string, Intl.DateTimeFormatOptions> = {
+    'MM/DD': { month: '2-digit', day: '2-digit' },
+    'DD/MM': { day: '2-digit', month: '2-digit' },
+    'MM/DD/YYYY': { month: '2-digit', day: '2-digit', year: 'numeric' },
+    'DD/MM/YYYY': { day: '2-digit', month: '2-digit', year: 'numeric' },
+    'HH:mm': { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+    'HH:mm:ss': { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' },
+    dateTime: { dateStyle: 'short', timeStyle: 'medium' }
+  };
+  return new Intl.DateTimeFormat(locale, optionsByFormat[format] ?? { dateStyle: 'short', timeStyle: 'medium' }).format(date);
 }
 
 function collectBindings(elements: readonly VisualElementEngineering[] | null | undefined): readonly BindingEngineering[] {
@@ -259,6 +312,7 @@ function collectRuntimeSourceRequests(elements: readonly VisualElementEngineerin
     }
     for (const configured of element.propertyExpressions ?? []) addExpression(configured.expression);
     for (const condition of element.booleanConditions ?? []) addSource(condition.source);
+    for (const propertyMap of element.propertyMaps ?? []) addSource(propertyMap.source);
     addSource(element.analogFill?.source);
     for (const child of element.children ?? []) visit(child);
   };

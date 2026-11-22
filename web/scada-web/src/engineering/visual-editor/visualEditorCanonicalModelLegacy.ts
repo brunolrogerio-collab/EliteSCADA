@@ -1,16 +1,21 @@
 import type {
   BindingEngineering,
   EngineeringPackageView,
+  DynamoEngineering,
   ScreenEngineering,
+  TemplateEngineering,
   VisualAnalogFillEngineering,
   VisualBooleanConditionEngineering,
   VisualElementEngineering,
   VisualEngineeringPropertyValue,
-  VisualPropertyExpressionEngineering
+  VisualPropertyExpressionEngineering,
+  VisualPropertyMapEngineering
 } from '../types';
+import type { DynamoParameterDefinitionEngineering } from '../../runtime/visual-navigation/runtimeVisualNavigationModel';
 import {
   BUILTIN_VISUAL_OBJECT_TYPES,
   getBuiltinVisualObjectSchema,
+  getVisualSchemaForEngineering,
   supportsAnalogFill,
   VISUAL_PROPERTY_KEYS,
   type VisualObjectPropertySchema
@@ -71,6 +76,60 @@ export function replaceScreenInPackage(
   return candidate;
 }
 
+export function replaceTemplateInPackage(
+  model: EngineeringPackageView,
+  original: TemplateEngineering | null,
+  draft: ScreenEngineering
+): EngineeringPackageView {
+  const candidate = cloneEngineeringValue(model);
+  const templates = candidate.templates ?? [];
+  const template: TemplateEngineering = {
+    id: draft.id,
+    key: draft.key,
+    name: draft.name,
+    bindings: original?.bindings ?? [],
+    elements: cloneEngineeringValue(draft.elements ?? []),
+    properties: draft.properties ?? {},
+    context: draft.context ?? {},
+    metadata: draft.metadata ?? {}
+  };
+  candidate.templates = original === null
+    ? [...templates, template]
+    : templates.map(item => screenIdentity(item) === screenIdentity(original) ? template : item);
+  return candidate;
+}
+
+export function replaceDynamoInPackage(
+  model: EngineeringPackageView,
+  original: DynamoEngineering | null,
+  draft: ScreenEngineering,
+  parameters: readonly DynamoParameterDefinitionEngineering[] = original?.parameters ?? []
+): EngineeringPackageView {
+  const candidate = cloneEngineeringValue(model);
+  const dynamos = candidate.dynamos ?? [];
+  const updated: DynamoEngineering = {
+    ...(original ?? {}),
+    id: original?.id ?? draft.id,
+    key: original?.key ?? draft.key,
+    name: draft.name,
+    bindings: original?.bindings ?? [],
+    parameters: cloneEngineeringValue([...parameters]),
+    elements: cloneEngineeringValue(draft.elements ?? []),
+    properties: draft.properties ?? {},
+    context: draft.context ?? {},
+    metadata: draft.metadata ?? {}
+  };
+
+  if (!original) {
+    candidate.dynamos = [...dynamos, updated];
+    return candidate;
+  }
+
+  const originalIdentity = original.id ? `id:${original.id}` : `key:${original.key}`;
+  candidate.dynamos = dynamos.map(item => (item.id ? `id:${item.id}` : `key:${item.key}`) === originalIdentity ? updated : item);
+  return candidate;
+}
+
 export function updateScreenElement(
   screen: ScreenEngineering,
   objectId: string,
@@ -113,8 +172,12 @@ export function applyVisualEditorMutationIntent(
   switch (intent.kind) {
     case 'object.add':
       return addVisualObject(screen, intent.objectType, intent.parentObjectId ?? null, intent.at ?? null, intent.initialProperties, createObjectId);
+    case 'object.rename':
+      return renameVisualObject(screen, intent.objectId, intent.key);
     case 'dynamo.add':
       return addDynamoInstance(screen, intent, createObjectId);
+    case 'equipment.add':
+      return addEquipmentInstance(screen, intent, createObjectId);
     case 'object.move':
       return moveVisualObjects(screen, intent.objectIds, intent.delta);
     case 'object.resize':
@@ -129,7 +192,8 @@ export function applyVisualEditorMutationIntent(
       return changeVisualObjectZOrder(screen, intent.objectIds, intent.operation);
     case 'polygon.create':
     case 'polygon.points.set':
-      throw new Error(`Polygon structural intent '${intent.kind}' must be handled by the canonical polygon mutation seam.`);
+    case 'bezier.create':
+      throw new Error(`Canvas geometry intent '${intent.kind}' must be handled by its canonical geometry mutation seam.`);
     case 'property.set':
       return setVisualProperty(screen, intent.objectIds, intent.propertyKey, intent.value);
     case 'property.remove':
@@ -150,7 +214,47 @@ export function applyVisualEditorMutationIntent(
       return setVisualAnalogFill(screen, intent.objectId, intent.configuration);
     case 'analogFill.remove':
       return removeVisualAnalogFill(screen, intent.objectId);
+    case 'propertyMap.set':
+      return setVisualPropertyMap(screen, intent.objectId, intent.configuration);
+    case 'propertyMap.remove':
+      return removeVisualPropertyMap(screen, intent.objectId, intent.propertyKey);
+    case 'visualAction.set':
+      return updateScreenElement(screen, intent.objectId, element => {
+        const actions = (element.actions ?? []).filter(action => action.eventKey.toLocaleLowerCase('en-US') !== intent.action.eventKey.toLocaleLowerCase('en-US'));
+        return { ...element, actions: [...actions, cloneEngineeringValue(intent.action)] };
+      });
+    case 'visualAction.remove':
+      return updateScreenElement(screen, intent.objectId, element => {
+        const actions = element.actions ?? [];
+        const next = actions.filter(action => action.eventKey.toLocaleLowerCase('en-US') !== intent.eventKey.toLocaleLowerCase('en-US'));
+        return next.length === actions.length ? element : { ...element, actions: next };
+      });
   }
+}
+
+function renameVisualObject(
+  screen: ScreenEngineering,
+  objectId: string,
+  rawKey: string
+): ScreenEngineering {
+  const element = requireVisualElement(screen, objectId);
+  const key = rawKey.trim();
+  if (!key) throw new Error('Visual object developer Key is required.');
+
+  const siblings = findSiblingElements(screen.elements ?? [], objectId);
+  if (!siblings) throw new Error(`Visual object '${objectId}' has no canonical sibling container.`);
+
+  const normalized = key.toLocaleLowerCase('en-US');
+  const duplicate = siblings.find(candidate =>
+    candidate.id !== objectId &&
+    candidate.key.trim().toLocaleLowerCase('en-US') === normalized
+  );
+  if (duplicate) {
+    throw new Error(`Visual object Key '${key}' is already used by a sibling object.`);
+  }
+
+  if (element.key === key) return screen;
+  return updateScreenElement(screen, objectId, current => ({ ...current, key }));
 }
 
 function addDynamoInstance(
@@ -175,7 +279,37 @@ function addDynamoInstance(
     key: nextVisualElementKey(dynamoKey.split('.').at(-1) || 'dynamo', usedKeys),
     type: BUILTIN_VISUAL_OBJECT_TYPES.group,
     dynamoKey,
+    dynamoDefinitionId: intent.dynamoDefinitionId?.trim() || null,
     equipmentPath: intent.equipmentPath?.trim() || null,
+    properties: {}
+  };
+  element = withValidatedProperties(element, schema, {
+    [VISUAL_PROPERTY_KEYS.x]: at.x,
+    [VISUAL_PROPERTY_KEYS.y]: at.y,
+    [VISUAL_PROPERTY_KEYS.width]: width,
+    [VISUAL_PROPERTY_KEYS.height]: height
+  });
+  return { ...screen, elements: [...(screen.elements ?? []), element] };
+}
+
+function addEquipmentInstance(
+  screen: ScreenEngineering,
+  intent: Extract<VisualEditorMutationIntent, { kind: 'equipment.add' }>,
+  createObjectId: () => string
+): ScreenEngineering {
+  if (!intent.equipmentId.trim() || !intent.equipmentPath.trim()) throw new Error('Equipment stable identity and path are required.');
+  const at = intent.at ?? { x: 24, y: 24 };
+  assertFinitePoint(at, 'Equipment placement');
+  const width = intent.defaultWidth ?? 260;
+  const height = intent.defaultHeight ?? 180;
+  if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) throw new Error('Equipment default dimensions must be positive finite values.');
+  const schema = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.group);
+  let element: VisualElementEngineering = {
+    id: requireGeneratedObjectId(createObjectId()),
+    key: nextVisualElementKey(intent.equipmentName.trim().replace(/\s+/g, '-') || 'equipment', collectVisualElementKeys(screen.elements)),
+    type: BUILTIN_VISUAL_OBJECT_TYPES.group,
+    equipmentId: intent.equipmentId,
+    equipmentPath: intent.equipmentPath,
     properties: {}
   };
   element = withValidatedProperties(element, schema, {
@@ -209,6 +343,13 @@ function addVisualObject(
     element = withValidatedProperties(element, schema, {
       [VISUAL_PROPERTY_KEYS.width]: 180,
       [VISUAL_PROPERTY_KEYS.height]: 56
+    });
+  }
+  if (objectType === BUILTIN_VISUAL_OBJECT_TYPES.numericInput) {
+    element = withValidatedProperties(element, schema, {
+      [VISUAL_PROPERTY_KEYS.width]: 190,
+      [VISUAL_PROPERTY_KEYS.height]: 52,
+      [VISUAL_PROPERTY_KEYS.interactionEnabled]: true
     });
   }
 
@@ -250,7 +391,7 @@ function moveVisualObjects(
   let next = screen;
   for (const objectId of ids) {
     next = updateScreenElement(next, objectId, element => {
-      const schema = getBuiltinVisualObjectSchema(element.type);
+      const schema = getVisualSchemaForEngineering(element.type);
       return withValidatedProperties(element, schema, {
         [VISUAL_PROPERTY_KEYS.x]: effectiveNumericProperty(element, schema, VISUAL_PROPERTY_KEYS.x) + delta.x,
         [VISUAL_PROPERTY_KEYS.y]: effectiveNumericProperty(element, schema, VISUAL_PROPERTY_KEYS.y) + delta.y
@@ -268,7 +409,7 @@ function resizeVisualObject(
   assertFiniteBounds(bounds);
   requireVisualElement(screen, objectId);
   return updateScreenElement(screen, objectId, element => {
-    const schema = getBuiltinVisualObjectSchema(element.type);
+    const schema = getVisualSchemaForEngineering(element.type);
     return withValidatedProperties(element, schema, {
       [VISUAL_PROPERTY_KEYS.x]: bounds.x,
       [VISUAL_PROPERTY_KEYS.y]: bounds.y,
@@ -288,7 +429,7 @@ function rotateVisualObjects(
   let next = screen;
   for (const objectId of ids) {
     next = updateScreenElement(next, objectId, element => {
-      const schema = getBuiltinVisualObjectSchema(element.type);
+      const schema = getVisualSchemaForEngineering(element.type);
       return withValidatedProperty(
         element,
         schema,
@@ -336,7 +477,7 @@ function changeVisualObjectZOrder(
   let next = screen;
   for (const objectId of ids) {
     const current = requireVisualElement(next, objectId);
-    const schema = getBuiltinVisualObjectSchema(current.type);
+    const schema = getVisualSchemaForEngineering(current.type);
     const currentZ = effectiveNumericProperty(current, schema, VISUAL_PROPERTY_KEYS.zIndex);
     const siblingElements = findSiblingElements(next.elements ?? [], objectId);
     if (!siblingElements) throw new Error(`Visual object '${objectId}' has no canonical sibling container.`);
@@ -346,7 +487,7 @@ function changeVisualObjectZOrder(
     const nextZ = zOrderValue(currentZ, minimum, maximum, operation);
     next = updateScreenElement(next, objectId, element => withValidatedProperty(
       element,
-      getBuiltinVisualObjectSchema(element.type),
+      getVisualSchemaForEngineering(element.type),
       VISUAL_PROPERTY_KEYS.zIndex,
       nextZ
     ));
@@ -370,7 +511,7 @@ function setVisualProperty(
   for (const objectId of ids) {
     next = updateScreenElement(next, objectId, element => withValidatedProperty(
       element,
-      getBuiltinVisualObjectSchema(element.type),
+      getVisualSchemaForEngineering(element.type),
       propertyKey,
       value
     ));
@@ -386,7 +527,7 @@ function removeVisualProperty(
   const ids = requireVisualElements(screen, objectIds);
   for (const objectId of ids) {
     const element = requireVisualElement(screen, objectId);
-    const schema = getBuiltinVisualObjectSchema(element.type);
+    const schema = getVisualSchemaForEngineering(element.type);
     const definition = schema.getRequired(propertyKey);
     if (!definition.engineeringEditable) {
       throw new Error(`Visual property '${propertyKey}' is not Engineering-editable for '${element.type}'.`);
@@ -521,13 +662,54 @@ function setVisualAnalogFill(
   }));
 }
 
+function setVisualPropertyMap(
+  screen: ScreenEngineering,
+  objectId: string,
+  configuration: VisualPropertyMapEngineering
+): ScreenEngineering {
+  const element = requireVisualElement(screen, objectId);
+  const schema = getVisualSchemaForEngineering(element.type);
+  const definition = schema.getRequired(configuration.propertyKey);
+  if (!definition.animatable) throw new Error(`Visual property '${configuration.propertyKey}' is not animatable.`);
+  if (configuration.source.valueType !== 'Number') throw new Error('Visual property maps require a Number source.');
+  if (!configuration.rules.length) throw new Error('Visual property maps require at least one ordered range rule.');
+  for (const rule of configuration.rules) {
+    schema.validate(configuration.propertyKey, rule.value);
+    const minimum = rule.minimum ?? null;
+    const maximum = rule.maximum ?? null;
+    if (minimum === null && maximum === null) throw new Error('Each property map rule requires at least one bound.');
+    if (minimum !== null && !Number.isFinite(minimum)) throw new Error('Property map minimum must be finite.');
+    if (maximum !== null && !Number.isFinite(maximum)) throw new Error('Property map maximum must be finite.');
+    if (minimum !== null && maximum !== null && minimum > maximum) throw new Error('Property map minimum cannot exceed maximum.');
+  }
+  if (configuration.fallback !== undefined && configuration.fallback !== null) {
+    schema.validate(configuration.propertyKey, configuration.fallback);
+  }
+  return updateScreenElement(screen, objectId, current => ({
+    ...current,
+    propertyMaps: [
+      ...(current.propertyMaps ?? []).filter(item => item.propertyKey !== configuration.propertyKey),
+      cloneEngineeringValue(configuration)
+    ]
+  }));
+}
+
+function removeVisualPropertyMap(screen: ScreenEngineering, objectId: string, propertyKey: string): ScreenEngineering {
+  const element = requireVisualElement(screen, objectId);
+  getVisualSchemaForEngineering(element.type).getRequired(propertyKey);
+  return updateScreenElement(screen, objectId, current => ({
+    ...current,
+    propertyMaps: (current.propertyMaps ?? []).filter(item => item.propertyKey !== propertyKey)
+  }));
+}
+
 function removeVisualAnalogFill(screen: ScreenEngineering, objectId: string): ScreenEngineering {
   requireVisualElement(screen, objectId);
   return updateScreenElement(screen, objectId, current => ({ ...current, analogFill: null }));
 }
 
 function validateDynamicDestinationProperty(element: VisualElementEngineering, propertyKey: string): 'Boolean' | 'Number' {
-  const schema = getBuiltinVisualObjectSchema(element.type);
+  const schema = getVisualSchemaForEngineering(element.type);
   const definition = schema.getRequired(propertyKey);
   if (!definition.engineeringEditable) {
     throw new Error(`Visual property '${propertyKey}' is not Engineering-editable for '${element.type}'.`);
@@ -556,7 +738,7 @@ function validateEditableProperty(
   propertyKey: string,
   value: VisualEngineeringPropertyValue
 ): void {
-  const schema = getBuiltinVisualObjectSchema(element.type);
+  const schema = getVisualSchemaForEngineering(element.type);
   const definition = schema.getRequired(propertyKey);
   if (!definition.engineeringEditable) {
     throw new Error(`Visual property '${propertyKey}' is not Engineering-editable for '${element.type}'.`);
@@ -568,7 +750,7 @@ function validateEditableProperty(
 }
 
 function validateBindingDestination(element: VisualElementEngineering, propertyKey: string): void {
-  const schema = getBuiltinVisualObjectSchema(element.type);
+  const schema = getVisualSchemaForEngineering(element.type);
   const definition = schema.getRequired(propertyKey);
   if (!definition.supportsBinding) {
     throw new Error(`Visual property '${propertyKey}' does not support canonical binding.`);
@@ -629,7 +811,7 @@ function effectiveSiblingZIndex(element: VisualElementEngineering): number {
     const legacy = element.properties?.[VISUAL_PROPERTY_KEYS.zIndex];
     return typeof legacy === 'number' && Number.isFinite(legacy) ? legacy : 0;
   }
-  const schema = getBuiltinVisualObjectSchema(element.type);
+  const schema = getVisualSchemaForEngineering(element.type);
   return effectiveNumericProperty(element, schema, VISUAL_PROPERTY_KEYS.zIndex);
 }
 
@@ -681,7 +863,7 @@ function cloneVisualElementWithNewIdentity(
   duplicateOffset: number,
   applyOffset: boolean
 ): VisualElementEngineering {
-  const schema = getBuiltinVisualObjectSchema(element.type);
+  const schema = getVisualSchemaForEngineering(element.type);
   const clone: VisualElementEngineering = {
     ...cloneEngineeringValue(element),
     id: requireGeneratedObjectId(createObjectId()),

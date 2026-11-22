@@ -125,6 +125,8 @@ public sealed class SimulationDriver : ICommunicationDriver
     private object? Calculate(SimulationPoint point, double elapsedSeconds)
     {
         if (_manualValues.TryGetValue(point.Tag.Id, out var manual)) return manual;
+        if (point.SignalType == SimulationSignalType.CurrentTime)
+            return DateTimeOffset.UtcNow;
 
         var range = point.Maximum - point.Minimum;
         var period = Math.Max(point.PeriodSeconds, 0.001);
@@ -132,7 +134,11 @@ public sealed class SimulationDriver : ICommunicationDriver
         {
             SimulationSignalType.Constant => point.ConstantValue,
             SimulationSignalType.Ramp => point.Minimum + range * ((elapsedSeconds % period) / period),
+            SimulationSignalType.RampUp => point.Minimum + range * ((elapsedSeconds % period) / period),
+            SimulationSignalType.RampDown => point.Maximum - range * ((elapsedSeconds % period) / period),
+            SimulationSignalType.RampUpDown => point.Minimum + range * (1d - Math.Abs(2d * ((elapsedSeconds % period) / period) - 1d)),
             SimulationSignalType.Sine => point.Minimum + range / 2d + (range / 2d) * Math.Sin(2d * Math.PI * elapsedSeconds / period),
+            SimulationSignalType.Square => Math.Floor(elapsedSeconds / period) % 2d == 0d ? point.Maximum : point.Minimum,
             SimulationSignalType.Random => point.Minimum + Random.Shared.NextDouble() * range,
             SimulationSignalType.Counter => point.Minimum + ((Math.Floor(elapsedSeconds / Math.Max(ScanRate.TotalSeconds, 0.001)) * point.Step) % Math.Max(range, 1)),
             SimulationSignalType.BooleanToggle => Math.Floor(elapsedSeconds / period) % 2 == 0 ? 1d : 0d,

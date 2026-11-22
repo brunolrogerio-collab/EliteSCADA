@@ -6,10 +6,12 @@ namespace Scada.Engineering.Assets;
 
 public interface IEngineeringAssetRegistry
 {
+    IReadOnlyCollection<LocationEngineeringDto> SnapshotLocations();
     IReadOnlyCollection<EquipmentTemplateEngineeringDto> SnapshotTemplates();
     IReadOnlyCollection<EquipmentEngineeringDto> SnapshotEquipment();
     IReadOnlyCollection<DynamoEngineeringDto> SnapshotDynamos();
 
+    LocationEngineeringDto? FindLocation(Guid id);
     EquipmentTemplateEngineeringDto? FindTemplate(Guid id);
     EquipmentTemplateEngineeringDto? FindTemplateByKey(string key);
     EquipmentEngineeringDto? FindEquipment(Guid id);
@@ -17,14 +19,18 @@ public interface IEngineeringAssetRegistry
     DynamoEngineeringDto? FindDynamo(Guid id);
     DynamoEngineeringDto? FindDynamoByKey(string key);
 
+    void UpsertLocation(LocationEngineeringDto location);
+    bool RemoveLocation(Guid id);
     void UpsertTemplate(EquipmentTemplateEngineeringDto template);
     void UpsertEquipment(EquipmentEngineeringDto equipment);
     void UpsertDynamo(DynamoEngineeringDto dynamo);
+    bool RemoveDynamo(string key);
 }
 
 public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
 {
     private readonly object _sync = new();
+    private readonly Dictionary<Guid, LocationEngineeringDto> _locationsById = new();
     private readonly Dictionary<Guid, EquipmentTemplateEngineeringDto> _templatesById = new();
     private readonly Dictionary<string, Guid> _templatesByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<Guid, EquipmentEngineeringDto> _equipmentById = new();
@@ -36,6 +42,12 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
     public InMemoryEngineeringAssetRegistry(Action? changed = null)
     {
         _changed = changed;
+    }
+
+    public IReadOnlyCollection<LocationEngineeringDto> SnapshotLocations()
+    {
+        lock (_sync)
+            return _locationsById.Values.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     public IReadOnlyCollection<EquipmentTemplateEngineeringDto> SnapshotTemplates()
@@ -54,6 +66,11 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
     {
         lock (_sync)
             return _dynamosById.Values.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    public LocationEngineeringDto? FindLocation(Guid id)
+    {
+        lock (_sync) return _locationsById.GetValueOrDefault(id);
     }
 
     public EquipmentTemplateEngineeringDto? FindTemplate(Guid id)
@@ -86,11 +103,46 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
         lock (_sync) return _dynamosByKey.TryGetValue(key, out var id) ? _dynamosById.GetValueOrDefault(id) : null;
     }
 
+    public void UpsertLocation(LocationEngineeringDto location)
+    {
+        ArgumentNullException.ThrowIfNull(location);
+        if (location.Id == Guid.Empty)
+            throw new ArgumentException("Location Id cannot be empty.", nameof(location));
+        ArgumentException.ThrowIfNullOrWhiteSpace(location.Name);
+        var normalized = location with { Id = location.Id ?? Guid.NewGuid() };
+        lock (_sync) _locationsById[normalized.Id!.Value] = normalized;
+        _changed?.Invoke();
+    }
+
+    public bool RemoveLocation(Guid id)
+    {
+        bool removed;
+        lock (_sync)
+        {
+            if (_locationsById.Values.Any(x => x.ParentLocationId == id) ||
+                _equipmentById.Values.Any(x => x.LocationId == id))
+                return false;
+            removed = _locationsById.Remove(id);
+        }
+        if (removed) _changed?.Invoke();
+        return removed;
+    }
+
     public void UpsertTemplate(EquipmentTemplateEngineeringDto template)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(template.Key);
-        var normalized = template with { Id = template.Id ?? Guid.NewGuid() };
-        lock (_sync) UpsertByKey(normalized, normalized.Id!.Value, normalized.Key, _templatesById, _templatesByKey, x => x.Key);
+        lock (_sync)
+        {
+            var existing = ResolveExisting(template.Id, template.Key, _templatesById, _templatesByKey);
+            var normalizedId = template.Id ?? existing?.Id ?? Guid.NewGuid();
+            var elements = VisualElementIdentity.Normalize(template.Elements, existing?.Elements);
+            var normalized = template with
+            {
+                Id = normalizedId,
+                Elements = VisualEngineeringPropertyMigration.NormalizeCurrentElements(elements)
+            };
+            UpsertByKey(normalized, normalizedId, normalized.Key, _templatesById, _templatesByKey, x => x.Key);
+        }
         _changed?.Invoke();
     }
 
@@ -124,10 +176,27 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
         _changed?.Invoke();
     }
 
+    public bool RemoveDynamo(string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        bool removed;
+        lock (_sync)
+        {
+            removed = _dynamosByKey.Remove(key, out var id);
+            if (removed)
+                _dynamosById.Remove(id);
+        }
+
+        if (removed)
+            _changed?.Invoke();
+        return removed;
+    }
+
     public void Clear()
     {
         lock (_sync)
         {
+            _locationsById.Clear();
             _templatesById.Clear();
             _templatesByKey.Clear();
             _equipmentById.Clear();

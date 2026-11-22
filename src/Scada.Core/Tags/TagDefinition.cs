@@ -5,6 +5,12 @@ public sealed record TagAccessPolicy(
     IReadOnlyCollection<string>? WriteRoles = null,
     IReadOnlyCollection<string>? ConfigureRoles = null);
 
+/// <summary>
+/// Optional, explicit reference to a versioned Engineering unit catalog entry.
+/// The free-text EngineeringUnit remains the source/display label.
+/// </summary>
+public sealed record ControlledEngineeringUnitReference(int CatalogVersion, string Code);
+
 public sealed record TagDefinition(
     Guid Id,
     string Name,
@@ -18,7 +24,8 @@ public sealed record TagDefinition(
     TagAccessPolicy? AccessPolicy = null,
     TagValueSelector? AddressSelector = null,
     CommunicationTagBinding? CommunicationBinding = null,
-    Guid? DataSourceId = null)
+    Guid? DataSourceId = null,
+    ControlledEngineeringUnitReference? ControlledEngineeringUnit = null)
 {
     public static TagDefinition Create(
         string name,
@@ -32,7 +39,8 @@ public sealed record TagDefinition(
         TagAccessPolicy? accessPolicy = null,
         TagValueSelector? addressSelector = null,
         CommunicationTagBinding? communicationBinding = null,
-        Guid? dataSourceId = null)
+        Guid? dataSourceId = null,
+        ControlledEngineeringUnitReference? controlledEngineeringUnit = null)
         => new(
             Guid.NewGuid(),
             name,
@@ -46,5 +54,6 @@ public sealed record TagDefinition(
             accessPolicy,
             addressSelector,
             communicationBinding,
-            dataSourceId);
+            dataSourceId,
+            controlledEngineeringUnit);
 }

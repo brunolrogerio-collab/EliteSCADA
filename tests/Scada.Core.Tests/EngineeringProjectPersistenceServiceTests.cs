@@ -1,8 +1,12 @@
 using Scada.Core.Alarms;
 using Scada.Core.Events;
+using Scada.Core.HistoricalQueries;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Assets;
+using Scada.Engineering.DataQueries;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Intelligence;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.VisualAssets;
 
@@ -10,6 +14,40 @@ namespace Scada.Core.Tests;
 
 public sealed class EngineeringProjectPersistenceServiceTests
 {
+    [Fact]
+    public async Task SaveAndApplyRevision_PreservesSchema30ResourceOrganizations()
+    {
+        var organization = new EngineeringResourceOrganizationEngineeringDto(
+            1,
+            [new EngineeringResourceFolderEngineeringDto("pumps", "Pumps")],
+            new Dictionary<string, string> { ["tag-id-1"] = "pumps" });
+        using var sourceAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var sourceExchange = new EngineeringExchangeService(new InMemoryTagRegistry(), sourceAlarms);
+        var package = sourceExchange.ExportPackage() with
+        {
+            ResourceOrganizations = [new EngineeringResourceOrganizationEntryEngineeringDto("tags", organization)]
+        };
+        Assert.True(sourceExchange.Preview(package, ImportMode.CreateAndUpdate).CanApply);
+        sourceExchange.Apply(package, ImportMode.CreateAndUpdate);
+
+        var store = new FakeEngineeringProjectStore();
+        var sourcePersistence = new EngineeringProjectPersistenceService(sourceExchange, store);
+        var saved = await sourcePersistence.SaveCurrentAsync("plant-a", "Plant A", "engineering-user");
+        Assert.Equal(30, saved.EngineeringSchemaVersion);
+
+        using var targetAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var targetExchange = new EngineeringExchangeService(new InMemoryTagRegistry(), targetAlarms);
+        var targetPersistence = new EngineeringProjectPersistenceService(targetExchange, store);
+        var applied = await targetPersistence.ApplyRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
+
+        Assert.NotNull(applied);
+        Assert.Empty(applied!.Issues);
+        var restored = Assert.Single(targetExchange.ExportPackage().ResourceOrganizations!);
+        Assert.Equal("tags", restored.Kind);
+        Assert.Equal("pumps", Assert.Single(restored.Organization.Folders).Id);
+        Assert.Equal("pumps", restored.Organization.Assignments["tag-id-1"]);
+    }
+
     [Fact]
     public async Task SaveCurrentAsync_StoresCanonicalCurrentEngineeringPackage()
     {
@@ -103,6 +141,167 @@ public sealed class EngineeringProjectPersistenceServiceTests
     }
 
     [Fact]
+    public async Task SaveAndApplyRevision_PreservesTypedUnitsAndSemanticBindings()
+    {
+        var tagId = Guid.Parse("b4100000-0000-0000-0000-000000000001");
+        var profileId = Guid.Parse("b4100000-0000-0000-0000-000000000002");
+        var signalId = Guid.Parse("b4100000-0000-0000-0000-000000000003");
+        var unit = new ControlledEngineeringUnitReference(1, "unit.pressure.bar");
+        var binding = new AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(
+            1, "pump.discharge_pressure", PressureReference: "gauge");
+        var sourceTags = new InMemoryTagRegistry();
+        sourceTags.Register(new TagDefinition(tagId, "Discharge pressure", "Plant.P01.Pressure", TagDataType.Double,
+            null, "bar", null, true, ControlledEngineeringUnit: unit));
+        var sourceIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        sourceIntelligence.Replace(new AssetProcessIntelligenceEngineeringDto(Version: 2, Profiles:
+        [new(profileId, "pump", "Pump", [new(signalId, "pressure", "legacy pressure", tagId, SemanticBinding: binding)])]));
+        using var sourceAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var sourceExchange = CreateExchange(sourceTags, sourceAlarms, sourceIntelligence);
+        var store = new FakeEngineeringProjectStore();
+        var sourcePersistence = new EngineeringProjectPersistenceService(sourceExchange, store);
+
+        var saved = await sourcePersistence.SaveCurrentAsync("plant-a", "Plant A", "engineering-user");
+        var persistedPackage = sourceExchange.ParseJson(saved.EngineeringJson);
+        var targetTags = new InMemoryTagRegistry();
+        var targetIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        using var targetAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var targetExchange = CreateExchange(targetTags, targetAlarms, targetIntelligence);
+        var targetPersistence = new EngineeringProjectPersistenceService(targetExchange, store);
+        var preview = await targetPersistence.PreviewRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
+        var applied = await targetPersistence.ApplyRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
+
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, persistedPackage.SchemaVersion);
+        Assert.Equal(unit, Assert.Single(persistedPackage.Tags).ControlledEngineeringUnit);
+        Assert.Equal(binding, Assert.Single(persistedPackage.AssetProcessIntelligence!.Profiles!.Single().Signals!).SemanticBinding);
+        Assert.True(preview!.Preview.CanApply);
+        Assert.Empty(applied!.Issues);
+        Assert.Equal(unit, Assert.Single(targetTags.Snapshot()).ControlledEngineeringUnit);
+        var restoredSignal = Assert.Single(targetIntelligence.Snapshot().Profiles!.Single().Signals!);
+        Assert.Equal("legacy pressure", restoredSignal.SignalRole);
+        Assert.Equal(binding, restoredSignal.SemanticBinding);
+    }
+
+    [Fact]
+    public async Task SaveAndApplyRevision_PreservesVersion2UnitAndBindingWithStableIds()
+    {
+        var tagId = Guid.Parse("b4200000-0000-0000-0000-000000000001");
+        var profileId = Guid.Parse("b4200000-0000-0000-0000-000000000002");
+        var signalId = Guid.Parse("b4200000-0000-0000-0000-000000000003");
+        var unit = new ControlledEngineeringUnitReference(2, "unit.power.kilowatt");
+        var binding = new AssetProcessIntelligenceSignalSemanticBindingEngineeringDto(
+            2, "equipment.active_input_power", SignalKind: "measured_total_input");
+        var sourceTags = new InMemoryTagRegistry();
+        sourceTags.Register(new TagDefinition(tagId, "Active input power", "Plant.P01.ActiveInputPower", TagDataType.Double,
+            null, "kW", null, true, ControlledEngineeringUnit: unit));
+        var sourceIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        sourceIntelligence.Replace(new AssetProcessIntelligenceEngineeringDto(Version: 2, Profiles:
+        [new(profileId, "pump", "Pump", [new(signalId, "active-input-power", "legacy power label", tagId,
+            SemanticBinding: binding)])], Assignments: []));
+        using var sourceAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var sourceExchange = CreateExchange(sourceTags, sourceAlarms, sourceIntelligence);
+        var store = new FakeEngineeringProjectStore();
+        var sourcePersistence = new EngineeringProjectPersistenceService(sourceExchange, store);
+
+        var saved = await sourcePersistence.SaveCurrentAsync("plant-a", "Plant A", "engineering-user");
+        var persistedPackage = sourceExchange.ParseJson(saved.EngineeringJson);
+        var targetTags = new InMemoryTagRegistry();
+        var targetIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        using var targetAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var targetExchange = CreateExchange(targetTags, targetAlarms, targetIntelligence);
+        var targetPersistence = new EngineeringProjectPersistenceService(targetExchange, store);
+        var preview = await targetPersistence.PreviewRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
+        var applied = await targetPersistence.ApplyRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
+
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, persistedPackage.SchemaVersion);
+        Assert.Equal(tagId, Assert.Single(persistedPackage.Tags).Id);
+        Assert.Equal(unit, Assert.Single(persistedPackage.Tags).ControlledEngineeringUnit);
+        var persistedProfile = Assert.Single(persistedPackage.AssetProcessIntelligence!.Profiles!);
+        Assert.Equal(profileId, persistedProfile.Id);
+        var persistedSignal = Assert.Single(persistedProfile.Signals!);
+        Assert.Equal(signalId, persistedSignal.Id);
+        Assert.Equal(binding, persistedSignal.SemanticBinding);
+        Assert.True(preview!.Preview.CanApply);
+        Assert.Empty(applied!.Issues);
+        var restoredTag = Assert.Single(targetTags.Snapshot());
+        Assert.Equal(tagId, restoredTag.Id);
+        Assert.Equal(unit, restoredTag.ControlledEngineeringUnit);
+        var restoredProfile = Assert.Single(targetIntelligence.Snapshot().Profiles!);
+        Assert.Equal(profileId, restoredProfile.Id);
+        var restoredSignal = Assert.Single(restoredProfile.Signals!);
+        Assert.Equal(signalId, restoredSignal.Id);
+        Assert.Equal("legacy power label", restoredSignal.SignalRole);
+        Assert.Equal(binding, restoredSignal.SemanticBinding);
+    }
+
+    [Fact]
+    public async Task SaveCurrentPreviewAndApplyRevision_PreservesOperatingContextIdentityVersionAssignmentAndUnitProvenance()
+    {
+        var equipmentId = Guid.Parse("b4300000-0000-0000-0000-000000000001");
+        var tagId = Guid.Parse("b4300000-0000-0000-0000-000000000002");
+        var measurementProfileId = Guid.Parse("b4300000-0000-0000-0000-000000000003");
+        var signalId = Guid.Parse("b4300000-0000-0000-0000-000000000004");
+        var assignmentId = Guid.Parse("b4300000-0000-0000-0000-000000000005");
+        var contextProfileId = Guid.Parse("b4300000-0000-0000-0000-000000000006");
+        var predicate = new AssetProcessIntelligenceOperatingContextPredicateEngineeringDto(
+            tagId,
+            AssetProcessIntelligenceOperatingContextPredicateKind.NumericInterval,
+            Minimum: 4.5,
+            Maximum: 8.5,
+            EngineeringUnit: "bar",
+            EngineeringUnitConfirmed: true);
+        var contextProfile = new AssetProcessIntelligenceOperatingContextProfileEngineeringDto(
+            contextProfileId,
+            "normal-running",
+            "Normal running",
+            assignmentId,
+            7,
+            [predicate]);
+        var sourceTags = new InMemoryTagRegistry();
+        sourceTags.Register(TagDefinition.Create("Discharge pressure", "Plant.P01.DischargePressure",
+            TagDataType.Double, engineeringUnit: "bar") with { Id = tagId });
+        var sourceAssets = new InMemoryEngineeringAssetRegistry();
+        sourceAssets.UpsertEquipment(new EquipmentEngineeringDto(equipmentId, "Plant.P01", "Pump P01"));
+        var sourceIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        sourceIntelligence.Replace(new AssetProcessIntelligenceEngineeringDto(
+            Version: 3,
+            Profiles: [new(measurementProfileId, "pump-pressure", "Pump pressure",
+                [new(signalId, "discharge-pressure", "process", tagId)])],
+            Assignments: [new(assignmentId, equipmentId, measurementProfileId)],
+            OperatingContextProfiles: [contextProfile]));
+        using var sourceAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var sourceExchange = CreateExchange(sourceTags, sourceAlarms, sourceIntelligence, sourceAssets);
+        var store = new FakeEngineeringProjectStore();
+        var sourcePersistence = new EngineeringProjectPersistenceService(sourceExchange, store);
+
+        var saved = await sourcePersistence.SaveCurrentAsync("plant-a", "Plant A", "engineering-user");
+        var savedPackage = sourceExchange.ParseJson(saved.EngineeringJson);
+        var savedContext = Assert.Single(savedPackage.AssetProcessIntelligence!.OperatingContextProfiles!);
+        Assert.Equal(contextProfileId, savedContext.Id);
+        Assert.Equal(7, savedContext.Version);
+        Assert.Equal(assignmentId, savedContext.AssignmentId);
+        Assert.Equal(predicate, Assert.Single(savedContext.Predicates!));
+
+        var targetTags = new InMemoryTagRegistry();
+        var targetAssets = new InMemoryEngineeringAssetRegistry();
+        var targetIntelligence = new InMemoryAssetProcessIntelligenceEngineeringRegistry();
+        using var targetAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var targetExchange = CreateExchange(targetTags, targetAlarms, targetIntelligence, targetAssets);
+        var targetPersistence = new EngineeringProjectPersistenceService(targetExchange, store);
+        var preview = await targetPersistence.PreviewRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
+        var applied = await targetPersistence.ApplyRevisionAsync("plant-a", saved.Revision, ImportMode.CreateAndUpdate);
+
+        Assert.True(preview!.Preview.CanApply);
+        Assert.Empty(applied!.Issues);
+        var restored = Assert.Single(targetIntelligence.Snapshot().OperatingContextProfiles!);
+        Assert.Equal(contextProfileId, restored.Id);
+        Assert.Equal(7, restored.Version);
+        Assert.Equal(assignmentId, restored.AssignmentId);
+        Assert.Equal("normal-running", restored.Key);
+        Assert.Equal("Normal running", restored.DisplayLabel);
+        Assert.Equal(predicate, Assert.Single(restored.Predicates!));
+    }
+
+    [Fact]
     public async Task Lifecycle_TracksWorkingPublishedAndActiveRevisionsIndependently()
     {
         var tags = new InMemoryTagRegistry();
@@ -168,6 +367,77 @@ public sealed class EngineeringProjectPersistenceServiceTests
     }
 
     [Fact]
+    public async Task StationProfiles_PersistThroughSaveAndPublishButRuntimeActiveSwitchesOnlyAfterActivation()
+    {
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var exchange = new EngineeringExchangeService(new InMemoryTagRegistry(), alarms);
+        var store = new FakeEngineeringProjectStore();
+        var persistence = new EngineeringProjectPersistenceService(exchange, store);
+        var screens = new[]
+        {
+            new ScreenEngineeringDto(Guid.NewGuid(), "overview", "Overview"),
+            new ScreenEngineeringDto(Guid.NewGuid(), "pumps", "Pumps")
+        };
+        var original = exchange.ExportPackage() with
+        {
+            Screens = screens,
+            RuntimePresentation = new RuntimePresentationEngineeringDto(MobileOrientation: "portrait")
+        };
+        Assert.True(exchange.Preview(original, ImportMode.CreateAndUpdate).CanApply);
+        Assert.Empty(exchange.Apply(original, ImportMode.CreateAndUpdate).Issues);
+
+        var revision1 = await persistence.SaveCurrentAsync("station-plant", "Station Plant", "engineer");
+        var published1 = await persistence.PublishRevisionAsync("station-plant", revision1.Revision, "supervisor");
+        Assert.True(published1!.Published);
+        Assert.NotNull(await persistence.RecordActivationAsync("station-plant", revision1.Revision, "operator"));
+        Assert.Null(exchange.ParseJson((await persistence.LoadActiveAsync("station-plant"))!.EngineeringJson)
+            .RuntimePresentation!.StationProfiles);
+
+        var station = new RuntimeStationProfileEngineeringDto(
+            "console-one", "Control Room",
+            [
+                new RuntimeStationWindowEngineeringDto("overview", "navigation"),
+                new RuntimeStationWindowEngineeringDto("pumps", "fixed")
+            ]);
+        var changed = exchange.ExportPackage() with
+        {
+            RuntimePresentation = exchange.ExportPackage().RuntimePresentation! with
+            {
+                StationProfiles = [station]
+            }
+        };
+        Assert.True(exchange.Preview(changed, ImportMode.CreateAndUpdate).CanApply);
+        Assert.Empty(exchange.Apply(changed, ImportMode.CreateAndUpdate).Issues);
+        Assert.Equal(2, Assert.Single(exchange.ExportPackage().RuntimePresentation!.StationProfiles!).Windows.Count);
+
+        var revision2 = await persistence.SaveCurrentAsync("station-plant", "Station Plant", "engineer");
+        Assert.True(revision2.Revision > revision1.Revision);
+        var workingParsed = exchange.ParseJson(revision2.EngineeringJson);
+        Assert.Equal("Control Room", Assert.Single(workingParsed.RuntimePresentation!.StationProfiles!).Name);
+        var published2 = await persistence.PublishRevisionAsync("station-plant", revision2.Revision, "supervisor");
+        Assert.True(published2!.Published);
+        Assert.Equal(revision2.Revision, (await persistence.LoadPublishedAsync("station-plant"))!.Revision);
+
+        // RuntimeEngineeringPackageApi reads LoadActiveAsync, not Working or Published.
+        var stillActive = (await persistence.LoadActiveAsync("station-plant"))!;
+        Assert.Equal(revision1.Revision, stillActive.Revision);
+        Assert.Null(exchange.ParseJson(stillActive.EngineeringJson).RuntimePresentation!.StationProfiles);
+        var beforeActivation = await persistence.GetLifecycleAsync("station-plant");
+        Assert.Equal(revision1.Revision, beforeActivation.ActiveRevision);
+        Assert.Equal(revision2.Revision, beforeActivation.PublishedRevision);
+
+        Assert.NotNull(await persistence.RecordActivationAsync("station-plant", revision2.Revision, "operator"));
+        var active = (await persistence.LoadActiveAsync("station-plant"))!;
+        Assert.Equal(revision2.Revision, active.Revision);
+        var activeProfile = Assert.Single(exchange.ParseJson(active.EngineeringJson).RuntimePresentation!.StationProfiles!);
+        Assert.Equal(station.Id, activeProfile.Id);
+        Assert.Equal(station.Name, activeProfile.Name);
+        Assert.Collection(activeProfile.Windows,
+            window => { Assert.Equal("overview", window.ScreenKey); Assert.Equal("navigation", window.Mode); },
+            window => { Assert.Equal("pumps", window.ScreenKey); Assert.Equal("fixed", window.Mode); });
+    }
+
+    [Fact]
     public async Task RecordActivation_RejectsRevisionThatIsNotCurrentlyPublished()
     {
         var tags = new InMemoryTagRegistry();
@@ -182,6 +452,34 @@ public sealed class EngineeringProjectPersistenceServiceTests
 
         Assert.Null(await service.RecordActivationAsync("plant-a", revision2.Revision, "operator"));
         Assert.Null(await service.GetActivationAsync("plant-a"));
+    }
+
+    [Fact]
+    public async Task RecordActivation_FailsClosedWhileInstallationAttachIsInProgress()
+    {
+        var tags = new InMemoryTagRegistry();
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var exchange = new EngineeringExchangeService(tags, alarms);
+        var store = new FakeEngineeringProjectStore();
+        var binding = new FixedInstallationBindingStore(
+            EngineeringInstallationBindingState.AttachInProgress,
+            "plant-a");
+        var service = new EngineeringProjectPersistenceService(
+            exchange,
+            store,
+            visualAssets: null,
+            installationBinding: binding);
+
+        var revision = await service.SaveCurrentAsync("plant-a", "Plant A");
+        var published = await service.PublishRevisionAsync("plant-a", revision.Revision, "supervisor");
+        Assert.NotNull(published);
+        Assert.True(published!.Published);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.RecordActivationAsync("plant-a", revision.Revision, "operator"));
+
+        Assert.Contains("Attached", error.Message, StringComparison.Ordinal);
+        Assert.Null(await store.GetActivationAsync("plant-a"));
     }
 
     [Fact]
@@ -285,6 +583,64 @@ public sealed class EngineeringProjectPersistenceServiceTests
         Assert.Null(await service.LoadPublishedAsync("missing"));
     }
 
+    [Fact]
+    public async Task DataQueryAndAlarmView_RoundTripThroughRevisionPreviewAndApply()
+    {
+        var tags = new InMemoryTagRegistry();
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var queries = new InMemoryDataQueryEngineeringRegistry();
+        var alarmViews = new InMemoryAlarmViewEngineeringRegistry();
+        IEngineeringExchangeService exchange = new EngineeringExchangeService(tags, alarms);
+        exchange = new DataQueryEngineeringExchangeDecorator(exchange, queries, alarmViews);
+
+        queries.Upsert(new DataQueryEngineeringDto(
+            null,
+            "history-default",
+            "History default",
+            DataQueryExecutionService.HistoricalProviderKey,
+            new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamples,
+                HistoricalTimeRange.Relative(3600)),
+            HistorianRetrieval: new HistorianRetrievalEngineeringDto(HistorianRetrievalMode.Raw)));
+        alarmViews.Upsert(new AlarmViewEngineeringDto(
+            null,
+            "active-critical",
+            "Active critical",
+            new AlarmViewFilterEngineeringDto(
+                Priorities: [AlarmPriority.Critical],
+                Active: AlarmViewMatchState.Yes)));
+
+        var expectedQueryId = queries.Snapshot().Single().Id;
+        var expectedViewId = alarmViews.Snapshot().Single().Id;
+        var store = new FakeEngineeringProjectStore();
+        var service = new EngineeringProjectPersistenceService(exchange, store);
+        var saved = await service.SaveCurrentAsync("plant-a", "Plant A");
+
+        queries.Clear();
+        alarmViews.Clear();
+        var preview = await service.PreviewRevisionAsync(
+            "plant-a",
+            saved.Revision,
+            ImportMode.CreateAndUpdate);
+
+        Assert.NotNull(preview);
+        Assert.True(preview!.Preview.CanApply);
+        Assert.Contains(preview.Preview.Items, x =>
+            x.EntityKind == ImportEntityKind.DataQuery && x.Operation == ImportOperation.Create);
+        Assert.Contains(preview.Preview.Items, x =>
+            x.EntityKind == ImportEntityKind.AlarmView && x.Operation == ImportOperation.Create);
+
+        var applied = await service.ApplyRevisionAsync(
+            "plant-a",
+            saved.Revision,
+            ImportMode.CreateAndUpdate);
+
+        Assert.NotNull(applied);
+        Assert.DoesNotContain(applied!.Issues, x => x.IsError);
+        Assert.Equal(expectedQueryId, queries.Snapshot().Single().Id);
+        Assert.Equal(expectedViewId, alarmViews.Snapshot().Single().Id);
+    }
+
     private sealed class TrackingEngineeringExchangeService(IEngineeringExchangeService inner)
         : IEngineeringExchangeService
     {
@@ -333,6 +689,66 @@ public sealed class EngineeringProjectPersistenceServiceTests
             EngineeringImportContext? context) =>
             inner.Apply(package, mode, context);
     }
+
+    private sealed class FixedInstallationBindingStore(
+        EngineeringInstallationBindingState state,
+        string? projectKey) : IEngineeringInstallationBindingStore
+    {
+        private readonly EngineeringInstallationBindingSnapshot _snapshot =
+            new(state, projectKey, 1, DateTimeOffset.UtcNow);
+
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<EngineeringInstallationBindingSnapshot> GetAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(_snapshot);
+
+        public Task<EngineeringInstallationBindingSnapshot> AdoptLegacyAsync(
+            string? projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<EngineeringInstallationBindingSnapshot> BeginAttachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<EngineeringInstallationBindingSnapshot> CompleteAttachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<EngineeringInstallationBindingSnapshot> AbortAttachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<EngineeringInstallationBindingSnapshot> BeginDetachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<EngineeringInstallationBindingSnapshot> CompleteDetachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    private static EngineeringExchangeService CreateExchange(
+        InMemoryTagRegistry tags,
+        IAlarmEngine alarms,
+        IAssetProcessIntelligenceEngineeringRegistry intelligence,
+        InMemoryEngineeringAssetRegistry? assets = null) =>
+        new(
+            tags,
+            alarms,
+            new Scada.Engineering.DataSources.InMemoryDataSourceEngineeringRegistry(),
+            assets ?? new Scada.Engineering.Assets.InMemoryEngineeringAssetRegistry(),
+            new Scada.Engineering.Views.InMemoryEngineeringViewRegistry(),
+            new Scada.Engineering.Security.InMemorySecurityPolicyEngineeringRegistry(),
+            new Scada.Engineering.Commands.InMemoryCommandEngineeringRegistry(),
+            new Scada.Engineering.Gateways.InMemoryGatewayEngineeringRegistry(),
+            assetProcessIntelligence: intelligence);
 
     private sealed class FakeEngineeringProjectStore : IEngineeringProjectStore
     {

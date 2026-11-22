@@ -18,11 +18,32 @@ internal static class TimescaleHistorianSchema
             quality integer NOT NULL,
             source text NULL,
             value jsonb NOT NULL,
-            data_type smallint NULL
+            data_type smallint NULL,
+            source_ts timestamptz NULL,
+            source_ts_evidence smallint NULL,
+            server_ts timestamptz NULL,
+            server_ts_evidence smallint NULL,
+            capture_profile_id uuid NULL,
+            capture_policy_state smallint NULL,
+            capture_policy_fingerprint bytea NULL
         );
 
         ALTER TABLE elitescada.tag_history
             ADD COLUMN IF NOT EXISTS data_type smallint NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS source_ts timestamptz NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS source_ts_evidence smallint NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS server_ts timestamptz NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS server_ts_evidence smallint NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS capture_profile_id uuid NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS capture_policy_state smallint NULL;
+        ALTER TABLE elitescada.tag_history
+            ADD COLUMN IF NOT EXISTS capture_policy_fingerprint bytea NULL;
 
         SELECT create_hypertable(
             'elitescada.tag_history',
@@ -36,6 +57,81 @@ internal static class TimescaleHistorianSchema
             singleton_id smallint PRIMARY KEY CHECK (singleton_id = 1),
             policy_json jsonb NOT NULL,
             applied_at timestamptz NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS elitescada.historian_archive_jobs (
+            archive_id uuid PRIMARY KEY,
+            from_utc timestamptz NOT NULL,
+            to_utc timestamptz NOT NULL,
+            next_segment_from_utc timestamptz NOT NULL,
+            next_sequence integer NOT NULL DEFAULT 0,
+            state text NOT NULL,
+            delete_source_after_verification boolean NOT NULL DEFAULT FALSE,
+            samples_archived bigint NOT NULL DEFAULT 0,
+            failure_code text NULL,
+            package_sha256 char(64) NULL,
+            archive_length_bytes bigint NULL,
+            archive_file_removed_at_utc timestamptz NULL,
+            schedule_id smallint NULL,
+            created_at_utc timestamptz NOT NULL,
+            updated_at_utc timestamptz NOT NULL,
+            completed_at_utc timestamptz NULL,
+            CHECK (to_utc > from_utc),
+            CHECK (next_segment_from_utc >= from_utc AND next_segment_from_utc <= to_utc)
+        );
+        ALTER TABLE elitescada.historian_archive_jobs
+            ADD COLUMN IF NOT EXISTS archive_file_removed_at_utc timestamptz NULL;
+        ALTER TABLE elitescada.historian_archive_jobs
+            ADD COLUMN IF NOT EXISTS schedule_id smallint NULL;
+        CREATE INDEX IF NOT EXISTS ix_historian_archive_jobs_queue
+            ON elitescada.historian_archive_jobs (state, created_at_utc);
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_historian_archive_jobs_active_schedule
+            ON elitescada.historian_archive_jobs (schedule_id)
+            WHERE schedule_id IS NOT NULL AND state <> 'Completed';
+
+        CREATE TABLE IF NOT EXISTS elitescada.historian_archive_schedule (
+            singleton_id smallint PRIMARY KEY CHECK (singleton_id = 1),
+            enabled boolean NOT NULL,
+            start_from_utc timestamptz NOT NULL,
+            next_from_utc timestamptz NOT NULL,
+            archive_after_days integer NOT NULL,
+            interval_days integer NOT NULL,
+            window_days integer NOT NULL,
+            keep_archives_days integer NULL,
+            delete_source_after_verification boolean NOT NULL DEFAULT FALSE,
+            next_run_at_utc timestamptz NOT NULL,
+            last_scheduled_at_utc timestamptz NULL,
+            updated_at_utc timestamptz NOT NULL,
+            CHECK (archive_after_days BETWEEN 1 AND 36500),
+            CHECK (interval_days BETWEEN 1 AND 3650),
+            CHECK (window_days BETWEEN 1 AND 31),
+            CHECK (keep_archives_days IS NULL OR keep_archives_days BETWEEN 1 AND 36500)
+        );
+
+        CREATE TABLE IF NOT EXISTS elitescada.historian_archive_job_segments (
+            archive_id uuid NOT NULL REFERENCES elitescada.historian_archive_jobs(archive_id) ON DELETE CASCADE,
+            sequence integer NOT NULL,
+            from_utc timestamptz NOT NULL,
+            to_utc timestamptz NOT NULL,
+            sample_count bigint NOT NULL,
+            sha256 char(64) NOT NULL,
+            file_name text NOT NULL,
+            source_cleanup_completed_at_utc timestamptz NULL,
+            PRIMARY KEY (archive_id, sequence),
+            CHECK (to_utc > from_utc),
+            CHECK (sample_count >= 0)
+        );
+        ALTER TABLE elitescada.historian_archive_job_segments
+            ADD COLUMN IF NOT EXISTS source_cleanup_completed_at_utc timestamptz NULL;
+
+        CREATE TABLE IF NOT EXISTS elitescada.historian_archive_restored_segments (
+            archive_id uuid NOT NULL,
+            sequence integer NOT NULL,
+            sha256 char(64) NOT NULL,
+            sample_count bigint NOT NULL,
+            restored_at_utc timestamptz NOT NULL,
+            PRIMARY KEY (archive_id, sequence),
+            CHECK (sample_count >= 0)
         );
         """;
 

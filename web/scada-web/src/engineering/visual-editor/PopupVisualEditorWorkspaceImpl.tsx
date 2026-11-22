@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   applyEngineeringPackage,
+  importVisualAsset,
   loadEngineeringWorkspace,
-  previewEngineeringPackage,
-  visualAssetContentUrl
+  previewEngineeringPackage
 } from '../api';
 import type { EngineeringLocale } from '../i18n';
+import { importStaticArtwork, type StaticArtwork } from '../staticArtworkApi';
 import {
   buildProjectReferenceCatalog,
   type ClientMemoryDefinitionView
@@ -14,23 +15,21 @@ import type {
   EngineeringPackageView,
   EngineeringSnapshot,
   ImportPreviewView,
+  PopupEngineering,
   ScreenEngineering
 } from '../types';
 import { initializeClientMemory } from '../../runtime/clientMemory';
-import { RuntimeLogicalViewport } from '../../runtime/visual-navigation/RuntimeLogicalViewport';
+import { listUserVisualAssets } from '../visualAssetCatalogModel';
 import { resolveRuntimeLogicalSize } from '../../runtime/visual-navigation/runtimeLogicalCanvas';
 import {
   resolvePopupLogicalBounds,
   resolvePopupLogicalPosition
 } from '../../runtime/visual-navigation/runtimePopupPosition';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../visual-runtime';
-import { BindingEditor } from './binding-editor';
 import { VisualEditorCanvas } from './canvas';
-import { CanonicalVisualRenderer } from './CanonicalVisualRenderer';
 import { DynamoAuthoringCatalogProvider } from './DynamoAuthoringCatalogContext';
-import { DynamicPropertyEditor } from './dynamic-property-editor';
-import { DynamoLibraryPalette } from './DynamoLibraryPalette';
-import { ObjectPalette } from './object-palette';
+import { VisualEditorAuthoringSidebar, type VisualEditorAuthoringTab } from './VisualEditorAuthoringSidebar';
+import { VisualEditorSelectionInspector, type VisualEditorInspectorTab } from './VisualEditorSelectionInspector';
 import {
   NEW_POPUP_IDENTITY,
   createPopupDraft,
@@ -43,8 +42,10 @@ import {
 } from './popupVisualAuthoringModel';
 import { popupEditorText } from './popupVisualEditorText';
 import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonCanonicalMutations';
-import { PropertyInspector } from './property-inspector';
-import { resolveVisualDefinitionSurfaceStyle } from './visualDefinitionSurfaceModel';
+import { createCanonicalBezier } from './bezierCanonicalMutations';
+import { reportCollection } from '../reports/reportDesignerModel';
+import { VisualEditorRegionToggle } from './VisualEditorRegionToggle';
+import { EngineeringResourceOrganizer, engineeringCopyName, uniqueEngineeringKey } from '../EngineeringResourceOrganizer';
 import {
   applyVisualEditorMutationIntent,
   cloneEngineeringValue,
@@ -88,32 +89,39 @@ type ValidatedPopupCandidate = Readonly<{
 export function PopupVisualEditorWorkspace({
   snapshot,
   locale,
-  onApplied
+  onApplied,
+  onAssetImported
 }: {
   snapshot: EngineeringSnapshot;
   locale: EngineeringLocale;
   onApplied: () => Promise<void>;
+  onAssetImported?: () => Promise<void>;
 }) {
   return <DynamoAuthoringCatalogProvider
     definitions={snapshot.package.dynamos ?? []}
     tags={snapshot.package.tags ?? []}
+    commands={snapshot.package.commands ?? []}
     visualAssets={snapshot.package.visualAssets ?? []}
+    onApplied={onApplied}
   >
-    <PopupVisualEditorWorkspaceBody snapshot={snapshot} locale={locale} onApplied={onApplied} />
+    <PopupVisualEditorWorkspaceBody snapshot={snapshot} locale={locale} onApplied={onApplied} onAssetImported={onAssetImported} />
   </DynamoAuthoringCatalogProvider>;
 }
 
 function PopupVisualEditorWorkspaceBody({
   snapshot,
   locale,
-  onApplied
+  onApplied,
+  onAssetImported
 }: {
   snapshot: EngineeringSnapshot;
   locale: EngineeringLocale;
   onApplied: () => Promise<void>;
+  onAssetImported?: () => Promise<void>;
 }) {
   const text = useMemo(() => popupEditorText(locale), [locale]);
   const popups = snapshot.package.popups ?? [];
+  const visualAssets = listUserVisualAssets(snapshot.package.visualAssets);
   const [selectedIdentity, setSelectedIdentity] = useState<string>(() =>
     popups[0] ? popupIdentity(popups[0]) : NEW_POPUP_IDENTITY);
   const isNew = selectedIdentity === NEW_POPUP_IDENTITY;
@@ -132,11 +140,22 @@ function PopupVisualEditorWorkspaceBody({
   const selectedObjectIds = session.selectedObjectIds;
   const [viewport, setViewport] = useState<VisualEditorViewport>(DEFAULT_VIEWPORT);
   const [polygonToolActive, setPolygonToolActive] = useState(false);
+  const [bezierToolActive, setBezierToolActive] = useState(false);
+  const [screensCollapsed, setScreensCollapsed] = useState(false);
+  const [paletteCollapsed, setPaletteCollapsed] = useState(false);
+  const [propertiesCollapsed, setPropertiesCollapsed] = useState(false);
+  const [authoringTab, setAuthoringTab] = useState<VisualEditorAuthoringTab>('structure');
+  const [inspectorTab, setInspectorTab] = useState<VisualEditorInspectorTab>('properties');
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const selectedIdentityRef = useRef(selectedIdentity);
+  const preserveDraftAfterAssetImportRef = useRef(false);
+  const pendingPopupPasteRef = useRef<PopupEngineering | null>(null);
   const [preview, setPreview] = useState<ImportPreviewView | null>(null);
   const [candidate, setCandidate] = useState<ValidatedPopupCandidate | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [importingAsset, setImportingAsset] = useState(false);
   const [clientMemoryDefinitions, setClientMemoryDefinitions] = useState<readonly ClientMemoryDefinitionView[]>(Object.freeze([]));
 
   const replaceSession = (next: VisualEditorSessionState) => {
@@ -170,10 +189,18 @@ function PopupVisualEditorWorkspaceBody({
   }, []);
 
   useEffect(() => {
+    const sameSelection = selectedIdentityRef.current === selectedIdentity;
+    selectedIdentityRef.current = selectedIdentity;
+    if (preserveDraftAfterAssetImportRef.current) {
+      preserveDraftAfterAssetImportRef.current = false;
+      if (sameSelection) return;
+    }
     setPolygonToolActive(false);
+    setBezierToolActive(false);
     const current = selectedIdentity === NEW_POPUP_IDENTITY
-      ? createPopupDraft(popups, locale)
+      ? (pendingPopupPasteRef.current ?? createPopupDraft(popups, locale))
       : popups.find(item => popupIdentity(item) === selectedIdentity) ?? null;
+    pendingPopupPasteRef.current = null;
     if (!current) {
       if (popups[0]) setSelectedIdentity(popupIdentity(popups[0]));
       else setSelectedIdentity(NEW_POPUP_IDENTITY);
@@ -192,7 +219,6 @@ function PopupVisualEditorWorkspaceBody({
     () => selectedVisualElements(draftScreen, selectedObjectIds),
     [draftScreen, selectedObjectIds]
   );
-  const selectedElement = selectedElements.length === 1 ? selectedElements[0] : null;
   const projectReferences = useMemo(
     () => buildProjectReferenceCatalog(snapshot.package, clientMemoryDefinitions),
     [snapshot.package, clientMemoryDefinitions]
@@ -215,19 +241,40 @@ function PopupVisualEditorWorkspaceBody({
   ), [projectReferences]);
 
   useEffect(() => {
-    if (!changed && !applying) return undefined;
+    if (!changed && !applying && !importingAsset) return undefined;
     const beforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', beforeUnload);
     return () => window.removeEventListener('beforeunload', beforeUnload);
-  }, [changed, applying]);
+  }, [changed, applying, importingAsset]);
 
   const choosePopup = (identity: string) => {
     if (identity === selectedIdentity) return;
     if (changed && !window.confirm(text.discardConfirm)) return;
     setSelectedIdentity(identity);
+  };
+
+  const pastePopup = (source: PopupEngineering) => {
+    if (changed && !window.confirm(text.discardConfirm)) return;
+    const key = uniqueEngineeringKey(source.key, popups.map(item => item.key));
+    const pasted: PopupEngineering = {
+      ...cloneEngineeringValue(source),
+      id: undefined,
+      key,
+      name: engineeringCopyName(source.name || source.key, locale)
+    };
+    pendingPopupPasteRef.current = pasted;
+    if (selectedIdentity === NEW_POPUP_IDENTITY) {
+      pendingPopupPasteRef.current = null;
+      replaceSession(createVisualEditorSession(popupToVisualScreen(pasted)));
+      setFrame(popupFrame(pasted));
+      setViewport(DEFAULT_VIEWPORT);
+      invalidateValidation();
+    } else {
+      setSelectedIdentity(NEW_POPUP_IDENTITY);
+    }
   };
 
   const updateDraftScreen = (update: (current: ScreenEngineering) => ScreenEngineering) => {
@@ -262,6 +309,17 @@ function PopupVisualEditorWorkspaceBody({
         replaceSession(commitVisualEditorSessionDraft(current, created.screen, {
           selectedObjectIds: [created.objectId]
         }));
+        setPolygonToolActive(false);
+        setBezierToolActive(false);
+        invalidateValidation();
+        return;
+      }
+      if (intent.kind === 'bezier.create') {
+        const created = createCanonicalBezier(currentDraft, intent.points);
+        replaceSession(commitVisualEditorSessionDraft(current, created.screen, {
+          selectedObjectIds: [created.objectId]
+        }));
+        setBezierToolActive(false);
         setPolygonToolActive(false);
         invalidateValidation();
         return;
@@ -303,11 +361,20 @@ function PopupVisualEditorWorkspaceBody({
   const handlePaletteIntent = (intent: VisualEditorMutationIntent) => {
     if (intent.kind === 'object.add' && intent.objectType === BUILTIN_VISUAL_OBJECT_TYPES.polygon) {
       setPolygonToolActive(true);
+      setBezierToolActive(false);
+      replaceSession(withVisualEditorSessionSelection(sessionRef.current, Object.freeze([])));
+      setError(null);
+      return;
+    }
+    if (intent.kind === 'object.add' && intent.objectType === BUILTIN_VISUAL_OBJECT_TYPES.bezier) {
+      setBezierToolActive(true);
+      setPolygonToolActive(false);
       replaceSession(withVisualEditorSessionSelection(sessionRef.current, Object.freeze([])));
       setError(null);
       return;
     }
     setPolygonToolActive(false);
+    setBezierToolActive(false);
     handleMutationIntent(intent);
   };
 
@@ -317,7 +384,23 @@ function PopupVisualEditorWorkspaceBody({
     setFrame(popupFrame(source));
     setViewport(DEFAULT_VIEWPORT);
     setPolygonToolActive(false);
+    setBezierToolActive(false);
     invalidateValidation();
+  };
+
+  const showInspector = (tab: VisualEditorInspectorTab, focusRename = false) => {
+    setPropertiesCollapsed(false);
+    setInspectorTab(tab);
+    if (focusRename) {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        workspaceRef.current?.querySelector<HTMLInputElement>('[data-testid="visual-property-identity-key"]')?.focus();
+      }));
+    }
+  };
+
+  const showStructure = () => {
+    setPaletteCollapsed(false);
+    setAuthoringTab('structure');
   };
 
   const validateDraft = async () => {
@@ -361,54 +444,118 @@ function PopupVisualEditorWorkspaceBody({
     }
   };
 
+  const importAsset = async (file: File): Promise<string | null> => {
+    setImportingAsset(true);
+    setError(null);
+    try {
+      const currentWorkspace = await loadEngineeringWorkspace();
+      if (currentWorkspace.changeVersion !== snapshot.workspace.changeVersion) throw new Error(text.workspaceChanged);
+      const imported = await importVisualAsset(file, currentWorkspace.changeVersion, { fileName: file.name });
+      preserveDraftAfterAssetImportRef.current = true;
+      await (onAssetImported ?? onApplied)();
+      return imported.asset.id ?? null;
+    } catch (reason) {
+      preserveDraftAfterAssetImportRef.current = false;
+      setError(reason instanceof Error ? reason.message : String(reason));
+      return null;
+    } finally {
+      setImportingAsset(false);
+    }
+  };
+
+  const importArtwork = async (entry: StaticArtwork) => {
+    setImportingAsset(true);
+    setError(null);
+    try {
+      const currentWorkspace = await loadEngineeringWorkspace();
+      if (currentWorkspace.changeVersion !== snapshot.workspace.changeVersion) throw new Error(text.workspaceChanged);
+      const imported = await importStaticArtwork(entry.id, currentWorkspace.changeVersion);
+      preserveDraftAfterAssetImportRef.current = true;
+      await (onAssetImported ?? onApplied)();
+      return imported.asset;
+    } catch (reason) {
+      preserveDraftAfterAssetImportRef.current = false;
+      setError(reason instanceof Error ? reason.message : String(reason));
+      return null;
+    } finally { setImportingAsset(false); }
+  };
+
   const issues = preview?.items.flatMap(item => item.issues ?? []) ?? [];
 
-  return <div className="eng-section visual-editor-workspace" data-testid="popup-visual-editor-workspace">
+  const layoutClassName = [
+    'eng-section visual-editor-workspace',
+    screensCollapsed ? 'visual-editor-workspace--screens-collapsed' : '',
+    paletteCollapsed ? 'visual-editor-workspace--palette-collapsed' : '',
+    propertiesCollapsed ? 'visual-editor-workspace--properties-collapsed' : ''
+  ].filter(Boolean).join(' ');
+
+  return <div ref={workspaceRef} className={layoutClassName} data-testid="popup-visual-editor-workspace">
     <header className="visual-editor-header">
-      <div><span>{text.eyebrow}</span><h1>{text.title}</h1><p>{text.description}</p></div>
-      <div className="visual-editor-authority"><strong>{text.authorityTitle}</strong><span>{text.authorityHint}</span></div>
+      <div className="visual-editor-header-title"><h1>{text.title}</h1><details className="visual-editor-help"><summary>{text.help}</summary><p>{text.description}</p><div className="visual-editor-authority"><strong>{text.authorityTitle}</strong><span>{text.authorityHint}</span></div></details></div>
     </header>
 
     <div className="visual-editor-shell">
       <aside className="visual-editor-screens" aria-label={text.popupList}>
-        <header><strong>{text.popups}</strong><button type="button" className={isNew ? 'active' : ''} onClick={() => choosePopup(NEW_POPUP_IDENTITY)}>+ {text.newPopup}</button></header>
-        <div className="visual-editor-screen-list">
-          {popups.map(popup => {
-            const identity = popupIdentity(popup);
-            return <button type="button" className={identity === selectedIdentity ? 'selected' : ''} key={identity} onClick={() => choosePopup(identity)}>
-              <strong>{popup.name || popup.key}</strong>
-              <code>{popup.key}</code>
-              <span>{popup.templateKey?.trim() ? `${text.template}: ${popup.templateKey}` : text.standalone} · {countVisualElements(popup.elements)} {text.objects}</span>
-            </button>;
-          })}
-        </div>
+        <header>
+          <strong>{text.popups}</strong>
+          <div className="visual-editor-region-actions">
+            <button type="button" className={isNew ? 'active' : ''} onClick={() => choosePopup(NEW_POPUP_IDENTITY)}>+ {text.newPopup}</button>
+            <VisualEditorRegionToggle region="screens" collapsed={screensCollapsed} locale={locale} onToggle={() => setScreensCollapsed(value => !value)} />
+          </div>
+        </header>
+        <EngineeringResourceOrganizer
+          projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}
+          kind="popups"
+          locale={locale}
+          label={text.popups}
+          resources={popups.map(popup => ({ identity: `key:${popup.key}`, name: popup.name || popup.key, details: `${popup.key} · ${popup.templateKey?.trim() ? `${text.template}: ${popup.templateKey}` : text.standalone} · ${countVisualElements(popup.elements)} ${text.objects}`, value: popup }))}
+          selectedIdentity={selected ? `key:${selected.key}` : null}
+          onSelect={identity => {
+            const popup = popups.find(item => `key:${item.key}` === identity);
+            if (popup) choosePopup(popupIdentity(popup));
+          }}
+          onPaste={pastePopup}
+          emptyLabel={locale === 'en' ? 'No popups' : locale === 'es' ? 'No hay popups' : 'Nenhum popup'}
+        />
       </aside>
 
       <section className="visual-editor-main">
         <div className="visual-editor-screen-form">
-          <label><span>{text.name}</span><input value={draftScreen.name} onChange={event => updateDraftScreen(current => ({ ...current, name: event.target.value }))} /></label>
-          <label><span>{text.key}</span><input className="mono" value={draftScreen.key} onChange={event => updateDraftScreen(current => ({ ...current, key: event.target.value }))} /></label>
+          <label><span>{text.name}</span><input aria-description={text.nameHint} value={draftScreen.name} onChange={event => updateDraftScreen(current => ({ ...current, name: event.target.value }))} /><small aria-hidden="true">{text.nameHint}</small></label>
+          <label><span>{text.key}</span><input aria-description={text.keyHint} className="mono" value={draftScreen.key} onChange={event => updateDraftScreen(current => ({ ...current, key: event.target.value }))} /><small aria-hidden="true">{text.keyHint}</small></label>
           <label><span>{text.template}</span><input className="mono" value={frame.templateKey ?? ''} placeholder={text.standalone} onChange={event => updateTemplateKey(event.target.value)} /></label>
           <div className="visual-editor-draft-state"><span>{text.draft}</span><strong>{isNew ? text.newDraft : changed ? text.changed : text.unchanged}</strong><small>{countVisualElements(draftScreen.elements)} {text.objects}</small></div>
         </div>
 
         <div className="visual-editor-composition">
           <aside className="visual-editor-slot visual-editor-palette-slot">
-            <ObjectPalette onMutationIntent={handlePaletteIntent} />
-            <DynamoLibraryPalette
+            <VisualEditorRegionToggle region="palette" collapsed={paletteCollapsed} locale={locale} onToggle={() => setPaletteCollapsed(value => !value)} />
+            <VisualEditorAuthoringSidebar
+              screen={draftScreen}
+              selectedObjectIds={selectedObjectIds}
               definitions={snapshot.package.dynamos ?? []}
+              equipment={snapshot.package.equipment ?? []}
+              templates={snapshot.package.templates ?? []}
+              visualAssets={visualAssets}
               locale={locale}
+              activeTab={authoringTab}
+              onActiveTabChange={setAuthoringTab}
+              onUiIntent={handleUiIntent}
               onMutationIntent={handlePaletteIntent}
+              onCommand={handleKeyboardCommand}
+              assetImport={{
+                busy: importingAsset,
+                disabled: applying || previewing,
+                onFile: importAsset,
+                onArtwork: importArtwork
+              }}
             />
-            <section className="visual-editor-asset-library">
-              <strong>{text.assets}</strong>
-              <span>{text.assetHint}</span>
-              <small>{snapshot.package.visualAssets?.length ?? 0} {text.assetsAvailable}</small>
-            </section>
           </aside>
 
-          <section className="visual-editor-canvas-slot">
-            <header><div><strong>{draftScreen.name || draftScreen.key}</strong><code>{frame.templateKey?.trim() ? `${text.template}: ${frame.templateKey}` : text.standalone}</code></div><span data-testid="popup-authoring-bounds">{polygonToolActive ? text.polygonDrawing : `${text.interactiveCanvas} · ${text.logicalBounds} ${popupBounds.width} × ${popupBounds.height} · ${text.runtimePosition} X ${popupPosition.x}, Y ${popupPosition.y}`}</span></header>
+          <section className="visual-editor-canvas-slot" aria-describedby={`popup-authoring-bounds-${draftScreen.id}`}>
+            <span id={`popup-authoring-bounds-${draftScreen.id}`} className="visual-editor-canvas-meta-sr-only" data-testid="popup-authoring-bounds">
+              {`${text.logicalBounds} ${popupBounds.width} × ${popupBounds.height} · ${text.runtimePosition} X ${popupPosition.x}, Y ${popupPosition.y}`}
+            </span>
             <VisualEditorCanvas
               screen={draftScreen}
               selectedObjectIds={selectedObjectIds}
@@ -419,6 +566,12 @@ function PopupVisualEditorWorkspaceBody({
               canUndo={canUndoVisualEditorSession(session)}
               canRedo={canRedoVisualEditorSession(session)}
               canPaste={canPasteVisualEditorSession(session)}
+              onInsertObject={objectType => handlePaletteIntent({ kind: 'object.add', objectType })}
+              onInspectorTabRequest={showInspector}
+              onStructureRequest={showStructure}
+              locale={locale}
+              dynamoDefinitions={snapshot.package.dynamos}
+              emptyLabel={text.emptyCanvas}
               logicalBoundary={{
                 width: popupBounds.width,
                 height: popupBounds.height,
@@ -426,39 +579,30 @@ function PopupVisualEditorWorkspaceBody({
               }}
               polygonToolActive={polygonToolActive}
               onPolygonToolCancel={() => setPolygonToolActive(false)}
-            />
-            <div className="visual-editor-canonical-preview-label"><strong>{text.canonicalPreview}</strong><span>{text.canonicalPreviewHint}</span></div>
-            <PopupRuntimeCompositionPreview
-              popup={draftPopup}
-              emptyLabel={text.emptyCanvas}
-              locale={locale}
-              dynamoDefinitions={snapshot.package.dynamos}
+              bezierToolActive={bezierToolActive}
+              onBezierToolCancel={() => setBezierToolActive(false)}
             />
           </section>
 
           <aside className="visual-editor-slot visual-editor-inspector-slot">
-            <PropertyInspector
+            <VisualEditorRegionToggle region="properties" collapsed={propertiesCollapsed} locale={locale} onToggle={() => setPropertiesCollapsed(value => !value)} />
+            <VisualEditorSelectionInspector
+              screen={draftScreen}
               selectedElements={selectedElements}
-              visualAssets={snapshot.package.visualAssets ?? []}
-              onMutationIntent={handleMutationIntent}
-            />
-            {selectedElement?.id ? <DynamicPropertyEditor
-              element={selectedElement}
+              selectedObjectIds={selectedObjectIds}
               sourceCatalog={bindingSourceCatalog}
-              onBindingIntent={handleMutationIntent}
-              onSetExpression={configuration => handleMutationIntent({ kind: 'propertyExpression.set', objectId: selectedElement.id!, configuration })}
-              onRemoveExpression={propertyKey => handleMutationIntent({ kind: 'propertyExpression.remove', objectId: selectedElement.id!, propertyKey })}
-              onSetBooleanCondition={configuration => handleMutationIntent({ kind: 'booleanCondition.set', objectId: selectedElement.id!, configuration })}
-              onRemoveBooleanCondition={propertyKey => handleMutationIntent({ kind: 'booleanCondition.remove', objectId: selectedElement.id!, propertyKey })}
-              onSetAnalogFill={configuration => handleMutationIntent({ kind: 'analogFill.set', objectId: selectedElement.id!, configuration })}
-              onRemoveAnalogFill={() => handleMutationIntent({ kind: 'analogFill.remove', objectId: selectedElement.id! })}
-            /> : null}
-            {selectedElement ? <BindingEditor
-              element={selectedElement}
-              sourceCatalog={bindingSourceCatalog}
-              onMutationIntent={handleMutationIntent}
+              visualAssets={visualAssets}
+              alarms={snapshot.package.alarms ?? []}
+              reports={reportCollection(snapshot.package)}
               locale={locale}
-            /> : <p className="visual-editor-selection-hint">{text.selectObject}</p>}
+              activeTab={inspectorTab}
+              onActiveTabChange={setInspectorTab}
+              onMutationIntent={handleMutationIntent}
+              onCommand={handleKeyboardCommand}
+              onImportImage={importAsset}
+              imageImportDisabled={applying || previewing}
+              imageImportBusy={importingAsset}
+            />
           </aside>
         </div>
 
@@ -479,68 +623,5 @@ function PopupVisualEditorWorkspaceBody({
         </section>
       </section>
     </div>
-  </div>;
-}
-
-function PopupRuntimeCompositionPreview({
-  popup,
-  emptyLabel,
-  locale,
-  dynamoDefinitions
-}: {
-  popup: ReturnType<typeof visualScreenToPopup>;
-  emptyLabel: string;
-  locale: EngineeringLocale;
-  dynamoDefinitions: EngineeringPackageView['dynamos'];
-}) {
-  const bounds = resolvePopupLogicalBounds(popup);
-  const position = resolvePopupLogicalPosition(popup, RUNTIME_DESIGN_SIZE, bounds);
-
-  return <div
-    className="popup-visual-editor-runtime-preview"
-    data-testid="popup-runtime-composition-preview"
-    data-popup-logical-x={position.x}
-    data-popup-logical-y={position.y}
-    data-popup-logical-width={bounds.width}
-    data-popup-logical-height={bounds.height}
-  >
-    <RuntimeLogicalViewport designSize={RUNTIME_DESIGN_SIZE}>
-      <div className="runtime-logical-composition">
-        <div className="runtime-visual-popup-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-          <section
-            className="runtime-visual-popup"
-            data-testid="popup-runtime-composition-box"
-            data-popup-key={popup.key}
-            style={{
-              position: 'absolute',
-              left: position.x,
-              top: position.y,
-              width: bounds.width,
-              zIndex: 1,
-              pointerEvents: 'auto'
-            }}
-          >
-            <div
-              className="runtime-visual-popup-content"
-              style={{
-                ...resolveVisualDefinitionSurfaceStyle(popup.properties, visualAssetContentUrl),
-                width: bounds.width,
-                height: bounds.height
-              }}
-            >
-              <div className="runtime-visual-definition" data-runtime-visual-context-id="popup:engineering-preview">
-                <CanonicalVisualRenderer
-                  elements={popup.elements}
-                  emptyLabel={emptyLabel}
-                  locale={locale}
-                  dynamoDefinitions={dynamoDefinitions}
-                  showTechnicalFallbackText={false}
-                />
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
-    </RuntimeLogicalViewport>
   </div>;
 }

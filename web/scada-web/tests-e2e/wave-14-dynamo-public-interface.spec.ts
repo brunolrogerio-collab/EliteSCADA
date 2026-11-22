@@ -74,6 +74,32 @@ test('projects legacy equipmentPath through the public interface without mutatin
   expect(current.equipmentPath).toBe('  Plant.P101  ');
 });
 
+test('projects legacy direct TAG values as typed sources when a definition upgrades', () => {
+  const upgradedDefinition: DynamoEngineering = {
+    ...definition,
+    parameters: [
+      { key: 'state', kind: 'ValueSource', valueSourceType: 'Number' }
+    ]
+  };
+  const current = instance({
+    dynamoParameters: [{ key: 'state', kind: 'TagReference', tagReference: { tagId: 'tag-state' } }]
+  });
+
+  const values = listDynamoPublicParameterValues(current, upgradedDefinition);
+
+  expect(values).toEqual([{
+    key: 'state',
+    kind: 'ValueSource',
+    version: undefined,
+    valueSource: {
+      kind: 'Tag',
+      valueType: 'Number',
+      tagReference: { tagId: 'tag-state' }
+    }
+  }]);
+  expect(current.dynamoParameters?.[0]?.kind).toBe('TagReference');
+});
+
 test('setting equipmentPath canonicalizes the typed parameter and legacy fallback together', () => {
   const updated = setDynamoPublicParameterValue(instance(), definition, {
     key: 'equipmentPath',

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <line x1="16" y1="46" x2="112" y2="46" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="pipe" />
+  <line x1="16" y1="64" x2="112" y2="64" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="pipe" />
+  <line x1="16" y1="82" x2="112" y2="82" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="pipe" />
+  <line x1="34" y1="32" x2="34" y2="102" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="rack" />
+  <line x1="64" y1="32" x2="64" y2="102" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="rack" />
+  <line x1="94" y1="32" x2="94" y2="102" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="rack" />
+  <line x1="22" y1="104" x2="106" y2="104" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="base" />
+  <circle cx="34" cy="32" r="4" fill="#9CA3AF" data-elitescada-slot="support" />
+  <circle cx="94" cy="102" r="4" fill="#9CA3AF" data-elitescada-slot="support" />
+  <circle cx="108" cy="28" r="4" fill="#9CA3AF" data-elitescada-slot="status" />
+</svg>

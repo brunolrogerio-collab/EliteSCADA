@@ -1,8 +1,18 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.Drivers.Abstractions;
+using Scada.Drivers.Modbus;
+using Scada.Drivers.Panasonic;
+using Scada.Drivers.Serial;
+using Scada.Drivers.ESPHome;
+using Scada.Drivers.HomeAssistant;
 using Scada.Drivers.OpcUa;
+using Scada.Drivers.SiemensS7Iso;
+using Scada.Drivers.Shelly;
 using Scada.Engineering.Contracts;
 
 namespace Scada.Api.Engineering;
@@ -28,6 +38,40 @@ public sealed record DriverEngineeringDraftDiscoveryApiRequest(
     DriverEngineeringDraftDataSourceApiRequest DataSource,
     IReadOnlyDictionary<string, string>? Parameters = null,
     int? MaximumResults = null);
+
+public sealed record DriverEngineeringPointReadTestApiRequest(
+    CommunicationTagBinding Binding,
+    [property: JsonConverter(typeof(JsonStringEnumConverter<TagDataType>))] TagDataType DataType,
+    [property: JsonConverter(typeof(TagValueSelectorApiJsonConverter))] TagValueSelector? AddressSelector = null,
+    string? EngineeringUnit = null,
+    int SampleCount = 1,
+    int SampleIntervalMilliseconds = 0,
+    int TimeoutMilliseconds = 5000);
+
+public sealed record DriverEngineeringDraftPointReadTestApiRequest(
+    DriverEngineeringDraftDataSourceApiRequest DataSource,
+    CommunicationTagBinding Binding,
+    [property: JsonConverter(typeof(JsonStringEnumConverter<TagDataType>))] TagDataType DataType,
+    [property: JsonConverter(typeof(TagValueSelectorApiJsonConverter))] TagValueSelector? AddressSelector = null,
+    string? EngineeringUnit = null,
+    int SampleCount = 1,
+    int SampleIntervalMilliseconds = 0,
+    int TimeoutMilliseconds = 5000);
+
+public sealed class TagValueSelectorApiJsonConverter : JsonConverter<TagValueSelector>
+{
+    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter<TagValueSelectorKind>() }
+    };
+
+    public override TagValueSelector Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+        JsonSerializer.Deserialize<TagValueSelector>(ref reader, Options)
+        ?? throw new JsonException("Address selector cannot be null.");
+
+    public override void Write(Utf8JsonWriter writer, TagValueSelector value, JsonSerializerOptions options) =>
+        JsonSerializer.Serialize(writer, value, Options);
+}
 
 /// <summary>
 /// Opens a driver Engineering module for a configured or transient Data Source.
@@ -69,21 +113,35 @@ public sealed class EngineeringDriverToolProviderFactoryRegistry
     private readonly IReadOnlyDictionary<string, IEngineeringDriverToolProviderFactory> _byDriverType;
 
     public EngineeringDriverToolProviderFactoryRegistry(
-        IEnumerable<IEngineeringDriverToolProviderFactory> factories)
+        IEnumerable<IEngineeringDriverToolProviderFactory> factories,
+        CommunicationDriverRuntimeComponentRegistry runtimeComponents)
     {
         ArgumentNullException.ThrowIfNull(factories);
+        ArgumentNullException.ThrowIfNull(runtimeComponents);
         var map = new Dictionary<string, IEngineeringDriverToolProviderFactory>(StringComparer.OrdinalIgnoreCase);
         foreach (var factory in factories)
         {
             ArgumentNullException.ThrowIfNull(factory);
             if (string.IsNullOrWhiteSpace(factory.DriverType))
                 throw new InvalidOperationException("Engineering driver tooling factory must declare a DriverType.");
-            if (!map.TryAdd(factory.DriverType.Trim(), factory))
+
+            var driverType = factory.DriverType.Trim();
+            if (!runtimeComponents.TryGet(driverType, out var runtime) || runtime is null)
                 throw new InvalidOperationException(
-                    $"Engineering driver tooling factory for '{factory.DriverType}' is already registered.");
+                    $"Engineering driver tooling factory for '{driverType}' has no matching Runtime product registration.");
+            if (!string.Equals(runtime.Descriptor.DriverType, driverType, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    $"Engineering driver tooling factory type '{driverType}' does not match Runtime descriptor '{runtime.Descriptor.DriverType}'.");
+
+            if (!map.TryAdd(driverType, factory))
+                throw new InvalidOperationException(
+                    $"Engineering driver tooling factory for '{driverType}' is already registered.");
         }
         _byDriverType = map;
     }
+
+    public IReadOnlyCollection<string> DriverTypes =>
+        _byDriverType.Keys.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
 
     public bool TryGet(string? driverType, out IEngineeringDriverToolProviderFactory? factory)
     {
@@ -94,6 +152,308 @@ public sealed class EngineeringDriverToolProviderFactoryRegistry
         }
 
         return _byDriverType.TryGetValue(driverType.Trim(), out factory);
+    }
+}
+
+
+public sealed class ModbusEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    public string DriverType => ModbusTcpDriverDescriptorProvider.DriverTypeId;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Modbus Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        var tester = new ModbusTcpPointReadTester();
+        var registration = new CommunicationDriverModuleRegistration(
+            tester,
+            ConnectionTester: new ModbusTcpConnectionTester(),
+            PointReadTester: tester);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class ModbusRtuEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    private readonly Scada.Drivers.Serial.HostSerialBusCoordinator _coordinator;
+
+    public ModbusRtuEngineeringDriverToolProviderFactory(
+        Scada.Drivers.Serial.HostSerialBusCoordinator coordinator)
+    {
+        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+    }
+
+    public string DriverType => ModbusRtuDriverDescriptorProvider.DriverTypeId;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Modbus RTU Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        var tester = new ModbusRtuPointReadTester(_coordinator);
+        var registration = new CommunicationDriverModuleRegistration(
+            tester,
+            ConnectionTester: tester,
+            PointReadTester: tester);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class ModbusTcpServerEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    public string DriverType => ModbusTcpServerDriverDescriptorProvider.DriverTypeId;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Modbus TCP Server Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        var tester = new ModbusTcpServerConnectionTester();
+        var registration = new CommunicationDriverModuleRegistration(tester, ConnectionTester: tester);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class ModbusRtuServerEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    private readonly Scada.Drivers.Serial.HostSerialBusCoordinator _coordinator;
+
+    public ModbusRtuServerEngineeringDriverToolProviderFactory(
+        Scada.Drivers.Serial.HostSerialBusCoordinator coordinator)
+    {
+        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+    }
+
+    public string DriverType => ModbusRtuServerDriverDescriptorProvider.DriverTypeId;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Modbus RTU Server Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        var tester = new ModbusRtuServerConnectionTester(_coordinator);
+        var registration = new CommunicationDriverModuleRegistration(tester, ConnectionTester: tester);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class S7IsoEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    public string DriverType => "siemens.s7.iso";
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"S7 ISO Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        var engineering = new S7IsoEngineeringAdapter();
+        var pointRead = new S7IsoPointReadTester();
+        var registration = new CommunicationDriverModuleRegistration(
+            engineering,
+            ConnectionTester: engineering,
+            FileImporter: engineering,
+            PointReadTester: pointRead);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class MitsubishiMelsecEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    public string DriverType => Scada.Drivers.Mitsubishi.MitsubishiMelsecDriverDescriptorProvider.DriverTypeId;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"MELSEC Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        var connection = new Scada.Drivers.Mitsubishi.MitsubishiMelsecEngineeringAdapter();
+        var pointRead = new Scada.Drivers.Mitsubishi.MitsubishiMelsecPointReadTester();
+        var registration = new CommunicationDriverModuleRegistration(
+            connection,
+            ConnectionTester: connection,
+            PointReadTester: pointRead);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class PanasonicMewtocolEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    private readonly HostSerialBusCoordinator _serialCoordinator;
+
+    public PanasonicMewtocolEngineeringDriverToolProviderFactory(string driverType, HostSerialBusCoordinator serialCoordinator)
+    {
+        _ = PanasonicMewtocolDriverDescriptorProvider.For(driverType);
+        DriverType = driverType;
+        _serialCoordinator = serialCoordinator ?? throw new ArgumentNullException(nameof(serialCoordinator));
+    }
+
+    public string DriverType { get; }
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Panasonic Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+        var connection = new PanasonicMewtocolEngineeringAdapter(DriverType, _serialCoordinator);
+        var pointRead = new PanasonicMewtocolPointReadTester(DriverType, _serialCoordinator);
+        var registration = new CommunicationDriverModuleRegistration(
+            connection, ConnectionTester: connection, PointReadTester: pointRead);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class EspHomeEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    private readonly ICommunicationDriverProtectedMaterialResolver _protectedMaterialResolver;
+
+    public EspHomeEngineeringDriverToolProviderFactory(
+        ICommunicationDriverProtectedMaterialResolver protectedMaterialResolver)
+    {
+        _protectedMaterialResolver = protectedMaterialResolver
+            ?? throw new ArgumentNullException(nameof(protectedMaterialResolver));
+    }
+
+    public string DriverType => EspHomeNativeContract.DriverType;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"ESPHome Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        string? encryptionKeyReference = null;
+        dataSource.SecretReferences?.TryGetValue("encryptionKey", out encryptionKeyReference);
+        var provider = new EspHomeEngineeringProvider(
+            projectKey ?? "engineering-draft",
+            dataSource.Key,
+            encryptionKeyReference,
+            _protectedMaterialResolver);
+        var registration = new CommunicationDriverModuleRegistration(
+            provider,
+            ConnectionTester: provider,
+            DiscoverySource: provider);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class HomeAssistantEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    private readonly ICommunicationDriverProtectedMaterialResolver _protectedMaterialResolver;
+
+    public HomeAssistantEngineeringDriverToolProviderFactory(
+        ICommunicationDriverProtectedMaterialResolver protectedMaterialResolver)
+    {
+        _protectedMaterialResolver = protectedMaterialResolver
+            ?? throw new ArgumentNullException(nameof(protectedMaterialResolver));
+    }
+
+    public string DriverType => HomeAssistantContract.DriverType;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Home Assistant Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        var provider = new HomeAssistantEngineeringProvider(
+            projectKey ?? "engineering-draft",
+            _protectedMaterialResolver);
+        var registration = new CommunicationDriverModuleRegistration(
+            provider,
+            ConnectionTester: provider,
+            DiscoverySource: provider);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class ShellyEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    private readonly ICommunicationDriverProtectedMaterialResolver _protectedMaterialResolver;
+
+    public ShellyEngineeringDriverToolProviderFactory(
+        ICommunicationDriverProtectedMaterialResolver protectedMaterialResolver)
+    {
+        _protectedMaterialResolver = protectedMaterialResolver
+            ?? throw new ArgumentNullException(nameof(protectedMaterialResolver));
+    }
+
+    public string DriverType => ShellyRpcContract.DriverType;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Shelly Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        string? passwordReference = null;
+        dataSource.SecretReferences?.TryGetValue("password", out passwordReference);
+        var provider = new ShellyEngineeringProvider(
+            projectKey ?? "engineering-draft",
+            dataSource.Key,
+            passwordReference,
+            _protectedMaterialResolver);
+        var registration = new CommunicationDriverModuleRegistration(
+            provider,
+            ConnectionTester: provider,
+            DiscoverySource: provider);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
     }
 }
 
@@ -187,13 +547,15 @@ public sealed class OpcUaEngineeringDriverToolProviderFactory :
             dataSource.SecretReferences,
             _protectedMaterialResolver);
         var provider = new OpcUaFoundationEngineeringProvider(securityMaterialProvider);
+        var pointRead = new OpcUaPointReadTester(securityMaterialProvider);
         var registration = new CommunicationDriverModuleRegistration(
             provider,
             ConnectionTester: provider,
             DiscoverySource: provider,
             Browser: provider,
             FileImporter: null,
-            Reconciler: provider);
+            Reconciler: provider,
+            PointReadTester: pointRead);
         registration.Validate();
         return new CreatedProvider(provider, registration);
     }

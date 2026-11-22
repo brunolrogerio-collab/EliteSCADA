@@ -17,11 +17,17 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  min-width: 0;
   min-height: 2.75rem;
   padding: 0.4rem 0.55rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
   border-bottom: 1px solid var(--border-color, #cbd5e1);
   background: var(--surface-muted, #f8fafc);
 }
+
+.visual-editor-canvas__toolbar > button { flex: 0 0 auto; }
 
 .visual-editor-canvas__toolbar button {
   min-width: 2rem;
@@ -38,9 +44,37 @@
   outline-offset: -3px;
 }
 
+.eng-shell .visual-editor-canvas__toolbar {
+  border-color: var(--eng-border, #cbd5e1);
+  background: var(--eng-panel-soft, #f8fafc);
+  color: var(--eng-text, #15212b);
+}
+
+.eng-shell .visual-editor-canvas__toolbar button {
+  border-color: var(--eng-border, #cbd5e1);
+  background: var(--eng-panel, #ffffff);
+  color: var(--eng-text, #15212b);
+}
+
+.eng-shell .visual-editor-canvas__toolbar button:hover:not(:disabled) {
+  border-color: var(--eng-accent, #2563eb);
+  background: var(--eng-hover, #eef3f7);
+}
+
+.eng-shell .visual-editor-canvas__toolbar button[aria-pressed='true'] {
+  outline-color: var(--eng-accent, #2563eb);
+}
+
 .visual-editor-canvas__toolbar button:disabled {
   cursor: default;
-  opacity: 0.45;
+  opacity: 1;
+}
+
+.eng-shell .visual-editor-canvas__toolbar button:disabled {
+  border-color: var(--eng-border, #cbd5e1);
+  background: var(--eng-panel-soft, #f8fafc);
+  color: var(--eng-muted, #52616d);
+  opacity: 1;
 }
 
 .visual-editor-canvas__toolbar-spacer { flex: 1; }
@@ -57,17 +91,21 @@
 }
 
 .visual-editor-canvas.is-polygon-tool .visual-editor-canvas__surface { cursor: crosshair; }
+.visual-editor-canvas.is-bezier-tool .visual-editor-canvas__surface { cursor: crosshair; }
 
-.visual-editor-canvas__surface.has-grid {
+.visual-editor-canvas__canonical-layer.has-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
   background-image:
     linear-gradient(to right, rgba(100, 116, 139, 0.14) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(100, 116, 139, 0.14) 1px, transparent 1px);
   background-size:
     var(--visual-editor-grid-size) var(--visual-editor-grid-size),
     var(--visual-editor-grid-size) var(--visual-editor-grid-size);
-  background-position:
-    var(--visual-editor-grid-pan-x) var(--visual-editor-grid-pan-y),
-    var(--visual-editor-grid-pan-x) var(--visual-editor-grid-pan-y);
+  background-position: 0 0;
 }
 
 .visual-editor-canvas__surface:focus-visible { box-shadow: inset 0 0 0 2px currentColor; }
@@ -139,8 +177,17 @@
 .visual-editor-canvas__polygon-draft { position:absolute; inset:0; overflow:visible; pointer-events:none; z-index:9999; }
 .visual-editor-canvas__polygon-draft polyline { fill:none; stroke:currentColor; stroke-width:2; stroke-dasharray:7 5; vector-effect:non-scaling-stroke; }
 .visual-editor-canvas__polygon-draft circle { fill:var(--surface-color,#fff); stroke:currentColor; stroke-width:2; vector-effect:non-scaling-stroke; }
+.visual-editor-canvas__bezier-draft { position:absolute; inset:0; overflow:visible; pointer-events:none; z-index:9999; }
+.visual-editor-canvas__bezier-draft polyline { fill:none; stroke:#7c3aed; stroke-width:2; stroke-dasharray:7 5; vector-effect:non-scaling-stroke; }
+.visual-editor-canvas__bezier-draft path { fill:rgba(124,58,237,.08); stroke:#7c3aed; stroke-width:2; stroke-dasharray:7 5; vector-effect:non-scaling-stroke; }
+.visual-editor-canvas__bezier-draft circle { fill:var(--surface-color,#fff); stroke:#6d28d9; stroke-width:2; vector-effect:non-scaling-stroke; }
 .visual-editor-canvas__polygon-vertex { position:absolute; z-index:5; width:11px; height:11px; min-width:0!important; min-height:0!important; padding:0; border:2px solid currentColor; border-radius:50%; background:var(--surface-color,#fff); transform:translate(-50%,-50%); pointer-events:auto; cursor:crosshair; }
 .visual-editor-canvas__polygon-vertex.is-selected { box-shadow:0 0 0 3px rgba(59,130,246,.24); }
+.visual-editor-canvas__bezier-point { position:absolute; z-index:5; width:11px; height:11px; min-width:0!important; min-height:0!important; padding:0; border:2px solid #7c3aed; border-radius:50%; background:var(--surface-color,#fff); transform:translate(-50%,-50%); pointer-events:auto; cursor:crosshair; }
+.visual-editor-canvas__bezier-point.is-anchor { width:13px; height:13px; border-color:#6d28d9; background:#ede9fe; }
+.visual-editor-canvas__bezier-point.is-handle { width:9px; height:9px; border-style:dashed; border-color:#8b5cf6; }
+.visual-editor-canvas__bezier-point.is-selected { box-shadow:0 0 0 3px rgba(124,58,237,.24); }
+.visual-editor-canvas__bezier-point.is-dragging { box-shadow:0 0 0 4px rgba(124,58,237,.32); }
 
 .visual-editor-canvas__adorners { position: absolute; inset: 0; pointer-events: none; }
 
@@ -176,3 +223,139 @@
   background: var(--surface-muted, #f8fafc);
   font-size: 0.78rem;
 }
+
+
+/* W15-EDITOR single-primary-canvas: canonical visuals and authoring overlays share one viewport. */
+.visual-editor-canvas__canonical-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 0;
+  background-color: var(--app-bg, #fff);
+}
+
+.visual-editor-canvas__canonical-layer.is-bounded {
+  overflow: hidden;
+}
+
+.visual-editor-canvas__canonical-layer .visual-editor-renderer-stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.visual-editor-canvas__canonical-layer .visual-editor-renderer-empty {
+  min-height: 100%;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.visual-editor-canvas__canonical-layer .visual-editor-object,
+.visual-editor-canvas__canonical-layer button,
+.visual-editor-canvas__canonical-layer input,
+.visual-editor-canvas__canonical-layer select,
+.visual-editor-canvas__canonical-layer textarea {
+  pointer-events: none !important;
+}
+
+.visual-editor-canvas__logical-boundary {
+  z-index: 5;
+}
+
+.visual-editor-canvas__interaction-layer {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 6000px;
+  height: 4000px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.visual-editor-canvas__object {
+  border-color: transparent;
+  background: transparent;
+}
+
+.visual-editor-canvas__object.is-hovered,
+.visual-editor-canvas__object.is-selected,
+.visual-editor-canvas__object.has-identity-issue {
+  border-color: rgba(71, 85, 105, 0.72);
+}
+
+.visual-editor-canvas__object-label {
+  opacity: 0;
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.2rem;
+  border: 1px solid var(--eng-border, #cbd5e1);
+  background: var(--eng-panel, #fff);
+  color: var(--eng-text, #243447);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--eng-text, #243447) 18%, transparent);
+  transition: opacity 80ms linear;
+}
+
+.visual-editor-canvas__object.is-hovered > .visual-editor-canvas__object-label,
+.visual-editor-canvas__object.has-identity-issue > .visual-editor-canvas__object-label {
+  opacity: 1;
+}
+
+.visual-editor-canvas[data-identities-visible='true'] .visual-editor-canvas__object-label { opacity: 1; }
+
+.visual-editor-canvas__polygon-shape {
+  display: none;
+}
+
+
+.visual-editor-context-menu{position:absolute;z-index:12000;min-width:190px;padding:5px;border:1px solid var(--eng-border,#34465a);border-radius:7px;background:var(--eng-panel,#121922);box-shadow:0 10px 28px rgba(0,0,0,.28);color:var(--eng-text,#e8edf3);font-size:11px}
+.visual-editor-context-menu__group{display:grid;gap:2px;padding:3px 0;border-bottom:1px solid var(--eng-border-soft,#202c39)}
+.visual-editor-context-menu__group:last-child{border-bottom:0}
+.visual-editor-context-menu button{width:100%;min-height:28px;padding:4px 7px;border:0;border-radius:4px;background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit}
+.visual-editor-context-menu button:hover:not(:disabled),.visual-editor-context-menu button:focus-visible{background:var(--eng-panel-soft,#17212c);outline:none}
+
+/* Thin lines need a forgiving authoring hit area, separate from stored geometry. */
+.visual-editor-canvas__object[data-canvas-object-type='core.line'] {
+  border-color: transparent !important;
+  background: transparent;
+  outline: none;
+}
+.visual-editor-canvas__object[data-canvas-object-type='core.line']::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  z-index: 1;
+  background: transparent;
+  pointer-events: auto;
+}
+.visual-editor-canvas__object[data-canvas-object-type='core.line'].is-hovered::after,
+.visual-editor-canvas__object[data-canvas-object-type='core.line'].is-selected::after,
+.visual-editor-canvas__object[data-canvas-object-type='core.line'].has-identity-issue::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  z-index: 0;
+  border: 1px dashed rgba(71, 85, 105, 0.82);
+  pointer-events: none;
+}
+.visual-editor-canvas__object[data-canvas-object-type='core.line'].is-selected::after {
+  border: 2px solid currentColor;
+}
+.visual-editor-canvas__object[data-canvas-object-type='core.line'] > .visual-editor-canvas__adorners {
+  inset: -7px;
+}
+.visual-editor-context-menu button:disabled{opacity:.4;cursor:default}
+
+/* Explicit view edit mode is scoped to the selected 3D object. */
+.visual-editor-canvas__object.is-model-view-editing { cursor: grab; touch-action: none; outline: 2px solid var(--app-focus, #2563eb); }
+.visual-editor-canvas__object.is-model-view-editing:active { cursor: grabbing; }
+.visual-editor-canvas__model-view-help { max-width: 340px; font-size: 11px; line-height: 1.25; align-self: center; }

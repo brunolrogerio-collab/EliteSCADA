@@ -1,4 +1,8 @@
+using System.Data.Common;
+using System.IO;
+using System.Net.Sockets;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.Security;
 using Scada.Security.Audit;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;
@@ -41,8 +45,32 @@ public static class LocalIdentityApi
                 });
             }
 
-            var bootstrap = context.RequestServices.GetRequiredService<LocalIdentityBootstrapService>();
-            var status = await ResolveBootstrapStatusAsync(context, runtime, bootstrap, ct);
+            InitialAdministratorBootstrapStatus status;
+            if (context.User.Identity?.IsAuthenticated == true)
+            {
+                // A valid signed session is sufficient to establish that anonymous
+                // bootstrap is not needed. Do not make an already authenticated
+                // Runtime session depend on a live database just to render auth UI.
+                status = new InitialAdministratorBootstrapStatus(false, false, null);
+            }
+            else
+            {
+                var bootstrap = context.RequestServices.GetRequiredService<LocalIdentityBootstrapService>();
+                try
+                {
+                    status = await ResolveBootstrapStatusAsync(context, runtime, bootstrap, ct);
+                }
+                catch (Exception exception) when (IsTransientDatabaseFailure(exception))
+                {
+                    // Anonymous bootstrap must fail closed while storage is down,
+                    // but its status endpoint should remain readable so the client
+                    // can still discover and preserve an existing signed session.
+                    status = new InitialAdministratorBootstrapStatus(
+                        true,
+                        false,
+                        "database-unavailable");
+                }
+            }
             return Results.Ok(new
             {
                 authenticationEnabled = runtime.AuthenticationEnabled,
@@ -78,6 +106,9 @@ public static class LocalIdentityApi
             HttpContext context,
             LocalIdentityBootstrapService bootstrap,
             JwtTokenIssuer issuer,
+            IAuthorityLifecycleStore lifecycle,
+            IAuthorityPolicyStore policies,
+            AuthorityAttachService authorityAttach,
             LocalLoginAttemptLimiter limiter,
             InitialInstallationGate installationGate,
             ApiAuditService audit,
@@ -121,7 +152,26 @@ public static class LocalIdentityApi
                 }
 
                 var account = result.Account;
-                var issued = issuer.Issue(account);
+                var lifecycleBefore = await lifecycle.GetAsync(ct);
+                if (lifecycleBefore.State == AuthorityLifecycleState.DeliberatelyDetached)
+                {
+                    var currentPolicy = policies.Snapshot();
+                    if (currentPolicy.Roles.Count != 0 || currentPolicy.Scopes.Count != 0)
+                        throw new InvalidOperationException("Detached Authority contains residual canonical policy.");
+                    var target = new AuthorityAttachTarget(
+                        new[] { account },
+                        new[] { BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole() },
+                        Array.Empty<Scada.Engineering.Contracts.SecurityScopeEngineeringDto>());
+                    // Bootstrap created the account through the legacy empty-store primitive.
+                    // Remove it before entering the atomic attach journal, then re-install it there.
+                    await context.RequestServices.GetRequiredService<ILocalIdentityStore>().ClearAllAsync(ct);
+                    await authorityAttach.AttachAsync(target, ct);
+                }
+                else
+                {
+                    await lifecycle.MarkAuthorityPresentAsync(ct);
+                }
+                var issued = await issuer.IssueAsync(account, cancellationToken: ct);
                 context.Response.Cookies.Append(runtime.CookieName, issued.Token, CookieOptions(runtime, issued.ExpiresAtUtc));
 
                 var principal = new SecurityPrincipal(
@@ -198,7 +248,7 @@ public static class LocalIdentityApi
                 return Results.Unauthorized();
             }
 
-            var issued = issuer.Issue(account);
+            var issued = await issuer.IssueAsync(account, cancellationToken: ct);
             context.Response.Cookies.Append(runtime.CookieName, issued.Token, CookieOptions(runtime, issued.ExpiresAtUtc));
 
             var principal = new SecurityPrincipal(
@@ -244,7 +294,10 @@ public static class LocalIdentityApi
         });
 
         endpoints.MapLocalUserAdministrationEndpoints();
+        endpoints.MapAuthorityPolicyAdministrationEndpoints();
         endpoints.MapAuthorityBackupEndpoints();
+        endpoints.MapAuthorityDetachEndpoints();
+        endpoints.MapAuthoritySwitchEndpoints();
         return endpoints;
     }
 
@@ -256,6 +309,14 @@ public static class LocalIdentityApi
     {
         var required = await bootstrap.IsInitialAdministratorRequiredAsync(cancellationToken);
         if (!required) return new InitialAdministratorBootstrapStatus(false, false, null);
+        var lifecycleStore = context.RequestServices.GetService<IAuthorityLifecycleStore>();
+        if (lifecycleStore is null)
+            return new InitialAdministratorBootstrapStatus(true, false, "authority-lifecycle-unavailable");
+        AuthorityLifecycleSnapshot lifecycle;
+        try { lifecycle = await lifecycleStore.GetAsync(cancellationToken); }
+        catch { return new InitialAdministratorBootstrapStatus(true, false, "authority-lifecycle-invalid"); }
+        if (lifecycle.State is not (AuthorityLifecycleState.InitialInstallation or AuthorityLifecycleState.DeliberatelyDetached))
+            return new InitialAdministratorBootstrapStatus(true, false, $"authority-lifecycle-{lifecycle.State.ToString().ToLowerInvariant()}");
         if (!runtime.DurableStore)
             return new InitialAdministratorBootstrapStatus(true, false, "durable-local-identity-store-required");
 
@@ -294,4 +355,19 @@ public static class LocalIdentityApi
         bool Required,
         bool Available,
         string? BlockedReason);
+
+    private static bool IsTransientDatabaseFailure(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is DbException { IsTransient: true } or TimeoutException or IOException or SocketException)
+                return true;
+
+            var sqlState = current.GetType().GetProperty("SqlState")?.GetValue(current) as string;
+            if (sqlState is "57P01" || sqlState?.StartsWith("08", StringComparison.Ordinal) == true)
+                return true;
+        }
+
+        return false;
+    }
 }

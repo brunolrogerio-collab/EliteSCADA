@@ -3,6 +3,9 @@ using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.Historian;
+using Scada.Engineering.Intelligence;
+using Scada.Engineering.Security;
 using Scada.Engineering.Validation;
 
 namespace Scada.Engineering.ImportExport.Handlers;
@@ -12,15 +15,18 @@ internal sealed class TagEngineeringHandler
     private readonly ITagRegistry _tags;
     private readonly IDataSourceEngineeringRegistry _dataSources;
     private readonly IAlarmEngine _alarms;
+    private readonly ISecurityPolicyEngineeringRegistry _securityPolicies;
 
     public TagEngineeringHandler(
         ITagRegistry tags,
         IDataSourceEngineeringRegistry dataSources,
-        IAlarmEngine alarms)
+        IAlarmEngine alarms,
+        ISecurityPolicyEngineeringRegistry securityPolicies)
     {
         _tags = tags;
         _dataSources = dataSources;
         _alarms = alarms;
+        _securityPolicies = securityPolicies;
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -30,7 +36,15 @@ internal sealed class TagEngineeringHandler
         foreach (var dto in package.Tags)
         {
             var issues = EngineeringValidator.ValidateTag(dto).ToList();
-            ValidateAccessPolicy(dto, issues);
+            if (dto.ControlledEngineeringUnit is not null)
+            {
+                var requiredSchemaVersion = dto.ControlledEngineeringUnit.CatalogVersion >= 2 ? 27 : 26;
+                if (package.SchemaVersion < requiredSchemaVersion)
+                    issues.Add(new("TAG_CONTROLLED_UNIT_SCHEMA_VERSION_REQUIRED", $"Controlled TAG unit catalog version {dto.ControlledEngineeringUnit.CatalogVersion} requires Engineering package schema version {requiredSchemaVersion} or newer.", ImportEntityKind.Tag, dto.Path, true));
+                issues.AddRange(ControlledEngineeringSemanticsResolver.ValidateUnitReference(dto.ControlledEngineeringUnit)
+                    .Select(issue => new ImportIssue(issue.Code, issue.Message, ImportEntityKind.Tag, dto.Path, true)));
+            }
+            ValidateAccessPolicy(dto, package, issues);
             issues.AddRange(CommunicationTagBindingEngineeringValidator.Validate(dto, package.SchemaVersion));
 
             var dataSource = ResolveDataSource(dto, package);
@@ -46,11 +60,34 @@ internal sealed class TagEngineeringHandler
                     dto.Path,
                     true));
 
+            var existing = ResolveExisting(dto);
+            var operation = EngineeringHandlerSupport.Decide(existing is not null, mode);
+            if (operation == ImportOperation.Update && existing?.ControlledEngineeringUnit is not null &&
+                package.SchemaVersion < 26)
+            {
+                issues.Add(new(
+                    "TAG_CONTROLLED_UNIT_ANNOTATION_CONFLICT",
+                    $"Updating TAG '{dto.Path}' from a schema-25-or-older import would remove an existing semantic annotation. Use an Engineering schema 26 package to explicitly retain, change, or remove the controlled unit.",
+                    ImportEntityKind.Tag,
+                    dto.Path,
+                    true));
+            }
+            if (operation == ImportOperation.Update && existing?.ControlledEngineeringUnit?.CatalogVersion == 2 &&
+                package.SchemaVersion < 27 && dto.ControlledEngineeringUnit != existing.ControlledEngineeringUnit)
+            {
+                issues.Add(new(
+                    "TAG_CONTROLLED_UNIT_ANNOTATION_CONFLICT",
+                    $"Updating TAG '{dto.Path}' from a schema-26-or-older import would remove or change its version 2 controlled unit. Use an Engineering schema 27 package to explicitly retain, change, or remove the controlled unit.",
+                    ImportEntityKind.Tag,
+                    dto.Path,
+                    true));
+            }
+
             EngineeringHandlerSupport.AddPreview(
                 items,
                 ImportEntityKind.Tag,
                 dto.Path,
-                ResolveExisting(dto) is not null,
+                existing is not null,
                 mode,
                 issues);
         }
@@ -85,7 +122,8 @@ internal sealed class TagEngineeringHandler
                 BuildAccessPolicy(dto.AccessPolicy),
                 dto.AddressSelector,
                 dto.CommunicationBinding,
-                resolvedDataSource?.Id ?? dto.DataSourceId);
+                resolvedDataSource?.Id ?? dto.DataSourceId,
+                dto.ControlledEngineeringUnit);
 
             if (existing is null)
             {
@@ -128,7 +166,8 @@ internal sealed class TagEngineeringHandler
             BuildAccessPolicy(imported.AccessPolicy),
             imported.AddressSelector,
             imported.CommunicationBinding,
-            imported.DataSourceId);
+            imported.DataSourceId,
+            imported.ControlledEngineeringUnit);
     }
 
     public bool IsClientMemoryAlarmTarget(AlarmEngineeringDto dto, EngineeringPackage package)
@@ -242,18 +281,22 @@ internal sealed class TagEngineeringHandler
         return _tags.TryGetByPath(dto.Path, out var byPath) ? byPath : null;
     }
 
-    private static void ValidateAccessPolicy(TagEngineeringDto dto, List<ImportIssue> issues)
+    private void ValidateAccessPolicy(
+        TagEngineeringDto dto,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
     {
         if (dto.AccessPolicy is null) return;
-        ValidateRoleList(dto.AccessPolicy.ReadRoles, "read", dto.Path, issues);
-        ValidateRoleList(dto.AccessPolicy.WriteRoles, "write", dto.Path, issues);
-        ValidateRoleList(dto.AccessPolicy.ConfigureRoles, "configure", dto.Path, issues);
+        ValidateRoleList(dto.AccessPolicy.ReadRoles, "read", dto.Path, package, issues);
+        ValidateRoleList(dto.AccessPolicy.WriteRoles, "write", dto.Path, package, issues);
+        ValidateRoleList(dto.AccessPolicy.ConfigureRoles, "configure", dto.Path, package, issues);
     }
 
-    private static void ValidateRoleList(
+    private void ValidateRoleList(
         IReadOnlyCollection<string>? roles,
         string operation,
         string tagPath,
+        EngineeringPackage package,
         List<ImportIssue> issues)
     {
         if (roles is null) return;
@@ -277,6 +320,36 @@ internal sealed class TagEngineeringHandler
                 tagPath,
                 true));
         }
+
+        foreach (var role in roles
+                     .Where(role => !string.IsNullOrWhiteSpace(role))
+                     .Select(role => role.Trim())
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var packageMatches = (package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>())
+                .Count(candidate => candidate is not null &&
+                                    string.Equals(candidate.Key, role, StringComparison.OrdinalIgnoreCase));
+            if (packageMatches > 1)
+            {
+                issues.Add(new(
+                    "TAG_ACCESS_ROLE_AMBIGUOUS",
+                    $"TAG '{tagPath}' references role '{role}' more than once in its {operation} access policy.",
+                    ImportEntityKind.Tag,
+                    tagPath,
+                    true));
+                continue;
+            }
+
+            if (packageMatches == 0 && _securityPolicies.FindRoleByKey(role) is null)
+            {
+                issues.Add(new(
+                    "TAG_ACCESS_ROLE_NOT_FOUND",
+                    $"TAG '{tagPath}' references unknown role '{role}' in its {operation} access policy.",
+                    ImportEntityKind.Tag,
+                    tagPath,
+                    true));
+            }
+        }
     }
 
     private static IReadOnlyDictionary<string, string> BuildMetadata(TagEngineeringDto dto)
@@ -293,6 +366,11 @@ internal sealed class TagEngineeringHandler
         Set(result, "historian.deadband", dto.Historian?.Deadband);
         Set(result, "historian.periodMs", dto.Historian?.PeriodMilliseconds);
         Set(result, "historian.maxPeriodMs", dto.Historian?.MaximumPeriodMilliseconds);
+        if (dto.HistorianCaptureProfileId.HasValue)
+            result[HistorianCaptureProfileMetadata.ProfileIdMetadataKey] =
+                dto.HistorianCaptureProfileId.Value.ToString("D");
+        else
+            result.Remove(HistorianCaptureProfileMetadata.ProfileIdMetadataKey);
         MemoryEngineeringValueCodec.WriteToMetadata(result, dto.InitialValue);
         return result;
     }

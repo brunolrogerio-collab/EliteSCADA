@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <path d="M 50 78 L 38 90 C 24 104 4 84 18 70 L 34 54 C 44 44 54 46 62 54" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"  data-elitescada-slot="outline" />
+  <path d="M 78 50 L 90 38 C 104 24 124 44 110 58 L 94 74 C 84 84 74 82 66 74" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"  data-elitescada-slot="outline" />
+  <line x1="48" y1="80" x2="80" y2="48" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round"  data-elitescada-slot="outline" />
+</svg>

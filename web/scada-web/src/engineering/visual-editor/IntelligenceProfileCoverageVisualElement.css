@@ -1,0 +1,37 @@
+.runtime-intelligence-coverage {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  font-family: system-ui, sans-serif;
+}
+
+.runtime-intelligence-coverage__header { display: grid; gap: 4px; }
+.runtime-intelligence-coverage__header span,
+.runtime-intelligence-coverage__notice { color: var(--app-text-secondary, #94a3b8); }
+.runtime-intelligence-coverage__header span,
+.runtime-intelligence-coverage__notice,
+.runtime-intelligence-coverage .runtime-intelligence-query__error { font-size: 12px; line-height: 1.4; }
+.runtime-intelligence-coverage__form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: 8px; }
+.runtime-intelligence-coverage__form label { display: grid; gap: 4px; min-width: 0; color: var(--app-text-secondary); font-size: 12px; }
+.runtime-intelligence-coverage__form button { grid-column: 1 / -1; }
+.runtime-intelligence-coverage .asset-process-intelligence__coverage-result { display: grid; gap: 12px; }
+.runtime-intelligence-coverage .asset-process-intelligence__coverage-result section { display: grid; gap: 6px; }
+.runtime-intelligence-coverage .asset-process-intelligence__coverage-result h4,
+.runtime-intelligence-coverage .asset-process-intelligence__coverage-signals h5 { margin: 0; }
+.runtime-intelligence-coverage .asset-process-intelligence__coverage-result p { overflow-wrap: anywhere; }
+.runtime-intelligence-coverage .asset-process-intelligence__coverage-facts { display: grid; grid-template-columns: repeat(auto-fit,minmax(145px,1fr)); gap: 6px; margin: 0; }
+.runtime-intelligence-coverage .asset-process-intelligence__coverage-facts > div { min-width: 0; overflow-wrap: anywhere; }
+.runtime-intelligence-coverage .asset-process-intelligence__coverage-facts dt { color: var(--app-text-secondary, #94a3b8); font-size: 11px; }
+.runtime-intelligence-coverage .asset-process-intelligence__coverage-facts dd { margin: 2px 0 0; font-size: 12px; }
+.runtime-intelligence-coverage .asset-process-intelligence__coverage-signals { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 8px; }
+.runtime-intelligence-coverage .asset-process-intelligence__coverage-signals > article {
+  background: var(--app-surface-elevated);
+  color: var(--app-text-primary);
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--app-border, #475569);
+  border-radius: 6px;
+}
+.runtime-intelligence-coverage .asset-process-intelligence__coverage-note { color: var(--app-text-secondary, #94a3b8); font-size: 11px; }

@@ -27,6 +27,207 @@ export type HistorianEngineering = {
   maximumPeriodMilliseconds?: number | null;
 };
 
+export type HistorianCaptureStrategy =
+  | 'periodic'
+  | 'onChange'
+  | 'onChangeDeadband'
+  | 'onChangeDeadbandMaxInterval';
+
+export type HistorianCaptureProfileEngineering = Readonly<{
+  id?: string | null;
+  key: string;
+  name: string;
+  strategy: HistorianCaptureStrategy;
+  periodMilliseconds?: number | null;
+  deadband?: number | null;
+  maximumIntervalMilliseconds?: number | null;
+  description?: string | null;
+  metadata?: Record<string, string> | null;
+  version?: number;
+}>;
+
+export type HistorianRetrievalMode =
+  | 'raw'
+  | 'last'
+  | 'atOrBefore'
+  | 'atOrAfter'
+  | 'exact'
+  | 'interpolated'
+  | 'sampledFixedStep'
+  | 'aggregate';
+
+export type DataQueryAggregateFunction =
+  | 'count'
+  | 'sum'
+  | 'average'
+  | 'minimum'
+  | 'maximum'
+  | 'first'
+  | 'last';
+
+export type DataQueryParameterType =
+  | 'string'
+  | 'boolean'
+  | 'number'
+  | 'int64'
+  | 'dateTime'
+  | 'durationSeconds'
+  | 'guid'
+  | 'enum';
+
+export type DataQueryParameterTarget =
+  | 'absoluteFromUtc'
+  | 'absoluteToUtc'
+  | 'relativeDurationSeconds'
+  | 'historianTargetUtc'
+  | 'search'
+  | 'filterValue';
+
+export type DataQueryParameterValueEngineering = Readonly<{
+  type: DataQueryParameterType;
+  value: string;
+}>;
+
+export type DataQueryParameterEngineering = Readonly<{
+  key: string;
+  name: string;
+  type: DataQueryParameterType;
+  defaultValue?: DataQueryParameterValueEngineering | null;
+  description?: string | null;
+  allowedValues?: readonly DataQueryParameterValueEngineering[] | null;
+}>;
+
+export type DataQueryParameterBindingEngineering = Readonly<{
+  parameterKey: string;
+  target: DataQueryParameterTarget;
+  filterIndex?: number | null;
+  valueIndex?: number | null;
+}>;
+
+export type DataQueryGroupEngineering = Readonly<{ field: string }>;
+
+export type DataQueryAggregateEngineering = Readonly<{
+  key: string;
+  field: string;
+  function: DataQueryAggregateFunction;
+}>;
+
+export type HistorianRetrievalEngineering = Readonly<{
+  mode: HistorianRetrievalMode;
+  stepMilliseconds?: number | null;
+  bucketMilliseconds?: number | null;
+  maximumGapMilliseconds?: number | null;
+  aggregateFunction?: DataQueryAggregateFunction | null;
+  targetUtc?: string | null;
+}>;
+
+export type DataQueryEngineering = Readonly<{
+  id?: string | null;
+  key: string;
+  name: string;
+  providerKey: string;
+  query: import('../runtime/historical-browser/historicalQueryApi').HistoricalQueryRequest;
+  selectedFields?: readonly string[] | null;
+  groups?: readonly DataQueryGroupEngineering[] | null;
+  aggregates?: readonly DataQueryAggregateEngineering[] | null;
+  parameters?: readonly DataQueryParameterEngineering[] | null;
+  parameterBindings?: readonly DataQueryParameterBindingEngineering[] | null;
+  historianRetrieval?: HistorianRetrievalEngineering | null;
+  description?: string | null;
+  metadata?: Record<string, string> | null;
+  version?: number;
+}>;
+
+export type AlarmViewMatchState = 'any' | 'yes' | 'no';
+
+export type AlarmViewFilterEngineering = Readonly<{
+  areas?: readonly string[] | null;
+  priorities?: readonly string[] | null;
+  types?: readonly string[] | null;
+  alarmClasses?: readonly string[] | null;
+  categories?: readonly string[] | null;
+  subconditions?: readonly string[] | null;
+  sources?: readonly string[] | null;
+  alarmIds?: readonly string[] | null;
+  tagIds?: readonly string[] | null;
+  equipmentIds?: readonly string[] | null;
+  active?: AlarmViewMatchState;
+  acknowledged?: AlarmViewMatchState;
+  shelved?: AlarmViewMatchState;
+  search?: string | null;
+}>;
+
+export type AlarmViewEngineering = Readonly<{
+  id?: string | null;
+  key: string;
+  name: string;
+  filter: AlarmViewFilterEngineering;
+  description?: string | null;
+  metadata?: Record<string, string> | null;
+  version?: number;
+}>;
+
+export const ENGINEERING_FRAGMENT_SCHEMA = 'scada.engineering.fragment' as const;
+export const ENGINEERING_FRAGMENT_SCHEMA_VERSION = 1 as const;
+export const ENGINEERING_FRAGMENT_EXTENSION = '.escadafrag' as const;
+
+export type EngineeringFragmentPlanOperation =
+  | 'create'
+  | 'reuseIdentical'
+  | 'update'
+  | 'remap'
+  | 'skip'
+  | 'conflict'
+  | 'unsupported';
+
+export type EngineeringFragmentEntityReference = Readonly<{
+  entityKind: string;
+  entityKey: string;
+  entityId?: string | null;
+}>;
+
+export type EngineeringFragmentManifest = Readonly<{
+  roots: readonly EngineeringFragmentEntityReference[];
+  dependencies?: readonly EngineeringFragmentEntityReference[] | null;
+  version?: number;
+}>;
+
+export type EngineeringFragmentPreviewItem = Readonly<{
+  source: EngineeringFragmentEntityReference;
+  operation: EngineeringFragmentPlanOperation;
+  target?: EngineeringFragmentEntityReference | null;
+  reason?: string | null;
+}>;
+
+export type EngineeringFragmentEnvelope = Readonly<{
+  schema: typeof ENGINEERING_FRAGMENT_SCHEMA;
+  schemaVersion: typeof ENGINEERING_FRAGMENT_SCHEMA_VERSION;
+  exportedAt: string;
+  manifest: EngineeringFragmentManifest;
+  engineering: EngineeringPackageView;
+}>;
+
+export type ReusableLibraryUpdateState =
+  | 'upToDate'
+  | 'updateAvailable'
+  | 'locallyModified'
+  | 'sourceMissing'
+  | 'incompatible';
+
+export type ReusableLibrarySourceProvenanceEngineering = Readonly<{
+  sourceLibraryId: string;
+  sourceResourceId: string;
+  sourceVersion: string;
+  sourceContentHash: string;
+  version?: number;
+}>;
+
+export type ReusableLibraryResourceUpdateEngineering = Readonly<{
+  source: ReusableLibrarySourceProvenanceEngineering;
+  state: ReusableLibraryUpdateState;
+  currentContentHash?: string | null;
+}>;
+
 export type TagAccessPolicyEngineering = {
   readRoles?: string[] | null;
   writeRoles?: string[] | null;
@@ -48,14 +249,32 @@ export type TagValueReferenceEngineering = Readonly<{
   selector?: TagValueSelectorEngineering | null;
 }>;
 
+export type TagPhysicalValueTransformEngineering = Readonly<{
+  contractVersion?: number;
+  byteSwap?: boolean;
+  wordSwap?: boolean;
+}>;
+
+export type CommunicationTagBindingEngineering = Readonly<{
+  contractVersion: number;
+  schemaId: string;
+  schemaVersion: number;
+  portableAddress: string;
+  settings?: Record<string, string> | null;
+  valueTransform?: TagPhysicalValueTransformEngineering | null;
+}>;
+
 export type TagEngineering = {
   id?: string;
   name: string;
   path: string;
   dataType: string;
+  dataSourceId?: string | null;
   source?: string | null;
   address?: string | null;
+  communicationBinding?: CommunicationTagBindingEngineering | null;
   engineeringUnit?: string | null;
+  controlledEngineeringUnit?: { catalogVersion: number; code: string } | null;
   description?: string | null;
   readOnly: boolean;
   scaleMinimum?: number | null;
@@ -65,6 +284,83 @@ export type TagEngineering = {
   accessPolicy?: TagAccessPolicyEngineering | null;
   initialValue?: MemoryInitialValueEngineering | null;
   addressSelector?: TagValueSelectorEngineering | null;
+  historianCaptureProfileId?: string | null;
+};
+
+export type AssetProcessIntelligenceSignalSemanticBinding = {
+  catalogVersion: number;
+  roleCode: string;
+  currentBasis?: string | null;
+  signalKind?: string | null;
+  frequencyReference?: string | null;
+  pressureReference?: string | null;
+  flowDirection?: string | null;
+};
+
+export type AssetProcessIntelligenceSignalEngineering = {
+  id: string;
+  key: string;
+  signalRole: string;
+  tagId: string;
+  required: boolean;
+  semanticBinding?: AssetProcessIntelligenceSignalSemanticBinding | null;
+};
+
+export type AssetProcessIntelligenceProfileEngineering = {
+  id: string;
+  key: string;
+  name: string;
+  signals: AssetProcessIntelligenceSignalEngineering[];
+};
+
+export type AssetProcessIntelligenceAssignmentEngineering = {
+  id: string;
+  equipmentId: string;
+  profileId: string;
+};
+
+export type AssetProcessIntelligenceProcessStageLinkEngineering = {
+  assignmentId: string;
+  order: number;
+};
+
+export type AssetProcessIntelligenceProcessStageEngineering = {
+  id: string;
+  key: string;
+  name: string;
+  order: number;
+  links: AssetProcessIntelligenceProcessStageLinkEngineering[];
+};
+
+export type AssetProcessIntelligenceOperatingContextPredicateKind =
+  | 'NumericInterval' | 'BooleanEquals' | 'StringEquals' | 'EnumEquals';
+
+export type AssetProcessIntelligenceOperatingContextPredicateEngineering = {
+  tagId: string;
+  kind: AssetProcessIntelligenceOperatingContextPredicateKind;
+  minimum?: number | null;
+  maximum?: number | null;
+  booleanValue?: boolean | null;
+  exactValue?: string | null;
+  engineeringUnit?: string | null;
+  engineeringUnitConfirmed?: boolean;
+};
+
+export type AssetProcessIntelligenceDeviationAlarmEngineering = {
+  tagId: string;
+  minimum: number | null;
+  maximum: number | null;
+  persistenceSeconds: number;
+};
+
+export type AssetProcessIntelligenceOperatingContextProfileEngineering = {
+  id: string;
+  key: string;
+  displayLabel: string;
+  assignmentId: string;
+  version: number;
+  predicates: AssetProcessIntelligenceOperatingContextPredicateEngineering[];
+  deviationAlarm?: AssetProcessIntelligenceDeviationAlarmEngineering | null;
 };
 
 export type AlarmEngineering = {
@@ -78,11 +374,16 @@ export type AlarmEngineering = {
   digitalActiveValue?: boolean;
   alarmClass?: string | null;
   area?: string | null;
+  /** Stable operational scope. Set one of this or equipmentId, not both. */
+  locationId?: string | null;
+  /** Stable equipment link; its current Location is resolved at Runtime activation. */
+  equipmentId?: string | null;
   message?: string | null;
   activationDelayMilliseconds?: number | null;
   requiresAcknowledgement?: boolean;
   shelvingAllowed?: boolean;
   enabled?: boolean;
+  soundProfile?: string | null;
   metadata?: Record<string, string> | null;
 };
 
@@ -95,6 +396,17 @@ export type DataSourceEngineering = {
   settings?: Record<string, string> | null;
   secretReferences?: Record<string, string> | null;
   metadata?: Record<string, string> | null;
+};
+
+export type MediaSourceProtocolEngineering = 'http' | 'hls' | 'mjpeg' | 'rtsp';
+
+export type MediaSourceEngineering = {
+  id?: string | null;
+  key: string;
+  name: string;
+  protocol: MediaSourceProtocolEngineering;
+  endpoint: string;
+  enabled?: boolean;
 };
 
 export type GatewayEngineering = {
@@ -197,6 +509,33 @@ export type CommunicationDriverDiagnostic = {
   protocolDetails?: Record<string, string> | null;
 };
 
+export type DriverHostHealth = {
+  status: string;
+  service: string;
+  nodeIdentity?: string | null;
+  observedAtUtc: string;
+  freshForSeconds: number;
+  uptime: string;
+  activeRuntimeAvailable: boolean;
+  activeRevision?: number | null;
+};
+
+export type NetworkProbeResult = {
+  status: string;
+  address?: string | null;
+  elapsedMilliseconds?: number | null;
+  detail?: string | null;
+};
+
+export type NetworkReachabilityProbeResponse = {
+  authority: string;
+  observedAtUtc: string;
+  host: string;
+  port: number;
+  tcp: NetworkProbeResult;
+  icmp: NetworkProbeResult;
+};
+
 export type RuntimeDiagnosticsView = {
   runtime?: {
     communicationDrivers?: CommunicationDriverDiagnostic[];
@@ -243,6 +582,12 @@ export type VisualValueSourceEngineering = Readonly<{
   target?: string | null;
   tagReference?: TagValueReferenceEngineering | null;
   expression?: VisualExpressionEngineering | null;
+  /**
+   * Runtime-only Dynamo projection. Never authored or persisted: the instance
+   * compositor materializes Boolean/Number public parameters here so the shared
+   * dynamic resolver can consume them without fabricating a live TAG sample.
+   */
+  projectedValue?: boolean | number;
   version?: number;
 }>;
 
@@ -285,8 +630,81 @@ export type VisualAnalogFillEngineering = Readonly<{
   version?: number;
 }>;
 
+export type VisualPropertyMapRuleEngineering = Readonly<{
+  value: VisualEngineeringPropertyValue;
+  minimum?: number | null;
+  minimumInclusive?: boolean;
+  maximum?: number | null;
+  maximumInclusive?: boolean;
+}>;
+
+export type VisualPropertyMapEngineering = Readonly<{
+  propertyKey: string;
+  source: VisualValueSourceEngineering;
+  rules: readonly VisualPropertyMapRuleEngineering[];
+  fallback?: VisualEngineeringPropertyValue | null;
+  version?: number;
+}>;
+
 export type VisualEngineeringAssetReference = Readonly<{
   assetId: string;
+}>;
+
+export type ApplicationBrandingMode = 'default' | 'text' | 'image' | 'none';
+
+export type ApplicationBrandingEngineering = Readonly<{
+  mode: ApplicationBrandingMode;
+  text?: string | null;
+  subtitle?: string | null;
+  visualAssetId?: string | null;
+}>;
+
+export type RuntimePresentationEngineering = Readonly<{
+  historicalPlaybackEnabled: boolean;
+  mobileOrientation?: 'landscape' | 'portrait';
+  mobileScreens?: Readonly<Record<string, string>> | null;
+  stationProfiles?: readonly RuntimeStationProfile[] | null;
+  header?: RuntimeHeaderEngineering | null;
+  version: number;
+}>;
+
+export type RuntimeStationProfile = Readonly<{
+  id: string;
+  name: string;
+  windows: readonly Readonly<{ screenKey: string; mode: 'navigation' | 'fixed' }>[];
+}>;
+
+export type RuntimeHeaderTextStyleEngineering = Readonly<{
+  fontFamily?: string | null;
+  fontSize?: number;
+  fontWeight?: 'normal' | 'bold' | 400 | 500 | 600 | 700;
+  color?: string | null;
+}>;
+
+export type RuntimeHeaderDateTimeEngineering = Readonly<{
+  mode?: 'off' | 'time' | 'date' | 'dateTime';
+  position?: 'left' | 'right';
+  order?: number;
+  dateFormat?: 'dd/MM/yyyy' | 'MM/dd/yyyy' | 'yyyy-MM-dd';
+  timeFormat?: '24h' | '12h';
+}>;
+
+export type RuntimeHeaderEngineering = Readonly<{
+  enabled?: boolean;
+  height?: number;
+  backgroundColor?: string | null;
+  titlePosition?: 'left' | 'center' | 'right';
+  controlsPosition?: 'left' | 'right';
+  controlsOrder?: number;
+  showScreenName?: boolean;
+  titleStyle?: RuntimeHeaderTextStyleEngineering | null;
+  screenNameStyle?: RuntimeHeaderTextStyleEngineering | null;
+  dateTime?: RuntimeHeaderDateTimeEngineering | null;
+  overviewVisible?: boolean;
+  historyVisible?: boolean;
+  alarmsVisible?: boolean;
+  playbackVisible?: boolean;
+  links?: readonly { label: string; screenKey: string; visualAssetId?: string | null }[] | null;
 }>;
 
 export type VisualAssetEngineering = {
@@ -294,7 +712,7 @@ export type VisualAssetEngineering = {
   key: string;
   name: string;
   originalFileName: string;
-  mediaType: 'image/png' | 'image/jpeg' | 'image/bmp' | string;
+    mediaType: 'image/png' | 'image/jpeg' | 'image/bmp' | 'image/svg+xml' | string;
   byteLength: number;
   sha256: string;
   pixelWidth?: number | null;
@@ -329,7 +747,9 @@ export type VisualElementEngineering = {
   key: string;
   type: string;
   dynamoKey?: string | null;
+  dynamoDefinitionId?: string | null;
   equipmentPath?: string | null;
+  equipmentId?: string | null;
   bindings?: BindingEngineering[] | null;
   properties?: VisualEngineeringPropertyMap | null;
   context?: Record<string, string> | null;
@@ -338,6 +758,7 @@ export type VisualElementEngineering = {
   propertyExpressions?: readonly VisualPropertyExpressionEngineering[] | null;
   booleanConditions?: readonly VisualBooleanConditionEngineering[] | null;
   analogFill?: VisualAnalogFillEngineering | null;
+  propertyMaps?: readonly VisualPropertyMapEngineering[] | null;
   dynamoParameters?: readonly import('../runtime/visual-navigation/runtimeVisualNavigationModel').DynamoParameterValueEngineering[] | null;
   actions?: readonly import('../runtime/visual-navigation/runtimeVisualNavigationModel').VisualNavigationActionEngineering[] | null;
 };
@@ -347,14 +768,52 @@ export type TemplateEngineering = {
   key: string;
   name: string;
   bindings?: BindingEngineering[];
+  elements?: VisualElementEngineering[] | null;
+  properties?: Record<string, string> | null;
+  context?: Record<string, string> | null;
+  metadata?: Record<string, string> | null;
+};
+
+export type LocationEngineering = {
+  id?: string | null;
+  name: string;
+  parentLocationId?: string | null;
+  kind?: string | null;
+  metadata?: Record<string, string> | null;
+};
+
+export type EquipmentSourceBindingEngineering = {
+  dataSourceId: string;
+  stableDeviceIdentity: string;
+  role?: string | null;
+  metadata?: Record<string, string> | null;
+};
+
+export type CapabilityRoleBindingEngineering = {
+  role: string;
+  tagId?: string | null;
+  commandId?: string | null;
+};
+
+export type EquipmentCapabilityEngineering = {
+  id: string;
+  kind: string;
+  bindings?: CapabilityRoleBindingEngineering[] | null;
+  metadata?: Record<string, string> | null;
+  version?: number;
 };
 
 export type EquipmentEngineering = {
   id?: string;
   path: string;
   name: string;
-  templateKey?: string;
+  templateKey?: string | null;
+  templateId?: string | null;
   bindings?: BindingEngineering[];
+  locationId?: string | null;
+  sourceBindings?: EquipmentSourceBindingEngineering[] | null;
+  capabilities?: EquipmentCapabilityEngineering[] | null;
+  metadata?: Record<string, string> | null;
 };
 
 export type DynamoEngineering = {
@@ -362,6 +821,7 @@ export type DynamoEngineering = {
   key: string;
   name: string;
   templateKey?: string;
+  templateId?: string | null;
   bindings?: BindingEngineering[];
   properties?: Record<string, string> | null;
   context?: Record<string, string> | null;
@@ -387,6 +847,7 @@ export type PopupEngineering = {
   key: string;
   name: string;
   templateKey?: string | null;
+  templateId?: string | null;
   elements?: VisualElementEngineering[] | null;
   properties?: Record<string, string> | null;
   context?: Record<string, string> | null;
@@ -418,6 +879,17 @@ export type CommandEngineering = {
   metadata?: Record<string, string> | null;
 };
 
+export type RichCommandDefinitionEngineering = Readonly<{
+  commandId: string;
+  semanticKey: string;
+  description?: string | null;
+  parameters?: readonly Readonly<{
+    key: string;
+    required?: boolean;
+    description?: string | null;
+  }>[] | null;
+}>;
+
 export type EngineeringPackageView = {
   schema: string;
   schemaVersion: number;
@@ -425,15 +897,24 @@ export type EngineeringPackageView = {
   tags: TagEngineering[];
   alarms: AlarmEngineering[];
   dataSources?: DataSourceEngineering[];
+  mediaSources?: MediaSourceEngineering[];
   templates?: TemplateEngineering[];
   equipment?: EquipmentEngineering[];
+  locations?: LocationEngineering[];
   dynamos?: DynamoEngineering[];
   screens?: ScreenEngineering[];
   popups?: PopupEngineering[];
   securityRoles?: SecurityRoleEngineering[];
   commands?: CommandEngineering[];
+  richCommandDefinitions?: readonly RichCommandDefinitionEngineering[] | null;
   gateways?: GatewayEngineering[];
   visualAssets?: VisualAssetEngineering[];
+  historianCaptureProfiles?: HistorianCaptureProfileEngineering[];
+  dataQueries?: DataQueryEngineering[];
+  alarmViews?: AlarmViewEngineering[];
+  reports?: readonly import('./reports/reportContracts').ReportEngineeringDto[] | null;
+  branding?: ApplicationBrandingEngineering | null;
+  runtimePresentation?: RuntimePresentationEngineering | null;
   startupScreenId?: string | null;
   [key: string]: unknown;
 };

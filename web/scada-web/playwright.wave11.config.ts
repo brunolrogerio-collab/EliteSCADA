@@ -107,6 +107,8 @@ export default defineConfig({
     {
       command: 'dotnet run --project ../../src/Scada.Api/Scada.Api.csproj --no-launch-profile',
       url: 'http://127.0.0.1:5081/health',
+      stderr: 'pipe',
+      stdout: 'pipe',
       timeout: 60_000,
       reuseExistingServer: false,
       env: {
@@ -119,14 +121,14 @@ export default defineConfig({
         Authentication__Jwt__SigningKey: E2E_AUTH_SIGNING_KEY,
         Authentication__Local__Enabled: 'true',
         Authentication__Local__SecureCookie: 'false',
-        Authentication__Local__Bootstrap__Username: 'wave11-local-developer',
-        Authentication__Local__Bootstrap__DisplayName: 'Wave 11 Local Developer',
-        Authentication__Local__Bootstrap__Password: 'Wave11-local-password-123!',
-        Authentication__Local__Bootstrap__Roles__0: 'developer',
         EngineeringRuntime__ProjectKey: 'e2e-wave11',
         Historian__Provider: 'timescaledb',
         HistoricalQuery__Enabled: 'true',
-        HistoricalQuery__CursorKeyBase64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+        HistoricalQuery__CursorKeyBase64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+        // CI/local SQL startup is slower than the production default 250 ms
+        // Server Script budget; keep the fixture deterministic with the same
+        // bounded 2 s budget used by the runtime integration tests.
+        ServerScripts__HandlerTimeoutMs: '2000'
       }
     },
     {

@@ -1,164 +1,2841 @@
-# LAST CHANGE — EliteSCADA
+# Product checkpoint — installation network configuration (#780) — 2026-10-29
 
-**Date:** 2026-09-09 BRT
-**Operational state:** **WAVE14 C26 ACTIVE / C26.1–C26.9 VALIDATED / C26.10 IMPLEMENTED BUT NOT VALIDATED — CURRENT WAVE11 PACKAGE-SCHEMA BLOCKER / C26.11 NOT STARTED / #212 NOT AUTHORIZED / #266+#288 NEVER MERGE / POST-C26 WORK #289 NOT YET EXECUTABLE / WAVE13 PAUSED**
+Active branch: `work/w15-service-ports-780`, based on integrated `wave15/corrections-integration@16849faa66c84a4078126c08abb978e0c6014e0b` (#827), draft PR #828, head `7495c39c98e10501a2146ea43103d4ac38074b4a`. This Docker stable profile configures per-installation identity and host-published Web/API/PostgreSQL ports. Its read-only profile requires `SystemAdmin`; reviewed PowerShell/Bash host scripts preserve secrets/volumes and perform preflight, health checks and rollback. UI and Help/manual pt-BR/en/es now explain Driver and media boundaries.
 
-> GitHub live is the official and sole project memory. Revalidate refs, PR/issue state, exact files and exact-SHA workflows before every decision, diagnosis, code/documentation write, PR action, rerun or merge. If this file differs from GitHub live, GitHub wins.
+Local evidence: a real Windows PowerShell 5.1 Docker Desktop run created two isolated stacks and changed Web/API/database ports on one while both remained healthy. Product code head `64649629345741ae6120584f24f5b9452982bec6` passed exact T1 [#40984942107](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/40984942107), including Linux live-stack proof of two installations, port change and safe collision rejection. The T1 exposed and verified the fix for the Bash fresh-install empty-owner bug. Local API 2/2, Help 123/123, Web build, router 39/39, Bash reproduction/syntax and diff check passed. Preview unchanged.
 
-## Current execution boundary
+Scope still open: Linux-host runtime proof awaits the exact-head rerun after the collision guard. Native Windows Service/systemd management is outside this Docker profile. Data Source client ports are remote endpoints; stable Compose does not publish the Modbus TCP Server listener or configure BACnet UDP/broadcast forwarding. MediaMTX ports `9997/TCP` and `8888/TCP` intentionally remain private; the API relays Runtime media with short-lived tickets. Keep #780 open and PR #828 draft until the remaining supported-profile requirements are verified and the protocol/service boundaries are resolved or explicitly re-sequenced. Follow live #780/#305.
 
-- Repository: `brunolrogerio-collab/EliteSCADA`
-- Active branch: `wave14/c26-po-homologation-corrections`
-- Coordinator issue: #286
-- Implementation PR #287: C26 -> `wave14/c11-canonical-eee-demo`, OPEN/DRAFT
-- Validation PR #288: C26 -> `main`, OPEN/DRAFT, **VALIDATION ONLY / MUST NEVER MERGE**
+## Historical checkpoint — delegated online renewal, 27 October 2026
 
-Current exact C26 **product/test** candidate:
+## Current implementation checkpoint - delegated online renewal, 27 October 2026
 
-`e7c8a8bf3954890a1ca841498222bf6094952baf`
+Owning#301 branch `work/w15-online-license-renewal-20261027`, base `fbe196e424779f0b8adf5baec8482d2f3e91567f`, implementation `4e342fe38cfe08771fa7272d90d9fd43d6297744`. Internal journal schema3 persists administrator-established per-activation maintenance delegation and five-minute retry pacing. The host context has no interactive Authority permission and works only on the exact protected scope/activation. Device orchestration owns the existing operation lease through HTTP→journal→lifecycle CAS; offline mutation/reset serialize with it, while expiry remains independent.48h/two-thirds-short-lease scheduling, exact pending replay, committed-response application without another rotation and bounded ciphertext retention are implemented. Device/renewal DI is opt-in to a pinned HTTPS origin; no public online activation endpoint/UI or production signing is enabled.
 
-`fix(w14-c26): serialize shared PostgreSQL schema setup`
+Local Windows SDK10.0.403 Drivers202/202 and Security42/42, zero skips, Release/diff checks passed. Exact PR/head/merge/T1/T2 disposition is the live#301/#305 ledger and #756 product reference; base evidence is not a candidate CI pass. [Design before coding](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6458832913); [source/evidence/limits](docs/WAVE15-ONLINE-LICENSE-RENEWAL.md).
 
-The coordinator-rotation commit containing this document is documentation-only and sits above that product/test SHA. Revalidate the live branch HEAD and do not treat a docs-only HEAD as a validated product candidate.
+Prior#802 is integrated/verified at the base above, head e8faf25d: T1 40618736802 and T2 40619238825 passed on first attempts, backend2946pass/1skip, Runtime smoke, Web and Chromium13/13. Automatic expiry/clock/audit source is in [guard design](docs/WAVE15-ONLINE-LICENSE-EXPIRY-GUARD.md). #800's initial HA-D2 failure remains cause-unconfirmed in#423; no HA/test/CI-parameter change here. #801 coordination remains included.
 
-Last exact C26 product/test SHA proven green across all five normal gates:
+Next: finish any pending review/gates/integration for this renewal checkpoint; confirmed Portal device selection/metadata, public activation/reauth/reset/status/usage API/UI; real Portal/Windows/Linux/Docker validation and privilege-use/deadline/restart proofs. Online complete/signing/Codex/Preview/EEE RHO handoff remain pending. Preserve owner Preview/DEMO/Portal lane, independent HA/Help/figures/field acceptance and queue#788/#779–#782/#796/#797. Demo artifact stays separate and requires schema/file/hash verification before handoff.
 
-`55f292359af86f5f28d90cc578d4ac93ccc1f19c`
+## Previously verified product checkpoint - online entitlement lifecycle, 27 October 2026
 
-`fix(w14-c26): align Popup authoring with Runtime`
+[PR#800](https://github.com/brunolrogerio-collab/EliteSCADA/pull/800) is integrated/verified at `bcb25236118435f1662fba224e64e004facae91f`, candidate head `e4e2c283262fcb24052a48f0a9c46c4550bf7338`. Exact-head T1 40612938750 passed on attempt1; exact-merge T2 40613495638 passed on attempt2 after one evidenced backend-only rerun. T1 Core825/825 and Drivers1888pass/1skip; final T2 backend2926pass/1skip, Runtime smoke, Web and Chromium13/13. Local Core825/825 and Drivers123/123, zero skips. [Disposition and limits](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6457894178).
 
-## Current C26 status
+T2 attempt1 failed the existing separate-database HA-D2 test at initial policy commit/mirroring (both version1, reference absent), before promotion. Same case passed in the identical-content T1 and in an isolated local exact-merge run (Windows, Timescale2.29.2-pg18, mandatory seed elitescada_test),36s, epochs1→2→3. Cause remains unproven in [#423](https://github.com/brunolrogerio-collab/EliteSCADA/issues/423#issuecomment-6458100989); no failover/replication protocol or test/CI parameter was changed. The licensing wrapper retains the definition count after accepted activation/passive materialization; this is the explicit licensing change, not an HA redesign. Final green does not replace the owner's separate manual HA acceptance. The disposable diagnostic container was removed; owner containers/volumes were preserved.
 
-- C26.1–C26.7 — **IMPLEMENTED / VALIDATED**
-- C26.8 Screen editor basic authoring — **IMPLEMENTED / VALIDATED** at `6de64ed4d11ac1e525f32d7071b9624e428c96ee`
-- C26.9 Popup editor basic authoring — **IMPLEMENTED / VALIDATED** at `55f292359af86f5f28d90cc578d4ac93ccc1f19c`
-- C26.10 Canonical EEE cleanup — **IMPLEMENTED / NOT VALIDATED / CURRENT BLOCKER**
-- C26.11 Repackage + new Preview — **NOT STARTED / BLOCKED**
+The canonical installation file now supports a selected online entitlement; apply/renew/authentic expiry reuse the existing persisted authority epoch and pending/re-evaluate/fence/complete sequence. Revision CAS prevents delayed responses replacing another selected mode. Expired reads stay Invalid until coordinated expiry persists Demo. Restart behind the saved time watermark fails closed; monotonic elapsed time prevents an in-process clock rollback extending validity. Real-runtime tests corrected re-evaluation to count accepted Engineering definitions, including disconnected/client-only TAGs, as activation already does. Up to200 continues in Demo without a timer;201 stops the whole Run. [Source-backed design and remaining caller obligations](docs/licensing/ONLINE-ENTITLEMENT-LIFECYCLE.md).
 
-## C26.10 candidate chain
+Previous Demo#799 is integrated/verified at `beff8732fd706f9e6a45a5a3afb2bec01113dd3f`: T1 40573931351/T2 40574960859 first-attempt success (backend2905pass/1skip, smoke/Web/Chromium13/13). Maintenance#798 is integrated/verified at67a290ff, T1 40556425486/T2 40557263409 first-attempt success. Demo200TAGs/shared2+2/noHA/noIntelligence, offline-invalid denial and frozen Authority/SQL semantics are preserved.
 
-Initial C26.10 visual candidate:
+## Next bounded work under #301
 
-`50363bcc50037cc6932a1282e58e3b6d75fda9f2`
+Implement the authorized device orchestrator/worker: serialize journal completion and entitlement application with reset/mode changes using the existing operation lease; 48-hour renewal/retry, automatic expiry, durable time checkpoints/retention and semantic audit. Then status/usage/API/UI, confirmed Portal device selection/metadata and Windows/Linux/Docker/Portal validation. No public online endpoint/worker/UI, automatic expiry or signing is enabled yet; online licensing is not complete. Do not hand off to Codex or change Preview until that cycle is completed and the separate EEE RHO artifact/schema/hash is verified. Preserve Portal lane, owner Preview/DEMO, HA#423, independent Help acceptance/figures and queue#788/#779-#782/#796/#797.
 
-`fix(w14-c26): make EEE pump state labels legible`
+## Previous integration regularization - 2026-10-27
 
-The structural audit found one residual EEE-authoring defect: `PARADA` remained mounted beneath the dynamic `OPERANDO` and `FALHA` texts in the canonical pump Dynamo. The candidate added opaque backgrounds and corner radii directly to those three `core.text` elements and added strict Runtime assertions.
+The Product Owner authorized sequential integration #772 -> #793 -> #794. All three are merged into `wave15/corrections-integration`. Exact merge SHAs and T1/T2 runs are recorded in the live [#301 ledger](https://github.com/brunolrogerio-collab/EliteSCADA/issues/301#issuecomment-6444785861); the current checkpoint is #756. #772 T2 passed backend 2752/1 skipped, Web and Chromium 13/13. #793 T2 passed on attempt 2 (backend 2846/1 skipped, Runtime smoke, Web, Chromium 13/13); attempt 1's HA-D2 separate-database failure remains cause-unconfirmed in #423. #794 T1 passed on attempt 2 (Core 826/826, Drivers 1841/1 skipped) and T2 passed (backend 2881/1 skipped, Runtime smoke, Web, Chromium 13/13); its first T1 attempt failed the previously recorded shared-database revoke/rejoin case. No HA implementation, test, timeout, filter or CI setting changed; manual HA Preview acceptance remains pending.
 
-At `50363bcc...`, EliteSCADA CI exposed an independent generic PostgreSQL startup race: `PostgreSqlOperationalEventHistoryStore` used advisory lock `4993446713136202562`, while the other stores creating shared schema `elitescada` use `4993446713136202561`. Concurrent `CREATE SCHEMA IF NOT EXISTS` caused PostgreSQL `23505` on `pg_namespace_nspname_index`.
+Online licensing is still incomplete and issuance/signing remains disabled. Remaining work under #301 includes protected-state retention/reset/reauthentication, lifecycle and expiry-to-Demo without a time limit, authorized worker/continuous time, API/UI/usage, and Portal/platform validation. Do not hand off to Codex or update Preview yet; after licensing is actually completed/integrated, deliver the exact product build and separately verified EEE RHO package/schema/hash as ordered. Global Help acceptance and #424/#425/#379/#357 remain separate. Portal WIP and owner Preview/DEMO remain untouched.
 
-Minimal generic database correction:
+## Earlier entries - historical
 
-`e7c8a8bf3954890a1ca841498222bf6094952baf`
+## Earlier entries — historical
 
-- Operational Event history now uses shared infrastructure lock `4993446713136202561`;
-- `PostgreSqlConcurrentInitializationTests` now includes real concurrent Operational Event initialization/query;
-- no security, authority, lifecycle, package, Driver or Runtime contract was weakened.
+## Earlier entries — historical
+# HELP FIRST-PROJECT AND INSTALLATION-SWITCH JOURNEYS — 2026-10-26
 
-EliteSCADA CI #1471 passed on `e7c8a8...`, confirming the backend correction in the normal gate.
+Manual reading route 27/10: introductory chapters rewritten in pt-BR/en/es around a known reading before28-term glossaries; general/local indexes group all28 chapter files by task. All prior file targets and12 editorial rules retained; critical-content preservation explicit. Chapter08 HELP-REVIEW-301 marks legacy300-minute Demo text against owner-approved no-time-limit direction, with online/quota docs to follow actual licensing delivery. Documentation only:66-file alignment,222 relative links,321 Help references,28 chapters/glossary entries and six-section parity passed; no repeat runtime tests. Exact predecessor581d9ced/T1 40499569914 and new documentation SHA/run/status live#424/#425/#305/#756; no transferred green. Identified entry-language/route corrections complete for this scope. Next consolidated PR#772 delivery review/exact CI against#424/#425; acceptance/#357/real figures/global parity/product markers remain. #301 licensing next product stage;#788/#779–#782 preserved. Draft/NO_MERGE. Previous#423/timeout receipts retained; no src/web/tests/workflow/HA/license/Preview/DEMO/Portal/merge/deploy changes.
 
-## Exact gate state at current product/test SHA
+## Previous checkpoint — historical
+Visual-action and portability Help 27/10: Dynamics/Events/application package/CSV plus five memory/binding/reference/TAG foundation guides revised in three locales. Known-level and button-to-Popup examples precede technical choices; handler/interval/Clamp/InvertScale/Preview/draft explained. Manual03/05/11/20 follows; related navigation joins detailed procedures, ten effective topics including link-only package entry. Fields/code/limits/API metadata/176 IDs retained;936 related links/locale valid. Local Help121/121 zero skipped, Chromium76/76 at30s/retries0, Web/66files/152links plus temporary QA1/1 passed. Help desktop/mobile inspected, not final operation figures. Exact new SHA/run and predecessor4ae1375c/T1 40438490594 result live#424/#425/#305/#756; no transferred green. Next final reading-route/glossary and entry-to-detail closure review; the identified foundation batch is included. #424/#425 open;#357/real figures in sequence;#772 draft/NO_MERGE. #301 licensing next, #788/#779–#782 preserved. Previous cause-unconfirmed HA/policy-rejoin/timeout receipts remain; no product behavior/HA/backend tests/CI parameter/Preview/DEMO/Portal/merge/deploy change.
 
-At `e7c8a8bf3954890a1ca841498222bf6094952baf`:
+## Previous checkpoint — historical
+Consolidated Help readability 26/10: ten task guides in three locales now teach templates/equipment, accounts/policy/locks, libraries/assets, recovery/presentation/media before lookup. All31 object guides define Structure/Inspector; read96 unique PT field descriptions, clarified shadowColor alpha in three locales/manual05. Manual04/05/15/18/19/28 follows. Fields/code/API metadata/176 IDs preserved except that field explanation; Help.NET121/121 zero skipped, Web/66files/152links passed. Browser old wording expectations updated without changing requirements; final counts, new exact SHA/run/status live#424/#425/#305/#756. Help desktop/mobile inspected, not final operation figures or blanket all-field acceptance. Predecessor b31ab774/T1 40434691960 attempt1 success; older88aebd03 shared-DB policy-rejoin failure cause unconfirmed under#423, not fixed by later green. Next contextual entries visual.dynamics/visual.events/application.export-import, then CSV/Excel route and related navigation; #424/#425 open, #357/real figures in sequence. #772 draft/NO_MERGE. #301 licensing next; #788 queued/#779–#782 preserved. No HA/CI parameter/backend test/product behavior/Preview/DEMO/Portal/merge/deploy change.
 
-- EliteSCADA CI #1471 / run `34347157464` — **SUCCESS**
-- Preview Licensing CI #419 / run `34347157585` — **SUCCESS**
-- Interop Lab Smoke #302 / run `34347159685` — **SUCCESS**
-- L3 Seven-Driver Lab #375 / run `34347157398` — **SUCCESS**
-- Wave 11 Active HMI Runtime #397 / run `34347157735` — **FAILURE**
-- additional natural Interop #301 / run `34347157333` — **SUCCESS**
+## Previous checkpoint — historical
+Driver/source Help readability 26/10: introductory language of25 effective topics reviewed in three locales: all20 practical connection guides plus source/driver entries and Home/Building. Common connection topic teaches concepts/procedure before field lookup; summaries avoid unexplained jargon, advanced fields/examples/limits/code remain. Manual03/15/21–26 updated. Local Help121/121 zero skipped, Chromium76/76 at30s/retries0, Web/66files/152links passed; MQTT Help desktop/mobile inspected, not L4/final operation figures. Predecessor88aebd03/T1 40433306560: confirmed.NET121956011300 failure in shared-DB revoked-policy rejoin test (cause unconfirmed), [#423 receipt](https://github.com/brunolrogerio-collab/EliteSCADA/issues/423#issuecomment-6431626365); predecessor final Chromium121956011397 success50/50, Websuccess, .NET/gate121959486702 failure and T1overall failure; new exact SHA/run/status in #424/#425/#305/#756. Preserve distinct f8 navigation timeout and older HA-D2 incident; no HA/CI parameter change. Next consolidated language/semantic/field review, especially templates/equipment/security/recovery/media/object/advanced references. #424/#425 open; #357/real figures in sequence; #772 draft/NO_MERGE. #301 licensing next, #788 queued/#779–#782 order preserved. No protocol/runtime/HA/Authority/license/dependency/Preview/DEMO/Portal behavior, merge or deployment changes.
 
-No rerun was requested.
+## Previous checkpoint — historical
+Progressive operations Help 26/10: twelve effective topics (alarm/events, Historian/history, reports and shared Runtime diagnostic) reviewed in three locales; manual06/07/16/17 updated. Concrete examples precede lookup; field contracts/code/176 IDs retained, alarm.type pointer clarified. Local Help.NET121/121 + final serializer1/1 zero skipped; Chromium76/76 at30s/retries0 plus final2/2, Web/66files/152links passed; Help desktop/mobile inspected. Exact predecessor f8d0ac17/T1 40428531170 failed (Chromium121940330086 cross-topic Help test30s/retry1; .NET/Web success, gatefailure). Traces show document reloads4.46–5.04s. Test now follows actual Help links, retains all checks and CI timeout/retry/profile; local serialized-catalog setup does not reproduce CI API/runner latency. No product latency root cause proven. Original failure receipt #424comment6430891738 preserved; new exact SHA/run/status in live #424/#425/#305/#756. Next drivers/remaining entries/advanced-object references and final semantic review. #424/#425 open, #357/real figures in sequence, #772 draft/NO_MERGE. #301 licensing next; #788 queued/#779–#782 order preserved. Older18min timeout5031834b and HA-D2 #423 distinct/cause-unconfirmed. No product runtime/alarm/capture/report/HA/Authority/license/driver/dependency/Preview/DEMO/Portal, merge or deploy changes.
 
-### Current Wave11 blocker
+## Previous checkpoint — historical
+Human-readable Help 26/10: all eight current Intelligence topics plus database/HA guides revised in pt-BR/en/es; manual12/13/14 follows. Pump-based route defines concepts before fields, separates license/configuration/activation/query and explains data availability/limits. Migration precedes lookup; HA explains server/ready/protection before identifiers. Nine field descriptions clarified; 176 IDs/field contracts/examples/API metadata retained. Local Help121/121 zero skipped, Chromium76/76 + final focused1/1 no retries, Web/66 files/152 links passed; Help desktop/mobile inspected, not final operation figures or proof of clarity. Predecessor 4c0681be/T1 40426654365 attempt1 success; new exact SHA/run/status in #424/#425/#305/#756. Next language review: alarms/history/reports, drivers/other entries and advanced/object-specific references. #791 product audit and #779 storage work are not fulfilled by these explanations; markers remain. #424/#425 open, #357/final real captures in sequence, #772 draft/NO_MERGE. #301 licensing remains next; #788 queued, #779–#782 order preserved. Earlier Chromium timeout and HA-D2 #423 retained/cause-unconfirmed. No runtime/HA/Authority/license/driver/dependency/Preview/DEMO/Portal, merge or deploy change.
 
-Failed job:
+## Previous checkpoint — historical
+Progressive authoring Help 26/10: ten additional Script/visual guides rewritten in three locales, explaining task/scope/Handler/trigger/references before use and separating validation, execution, command result and equipment feedback. Manual 05/06 starts with a reading route and the exact embedded rounding exercise before reference details. Fields/code/API metadata/176 IDs preserved; first-screen links first-project. Local .NET Help 121/121 zero skipped, Chromium full 76/76 plus final focused 20/20 zero retry, Web, 66-file alignment and 152 links passed; Help desktop/mobile inspected, not final operation figures. Predecessor dc83be94/T1 40410558710 attempt 1 success; new exact SHA/run/status in #424/#425/#305/#756. Next plain-language review: Intelligence, database/HA, alarms/history/reports, drivers/other entries, object-specific/advanced references; do not declare all Scripts/visual objects reviewed. #424/#425 open, #357/final real captures in sequence, #772 draft/NO_MERGE. #301 licensing remains next product stage; #788 queued, #779–#782 order preserved. Prior Chromium timeout and HA-D2 #423 preserved. No product behavior, Preview/DEMO, Portal, merge or deploy change.
 
-`102451385709` — `Active revision browser lifecycle`
+## Previous checkpoint — historical
+Owner readability direction 26/10: Help must teach progressively in plain language, starting with task/result and explaining concepts before technical lookup or cross-module links. First pass rewrites five guides (orientation, first project, sessions, TAG Monitor, installation switching) in pt-BR/en/es; examples/fields/IDs and product contracts preserved, manual chapters 27/29/30/31 regenerated. Local Help .NET 121/121 zero skipped, Chromium 76/76 no retries, Web and 66-file alignment passed; desktop/mobile Help QA inspected. These checks do not prove clarity. Remaining language review includes Scripts, screens/popups/objects, Intelligence, database/HA, alarms/history/reports, drivers and other entries before Help closure; #357/final real figures remain separate. Read WAVE15-HELP-SYSTEM-AREA-AUDIT-2026-10-25.md and docs/manual/README.md editorial rules. Predecessor d9cee9e4/T1 40401097239 success; new exact SHA/run/status live #424/#425/#305/#756. Prior Chromium timeout 5031834b and HA-D2 #423 preserved, not fixed by this prose. #424/#425 active; #772 draft/NO_MERGE; #301 licensing next, #788 queued, #779–#782 order preserved. No product behavior, Preview/DEMO, Portal, merge or deploy changes.
 
-Failed step:
+## Previous checkpoint — historical
+Chapters 30/31 add first-project and installation-switch procedures in pt-BR/en/es, 28 fields per locale (10/18). Existing entry/overview Topic IDs and prior JSON content remain. Neutral/Help navigation links the first-project guide; Installation Help targets the detailed switching procedure while retaining its original overview. No product behavior change or second help system.
 
-`Run Wave 11 Active Runtime browser lifecycle`
+First project: eligible neutral/sign-in/bootstrap or recovery, stable project key/readable name, test-only Server Memory Double TAG Demo.Level, declared ServerMemoryTag reference, enabled Python Server Script Initialize/initialize_demo, sample 42.0/Good, Value Display binding and distinct Apply/Save/Publish/Activate, then Active identity/value/quality/time verification. Describes known internal test data, not sensor/field validation or continuous refresh. Installation switch: current state, dirty versus unpublished Working, export/Authority password, copies versus no-backup decision, consequences/acknowledgements, explicit Keep/Remove/Replace license, preflight/revalidation, neutral result and uncertain-interruption reconciliation without assuming rollback. No preview detach/restore or live first-project commissioning was executed.
 
-Result:
+Final local selected Help/first-project bootstrap/deep-detach suites 131/131, zero skipped. Existing actual Python interpreter example check now includes the published initialize_demo handler and asserts its single server-memory write 42.0/Good; localized code is identical. Chromium 75/75, one worker and zero retries; Web build passed with existing bundle warning; manual alignment 66 files and 139 relative links passed. Help desktop/mobile QA inspected, not final real system-operation manual figures. Existing backend/HA tests, timeouts/retries/CI filters/profiles and runtime/Authority/license/driver/dependencies unchanged.
 
-- 17 passed;
-- 2 failed;
-- 4 did not run.
+Predecessor 5031834b893790a2211f0650a0ffc0c40d14b0cc / T1 40397823032 attempt 1 completed CANCELLED: .NET 121835551031 and Web 121835551088 passed; Chromium 121835551548 exceeded the job's 18-minute budget, gate 121845201953 failed. Official annotation confirms timeout. Playwright install-deps took 13m36s (20:42:24–20:56:00 UTC); specs reached 29/48 before cancellation. Preparation consumed most budget; its slowness cause is unconfirmed, no complete Chromium result or product-failure assertion is inferred. Recorded in #424 comment 6426834394 and #425/#305/#756; not rerun at same SHA and not hidden by a later green. Previous fully green source 63964372/T1 40395764050 remains distinct. Older HA-D2 incident 4433d392/T1 40333665886 stays separate under #423, root cause unconfirmed.
 
-The two failing tests were:
+The new code has its own exact SHA/run/status in live #424/#425/#305/#756; do not transfer any green or declare runner preparation fixed. Remaining: consolidated semantic/field/contextual-entry review of expanded surfaces, then #357/final real figures per acceptance flow. Help/manual open; #772 draft/NO_MERGE; #301 product licensing remains next. #788 program queued, #779–#782 order preserved. No merge/deploy or Preview/DEMO mutation/full Help/manual/Wave acceptance.
 
-- `tests-wave11/c11-eee-demo-hmi.spec.ts`
-- `tests-wave11/c26-popup-composition.spec.ts`
+---
 
-Both failed during package Preview because `preview.canApply` was false. The single invalid entity was Dynamo `eee.dynamo.pump`, operation 3. The backend returned `VISUAL_PROPERTY_INVALID` for:
+# HELP DEVELOPMENT MONITOR, TAG MONITOR AND INFORMATION — 2026-10-26
 
-- `pump-stopped-label`
-- `pump-running-label`
-- `pump-fault-label`
+Chapter 29 adds three installed guides in pt-BR/en/es: engineering.development-monitor, engineering.tag-monitor and engineering.information, with 37 explained fields per locale (10/21/6). Direct contextual routes now lead to each page's own guide; general communication diagnostics and all old Topic IDs/content remain available. Uses existing Help/framework and generated manual, not another help system.
 
-Exact reported reason:
+Development Monitor: exact quick-add versus browse/filter, ambiguous/missing references, watch-list remove/clear/session persistence, TAG/Server Memory versus browser-local Client Memory, quality/state, source/observation timestamp and nonmutating bit views. TAG Monitor: Engineering/Working versus Active project/revision/dirty/simulation context, read-only Inspector, search/quality/access filters, current value, freshness versus successful query, source/server/sample times and bounded recent history (15 minutes/120 requested samples, not a new editable control). Information: product version versus Engineering schema/base revision/loaded snapshot/project/build identity, fields provided by the system, not a form or license-usage page.
 
-`core.text` does not declare property `backgroundColor`.
+Final local Help .NET 117/117, zero skipped; Chromium 74/74, one worker and zero retries; Web build passed with existing bundle warning; manual alignment 60 files and 127 relative links. Exact guide JSON example is parsed from installed Help and executed through the real TypeScript reference resolver/sample projection: Int16 value 8 -> .03 true, base unchanged, out-of-range bit rejected, ambiguous label rejected. Actual Help desktop PT/mobile ES inspected; these are not final system-operation manual figures. Existing JSON topics preserved. An intermediate editorial check rejected English word choice, corrected in prose; an old routing expectation was updated to the newly supplied specific guide. No product defect, hidden retry/timeout change or backend change inferred.
 
-The exact backend and browser built-in schemas define `core.text` as base + text properties; neither `backgroundColor` nor `cornerRadius` belongs to that object contract. The canonical EEE helper currently authors both properties on these text elements. Therefore C26.10 is not package-valid and is not validated.
+Predecessor 63964372dd93ea541d4bb06d8f56ac3332211f80 / T1 40395764050 attempt 1 passed; exact new head/run/status live in #424/#425/#305/#756. No transferred green. Older HA-D2 4433d392/T1 40333665886 stays under #423, root cause unconfirmed and not fixed by Help.
 
-Playwright artifact:
+Remaining: first-project and installation-switch walkthrough plus final semantic review of the already expanded surfaces; then #357/final real product figures per acceptance flow. #424/#425 remain open, #772 draft/NO_MERGE. Product licensing #301 remains next; queued #788 program and #779–#782 order preserved. No write/force, sample transport, project state, license/Authority/HA/driver/dependency/Preview/DEMO behavior change, merge or deployment.
 
-- `playwright-report-wave11`
-- artifact ID `10102316731`
-- run `34347157735`
+---
+
+# HELP RUNTIME SESSIONS, DIAGNOSTICS AND RECOVERY — 2026-10-26
+
+Chapters 27/28 expand three existing Topic IDs in pt-BR/en/es: runtime.session-classes, diagnostics.overview and recovery.backup-system-recovery. 41 explained fields per locale (8 session, 23 diagnostics, 10 recovery) now accompany ordered procedures, examples, expected results and diagnosis. Reuses installed/offline Help, with generated manual and stable links; no second help system.
+
+Sessions: account menu, requested versus granted class, interactive fallback, Authority/capacity distinction, release-before-readmission, end versus closing menu/sign-out, invalidation and failure feedback. Diagnostics: Active versus Working, host freshness, search/filter, manual/3-second panel refresh versus acquisition scan, source state/data age/counters/quality, server-side single-target TCP and ICMP, actual bounds and interpretation. Recovery: separate application/Authority/license/database/host-secret artifacts; protected export without proceeding to detach; bootstrap versus application-only flow, validation, restored administrator login, mandatory revalidation, retained/lost file selections, partial durable stages, optional license failure, and verification without promising database/Historian restoration.
+
+Final local checks: .NET selected Help/recovery/admission/network/Authority session suites 146/146, zero skipped; Chromium 73/73, one worker and no retries; Web production build passed (existing bundle warning). Manual alignment 57 files, 121 relative links; prior source guides preserved. Actual Help desktop PT and 390 px mobile ES inspected; not final system-operation manual figures. The exact published loopback probe request executes real validation/target selection with injected TCP recording, no remote device socket; ordinary ICMP is local loopback. Invalid host/port fail before connection. Existing recovery and session test suites execute actual service/permission/state behavior, not a live Preview restoration.
+
+The legacy Help test required eight identical generic headings. These three expanded guides now have dedicated checks for ordered steps, localized section/field structure, meaningful fields, related IDs and the executable example; remaining legacy topics keep their original check. No backend behavior, HA test, timeout, retry, selection filter or CI profile changed. An intermediate authoring check failed only that obsolete heading-shape assumption; the final selected suite passes without weakening recovery/session checks.
+
+Predecessor 531ca1be55a0264c84613bc6ac28e817027733d6 / T1 40355198651 attempt 1 passed (.NET, Chromium, Web, gate). Exact new head/run/status belong in live #424/#425/#305/#756, not inherited from that green. Older HA-D2 failure 4433d392/T1 40333665886 remains under #423, root cause unconfirmed and not fixed by Help.
+
+Remaining: semantic first-project/operation walkthrough, separate Monitor/TAG Monitor/Information coverage and final #357/real product figures. Help/manual remain open; product licensing #301 remains next. Post-license #788 program and #779–#782 order are preserved. #772 draft/NO_MERGE; no Preview/DEMO, Authority, HA, driver/dependency/license behavior change, merge or deployment.
+
+---
+
+# HELP MATTER TEST GUIDE AND ARTICLE NAVIGATION — 2026-10-26
+
+Chapter 26 adds one practical guide / 12 explained fields per locale pt-BR/en/es. It distinguishes product multiplatform support from the isolated Linux x64 Matter connector, default availability from opt-in Development/Test, host-key preparation from commissioning, and attribute read/write from device commands. Explains node/endpoint/cluster/attribute, source/key steps, explicit versioned binding, canonical address form, supported types, read-only behavior, count bounds, diagnosis and host recovery limits. No secret appears in its partial JSON example; planner admission is not host/device readiness. Existing guide content is preserved.
+
+The code review also exposes incomplete graphical binding authoring: Matter declares no point fields; GenericTagBindingAssistant returns no authoring UI for that schema; the Runtime planner still requires CommunicationBinding. This specific conditional limitation is recorded for #786, with review markers; source/key preparation is not advertised as a full point-authoring wizard. #792 separately retains exact-artifact qualification and test-version limits. No driver/sidecar/dependency/HA/Authority/license behavior changed or preview opt-in enabled.
+
+Fixed a reproduced Help-only reading defect: following a related link from the end of a long article kept the new title outside the viewport. The exact browser assertion failed with viewport ratio 0 before the fix. New topic selection now focuses and scrolls its heading; repeat selection returns to the heading, while native modified clicks and Back/Forward handling remain. Final local Chromium 72/72 without retry, including title visibility/focus and localized guide navigation; desktop/mobile inspected. Full selected Help/Matter .NET suites 119/119, zero skipped; published JSON executes the actual planner and absent key/binding, bad address, mismatch, forbidden settings, unsupported type and HA are rejected. No device or socket is contacted.
+
+Web production build passed with the existing bundle-size warning; Help/manual alignment 51 files and 109 relative links passed. Predecessor 27ec3db79c563843e121880243cb6ebbadfd1ece / T1 40347627268 attempt 1 passed (.NET, Chromium 45/45, Web and gate). Exact new head/run/status belong in live #424/#425/#305/#756; no predecessor green is transferred. Earlier HA-D2 failure 4433d392/T1 40333665886 remains under #423, root cause unconfirmed.
+
+Help remains active: remaining session/monitoring/recovery operational depth and semantic walkthroughs → #357/final real product figures. #424/#425 stay open; #772 draft/NO_MERGE. Help → #301 licensing next → post-license queue including #788/#789–#792, preserving #779–#782 order. No Preview/DEMO mutation or deployment; no full manual/Wave acceptance.
+
+---
+
+# HELP CONNECTION NAVIGATION ORGANIZED — 2026-10-26
+
+The installed Help now separates its 41 current equipment-connection topics into connection preparation, industrial PLCs, Modbus/MQTT/OPC UA, telecontrol, home/building, Zigbee/Z-Wave and detailed driver references. Practical guides precede legacy references. Groups can be expanded with keyboard/touch; an active deep link or search opens its matching group. Topic IDs, URLs, browser history, translated content and offline availability are preserved.
+
+Local validation: Chromium 71/71, one worker and zero retries, against the serialized installed catalog; production Web build passed with the existing large-bundle warning. Desktop English and 390 px Spanish screenshots inspected. Search, keyboard expansion, reference selection, Back/Forward and locale switching are exercised. Generated Help/manual alignment remains 48 files. Backend/catalog sources are unchanged from 97832859; that predecessor's .NET/T1 results are not claimed for this new head. New SHA/run/status belong in live #424/#425/#305/#756. The earlier HA-D2 failure remains recorded under #423, regardless of a later green run.
+
+The owner correction program #788 and children #789–#792 are queued, not implemented. Help continues with conditional connectors, operational depth and semantic walkthroughs before #357/final real product captures. Licensing #301 remains next. PR #772 remains draft/NO_MERGE; no HA, driver, Authority, licensing, Preview or DEMO behavior changed. This is navigation delivery, not complete manual acceptance.
+
+---
+
+# OWNER CORRECTION PROGRAM RECORDED; HELP CONTINUES — 2026-10-26
+
+**SPECIFIED / AUTHORIZED / QUEUED, NOT IMPLEMENTED:** #788 consolidates #789 suppression by alarm/area/subarea, #790 editor/Runtime CheckBox/ComboBox and motor-popup linkage, #791 Intelligence adherence audit against original premises/contracts/APIs/UI and #792 Matter upstream/artifact qualification. Existing #751/#753 alarm defects, #785–#787 driver authoring/inventory gaps, #423 HA-D2 occurrence and #779–#782 operational queue are referenced rather than duplicated. Read `docs/WAVE15-POST-LICENSING-CORRECTIONS-PLAN-2026-10-26.md`. PROJECT GOAL and ROADMAP now preserve the new owner requirements and unchanged priority **Help/manual → #301 licensing → post-licensing queue**, including the existing internal #779–#782 order. No new lane or product implementation is activated.
+
+Intelligence dashboards in Runtime are accepted; a later audit must establish actual user value and original scope, not infer completeness from stages/test counts. Stage 4 bounded acceptance, owner-accepted widgets and field deferral #701 remain. Supression must reuse existing per-alarm shelving when appropriate and define hierarchical effects/persistence/authorization before implementation. Generic visual controls must not require Intelligence licensing.
+
+Official Matter revalidation is recorded in #792 and the ADR: upstream states changed since the old snapshot; current package/lock were not upgraded. Experimental label and qualification limits remain. A declared upstream fix is not exact-artifact or product acceptance. No provisioning, real-device execution, HA, license or Preview/DEMO change was made.
+
+Help stays active on draft/NO_MERGE #772. Current verified source predecessor is 97832859558e06d723e2b999ddddc818cd0c91f7 / T1 40340409686 attempt 1 success. A later candidate must have its own head/run/status; prior HA-D2 failure 4433d392/T1 40333665886 stays recorded under #423. Next Help work: organize the crowded driver-topic navigation, then remaining conditional/operational guides and semantic walkthrough; final actual captures follow the agreed audit. Each future correction updates Help/manual in the same accepted candidate, with review markers where needed. No full Help/manual/Wave completion, merge or deploy follows from this plan.
+
+---
+
+# CURRENT HELP — DNP3 / IEC 104 / MODBUS SERVER — 2026-10-26
+
+**IMPLEMENTED IN BRANCH / PR #772, NOT MERGED OR ACCEPTED AS THE COMPLETE MANUAL.** Three guides / four connections / chapter 25 in pt-BR/en/es provide 81 field explanations per locale for DNP3, IEC 104 and Modbus TCP/RTU Server. Association, event/integrity classes, observed points, CA/IOA, native types, commands, local listening, register maps, external client access and initialization are explained. Previous guide objects and ordering are unchanged. All 21 current default driver references reach practical companions; conditional connectors and overall manual acceptance remain separate.
+
+**Local evidence:** .NET Help and selected protocol suites 127/127, zero skipped; Chromium 70/70 without retry, real serialized Help catalog, desktop/mobile inspected; Web build passed with existing bundle warning. 48 localized manual files aligned, review markers, relative links and unchanged prior guides checked. Exact published read/command examples pass actual planners; strict invalid input/timer/identity guards remain. Actual Modbus map verifies zero initialization, internal 123 publication, external ReadOnly rejection without mutation, zero recreation and partial-multiword rejection. These checks do not certify hardware, live Preview or final manual images.
+
+**Previous gate remains FAILED:** head 4433d392a6ff726a64d7759541f97705d7151bf0 / T1 40333665886 attempt 1 failed the existing HA-D2 shared-database process case; standby stayed synchronization-incomplete, root cause not established. Chromium 43/43 and Web passed; general .NET suites were not reached. See live #423 comment 6418083919. No HA/test/timeout/filter or Preview/DEMO change is made by this continuation; a later green must not be called a fix for that occurrence.
+
+New exact candidate SHA/run/status are recorded in live #424/#425/#305 and #756 product reference. PROJECT GOAL reviewed unchanged. Remaining conditional connectors and operational licensing/monitoring/recovery/session depth plus semantic walkthroughs → #357/final real screenshots. Finish Help → product licensing #301 → #779–#782; #785–#787 queued product corrections. PR stays draft/NO_MERGE. No full Help/manual/Wave closure, deployment, protocol, Authority, HA or licensing behavior change.
+
+---
+
+# CURRENT HELP — PLC CONNECTIONS, NATIVE TYPES AND AUTHORING LIMITS — 2026-10-26
+
+**IMPLEMENTED IN BRANCH / PR #772, NOT MERGED OR ACCEPTED AS THE COMPLETE MANUAL.** Four guides / five PLC connections / 77 field explanations per locale (pt-BR/en/es) cover Siemens S7, Allen-Bradley Logix, Mitsubishi MELSEC and Panasonic MEWTOCOL TCP/Host Serial. Shared installed Help source generates chapter 24. Source, conditional fields, routes/addresses, native versus TAG type, worked examples, write restrictions and diagnosis are explained. Existing guide objects and ordering are unchanged.
+
+**Verified product limits, not fixed by Help:** #786 additionally captures S7 catalog schema mismatch and unprojected legacy valueOrder, plus Logix symbolic fields copied to forbidden Settings and missing physical-bit projection. New field-specific markers preserve criteria for component/persistence/planner proof. Guide examples describe valid bindings; they do not pretend those generic-authoring paths already work. Incorrect initial Int16 TAG examples for Mitsubishi/Panasonic were corrected to Int32 from actual codecs; S7 address ordering was corrected to the shared projection. No runtime or guard was relaxed to make a documentation example pass.
+
+**Local validation:** .NET focused Help/PLC suites 147/147, zero skipped; Chromium 69/69 without retry using the actual serialized installed catalog, Web production build passed with existing bundle warning. 45 localized files aligned, review markers and relative links checked; desktop/mobile rendered Help inspected. Actual examples pass S7/Logix/Mitsubishi/Panasonic TCP and serial planners; wrong types, unsupported security/frame modes and current assistant shapes are rejected. Actual codecs distinguish S7/Logix byte order and numeric word mapping. These are source/fixture tests, not live Preview, hardware certification or final product figures. The first new browser test used a superseded S7 sentence; its expectation was corrected after the content change and the full local set rerun without retry/timeout changes.
+
+Exact candidate SHA/T1 run/status belong in live #424/#425/#305 and shared #756. Predecessor `4f00bdfe7b0e6c299477152eb533da4bf7aca4e2` passed exact T1 `40325677182` attempt 1 (Drivers 1759 + DB 1, Timescale 41, Security 42; Chromium 42); no prior green is transferred. PROJECT GOAL reviewed unchanged. Remaining DNP3/IEC 104/Modbus Server, conditional connectors, operation and semantic walkthroughs → #357/final real images. Finish Help → product licensing #301 → #779–#782; #785–#787 corrections queued. No full manual/Wave closure, merge/deploy or Preview/DEMO/driver/Authority/HA/licensing behavior change.
+
+---
+
+# CURRENT HELP — ZIGBEE / Z-WAVE AND VERIFIED PRODUCT LIMITS — 2026-10-26
+
+**IMPLEMENTED IN BRANCH / PR #772, NOT MERGED OR ACCEPTED AS THE COMPLETE MANUAL.** Four shared localized guides / chapter 23 explain choosing a radio connection, Native Zigbee, Z-Wave and Zigbee2MQTT. Their 66 field explanations per locale cover host/network prerequisites, persistent controller state, stable TAG identity, supported value/command scope, connection fields, selection and source freshness. Existing guide objects and ordering are semantically unchanged; installed Help and manual share one source.
+
+**PRODUCT RESIDUALS, NOT FIXED HERE:** #785 also covers missing explicit Zigbee2MQTT IEEE selection; #786 also covers Native Zigbee identity duplication into Settings and missing new Z-Wave typed-binding authoring. New #787 proves the parser does not consume the official nested definition.exposes inventory: the published external example recognizes a device and produces zero TAGs. The guide and characterization test state that limitation. An internal flattened diagnostic isolates materialization only; users are not told to rewrite external payloads. All affected fields carry later-product-review markers. No runtime, driver or assistant behavior is changed or weakened.
+
+**Validated locally:** .NET focused Help/radio suite 113/113, zero skipped; Chromium 68/68 without retry using the actual serialized installed catalog and existing UI fixtures; production Web build passed with existing bundle warning. Manual alignment 42 files, marker targets, unchanged prior guide objects and relative links checked before publication. Published examples execute actual planners and actual Zigbee2MQTT retained/source-timestamp rules. Mobile output inspected. Evidence does not certify physical interoperability, live Preview or final manual screenshots.
+
+Exact candidate SHA and T1 run/status belong in live #424/#425/#305 and shared #756. Predecessor e4c1713df6267cbc3b51384f95f9a5f44d58abb8 passed T1 40252480073 attempt 2; attempt 1 stop-timeout history remains in its live delivery record. No predecessor green is transferred. PROJECT GOAL reviewed unchanged. Remaining industrial protocols/operational depth/semantic walkthroughs → #357/final real images. Finish Help → product licensing #301 → #779–#782; #785–#787 remain queued for product-correction planning. No full manual/Wave closure, merge/deploy, Preview/DEMO mutation or change to acquisition, Authority, HA or licensing.
+
+---
+
+# CURRENT HELP — HOME/BUILDING CONNECTIONS AND ACTUAL UI LIMITS — 2026-10-25
+
+**IMPLEMENTED IN BRANCH / PR #772, NOT MERGED OR ACCEPTED AS THE COMPLETE MANUAL.** Six localized guides / chapter 22 explain device incorporation and BACnet/IP, KNX/IP Secure, Home Assistant Bridge (HAB), ESPHome Native API and Shelly Gen2+ RPC. Their 63 field explanations cover prerequisites, defaults/ranges, identity, actual capability mapping, command/feedback boundaries, network/host requirements, examples and diagnosis. Existing Home/Building and driver topic IDs link to the new practical guides. Existing system-guide objects remain semantically unchanged; the same installed source generates pt-BR/en/es manuals.
+
+**SPECIFIED / QUEUED PRODUCT CORRECTIONS, NOT FIXED HERE:** #785 captures missing explicit Home Assistant selection in HomeBuildingWorkspace discovery; backend selection stays bounded and empty selection materializes nothing. #786 captures the generic TAG assistant writing writeGroupAddress into settings while the strict KNX planner accepts only dpt/stateGroupAddress there. Source observations and deterministic planner/materialization tests support these records; no mounted/physical reproduction of the original UI issue is claimed. Both limitations remain visible in Help and have exact topic/field future-review markers. Existing completed driver/L4 issues remain closed; the Help front does not change into driver development.
+
+**Local evidence:** final .NET Help/mapping/planner contract suite **103/103**; browser suite **67/67**, no retry (1.4 minutes), plus focused final Home/Building trilingual check after a plain-language field refinement. Published BACnet binding/configuration, HAB selected sensor/empty selection and address examples, ESPHome hexadecimal address/write kind, Shelly output/write metadata and KNX strict accepted/rejected bindings use actual implementation. Web production build passed with existing bundle warning. Manual alignment **39 files**, marker targets, relative links and diff checked. Mobile ESPHome fields inspected. Local shell/component QA uses exact serialized catalog/fixtures, not physical equipment, Preview, site deployment or final manual illustrations.
+
+Published candidate SHA, exact-head T1 run/status and final browser counts belong in live #424/#425/#305 and shared #756 checkpoint. Predecessor **c90de3270599841989d2f152874cb119891f8f84** passed **40247218007** (Chromium 40, Drivers 1738 + DB 1, Timescale 41, Security 42; one ignored test); its green is not attributed to this later source. PROJECT GOAL reviewed unchanged. Continue remaining Zigbee/Z-Wave/industrial protocol scenarios and operational licensing/monitoring/recovery depth, then semantic/walkthrough convergence, #357 and final real images. Finish Help → product licensing #301 → existing #779–#782 order; place #785/#786 in subsequent correction planning. No merge/deploy or change to protocol, Authority, HA, licensing, Preview or DEMO behavior. Help/manual/Wave closure remains open.
+
+---
+
+# CURRENT HELP — CONNECTIONS, MODBUS, MQTT AND OPC UA — 2026-10-25
+
+**IMPLEMENTED IN BRANCH / PR #772, NOT MERGED OR ACCEPTED AS THE COMPLETE MANUAL.** Four guides and generated chapter 21 explain Data Source preparation/test/apply/activation, Modbus TCP/RTU Master, MQTT Raw and OPC UA in pt-BR/en/es. They provide 68 human field explanations with units/defaults/options, worked examples, troubleshooting and cross-platform server-side network/serial prerequisites. Old driver references remain available and link to the new guides; the Data Sources contextual entry reaches the practical workflow. All existing system-guide objects were compared with HEAD and remain semantically unchanged.
+
+**Validated locally:** .NET focused Help and protocol contracts **81/81**, including all declared connection/binding fields and the exact published examples in three locales. MQTT decodes 12.5/timestamp; required timestamp omission, wildcard identity and unsupported nested JSON publication fail closed; retained without timestamp becomes Stale. Modbus actual codec converts published 253 × 0.1 to 25.3. OPC UA identity round-trips and remains stable across namespace-index changes while distinguishing a different URI. Chromium **66/66**, no retry (1.2 minutes), using the actual serialized installed catalog and existing mounted/model fixtures. Web production build passed with existing bundle warning. Manual alignment **36 files**, future-marker targets, relative links and diff checked. Mobile OPC UA fields visually inspected; generated QA images do not claim live Preview/hardware acceptance or final manual illustration. Browser fixture proxy warnings do not constitute a live API failure; local tests do not claim to run a deployment.
+
+Source findings retained in Help: serial belongs to the server/DriverHost, with Windows/Linux/container-specific access. MQTT has no advertised Engineering connection-test capability, uses exact topics and distinguishes QoS/retained/freshness; non-root JSON extraction does not support command-envelope publication. OPC UA temporary Engineering certificate trust cannot activate Runtime; secured Runtime requires explicit server certificate approval and provisioned client identity. No acquisition, authorization, licensing, HA, Preview or DEMO behavior changed; no secrets or invented provisioning UI were added.
+
+Published candidate SHA and exact-head T1 run/status belong in live #424/#425/#305 and shared #756 checkpoint. Predecessor **2f01d548ef812ea1fcfeceffb36a614c31a74f8e** passed **40245168573**; this green is not assigned to the new candidate. PROJECT GOAL reviewed unchanged. Remaining: human scenarios for other production protocols, operational licensing/monitoring/recovery depth and final semantic/walkthrough review, then #357 and actual final product captures. Finish Help → product licensing #301 → #779–#782. PR remains draft / NO_MERGE; no full Help/manual/Wave closure, merge or deployment.
+
+---
+
+# CURRENT HELP — LIBRARIES/ASSETS AND GATEWAY/TABULAR WORKFLOWS — 2026-10-25
+
+**IMPLEMENTED ON PR BRANCH / NOT MERGED:** continue draft #772 over product base `d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`. Four guides and chapters 19/20 pt-BR/en/es explain reusable library association/incorporation/export, asset import/rename/delete/use, Gateway route controls/conversion/diagnosis and Engineering CSV/XLSX workflows. 26 fields/17 sections are inventory, not complete Help acceptance. The installed localized source drives the manual; old overview topics are preserved and related/contextual/product Help links reach practical guides.
+
+Source findings: associated catalog is process-local, may disappear on restart and is not Working content; incorporation copies dependency closure while provenance remains informational. Disassociation does not delete incorporated project objects. Rename preserves asset identity. Gateway is one-way server-TAG transfer, not direct Driver bridge; Client Memory excluded, Simulation source-only, destination writable, GoodOnly, conversion and scheduling explicit. Readable CSVs do not require users to manufacture IDs; actual Preview/Apply resolves stable identities. Minimal creation examples are not partial-field patches: omitted update columns may default. XLSX single-sheet names/formula rejection and CSV exact headers, invariant numbers/JSON/boolean formats are explained.
+
+**Local checks:** 56/56 catalog/learning/actual Python and Gateway Runtime tests, including exact published TAG/Gateway CSV parsing in three locales and the CSV Preview/Apply/activation/11-to-27 transfer in all locales. Existing Core tabular/Gateway/library tests 88/88. Web production build passed (existing bundle warning); manual alignment 33 files, marker targets and relative links checked. Final Chromium suite 65/65 without retry (1.1 minutes), including real catalog rendering in three locales and existing mounted DB/Report/History/Audit plus library/Dynamo catalog models. The final focused Help-learning check after the visual-asset grouping adjustment passed 9/9 without retry (29.3 seconds). Desktop Gateway and mobile tabular output reviewed. Final published exact-head SHA/run/status belongs in live #424/#425/#305 and #756. Planning-only predecessor `8ba0be65` passed exact T1 `40230326802`; prior Help `b4b4bb4f` passed `40204142092`. Neither gate is attributed to this later source change.
+
+The first Runtime-example test bypassed Preview/Apply and was correctly rejected for missing stable route ID. The test now exercises actual Engineering allocation/resolution before activation, instead of adding a fake CSV ID or weakening admission. No production Gateway/import/library/security behavior, timeout or retry changed. Browser review exposed an actual Help formatting defect: a sentence-final integer in a formula was misread as another step. The Help-only parser and manual exporter now separate markers after sentence punctuation/newlines, preserving the formula; a regression assertion covers that case. Existing alarm chapter prose was regenerated with the corrected separator. Product workflow edits add Help links only; the Help renderer/manual exporter also now preserve sentence-final integers in numbered steps. QA component images do not claim live hardware/HA/Preview acceptance or final manual illustration.
+
+PROJECT GOAL reviewed unchanged: finish active Help, then product licensing #301, then queued #779–#782. Existing future-change markers remain; no future feature is presented as available. Next: protocol-specific human field review, remaining licensing/monitoring/help walkthrough and semantic convergence per the depth map, then #357 and real final captures #425. No merge/deploy, no key/private credential work or online emission, no full-manual/Wave 15 closure.
+
+---
+
+# CURRENT COORDINATION — PORTAL HANDOFF RECEIVED; LICENSING AFTER HELP — 2026-10-25
+
+**SPECIFIED / QUEUED, NOT IMPLEMENTED:** the Portal chat resent its handoff communicating the Product Owner's priority: complete Help #424/#425, then product online licensing #301, then existing operational queue #779–#782. Receipt/order is recorded in #301 and linked from live #305/#756; see `docs/WAVE15-ONLINE-LICENSING-AFTER-HELP-HANDOFF-2026-10-25.md`. PROJECT GOAL, ROADMAP and the operational queue preserve this order. Help remains active; this is not full Help acceptance or an immediate front switch.
+
+Live metadata revalidated: #778 API head `3f825c9750eed841d309004af452cb5bff3d0db5` over main `3b520aff3c249d0c7e0b8c2957344226de911ed7`, four checks green; #783 UI head `e5debb2b6a7962cb5cfb470ec1fff4f1b60d5c5c` stacked on #778, Portal green; #784 head `2a2d1e7a33dc9ab8364c7fda53ee44073a8f8b5b` stacked on #783, Portal green; all remain open/draft/unmerged. #777 remains offline ESREQ1 intake. This is a metadata/status check, not completed compatibility/security review of those implementations. The #301 contract comment 6392078669 remains authoritative.
+
+Queued product work: verify actual API/wire compatibility first; preserve offline ESLIC1/schema1, ESLIC2/schema2 and ESLIC3/schema3; add purpose/KeyId/machine/IDs/time/TTL-bounded ESLEASE1 verification with only the online public key; protected cross-platform activation/rotating renewal credentials, product-initiated 48-hour renewal/idempotent recovery, expiry-to-Demo lifecycle, Demo without Run timer and backend-derived usage/limit UX. Revalidate exact bases/heads and canonical lifecycle/session/HA/Intelligence mechanisms before coding. Existing product base still contains the 300-minute Demo timer; the new behavior is not delivered by recording it.
+
+Active Help source checkpoint remains `b4b4bb4f9d4fbd1d01b9e06c239dd784d4f67045` on draft #772 over `d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`; exact-head T1 `40204142092` passed (Chromium 38/38; Drivers 1723 passed/1 skipped plus DB 1; Timescale 41; Security 42; Web/gate). This new coordination continuation changes Markdown only, with no runtime/test/source change and no claim that the source gate belongs to a later documentation commit. Its published head/status is in the live issue/PR record. Relative links/diff are checked; no backend/browser rerun is needed for the planning prose.
+
+No Portal/product merges, emission, signature enablement, private-key access/provisioning, Preview/DEMO deployment, account/policy or license behavior changes. Portal issuance remains disabled until product verifier/renewal/lifecycle and key operation are integrated and jointly validated. Commercial activation-count/offline-operation decisions remain pending; do not invent their values. Preserve the Portal's own #756 next action and independent #741 scope.
+
+Next active action: continue Help libraries/resources and Gateway/file workflows according to the depth map; finish the Help convergence/required walkthrough and planned UI audit/captures. Only then activate a separate product licensing PR under #301, not code in the Help PR. Documentation related to future licensing must be revised against the accepted behavior and review markers at that time.
+
+---
+
+# CURRENT HELP — SECURITY/AUDIT FIELDS AND PROTECTION — 2026-10-25
+
+**IMPLEMENTED ON PR BRANCH / NOT MERGED:** continue draft #772 on `work/w15-help-foundation-tag-20261023`, product base `d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`. Four new guides and chapter 18 in pt-BR/en/es explain local-account fields, role/capability/grant/scopes, Audit queries/diagnostics and Engineering Lock. There are 48 explained fields, 17 sections and 16 capability options; inventory does not close teaching-depth acceptance. Installed Help/manual share the same source, old overview IDs remain available, and contextual/direct links reach the guides.
+
+Read actual account/policy/Audit/Lock components and backend contracts before writing. Distinguish local identities from project packages or portal accounts; stable login from display name; combined draft grants of the selected user from effective capabilities of the current session; read-only hierarchy from a node-creation UI; CommandExecute from ProcessValueWrite; explicit Intelligence grant from SystemAdmin; local-time filter inputs from UTC; exact filtering from free search; Clear filters from event deletion; Audit success from physical device feedback; read-only retention diagnostics from future storage administration. Policy Preview/Apply/version is Authority-owned, separate from project lifecycle; Lock Working changes still require Save/Publish/Activate for durability.
+
+The owner-required review-marker inventory now includes #779-AUDIT for the read-only retention explanation, with verification criteria. Existing #751/#753/#779 markers remain, and user-facing current limitations are preserved. PROJECT GOAL reviewed: practical whole-product teaching, actual captures and marker discipline unchanged. No account, role, policy, login, permission, HA, license, Preview/DEMO or audit persistence behavior was modified; product-component changes add Help links only.
+
+**Local evidence:** 49/49 catalog/learning/real Python bridge checks, including new actual station/descendant scope grants and denied cross-station/command/write/implicit-Intelligence actions in all locales. Scada.Security.Tests separately restored and ran 42/42 (an initial no-restore invocation had no assets/output and is not counted as evidence). Web production build passed with its existing size warning. Generated-manual alignment covers 27 files and verifies review-marker targets. Final Chromium suite passed 54/54 without retry (1.2 minutes), including mounted Audit filters/details and its Help link. Desktop Audit guidance and mobile Lock fields were visually inspected; manual relative links resolve. Final exact head/run/status belongs in live #424/#425/#305 and unique #756; predecessor `f44f3091` passed T1 `40200160651` and is not evidence for later code.
+
+The terminology guard was preserved; a hierarchy word conflicting with its existing coordination-token rule was rephrased. The local mounted Audit fixture initially had View without required SystemAdmin, so the unchanged shell denied it; the fixture was corrected, keeping real authentication in CI and all existing UI assertions. No product guard, retry or timeout was relaxed. Shell/component screenshots are QA, not live Preview/HA acceptance or final manual illustrations.
+
+Next: libraries/resources and Gateway/spreadsheet workflows, protocol/plain-language review, remaining licensing/monitoring coverage and whole-manual semantic sweep per `docs/WAVE15-HELP-SYSTEM-AREA-AUDIT-2026-10-25.md`; then interface audit #357 and actual final manual captures #425. #779–#782 remain authorized queued; licensing/portal separate #301/#741. Keep #424/#425 and PR draft open; no full-manual or Wave 15 closure.
+
+---
+
+# CURRENT HELP — ALARM/EVENT DEPTH AND FUTURE-CHANGE REVIEW MARKERS — 2026-10-25
+
+**IMPLEMENTED ON PR BRANCH / NOT MERGED:** continue draft #772 on `work/w15-help-foundation-tag-20261023`, product base `d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`. Three new practical guides and manual chapter 17 in pt-BR/en/es explain Alarm condition/behavior fields, inclusive thresholds, Runtime states/ACK/audio and Operational Event definition/emission/query. They add 30 field explanations and 15 sections; inventory is not global Help acceptance. Contextual entries and direct Alarm Center/Event Editor links reach the guides. Existing overview IDs remain available.
+
+**Owner correction:** future product dependencies now have searchable `HELP-REVIEW-AFTER-PRODUCT-*` markers in `docs/manual/PRODUCT-CHANGE-REVIEW-MARKERS.json`, a human audit procedure, and hidden comments in generated chapters. Five markers locate delay #751, ACK exemption #753 (configuration and Runtime), and queued storage/archive #779 (Database and Historian). Each records topic/fields, trigger and verification criteria. The exporter checks referenced topics/fields in all three locales. User-facing text retains current limitations; markers never present a queued feature as delivered. PROJECT GOAL preserves this rule for subsequent authors.
+
+Current product limits remain: activation delay is persisted but not applied (#751); clearing RequiresAcknowledgement does not exempt ACK (#753); System is not a generic numeric/digital process alarm; no hysteresis field, no shelving button or automatic shelving expiry is invented. Operational Event TAG association is context, not an automatic subscription; text Key is not the stable ID required by Python emission. An Initialize handler needs explicit binding, and every call produces another occurrence. No Alarm/HA/security/licensing/capture/report behavior changed.
+
+**Final local validation:** 46/46 .NET catalog/learning/real Python bridge tests; published 10-bar boundary/ACK sequence runs against the actual alarm engine in three locales, and the exact new installed Python snippet emits through the actual worker in all three locales. Chromium 49/49 without retry (1.4 minutes), including Help locale/state/field/code navigation, prior mounted DB/Report/History and Alarm filter/model/audio contracts. Web production build passed with its existing size warning. Manual alignment covers 24 files, with Python blocks retained and source-marker targets checked. Desktop event Help and mobile state cards were visually inspected. Local component/shell tests use fixtures; no new live Preview, HA or physical-process acceptance is claimed.
+
+The initial terminology guard rejected newly introduced internal wording; prose was corrected instead of relaxing the guard. Old routing expectations were updated to the new practical guides, without removing overview topics. A new test assertion was brought into the existing analyzer convention. No timeout, retry or product condition was loosened. See live #424/#425/#305 and unique #756 for the final published SHA/run/status; predecessor `9c66db4d` passed exact-head T1 `40198673983` and is not CI evidence for a later commit.
+
+Next: remaining Audit/security fields, libraries/resources and Gateway/spreadsheet workflow examples according to `docs/WAVE15-HELP-SYSTEM-AREA-AUDIT-2026-10-25.md`; then interface audit #357 and final real manual captures #425. #779–#782 remain authorized queued product work. Licensing is separate in #301/#741; Preview/DEMO is untouched. #424/#425 and PR remain open, no full-manual or Wave 15 closure.
+
+---
+
+# CURRENT HELP — REPORTS AND HISTORIAN DEPTH — 2026-10-25
+
+**IMPLEMENTED ON PR BRANCH / NOT MERGED:** continue draft #772, `work/w15-help-foundation-tag-20261023`, product base `d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`. Four new localized guides now explain report data/resolution, layout/variables, Runtime execution/export and Historian capture/query. Shared installed content also supplies new manual chapters 07 and 16 in pt-BR/en/es. There are 25 additional explained fields and 19 sections; these counts are inventory, not whole-manual acceptance. See the current sources and remaining review in `docs/WAVE15-HELP-SYSTEM-AREA-AUDIT-2026-10-25.md`.
+
+Source-backed distinctions: Historian overview lists TAGs; capture is edited in TAGs. Supported capture strategies, milliseconds, absolute deadband and legacy fallback are explained. First/quality-transition/maximum-interval behavior is demonstrated against actual admission. Report raw/fixed-step/aggregate, period versus capture, long/wide eligibility, variable labels/units/formatting, millimeter geometry, groups versus temporal buckets, generation and PDF/XLSX/CSV/print are separated. A sum of flow readings is not integrated volume. Playback displays past values without restoring a project revision. No backend report/capture/storage behavior changed; source-component changes only add Help links.
+
+Local backend/catalog checks: 38/38 passed, including the published deadband example executed against production Historian admission in all three locales. Web production build passed with the existing bundle warning; generated-manual drift check passes for 21 files and relative links resolve. Final local browser suite passed 37/37 without retry (53.6 s); this includes the actual mounted Designer, raw/aggregate long-wide eligibility, typed historical filters/presentation and localized Help. Desktop Help output was inspected. The native option eligibility assertion uses its actual disabled DOM property; no product condition or timeout was relaxed. Final browser evidence and exact published head/run/status are recorded in the live #424/#425/#305 delivery and unique #756 resume comment after publication. Browser coverage includes the mounted Report Designer, native long/wide eligibility, historical filters/typed values, localized Help and route discovery. No retry/timeout increase or product-condition weakening is authorized. The old overview URLs remain served; changed contextual destinations are reflected in both route test sets.
+
+Predecessor `3b491670a2dd02fddbb2229a7ccd61ce96ff7892` passed T1 `40197104867`; its code predecessor `4f9472f4` passed `40195839328`. Those passes do not apply to this new continuation. Publish the coherent batch once and use exact-head T1; consult the live delivery for the subsequent result without creating another code/CI loop only to edit a status sentence.
+
+Next content remains the active whole-product map: alarm/event configuration fields, libraries/routing/bulk examples and the remaining protocol/monitoring depth. Then preserve the agreed #357 interface audit and actual final screenshots/walkthroughs. #424/#425 remain open. #779–#782 remain authorized queued product improvements, not active implementations; do not alter Preview, licensing, HA or storage while editing Help.
+
+## Previous queue/Help snapshot — historical
+# OWNER INTERRUPTION — OPERATIONAL-GAP QUEUE RECORDED; RETURN TO HELP — 2026-10-25
+
+The owner explicitly kept the Help/manual task active but first asked to register four product gaps. Created **#779** (time/size/no-expiry storage and archive), **#780** (UI-managed TCP/UDP/service ports), **#781** (1–4-monitor stations, independent Runtime windows) and **#782** (optional anonymous View Only Runtime). All are AUTHORIZED_QUEUED, not new delivered features; current retention/downsampling is reused. Plan/source/acceptance are in `docs/WAVE15-OWNER-OPERATIONAL-GAPS-QUEUE-2026-10-25.md`; PROJECT GOAL and ROADMAP are synchronized. No database, port, security or Preview change was made.
+
+**Return to active work:** Help candidate `4f9472f480429c78ddad3d4ad11c095c5cc2e47f` passed exact-head T1 **40195839328** (read final job details in GitHub). Its local evidence is 35/35 Help, 17/17 browser and Web/manual checks as recorded below. This queue-record continuation is documentation only. Its final publication/head/run are recorded in the live #424/#425/#305 delivery and unique #756 resume comment; do not apply predecessor CI to a later commit. PR #772 remains draft, not merged/deployed, and the whole-product depth map remains open. Next is the active Help sequence; do not start queued feature implementation now.
+
+## Help implementation snapshot before this queue-record continuation
+# CURRENT RESUME POINT — WHOLE-PRODUCT HELP DEPTH — 2026-10-25
+
+**IMPLEMENTED IN PR/BRANCH, NOT MERGED:** continue draft PR #772, `work/w15-help-foundation-tag-20261023`, product base `d41c2f84ba179f5eae01dc1df96c9c1a28830dc7`. The owner explicitly rejected treating the Screen/Script expansion as full manual completion. All material areas need actual field explanations and complete tasks; stable direction is in `PROJECT GOAL.md`. Read `docs/WAVE15-HELP-SYSTEM-AREA-AUDIT-2026-10-25.md` for the sources, whole-product review map and residual teaching-depth work. Do not close #424/#425 based on an inventory or green CI.
+
+This continuation adds eleven pt-BR/en/es guides for the application map, Templates, Equipment, Database, HA configuration/operations, Intelligence activation/semantics/analysis, Header/Mobile, Media Sources and Home/Building. The same installed local JSON source supplies manual chapters 04/13/14/15 and detailed additions to 12 through `scripts/docs/export_system_help_manual.py`; `--check` prevents manual/Help drift. There are 53 new explained fields across these guides. Topic and field counts describe inventory, not acceptance.
+
+Navigation now has dedicated Templates/Equipment and Database/HA areas. Specific contextual entry points replace generic fallbacks for the named surfaces. Database Help links to its installed task guide. Help topic changes preserve the search and support Back/Forward without reloading the application; normal modified/new-tab links remain browser actions. Generic field-key details now say Technical reference instead of wrongly implying every key is a Script API. No backend/HA/storage/Intelligence execution or licensing behavior changed; the Database component change is its Help link only.
+
+**Local validation of this continuation:** Help/catalog 35/35 passed; browser 17/17 passed without retry, including mounted Database UI, search/topic discovery, pt-BR/en/es fields, mobile layout, history navigation and actual Client examples; Web production build passed with the existing bundle warning. All manual relative links resolve; generated manual alignment and diff checks pass. Mobile Help output was inspected. The local catalog is exact serialized .NET content; shell identity and Database harness responses are fixtures, not a new live installation or HA operational acceptance. The initial browser attempt failed on topic navigation and a test's search-reset expectation; the Help now retains search on topic changes and the final run proves Back/Forward and field discovery. Initial HA overview-template assertions remained intact by keeping the old overview and adding a detailed companion guide, rather than weakening tests or forcing its headings into the new chapter.
+
+**CI chronology / current lookup:** prior head `2361d615e1c05ef654bb6a6987bd25b919df6dbf` passed exact-head T1 `40192872747`; this is predecessor evidence, not a pass for this continuation. Publish this coherent batch once, use the PR's actual head for final T1, and record run/status in the current delivery comment in #424/#425/#305 and the unique resume comment in #756. Read those live records before repeating work; they carry the post-publication outcome without another code/CI loop solely to edit a status sentence. The Database Help-link path conservatively adds DATABASE_TOPOLOGY evidence; do not disable owning checks.
+
+**Remaining sequence:** continue the concrete teaching-depth review identified in the whole-product map (protocol fields, libraries, routing/bulk files, alarm/event fields, Historian, reports, monitoring), then the agreed #357 UI audit and real manual captures/walkthroughs. The named areas are expanded drafts, not final owner acceptance. Preserve owner Preview/DEMO, frozen analytical/HA boundaries and the separate licensing queue #301/#741/#756. PR stays draft under the existing gate.
+
+## Prior Help delivery snapshot — historical
+# CURRENT RESUME POINT — HELP AND VISUAL MANUAL — 2026-10-25
+
+**IMPLEMENTED IN PR/BRANCH, NOT MERGED:** PR #772, `work/w15-help-foundation-tag-20261023`; learning-guide code `01153c2f3b7cb561d52bd57f1c4079659c0515d0`. The prior PR head `4db075e67997f61072dfeb22d2acf4e14ad9ecda` was synchronized normally with product base `wave15/corrections-integration@d41c2f84ba179f5eae01dc1df96c9c1a28830dc7` in merge `e0706e162fb1a5557d067102118a26aa59e7e8f1`; no history rewrite. The owner found Help shallow/disorganized, so topic presence no longer implies teaching-depth acceptance. Permanent requirements were updated in `PROJECT GOAL.md`; detailed findings, sources, image provenance and residuals are in `docs/WAVE15-HELP-LEARNING-GUIDE-AUDIT-2026-10-24.md`.
+
+The candidate adds eleven navigable areas, visual subareas, full-content search, an article outline, readable steps and field tables/cards, plus 47 additional topics (123 total per locale). Thirty-one built-in object guides cover every one of 96 distinct editable scalar properties using actual schema constraints and human-authored pt-BR/en/es explanations/examples. Additional guides cover structural Trend pens/browser filters, first-screen/Popup workflows, Server syntax/events/dependencies/recipes, Client API/recipes and Intelligence configuration. Generic Engineering/Troubleshooting articles were rewritten. One real public EEE capture illustrates screen composition; its dated demonstration provenance is explicit and it is not final-manual screenshot acceptance.
+
+**Confirmed documentation defect corrected:** existing Client Visual examples used dictionary indexing on bridge objects, reproducing TypeError in the real worker. Installed Help and all three manual locales now use attribute access for sample/event fields. Exact shipped examples are embedded `.py` resources. The worker/provider/Authority/process behavior was not changed. PR #774 supersedes #773: explicit global or restricted `AssetProcessIntelligenceManage` remains the authorization truth; the coordinator's earlier contrary review was corrected publicly.
+
+**Final local evidence for the code candidate:** SDK 10.0.402; Help/catalog tests 35/35 passed, including Server recipes in the real isolated interpreter; Chromium Help tests 10/10 passed with real-catalog serialized content and synthetic shell identity, including nine actual Client handler executions across six exact shipped examples and three compare states. Desktop/mobile captures were visually inspected; the mobile field table was corrected to stack into readable cards. Web production build passed (existing bundle-size warning); `git diff --check` passed. Local catalog export does not claim live API/production deployment. Tests caught and corrected duplicate subarea links and the documentation TypeError; a brand-leakage guard now uses word boundaries so Portuguese `evite` is not confused with `Vite`.
+
+**GitHub evidence:** published Help head `6be01a2f580c82c51582a53e63f9d6a719574d65` passed T1 run `40154531306`: Chromium 12/12, focused .NET 1,711 passed / 1 skipped, the separate database evidence 1/1, Web build and final gate green. These results apply to that exact head. The continuation adds documentation only: chapter 05 for Screens/Popups/objects in pt-BR/en/es, replacing obsolete BLOCKED_PRODUCT coverage with DRAFT_CURRENT for rows 30–43. All versions match at 10 sections, 1 subsection, 13 numbered steps, 41 table lines and 9 verified Help topic references; relative chapter links and diff checks pass. Source UI was read; a new live Editor walkthrough is not claimed. No production code changed after the green head.
+
+**Next:** publish the manual continuation on this same branch and record its exact-final-head T1; do not repeat local product suites for documentation-only edits. PR stays draft and #424/#425 remain open for actual editorial/owner acceptance, final #379 terminology/semantic sweep, #357 interface audit and final manual images/walkthroughs. Do not merge or claim completion based on counts. Preserve owner Preview/DEMO and frozen HA/driver/analytics boundaries. Licensing is a separate queued coordination item in #301/#741/#756; no licensing implementation belongs in this Help batch.
+
+## Previous snapshot — historical accepted lineage
+
+# CURRENT RESUME POINT — WAVE 15 HELP AUDIT AND MANUAL LOCALIZATION — 2026-10-23
+
+Latest integration is docs-only PR #763 merge `32f2ada21d9fd88992a27c034a4568d064a43239`; exact-head T1 #39966972640 passed on `aa7c7aef65ea1eb14ba39e03c2d342c60b9bd3d3`. PR #758 localized the stable Scripting chapter; PRs #760–#763 translated the other four stable chapters listed in `docs/manual/pt-BR/README.md`: Fundamentals, Engineering/Data Sources/TAGs, Operations/Security/Licensing, and Application Management/Recovery/Troubleshooting. Each docs-only T1 passed classifier, Common sanity and final gate; product checks were skipped as expected and docs-only merges have no product T2. Manual locale indexes and coverage matrix were refreshed. #425 remains OPEN for blocked feature-specific content, screenshots, pre-Preview walkthroughs and final review; #379 final semantic/glossary parity and #424 contextual Help acceptance remain open. The latest fully T2-verified product checkpoint remains PR #755 merge `289c10dc2b4b773ad2dbf808244a4fe861c38f9f`; its final head `5a209936c2ea6ce2f18bba09beb3e6b1f64fcb33` passed T1 #39960540561 (focused .NET 1,696 passed / 1 skipped after an unrelated Z-Wave timeout retry). Exact-merge T2 #39961881088 passed on the product merge SHA after a backend retry: Web build, Chromium integration smoke, backend build/tests (2,637 total / 2,636 passed / 1 skipped), and Runtime smoke passed. Full browser E2E was skipped and is not claimed. The initial T2 backend attempt timed out in unchanged `AuthorityPolicyTwoApiPostgreSqlEvidenceTests... (sharedDatabase: false)` while waiting for cross-process initial policy mirroring; retry on the same SHA passed without code changes. Cause is unknown; no HA/Authority fix or acceptance is inferred. PR #752 at `b47861b6ec83421f24c1d1a95c86d5acb388b874` had integrated Alarm/Event/Audit guides; #755 adds Visual Dynamics/Events and Client Visual guidance. Confirmed alarm residuals #751/#753 remain separate and uncorrected. No Help/manual completion, HA acceptance or product Preview/DEMO evaluation is inferred.
+
+## Help integration and test diagnosis
+
+- PR #747 header correction merged at `2cac88e27d59fe9a770845eea22421757a92d1ec`; T2 #39865304187 passed.
+- PR #748 practical Server Script Help/manual merged at `f11ddd0b07283ccbc374cf9a7c754f3949be57a9`; T1 #39867024700 and T2 #39867680173 passed. Contextual/manual examples ran through the actual isolated interpreter. This did not complete client-visual script guidance or full manual translations.
+- PR #746 member-insights Help merged at `ff306b850f1c6f2c8878329ae3ebf709850828c7` after T1 #39856225606. T2 #39869832513 failed in `ActiveServerScript_UndeclaredCommandIsRejectedBeforeDispatch`: the fresh Python handler exceeded the fixture's inherited 250 ms budget. The focused failure reproduced locally (~0.42 s). Web and Chromium integration passed; Runtime smoke was skipped after the backend failure.
+- Test-only PR #750 sets a 2-second budget in `AssertCommandRejectedBeforeDispatchAsync` for the two security-denial scenarios. Final candidate `535028276d645d1115c584b46ca0f49e12d6a5fa` passed local 3/3 and T1 #39898015343; merge `b04eb9c118220bf47f117acc0e88a7d1a929863a` passed T2 #39898450583 (backend build/test/runtime smoke, Web build, Chromium integration). Full browser E2E was skipped. The initial PR #750 head `ce405602ff65e33403e24ba30b11ecaea80d9045` placed the setting in the positive test; review corrected that before merge. Its green T1 #39897556351 is superseded and is not evidence for the final fix. Product timeout defaults were unchanged.
+- PR #752's first T1 #39901906308 was cancelled after final content changed; use #39902194716 on `b787b7641c0aba08f209f5eed67cff1758b8a3be`.
+- PR #755 expands installed Visual Dynamics/Events guidance and adds a trilingual Client Visual script topic plus practical pt-BR manual examples. Final head `5a209936c2ea6ce2f18bba09beb3e6b1f64fcb33` passed exact-head T1 #39960540561 after one focused .NET retry: the first attempt had one unrelated Z-Wave RPC disconnect timeout; the retry passed 1,696 / skipped 1. Merged at `289c10dc2b4b773ad2dbf808244a4fe861c38f9f`; exact-merge T2 #39961881088 passed after retrying the failed backend job on the same SHA. Web and Chromium integration smoke passed; backend passed 2,636 / skipped 1 and Runtime smoke passed. Full browser E2E was skipped. No product Runtime, HA, or Preview/DEMO behavior changed.
+- Docs-only PR #758 translates the stable Scripting chapter into English and Spanish, including Server and Client Visual scopes, APIs, examples, authorization/sandbox boundaries, and troubleshooting. Final head `91c2e076522ba2a91e91c273169f12c88a819154` passed exact-head T1 #39964980386; failed predecessor #39964699307 lacked the literal profile declaration and is not acceptance evidence. Merge SHA `deec54ad433102fd25433ce09f4580b0d9eff7a5`. No product T2 run was emitted for this docs-only merge. Code blocks are identical to pt-BR; manual parity is still incomplete.
+- Docs-only PR #760 translated Engineering/Data Sources/TAGs to en/es and updated locale indexes/coverage rows. Head `3e9d0a080486f1b80a661a4de32be5cbe9ac3380` passed exact-head DOCS_I18N_HELP T1 #39965834083; merge `0e8482da3f2ebfdb790c4f947e639497a9a51f41`. Source and translations matched at 15 headings/25 numbered procedure steps; all eight Help Topic IDs were verified. No product T2 applies.
+- Docs-only PR #761 translated Fundamentals to en/es. Head `7136117190e4529121f6aabe72487446c08ecf61` passed exact-head T1 #39966156532; merge `41b51074af1ec9303b65af7d39c566f677af1b7f`. Structure matched at 10 headings/7 numbered steps/6 table rows; all four Help Topic IDs were verified. No product T2 applies.
+- Docs-only PR #762 translated Operations/Security/Licensing to en/es. Head `6cb35c300883ba26088fdf2c5da08349e7f25c04` passed exact-head T1 #39966572795; merge `712217ab4c32b83975ff7008076faaa12be2f8e7`. Demo/TAG numeric limits, fail-closed licensing language, signing-key warning and unresolved HA boundary are preserved; structure matched at 17 headings/8 steps/8 bullets. No product T2 applies.
+- Docs-only PR #763 translated Application Management/Recovery/Troubleshooting to en/es. Head `aa7c7aef65ea1eb14ba39e03c2d342c60b9bd3d3` passed exact-head T1 #39966972640; merge `32f2ada21d9fd88992a27c034a4568d064a43239`. Structure matched at 19 headings/32 numbered steps/3 bullets. Restore-first remains high-level; detach/neutral-install/A→B→A procedures remain reserved. No product T2 applies.
+
+## Confirmed alarm residuals discovered by Help review
+
+Both gaps predate the Help changes and reproduced locally against the real alarm engine at base `b04eb9c118220bf47f117acc0e88a7d1a929863a` on Windows/.NET SDK 10.0.402. Engineering maps and persists both settings; `InMemoryAlarmEngine` does not consume them.
+
+- #751: `ActivationDelay=10s` still produced Active immediately (measured 0.4427 ms after the triggering update).
+- #753: `RequiresAcknowledgement=false`, followed by normal samples after activation, still left the alarm Returned and pending in `Snapshot(activeOnly: true)`.
+
+PR #752 documents these limitations in pt-BR/en/es. No alarm-engine correction is included. Product corrections require their own bounded implementation and verification; do not silently change Runtime while working on Help.
+
+## Exact next action and boundaries
+
+Next: under #424, audit the remaining stable installed Help for generic/underspecified guidance against the task-guide acceptance (what/when/prerequisites/steps/expected result/common errors/related topics), checking current topic catalog, contextual routes and deterministic tests before opening one bounded slice. #379 Phase 2 remains gated on remaining product surfaces; consume its glossary only where already frozen and do not claim final semantic parity. #425 remains open for product-dependent sections, screenshots, pre-Preview walkthroughs and final review. #588/#306 and Wave 15 remain open; Stage 4 stays frozen with field evidence deferred to #701; Stage 5A widgets remain owner-accepted, and Stage 5B.1–5B.11/6A–6C retain their recorded scope. EEE package finalization and PREVIEW-READY remain late gates. Owner Preview/DEMO was not accessed or changed; preserve HA/S7, driver, licensing and frozen Intelligence boundaries.
+
+## Separate website pilot review
+
+PR #749 remains OPEN / DRAFT at `361f45fcd07cbf288c0fd1fb9e415501bf2e4156`, targeting `main`. Focused portal CI #39897324958 and general CI #39897324986 passed on that head, including Chromium E2E. Main inspected it read-only and did not merge or deploy it. The standalone portal keeps database/keyring and product licensing/Authority boundaries separate. Review findings in `website/scadivo/deploy`: `backup.sh` uses unauthenticated AES-CBC encryption and a POSIX pipeline that can hide tar failure; `restore-check.sh` unconditionally drops fixed database `portal_restore_check` during cleanup even if its creation failed because it already existed. These need the website owner's disposition before promotion. Automated offsite backup/alerts and independent launch review remain explicitly deferred by that PR. No message was sent back to the website chat.
+
+## Prior snapshot — superseded by PR #744
+
+Read [the short coordinator pointer](docs/CURRENT-COORDINATOR-HANDOFF.md), [the current Main order](docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md), and live [#639](https://github.com/brunolrogerio-collab/EliteSCADA/issues/639), [#742](https://github.com/brunolrogerio-collab/EliteSCADA/issues/742), [#588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588) and [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305). Product integration is at `wave15/corrections-integration@ddd584c30e7918addd05e3085dbe090ab0683a30` (PR #743 docs-only merge over product checkpoint PR #740 at `e69c5e5777ae98d336b1f541d3fefe4f1d05433f`). Exact-head T1 #39843967397 passed on candidate `22bf448a600b2cf17b7d9bfe3cd9414d7643fefe`; exact-merge T2 #39844952036 passed on the product merge SHA: backend build/test/runtime smoke (2,633 passed / 1 skipped), Web build, and Chromium integration 13/13. Full browser E2E was skipped and is not claimed. PR #740 normalizes optional `asset:` VisualAsset IDs before URL encoding while preserving bare GUID behavior. Stage 5B.10 #737 / PR #738 remains integrated at `6d206b22aa00346a4d06a80909fb5a6cacfb1adf`; T1 #39831004469 passed and exact-merge T2 #39832001500 passed on attempt 3 (2,633 passed / 1 skipped, runtime smoke, Web, Chromium 13/13). Attempts 1/2 failed on differing backend tests; the unchanged-SHA third attempt passed, so the cause is unknown. Stage 5A #639 is owner-accepted and closed; the Product Owner confirmed the six widgets are accepted. #737 and #739 are also closed for their bounded scopes. No HA/S7 acceptance is inferred and no HA/S7 source changed. #742 is OPEN; its guided process-stage member-insights view is implemented on branch `work/w15-intelligence-process-stage-insights-742` at candidate `305816e409363f4fd1e46d5fbbe8f9871105aaea`, parented on `ddd584c30e7918addd05e3085dbe090ab0683a30`. Local Web build passed, as did the Intelligence UI suite 87/87 and runtime-local suite 40/40. This is not yet GitHub T1/T2 evidence; publish the branch, require exact-head T1, then exact-merge T2 before closing #742. The view keeps member reports independent and read-only. Stage 5B and #588 remain open. Stage 4 remains frozen; field evidence stays deferred to #701. Owner Preview/DEMO was not accessed or changed. Do not alter HA/S7, drivers, licensing, frozen Stage 4 or field-data boundaries.
+
+- PR #744 initial classifier run [#39852256942](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/39852256942) stopped before product checks because its required profile line was followed by literal escaped newlines in the submitted PR body. The PR body is corrected; no product test ran in that failed attempt. The next exact-head T1 result is authoritative.
+
+- Stage 6B T1 produced Windows/Linux synthetic artifacts for six scenarios and two zero-read/zero-write controls; SDK 10.0.400/.NET 10.0.13. T1 source checkout was merge ref `33c93d20e665a51f36269fb51caca0a4d9c006a1`. Local isolated characterization passed 1/1, focused Drivers Intelligence regression 268/268, and router tests 35/35.
+- Stage 6C #735 is integrated at PR #736 merge `608d29e218c326f4cd86eb395c46fdd7f53ba189`; exact T1 #39826823295 and T2 #39827580279 passed. The CI route passed the required Intelligence UI suite 82/82; the companion runtime-local suite passed 35/35 locally. Stage 6C found and closed a CI evidence gap, not a product defect.
+- Stage 5B.10 #737 / PR #738 is closed for its bounded linked process-stage authoring scope at merge `6d206b22aa00346a4d06a80909fb5a6cacfb1adf`; T1 #39831004469 passed and exact-merge T2 #39832001500 passed on attempt 3 (2,633 passed / 1 skipped, backend runtime smoke, Web build, Chromium integration 13/13). Attempts 1/2 failed on different backend cases; attempt 3 passed on the unchanged SHA, so root cause is not inferred. No HA/S7 source changed or acceptance inferred. Full browser E2E was skipped.
+- Editor correction #739 / PR #740 is closed at merge `e69c5e5777ae98d336b1f541d3fefe4f1d05433f`. It normalizes optional `asset:` prefixes before canonical VisualAsset URL encoding and preserves bare GUID behavior. Exact candidate T1 #39843967397 and merge T2 #39844952036 passed; T2 backend build/test/runtime smoke 2,633 passed / 1 skipped, Web build, Chromium integration 13/13. Full browser E2E was skipped.
+- Timing note: one preliminary isolated mounted run timed out during the initial page load. The same test passed on immediate isolated rerun (1/1), and the final complete UI configs passed 84/84 and 37/37 without changing timeout settings; no product timing regression was confirmed.
+- Stage 6A #731 / PR #732 remains closed only for durable-restart evidence and repeatable focused Windows/Linux backend CI. No product behavior, HA, drivers, licensing, Stage 4, or Preview/DEMO changed in Stages 6A/6B.
+- Stage 5B.9 PR #730 merged at `5b311b896451d9155f89b984ca55d986c8d79d9e`; exact-head T1 #39815801302 and exact-merge T2 #39817846541 passed within its one-Equipment/four-Screen scope.
+- Stage 5B.8 remains integrated/verified at PR #725 merge `ef6c45a1919dd320949db0b24d8189d3ca4d530f`, with its exact-head T1 #39789242795 and exact-merge T2 #39791684322 evidence below in history/current handoff. Child #724 is closed for that bounded composition only.
+- Stage 4 engineering remains **COMPLETE / VERIFIED / FROZEN within the experimental contract**. Field-validation targets remain separately deferred to #701. Stage 5A visual Preview is the owner's separate acceptance; do not access or alter the user's Preview/DEMO. Stage 5B, #588 and Wave 15 remain open; Stage 6A–6C and Stage 5B.1–5B.10 are integrated/verified only within their recorded software scopes.
+
+## Historical evidence from prior coordinator snapshot
+
+- **18 browser failures classified:** full CI #39533864300 (`4b6d1c7`) and pre-#687 baseline #39536032199 (`63182e0`) had the same 18 cases, so they were not caused by #687. Triage found stale UI/test expectations plus one confirmed product defect. The selected tests now assert current controls, labels, routes, and API contracts without deleting coverage.
+- **Confirmed product defect corrected:** Popup-authored background rendered outside the canonical canvas layer, with a computed `0×0` size. PR #690 moves it into `.visual-editor-canvas__canonical-layer`, sharing logical dimensions and pan/zoom. C26.9 mounted Popup coverage passed.
+- Local validation: selected Playwright suite **21/21 passed** against an isolated, fresh Timescale `2.29.2-pg18` database; Web build and `git diff --check` passed. Exact T1 #39540631971 attempt 2 passed on PR head `4b3e2273d2686a4b6b2c57040ac49929413031e8`: focused Chromium and Web build passed; .NET **1,684 passed / 1 skipped**. Attempt 1 had one HA two-process connection reset; both variants passed locally and the unchanged T1 retry passed. No HA code changed.
+- PR #690 merged at `0e9d5f179f1bb9f315d587dd43cd5931d6646109`. Exact post-merge T2 #39541815766: Web build and Chromium integration smoke passed; the broad backend suite failed on the existing HA D2 test `RealApiProcesses_HaD2SharedDatabasePromotesAndFailsBack` (`Connection refused`, policy not mirrored). The same HA case failed in baseline #39536032199. Runtime smoke consequently did not run; the full-browser E2E step was skipped by the push profile. Thus T2 is **FAIL**, not a fully green checkpoint; the focused affected-browser evidence is green. See [#588 triage record](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6307805486).
+
+- Main's separate 4F implementation merged in [PR #687](https://github.com/brunolrogerio-collab/EliteSCADA/pull/687), exact base `63182e021730ad4fb35532481e28d7a16fc04be3`, candidate head `ee0e087ac8a1d6891a554b08f8de9fbf5ddf1a24`, merge SHA `48cfe002ac437f5248d0127aaecce28c82dc9ba9`. Exact-head T1 #39532394830 passed: 1,684 passed / 1 skipped / 0 failed; exact-merge T2 #39532910787 passed on the merge SHA. The owner is simultaneously using CODEX to make local Preview adjustments and will deliver that Preview-side delta separately when ready; do not inspect, mutate, reset, redeploy or merge the Preview.
+- Added an experimental Core joint-deviation calculation plus a separate versioned read-only API/service path bound to existing 4D/4E assignment, measurement profile, typed operating context, Historian v2, `TrendUse`, Intelligence entitlement, per-TAG `TagRead`, execution permit and bounded query behavior. The response now exposes per-signal quality/type/time/synchronization/duplicate/acceptance evidence. Duplicate timestamp diagnostics are scoped to UTC timestamps inside the requested window. The score has no decision threshold or normal/fault classification and is explicitly not field validated; synthetic simulation validates mechanics only.
+- Local evidence: Windows SDK 10.0.402 Release API build **0 warnings / 0 errors**, Core **698/698**, all Intelligence-filtered Drivers **267/267**, focused experimental-joint-deviation tests **13/13**; isolated Linux SDK 10.0.400 Core **698/698** and Intelligence-filtered Drivers **267/267**. Exact T1 #39532394830 passed on `ee0e087ac8a1d6891a554b08f8de9fbf5ddf1a24` with **1,684 passed / 1 skipped / 0 failed**. Exact-merge T2 #39532910787 passed on `48cfe002ac437f5248d0127aaecce28c82dc9ba9`: Backend build/test/runtime smoke, Web build and Chromium integration smoke; Core 698/698, PostgreSQL 127/127, Timescale 41/41, Drivers 1,685 passed/1 skipped, Security 42/42. Full browser E2E was skipped. A broad local Drivers run had unrelated/environment-sensitive DNP3, ServerScript, Modbus and Shelly failures; the prescribed CI suite passed.
+- The full-browser comparison remains historical evidence for the original failures (908 passed / 18 failed / 2 skipped on both comparison SHAs); exact affected specs and disposition are documented in [#588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6307805486). The post-merge push T2 did not run the full-browser step.
+- Next: keep the 4F experimental implementation distinct from field validation. Do not modify HA from this triage; the owner retains manual Preview/regression review. The remaining 4G/operational gate requires eligible representative product-test evidence under applicable owner permissions; none is available. The owner's Preview-side code remains a separate later integration. Never replay/tune #680/#682's consumed holdout or #683's holdout; do not equate synthetic mechanics with false-alarm, recall, exposure, latency, diagnosis, efficiency, or field claims.
+
+# HISTORICAL RESUME POINT — STAGE 4F PRODUCT GATE NOT READY AFTER #680 — 2026-10-20
+
+Read [the current pointer](docs/CURRENT-COORDINATOR-HANDOFF.md), [Main's current status/order](docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md), [ADR-021](docs/ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md), [the Stage 4F acceptance plan](docs/WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md), and live issues #588/#305. Live refs, issues/PRs, and exact-SHA Actions evidence remain authoritative.
+
+- **Stage 4E is accepted for its bounded scope only** at PR #654 merge `793b8303547491e02b98bf73732d3ab5ab76567a`. Exact T1 #39331697007 attempt 2 passed the selected checks; exact-merge T2 #39336277009 passed Backend build/test/runtime smoke, Web build, Chromium integration and integrated smoke 13/13. Broad-browser E2E was skipped, not passed. #652 is closed; HA/protocol behavior was not accepted.
+- **Stage 4F gate #655 is closed with disposition NOT READY.** No eligible representative Historian cohort with the required provenance/exposure is available. #659 source qualification and prior research support only bounded offline evidence, not a product method or field validity. Main's delegated scope, targets, data policy and prepared export model are recorded in [the acceptance plan](docs/WAVE15-INTELLIGENCE-STAGE4F-ACCEPTANCE-PLAN.md) and [the data-request package](docs/examples/intelligence-stage4f-data-request/README.md); do not ask the owner to redefine those criteria.
+- **MERGED BOUNDED RESEARCH DELIVERABLE:** #662 is closed as complete only for its research objective. PR #664 merged at `6e6bd345dd730b4ba7dee1522dbb58ef12a42231` (head `a55f4a0859fdb7f95ab58ee31b3cdd29bf971040`). Exact-head DOCS_I18N_HELP T1 [#39439718537](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/39439718537) passed; product jobs were intentionally skipped and no product T2 applies. Research files live under `docs/research/intelligence-stage4f/`; no raw source records or plant data were committed.
+- **Evidence and result:** 18/18 focused synthetic tests passed both on Windows/Python 3.14 and isolated Docker/Linux/Python 3.12.15. All 1,138 fit/calibration numeric values matched across runtimes. The final report states **INSUFFICIENT EVIDENCE**: ten nominal+stable hydraulic cycles support a reproducible offline comparison only. No score method or threshold was selected. The source lacks independent healthy/fault labels, UTC sample timestamps, `Good` quality and `Synchronized` provenance; the split has only two calibration and two holdout cycle groups. Validated false-positive rate/episodes, operating-hour exposure, event recall, latency and reliable confidence intervals remain unmeasured. Holdout exceedances are descriptive reference exceedances, not false positives.
+- **Holdout guard:** hardening added after the recorded run binds the claim to source/protocol/split/holdout identity and stores a committed consumption receipt for clean clones. The frozen config and aggregate results were not altered, and no real archive/holdout cycles were reopened during hardening. Details are in [the #662 closeout](https://github.com/brunolrogerio-collab/EliteSCADA/issues/662#issuecomment-6293358581).
+- **Acceptance criteria remain unchanged:** the plan prioritizes motor-driven pumping sets, then compressors; advisory targets are ≤1% point false positives, ≤1 false episode per 24 eligible operating hours, ≥90% recall per defined sustained-deviation class, and cadence-qualified latency ≤10 minutes. These are engineering targets, not measured results or universal normative limits.
+- **Product and Preview state:** latest product-code checkpoint is `wave15/corrections-integration@48cfe002ac437f5248d0127aaecce28c82dc9ba9` (PR #687, exact T2 passed). Research/preparation merges remain distinct from product implementation. Preserve owner Preview `http://localhost:18080` at `0054d587fe855bbea4b1af81726af016208643da`, including its data, volumes and ports.
+- **PREPARATION PACKAGE #667 ACCEPTED / CLOSED:** PR #669 merged at `4ebb8b08005271c4eb3143bd647f992870dd86c4`, final head `6821c55c6fb84d05ebfd4a2b9ab85382c99081b9`. T1 #39452237823 passed on that SHA; no product T2 applies. CODEX passed 19/19 synthetic tests on Windows and isolated Linux, and Main independently reran the Windows suite and rejection probes. Main required and verified fixes to the Historian-v2 request-version guide and invariant numeric/date parsing before merge. The tool preserves 100 ns precision, bounded redacted diagnostics and no-overwrite output; analytical/readiness assessments remain NOT_ASSESSED. See [#667 closeout](https://github.com/brunolrogerio-collab/EliteSCADA/issues/667#issuecomment-6295099396).
+- **#671 ACCEPTED / CLOSED:** PR #673 merged at `ebe9b3abbbaffb8054b79273728f383e3bd17086`, final head `6561568a4604cb6d2ec188a78f8551cd2e0c8b46`, exact-head T1 #39475543766 passed. CODEX 18/18 Windows/Linux and Main 18/18 plus an independent 32,768-sequence oracle with zero mismatches close the reviewed mechanics defects, including termination/rearm. Eight frozen evidence blobs remain unchanged; historical provenance/replay refusal and the erratum are accepted. Original episode-dependent results/PASS labels are not accepted corrected-convention detector performance. [Closeout](https://github.com/brunolrogerio-collab/EliteSCADA/issues/671#issuecomment-6298328674).
+- **#675 ACCEPTED / CLOSED:** PR #677 merged at `7065d4cf7b6a9a281206ad3f1f78e551b77b2b39`, candidate `2e8e7b02219c129fbcf13df338dd55a483a5af41`, T1 #39479275345 passed classifier/Common sanity/final gate (product jobs skipped). CODEX 16/16 Windows/Linux, exact fit/calibration agreement; Main 16/16 plus 32,768-sequence oracle, frozen-hash/provenance/receipt and 56-scenario denominator/rate checks. No joint candidate met all targets: EWMA q0.999 still had only 70% timely relationship detection versus 90%, despite low point FP and observed episode rate. [Closeout](https://github.com/brunolrogerio-collab/EliteSCADA/issues/675#issuecomment-6298853697). This is measured research, not a selected method or field validation.
+- **DESIGN #678 ACCEPTED / CLOSED:** [CODEX's read-only return](https://github.com/brunolrogerio-collab/EliteSCADA/issues/678#issuecomment-6299217798) is accepted as a research direction, not a method or production architecture. Main's #680 supplement retains load/speed residualization and the 7,200-cohort fit reference (one constant-speed group cannot identify intercept/load/speed separately); counts all three context TAGs and distinguishes 200 rows/page from total page count. Existing product/field gates are unchanged.
+- **#680 research COMPLETE / negative synthetic result:** PR #682 merged at `51a6e72c5a57605a2647aa891b5dff2e06e46eaa`, candidate `8456c470cecd7b83b71b0126ff818c4f3a52e4ce`; exact-head DOCS_I18N_HELP T1 #39489609295 passed classifier, Common sanity and final gate. Main independently reran focused UNIT tests on Windows/Python 3.12.14 (19/19 pass), and checked the frozen config, hashes, source chain and single-use receipt. See [the closeout](https://github.com/brunolrogerio-collab/EliteSCADA/issues/680#issuecomment-6301272091).
+- **Result, not product acceptance:** the one-use holdout yielded 13/10,920 point false positives (0.119%, point target passes), but 2 false episodes in 30.33 scored synthetic hours (1.582/24h, target <=1 fails); current-only timely detection was 87.5% (<90%); dispersion x2/x0.5 recall was 2.5%/0.83%. None of six required classes passed the combined gate. These are conditional on this synthetic generator only; no score, threshold or method is adopted. The holdout must not be replayed or retuned.
+- #588 and broader Stage 4 remain OPEN/PARTIAL; the product joint score is **NOT DELIVERED / NOT VALIDATED**. Public-source eligibility work is complete in #659: neither UCI dataset qualifies for the canonical cohort or operational claims. Do not repeat that assessment or access the stable Preview. The only current data-dependent next step is assessment of a separately authorized representative owner-Historian export using the prepared model/preflight; no such export is available in this task. Until then, no product method/implementation is released. Stage 4G remains separate and blocked; 5B/6 are unreleased. No HA, driver, Preview, FND/FC0, or whole-Wave acceptance is inferred.
+
+- **#683 is an open draft, not an integrated product method.** It adds an internal experimental Core calculation with no API/Runtime call sites and reports a separate positive synthetic study. PR T1 #39492439142 passed; Main independently ran 13/13 focused and 698/698 Core tests on Windows/.NET SDK 10.0.402 but did not regenerate the holdout. The candidate is not field evidence, does not override #680's negative study, and remains unmerged pending eligible representative owner-Historian data and a fresh Main decision. Review: [#683](https://github.com/brunolrogerio-collab/EliteSCADA/pull/683#issuecomment-6303024402).
+
+# HISTORICAL RESUME POINT — STAGE 4D RELEASE; STABLE PREVIEW IN PARALLEL — 2026-10-19
+
+Read [the current pointer](docs/CURRENT-COORDINATOR-HANDOFF.md), [Main's order](docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md), [the issue audit/closure ledger](docs/WAVE15-ISSUE-AUDIT-2026-10-19.md), and live #639/#588/#305. This entry supersedes the historical execution snapshot below.
+
+- **Stage 4D #649 correction for Main review** remains isolated on `work/w15-intelligence-stage4d-reference-evidence`, based on exact `wave15/corrections-integration@935bb82889589a92578bf2589bffe356df121ce3` (parent integration `15697b30e2633510198fca0285df633156f7f338` plus docs PR #650). Draft PR [#651](https://github.com/brunolrogerio-collab/EliteSCADA/pull/651) carries `VALIDATION_PROFILE: SESSION_LICENSING`. Initial implementation `d5499d5a0bdfcf71b3c393431fcf09e6e18b168c`; Main review found a boundary defect where a `Math.Max(1, ...)` probe queried one row beyond the 50,000 aggregate limit. Fix commit `d48e98da5f1796f869ab4b7ca1fe963d147c14ab` rejects a pending signal/window before any query when remaining budget is zero. Regression asserts exactly 250 calls/50,000 requested rows, no comparison-window query and fail-closed 413/no payload; separate test confirms 200 success when the last read ends exactly at the limit with no subsequent read. Local Release API build passed with 0 warnings/errors; both boundary tests passed 2/2; related Intelligence tests passed 231/231; `git diff --check` passed. Exact-head T1 run [#39320092809](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/39320092809) passed on head `1a699e9648998d3b8a79aafe7163c2b8f18e8753` (Focused .NET: 1,648 passed / 1 skipped / 0 failed; classifier, Common sanity and T1 gate passed). This checkpoint-only doc update will receive its own exact-head T1; the latest PR checks are authoritative for the final branch head. Earlier first T1 attempt on the original implementation SHA timed out only in unrelated HA standby rejoin; same-SHA retry passed, and no HA files or behavior changed. Chromium, HA lifecycle, Web and protocol sidecars are skipped under SESSION_LICENSING, not counted as passing. Main owns review/integration/exact-merge T2; PR remains draft/unmerged. Product Preview stays at `0054d587fe855bbea4b1af81726af016208643da`, with database/volumes/ports untouched and no redeploy/reset.
+
+- PR #647 was Main-reviewed and merged at exact product checkpoint `wave15/corrections-integration@0054d587fe855bbea4b1af81726af016208643da`. Final candidate head `6c8991a53f22dbc3f509e83dcfcf722257dd60ae`; exact T1 #39258159241 passed. Six generic measurement layouts use the existing screen schema/binding/renderer/persistence path, without Intelligence entitlement dependency or process writes. Main accepted save/load and loaded-model Preview/Runtime evidence, applied themes, accessible band limits and complete target-unit labels. Local Web build and seven-spec browser run 50/50 passed; focused domain 7/7 and PostgreSQL schema 3/3 passed.
+- Exact-merge T2 #39259192178 **attempt 2 SUCCESS**: backend build/test/Runtime smoke, Web build and Chromium integration smoke passed; full-browser E2E was skipped, not passed. Attempt 1 timed out in `AuthorityPolicyTwoApiPostgreSqlEvidenceTests.RealApiProcesses_RevokeCancelRejoinAndRequireExplicitReactivation(sharedDatabase: False)`, waiting for initial policy commit/mirror. CODEX ran that exact case on isolated merge (3/3 passed) and pre-product base `65479ec5c92fec7c6d9c49f1e9001689b3743fe0` (1/1 passed). Relevant HA/Authority/test files are identical. Pending policy after standby readiness and missing non-2xx peer-response diagnostics leave the cause unknown; local passes do not exclude full-runner interactions. Main requested one backend-job retry on the same merge, which passed without product/test changes. [Diagnostic evidence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/639#issuecomment-6268543313). No HA fix, timeout relaxation or new HA acceptance is claimed.
+- #639 is **INTEGRATED / TECHNICALLY VERIFIED / OWNER VISUAL PREVIEW PENDING**, not frozen/closed. The Product Owner explicitly ordered continued development after stable Docker Preview delivery while evaluating and reporting corrections later; manual acceptance is no longer a development blocker. Next bounded product package is **#649 / Stage 4D reference evidence/data sufficiency** under ADR-021. Main revalidated integration at `15697b30e2633510198fca0285df633156f7f338` before this coordination update; exact activated base is recorded in #649 after docs-only publication. CODEX starts only this assigned package, with local/T1 ownership; Main owns review/integration/T2. Frozen 4A–4C/ADR-020 stay unchanged; broader Stage4 remains PARTIAL. 4E–4G follow bounded Main assignments; 5B/6 stay unreleased.
+- CODEX delivered healthy API/Web/database stable Preview at http://localhost:18080, product `0054d587fe855bbea4b1af81726af016208643da`, Compose project `elitescada-stable`, checkout `C:/Users/Bruno Rogerio/Documents/Codex/EliteSCADA-stable-preview-20261019`. The owner directly authorized recreating this old test stack/data, so existing test logins/data were removed; first access creates a fresh administrator with no default password. Other projects and `local-timescaledb-1` were preserved. **After delivery, keep Preview revision/data/volumes/ports intact** during owner evaluation; subsequent development/tests use isolated checkout/database/Compose/resources. Do not automatically redeploy/reset it as integration moves. Preview completion is confirmed by CODEX turn `01a1546b-ddd7-7d52-ac5b-374a8928bc30`; Main's initial direction for continued development was delivered directly, and the exact #649 activation is the next dispatch record.
+- The Product Owner explicitly authorized closing issues whose role is fulfilled and stated that physical driver L4 will be done by real people testing the product **outside GitHub control**, with concrete corrections reported later. Main closed **27 trackers** with specific evidence: #178, #307, #354, #355, #359, #368, #369, #377, #380, #382, #386, #390, #391, #446, #447, #459, #468, #469, #472, #473, #474, #475, #489, #551, #566, #570, #589. #178 is retired as NOT_PLANNED tracking, not a completed physical test; the other 26 are completed bounded work. No hardware/vendor certification is implied. Matter stays experimental/opt-in and requires a stable version after Wave16 before distribution; direct paid Tuya/Intelbras, direct BTHome qualification and native DALI are not newly authorized W15 gaps.
+- The audit distinguishes implemented requirements awaiting final acceptance from proven residual defects and genuinely undelivered functionality. Remaining development includes Intelligence residual 4D–4G/5B/6, final contextual Help/manual content (English/Spanish manuals are scaffolds) and actual final EEE Simulation/real-Modbus v15 packages. #297/#300/#305/#306/#378 and applicable acceptance mothers remain open. No current causal product regression was established by this audit; the failed first T2 attempt is retained as an unresolved diagnostic fact, not erased by its successful retry. HA manual Preview and possible rollback of earlier unsupervised work remain reserved to supervised owner review; do not switch front or alter HA.
+
+---
+
+# HISTORICAL RESUME POINT — STAGE 5A EXECUTION RESUMED — 2026-10-19
+
+Read this entry, [the short coordinator pointer](docs/CURRENT-COORDINATOR-HANDOFF.md), [Main's current order](docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md), [ADR-021 residual scope](docs/ADR-021-INTELLIGENCE-STAGE4-RESIDUAL-CLOSURE-SCOPE.md), and live issues [#588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588), [#639](https://github.com/brunolrogerio-collab/EliteSCADA/issues/639), and [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305). Live refs, issues/PRs and exact-SHA CI remain authoritative.
+
+- Product code checkpoint remains `wave15/corrections-integration@81ac4193194e1471e812e8164f9b9e15e63512ea` (PR #637/T2 #38981435925). Stage 5A's authorized base remains `9ad4756c07f3a848750ea10cd2a14af7b63f8e6d`; live integration was revalidated at coordination commit `f1d150c71d86269e22abd8e271301ff27b42cc88`. Intervening documentation movement did not alter or rebase the Stage 5A product checkout.
+- Stage 4A–4C and ADR-020 remain **COMPLETE / VERIFIED / FROZEN only within Stage 4 V1**; broader #588 Stage 4 remains **PARTIAL**. The Product Owner explicitly authorized the next development sequence on 2026-10-19: after Stage 5A acceptance, return to finish the ADR-021 residuals, in bounded 4D–4G packages, before Stage 5B/6. [Direction recorded in #588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6267755298). Statistical method/threshold validation remains required; no frozen 4A–4C contract changes.
+- The pinned local chat **CODEX** (`01a09bc8-2aff-7b41-b674-039dc2befbe1`) successfully received Main's resumed #639 order on 2026-10-19. Turn `01a15436-ac15-7e92-8102-96e236b8ea0a` acknowledged the assigned checkout and is implementing the review corrections. The previous `thread not found` messaging blocker is superseded. Receipt/status is recorded in [#639](https://github.com/brunolrogerio-collab/EliteSCADA/issues/639#issuecomment-6267655706).
+- Main's read-only review requires canonical screen save/load coverage for all six types with their bindings/configuration, rendering the loaded model in Preview/Runtime, actual theme colors in the graphics, visible/accessibly described internal band limits, and complete units in the target label. CODEX owns these bounded corrections, local checks and one PR with `VALIDATION_PROFILE: UI_EDITOR` and T1 on the exact head. Main then owns review, integration and T2; Product Owner manual Preview remains required before #639 acceptance/freeze. Prior local Web build/five tests remain historical evidence rather than proof of the new corrections.
+- Only coordination documents are being worked in parallel. After #639 acceptance Main must revalidate/dispatch the next exact-base Stage 4 package under the existing owner authorization. Stage 5B/6 remain unreleased pending Stage 4 residual disposition. No HA, drivers, FND/FC0 or full Wave 15 status is changed.
+
+---
+
+# HISTORICAL RESUME POINT — STAGE 4 V1 FROZEN; BROADER STAGE 4 PARTIAL; STAGE 5A ACTIVE — 2026-10-16
+
+Read this entry, [the short coordinator pointer](docs/CURRENT-COORDINATOR-HANDOFF.md), [Main's current order](docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md), and live issues [#588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588), [#639](https://github.com/brunolrogerio-collab/EliteSCADA/issues/639), and [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305). Current implementation source remains the product tree at the exact refs below; docs-only movement does not change that tree.
+
+- Current product code checkpoint: `wave15/corrections-integration@81ac4193194e1471e812e8164f9b9e15e63512ea`, PR #637 merge. Documentation-only handoff commits do not alter that product tree. Stage 5A #639 was dispatched on exact integration base `9ad4756c07f3a848750ea10cd2a14af7b63f8e6d` after docs PR #641; the active implementation must stay on its authorized branch/base and be reviewed before integration.
+- Stage 4A/4B/4C is **COMPLETE / VERIFIED / FROZEN within the Stage 4 V1 acceptance boundary** recorded in [the Product Owner decision](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6227366063) and [ADR-020](docs/ADR-020-INTELLIGENCE-STAGE4-V1-ACCEPTANCE.md). **The broader Stage 4 in product issue #588 remains PARTIAL.** Reference windows/context are user-selected; the system does not certify baseline health or global regime equivalence, and multi-signal results are independent per-TAG scores, not a joint model. This clarification does not alter ADR-020 or reopen frozen 4A–4C contracts.
+- Exact 4C candidate T1 [#38978898568 attempt 3](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38978898568) passed on `fb848907362af97762180b70be9a7bd5b12fc020`; focused local analytics/API tests were **206/206** and Release API build had **0 warnings / 0 errors**.
+- Exact post-merge T2 [#38981435925 attempt 2](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38981435925) passed on product merge SHA `81ac4193194e1471e812e8164f9b9e15e63512ea`: backend Core 674, PostgreSQL 127, Historian 41, Drivers 1,628 passed / 1 skipped, Security 42; Runtime smoke, Web build, and Chromium integration smoke passed. Full-browser E2E was skipped and is not claimed. The first T2 attempt timed out in an unchanged Z-Wave fake-sidecar test; Linux/SDK 10.0.400 reproduction passed isolated 3/3 and Drivers 1,628 / 1 skipped; root cause remains unestablished.
+- The remaining-gap audit is recorded in [#588](https://github.com/brunolrogerio-collab/EliteSCADA/issues/588#issuecomment-6226876195). The Product Owner’s “siga” was recorded as acceptance of the bounded V1 limits, not as evidence that every broader Stage 4 capability was implemented or permanently waived.
+- Current active slice: [Stage 5A #639](https://github.com/brunolrogerio-collab/EliteSCADA/issues/639), six generic display-only measurement widgets in the canonical editor toolbox. Preserve its in-progress work; it does not substitute for or close the broader Stage 4.
+- **Corrected next-stage gate:** after Stage 5A is accepted, Main must publish a decision-ready residual Stage 4 package proposal against #588 before releasing Stage 5B or Stage 6. Resolve the remaining baseline/reference responsibility, operating-regime semantics, joint multivariate detection and representative validation evidence; keep high-frequency vibration as a separate acquisition/feature question. No frozen 4A–4C contract may be changed. Stage 5B/6 stay unreleased until the residual requirements are implemented and verified or explicitly deferred by the Product Owner.
+- The Product Owner's manual visual Preview remains a separate acceptance after Stage 5A integration. No full Intelligence, FND/FC0, HA Preview, or Wave 15 closure is inferred.
+
+---
+
+# HISTORICAL VERIFIED CHECKPOINT — ADR-014 TEMPORAL PROVENANCE — 2026-10-15
+
+> The bounded ADR-014 temporal-provenance slice is **INTEGRATED / VERIFIED / FROZEN** at product checkpoint `wave15/corrections-integration@30f1bd4bd285fcaf39b925daf4d77e97d7b61ad1`. The first post-merge run exposed a Timescale assertion failure; the scoped xUnit collection-serialization correction was merged as PR #615 and the exact-head plus broad post-merge gates now pass. This checkpoint does not close Intelligence issue #588, authorize its later stages, or close Wave 15.
+
+- Product implementation PR [#614](https://github.com/brunolrogerio-collab/EliteSCADA/pull/614) merged at `e7708d484d37619d03e07f9b3bc7abb41b0e5723`. Its pre-merge T1 passed, but post-merge CI [#38774797199](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38774797199) failed in `Provider_V2RoundTripsEvidencePolicyAndKeepsV1ProjectionFrozen`: expected zero infrastructure advisory locks, observed one. The failure was not reproduced locally and its cause remains unestablished.
+- Correction PR [#615](https://github.com/brunolrogerio-collab/EliteSCADA/pull/615) added only xUnit collection serialization for `Scada.Historian.TimescaleDb.Tests` plus coordination records. No product or HA implementation/test code changed; no tests were removed or altered. It merged at `30f1bd4bd285fcaf39b925daf4d77e97d7b61ad1`.
+- Exact-head T1 [#38776920931](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38776920931) passed on PR head `0f05025cdc55853d9b7a42b2de68398257c43a06`: Timescale 41/41, classifier, Common T1 sanity, and final gate passed. Web, Chromium, HA, and protocol sidecars were skipped by the effective profile and are not claimed as passed.
+- Broad post-merge CI [#38777257511](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38777257511) passed on exact merge SHA `30f1bd4bd285fcaf39b925daf4d77e97d7b61ad1`: Core 639/639; PostgreSQL 127/127; Timescale 41/41; Drivers 1,473 passed / 1 skipped / 0 failed; Security 42/42; backend build/test/runtime smoke passed; Web build passed; Chromium integration smoke 13/13 passed. Full-browser E2E was skipped by workflow conditions and is not claimed as passed.
+- Local evidence: the exact failing Timescale test passed in isolation and the full Timescale project passed 41/41 on Windows, including with the runner configuration copied beside the assembly and no CLI parallelism override. The original CI failure remains unexplained; serialization is the bounded correction validated by exact-head T1 and T2, not proof of the failure's causal mechanism.
+- ADR-014's bounded persistence/read slice is frozen only at this scope. Intelligence issue #588 remains open; the subsequent KPI, baseline/deviation, guided dashboard, and hardening stages remain separate and unauthorized until Main/Product Owner issues a binding order. No HA behavior or HA acceptance was tested here. Wave 15 remains open.
+
+# LATEST POST-MERGE CHECKPOINT — ASSET & PROCESS INTELLIGENCE STAGE 3A #604 — 2026-10-14
+
+> PR [#605](https://github.com/brunolrogerio-collab/EliteSCADA/pull/605) merged into `wave15/corrections-integration` at `bbbfb84693d512e5cdc4e1a504b60f492ff88b37`. Required pre-merge base: `49764e5dfd23be2f57bfd8ff87081064a776a182`; PR head: `c35921bbbc2cf979b62441dbfefe3121596f5d1d`. GitHub and exact-SHA Actions evidence are authoritative.
+
+- Adds an on-demand, read-only, versioned v1 descriptive KPI catalog/query over one numeric TAG and one active v2 Equipment/Location scope. It consumes the existing `historian.samples` v1 service, scope execution permit, Asset & Process Intelligence entitlement, `TrendUse`, and per-TAG `TagRead`; it does not add SQL, a worker, cache, store, schema, formula language, write endpoint, UI, or Stage 1/2 contract change.
+- Main's workspace-coherence clarification is enforced before source resolution and every page: workspace must be clean and exactly match the active runtime project/revision. Dirty/mismatched state is a conflict with zero historical queries. Scope ancestry uses stable Location IDs. `SignalRole` remains free text and is not interpreted.
+- KPI outputs distinguish raw observations from derived values; accept finite numeric `Good` samples only; preserve quality/rejected counts, exact UTC window, active TAG unit, versions and source-assignment provenance; completeness is `unknown`. Optional comparison is same-TAG/equal-duration only and makes no regime-equivalence claim. Existing query limits remain 31 days and cursor paging; Stage 3A also bounds each window to 50,000 rows and refuses a result at the cap if another cursor page remains.
+- Main review applied to this candidate: revalidate both `TrendUse` and `TagRead` around every page, and prove revocation while a query is in flight yields no partial result. Ambiguous scope IDs fail closed; canonical `AssetProcessIntelligenceEngineeringValidator.Validate` already rejects duplicate `(Kind, ScopeId)` with `INTELLIGENCE_SCOPE_DUPLICATE`, and the defensive read path returns a stable conflict rather than allowing `SingleOrDefault` to throw.
+- Focused local validation: `AssetProcessIntelligenceAnalyticsTests` **23/23 passed** after the implementation and documentation checkpoint. API build **0 warnings / 0 errors**.
+- Broader local Drivers profile: **1,412 passed / 1 skipped / 1 failed** on an unrelated Server Script timeout. The same isolated test fails on the exact required base commit, so it is baseline/non-causal evidence; the coordinator also recorded the same signature on #601. Do not claim this local profile green.
+- Final exact-head T1 on PR head `c35921bbbc2cf979b62441dbfefe3121596f5d1d` **passed** in [run #38592961607](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38592961607): .NET 1,413 passed / 1 skipped / 0 failed; profile classification, Common T1 sanity, and final gate passed. Chromium, Web, HA two-process, and specialized protocol sidecars were skipped by the selected profile; they are not claimed as T1 evidence.
+- Post-merge [EliteSCADA CI #38593393454](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38593393454) passed on merge SHA `bbbfb84693d512e5cdc4e1a504b60f492ff88b37`: Backend build/test/runtime smoke passed (Core 604, PostgreSQL 127, Historian 38, Drivers 1,413 passed / 1 skipped, Security 42); Web build passed; Chromium merge integration smoke passed 13/13. Full-browser E2E was skipped by workflow conditions.
+- Issue #604 is closed; parent #588 and Wave 15 remain open. This is Stage 3A only: it does not close Stage 3B, Stage 5, FND, FC0, or Wave 15. The user's separate Stage 1 permit policy—resource-grant revocation cancels the active permit; restoring the grant requires explicit reactivation—was handed to Main in [PR #605 comment](https://github.com/brunolrogerio-collab/EliteSCADA/pull/605#issuecomment-6172452305), not implemented in Stage 3A. Implementation details remain in [ADR-011](docs/ADR-011-ASSET-PROCESS-INTELLIGENCE-STAGE3A.md).
+
+# LATEST POST-MERGE CHECKPOINT — ENGINEERING TABULAR EXCHANGE #597 — 2026-10-13
+
+> PR #598 is integrated into `wave15/corrections-integration` at merge commit `3883b86cdf5cbfff74af92519eaa568aece005b4`. GitHub is authoritative for the live branch and CI state.
+
+- Main review caught and fixed fail-open handling of unknown CSV/XLSX headers. The parser now rejects unsupported and duplicate columns with named diagnostics; tests cover all five tabular entities, arbitrary known-column order, locale/null/default semantics, and API Preview/Apply rejection without Workspace mutation.
+- Final pre-merge head `e0512c2f218f0ebbaf909a6650231e53123459a1` passed exact-head T1 #38488509219: Core 585/585; Drivers 1,374 passed / 1 skipped / 0 failed; Chromium 16/16; Web semantic build, Common sanity, classifier and T1 gate passed. HA and specialized sidecars were skipped by profile.
+- Exact post-merge EliteSCADA CI #38489137716 passed on merge SHA `3883b86cdf5cbfff74af92519eaa568aece005b4`: Backend build/test/runtime smoke passed (Core 585, Engineering 126, Drivers 1,374, Security 42; no failures); Web build passed; Chromium merge integration smoke 13/13 passed. Full-browser E2E was skipped by workflow conditions.
+- The `--no-deps` local E2E attempt had 7 passes and 1 fixture-dependent failure because it bypassed first-project bootstrap; the complete T1 Chromium profile passed 16/16. The disposable database was removed; stable containers were untouched.
+- Issue #597's implementation and post-merge verification are complete. This integration does not close Wave 15 or FND/FC0 and does not claim HA/sidecar validation. Next in the recorded product sequence is #472 F5/F6, after live issue/base revalidation.
+
+# HISTORICAL PRE-MERGE REVIEW CHECKPOINT — ENGINEERING TABULAR EXCHANGE — 2026-10-13 21:09 BRT
+
+> Main review follow-up is pushed to PR #598. Code head `20e1583a5e1db609c52f1d2a7f5d2bea5be17dcd` plus documentation checkpoint `79dd85c251567240f6e565bacaa37ec6a81a35f7` are on the exact base `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`. GitHub PR #598 stays draft and unmerged.
+
+- CSV/XLSX now reject unsupported headers for each of the five flat entities with an `InvalidDataException` naming the column(s); known headers remain case-insensitive and order-independent. Duplicate-header errors now name the repeated column. API Preview and Apply both reject an unknown column before any workspace version or export changes.
+- ADR-004 now defines the CSV/XLSX lexical contract: invariant numbers, blank/null handling, explicit field defaults, paired-cell rules, and no implicit date semantics in v1. Regression coverage exercises those rules under `pt-BR`, unknown/duplicate headers, and reordered supported headers for CSV and XLSX.
+- Local validation on the code head: focused tabular Core 50/50; full Core 585/585; API build 0 warnings/errors; Web production build passed (existing large-chunk advisory); targeted Chromium API regression 1/1 passed. A broader local attempt with `--no-deps` passed 7 tests and exposed one fixture precondition (a separate restore test expects the first-run project setup); the authoritative full profile then passed its setup and all 16 Chromium tests. Exact-head code T1 [#38487588418](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418) **passed** on `20e1583a5e1db609c52f1d2a7f5d2bea5be17dcd`: Core 585/585, Drivers 1,374 passed / 1 skipped / 0 failed, Chromium 16/16, plus Web semantic build, Common sanity, classifier and T1 gate. The documentation checkpoint `79dd85c251567240f6e565bacaa37ec6a81a35f7` also passed exact-head T1 [#38488056494](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38488056494) with the same profile counts. HA two-process and Matter/Native Zigbee/KNX/Z-Wave sidecars were skipped by both profiles. Code-run jobs: [Core/Drivers](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418/job/115604920335), [Chromium](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418/job/115604920213), [Web](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418/job/115604920309), [Common](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418/job/115604920210), [T1 gate](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418/job/115606048493). The live PR checks remain authoritative for any following docs-only commit.
+- The one disposable PostgreSQL test container (`elitescada-w15-tabular-e2e-resume-20261013`, bound to `127.0.0.1:15433`) was removed after the browser test. The four stable Docker services remain healthy and untouched.
+- Scope remains flat Engineering collections only. Keep PR #598 draft; no merge, Wave 15 completion, or FND/FC0 claim is authorized by this follow-up. Both the code and first documentation checkpoint have green exact-head T1; use live PR checks for subsequent docs-only revisions.
+
+# PREVIOUS ENGINEERING TABULAR EXCHANGE CHECKPOINT — 2026-10-13 18:58 BRT
+
+> Current execution snapshot. GitHub is authoritative; PR #598 remains draft and unmerged.
+
+- Issue: [#597](https://github.com/brunolrogerio-collab/EliteSCADA/issues/597), branch `work/w15-engineering-tabular-import-export`, exact base `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418` (revalidated against the live GitHub branch after resuming from machine suspend).
+- Scope remains flat CSV/XLSX exchange for TAGs, Alarms, Data Sources, Gateway routes and Engineering Operational Event definitions. Import delegates to canonical Preview/Apply, preserves merge modes and version protection; complex graphs, Runtime occurrences and audit records remain excluded. Secret-like settings fail closed.
+- Bounded export was added: CSV and XLSX compressed output capped at 16 MiB, XLSX expanded worksheet XML capped at 32 MiB, plus row/column/cell limits and streamed XML writing. Oversized output has regression tests.
+- Follow-up code after published head `8c8539ff91524e8d44d62ce0a1d24147650713bd` hardens XLSX row/cell references and adds invalid-Gateway no-mutation regressions. Commit `29ff6d114096bfdc0b63dc9b3e18cbcf6567b9cb` is pushed to the draft PR. Local revalidation after resuming from suspend: full Core 573/573; `git diff --check` passed. Earlier focused evidence: tabular Core 38 passed; `EngineeringFragmentServiceTests.SelectedScript_TransfersItsScriptDependencyClosure` 1/1; API build 0 warnings/errors; Web production build passed with its existing large-chunk advisory; clean PostgreSQL browser contract 9/9 including secure first-use and CSV Preview/rejected Apply/no mutation; pt-BR/en/es contract 6/6. All five entities round-tripped across CSV/XLSX and the mounted UI apply flow was exercised.
+- Exact base at lane start and immediately revalidated before publication: `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`. Code commit `2713bf737768b2839fcc1b9040ade2392a78d61c`, documentation checkpoint `8c8539ff91524e8d44d62ce0a1d24147650713bd`, and follow-up `29ff6d114096bfdc0b63dc9b3e18cbcf6567b9cb` are published in draft PR [#598](https://github.com/brunolrogerio-collab/EliteSCADA/pull/598).
+- Exact-head T1 [#38473869789](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38473869789) **passed** on `29ff6d114096bfdc0b63dc9b3e18cbcf6567b9cb`. `FOUNDATION_LIFECYCLE` was classified and selected Core: Core 573/573; Drivers 1,374 passed / 1 skipped / 0 failed; Chromium 15/15; Web semantic build, Common sanity, profile classifier and T1 gate passed. HA two-process, Matter, Native Zigbee, KNX and Z-Wave sidecars were skipped by this profile. Job links: [Core/Drivers](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38473869789/job/115559650572), [Chromium](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38473869789/job/115559650533), [Web](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38473869789/job/115559650647), [Common](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38473869789/job/115559650672), [T1 gate](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38473869789/job/115560991031).
+- Historical T1 [#38471512612](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38471512612) failed before evidence because the initial PR body omitted `VALIDATION_PROFILE`; this was a classifier failure only. On previous head `8c8539ff91524e8d44d62ce0a1d24147650713bd`, run [#38471829832](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38471829832) attempt 1 had a transient Z-Wave fixture timeout; its one authorized selective retry passed. Do not attribute those previous-head results to the current commit. Earlier local broad Drivers.Tests runs reported a distinct Server Script failure; the exact T1 run on the current SHA passed the prescribed Drivers suite. No unrelated test was changed.
+- The clean PostgreSQL/browser run used a disposable container bound only to `127.0.0.1:15433`, then removed it with its anonymous test volume; stable containers were not touched. After the latest computer resume, Docker showed the stable services healthy and no temporary test container; the full Core suite was rerun and passed again (573/573).
+- State: keep PR #598 draft and do not merge. The scoped product follow-up has a green exact-head T1; this checkpoint refresh is documentation-only. Main review remains required; the green T1 does not authorize merge or claim Wave 15 completion.
+
+# HISTORICAL COORDINATION CHANGE — 2026-10-06 22:31 BRT
+
+# LATEST COORDINATION CHANGE — 2026-10-13
+
+> This current snapshot supersedes the older live-state summaries below. GitHub remains authoritative.
+
+## Current product and documentation checkpoints
+
+- **Product checkpoint:** `wave15/corrections-integration@71bd07508e3340699bbb40c4463a8c5ac788c0d9`, integrated by PR #594. This is the Matter Wi-Fi product-code checkpoint.
+- **Documentation-only checkpoint:** PR #595 was integrated as `380945455f9aac1965062ca5c694c6ce642106ad`. It updates the Matter ADR only and does not change product bytes.
+- **Matter status:** integrated only as experimental. The pt-BR Data Source selector label is `Matter Wi-Fi (Versão em teste)` (localized equivalents in other supported locales). Runtime remains absent by default and opt-in only with `Engineering:DeveloperPreviews:MatterWifiV1=true` in Development/Test; the feature remains unavailable in Staging/Production and hard-blocked in HA. After Wave 16, a more stable replacement/prepared version is required before any distribution.
+- **PR #594 T1:** [run #38459079656](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38459079656) SUCCESS on exact head `c359e5cedbf5cb31c7e89bd37c42ee8c38a51fcd`, including focused Chromium/E2E 22/22.
+- **PR #594 post-merge CI:** [run #38460067106](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38460067106) SUCCESS on merge SHA `71bd07508e3340699bbb40c4463a8c5ac788c0d9`: Backend build/test/smoke, Web build and Chromium integration smoke passed; the full-browser E2E step was skipped.
+- **PR #595 documentation T1:** [run #38461300419](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38461300419) SUCCESS on exact head `ac30f561c7ebc00a049ae26c392b769f21f09bdf`. There was no post-merge run for PR #595 at the time of this snapshot; do not claim one passed.
+- No Matter real-device/network, commissioning, interoperability, HA, production, L2/L3 or distribution validation is claimed. The decision to integrate an experimental version does not grant any of those approvals.
+- This checkpoint does **not** declare FND/FC0 or Wave 15 complete. Remaining Wave 15 closeout remains tracked under #306/#300/#379/#424/#425. Preserve existing issue gates and decisions; revalidate the live integration ref before any next lane.
+
+---
+
+# HISTORICAL COORDINATION CHANGE — 2026-10-12 15:35 BRT
+
+> Superseded by the current checkpoint above. Kept for historical continuity; GitHub remains authoritative.
+
+Verified product checkpoint at that time: `wave15/corrections-integration@12d4d17a8ae007c27525247e44b1f34c2a5f5b85` (PR #582). Coordinator handoff/roadmap and root snapshot were refreshed in documentation-only PRs #583-#585.
+
+## HOME/BUILDING protocols requested for closeout (historical)
+
+- Zigbee2MQTT Bridge — PR #575 integrated at `ff567102bef09fba8ab26a6b13db678b0a85b842`; integration CI #38015062177 passed.
+- DALI-2 — PR #581 integrated at `7eea131616cb3004d1276e8950a23c96cdbbfe15`; post-merge CI #38275180334 passed. Scope is the documented Intesis 700 profile via existing `modbus.tcp`, not native DALI.
+- Native Zigbee + KNX/IP Secure — PR #582 integrated at `12d4d17a8ae007c27525247e44b1f34c2a5f5b85`; exact-head T1 #38289456476 passed, specialized L3 #38289748222 passed, and post-merge CI #38290979603 passed on that exact merge SHA. Full browser E2E was skipped by workflow conditions. Native Zigbee and KNX sidecar evidence includes Windows and Linux.
+
+Coordinator documentation PRs #583-#585 each passed exact-head `DOCS_I18N_HELP` T1. Issues #577/#578/#579 and superseded qualification PR #580 are closed with lineage recorded in #305/#472.
+
+Physical L4/device compatibility remains deferred. This does not advance FND/FC0 or close Wave 15. Remaining tracked Wave 15 closeout is #306/#300/#379/#424/#425. No additional Home/Building lane is released; the next step is owner/coordinator review of the remaining protocol families and hardware plan.
+
+---
+
+Outgoing Main handoff recorded in:
+`docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-06-2231.md`.
+
+Accepted product checkpoint remains:
+`27a9347e3d6f87db799a1541de2a27484b8bda51`
+from PR #550 / #549 S0 with T1 #929 (`513 passed / 0 failed / 0 skipped`).
+
+Current execution:
+- #554 S1 transient-event Runtime released, branch untouched at product checkpoint;
+- #534 HA remains CODEX_LOCAL, backup branch `f4e4adf...`, not integration-ready;
+- #552 Mitsubishi research accepted/closed;
+- #553 Panasonic research accepted/closed;
+- no industrial product branch active;
+- only unrelated open PR at outgoing revalidation: #362.
+
+GitHub live is the authority; revalidate before acting.
+
+---
+# PRODUCT-OWNER ACCEPTANCE / CURRENT INTEGRATION — 2026-10-06
+
+> Supersedes older Wave 15 current-state and remaining-issue wording below. GitHub is authoritative.
+
+## Accepted scope
+
+- Product integration: `wave15/corrections-integration@25df20bf562acf6c3d78eb2e953f7010729b7c49` (merge PR #529).
+- PR #529 T1 validation run `37492274954`: SUCCESS on its exact PR head; Dynamo inspector properties and Runtime parameter-kind corrections are integrated.
+- Product Owner accepted and closed issues #484, #501 and #308 on 2026-10-06. The EliteSCADA-owned SVG factory/catalog is accepted without third-party SVG curation as a Wave 15 gate; the current Dynamo set is usable and accepted; further visual-layer polish is future work, not a Productization blocker.
+- Also closed: #482 (visual library), #496 (visual utility objects/media), #500 (driver diagnostics convergence), #503 (responsive editor/Runtime) and #445 (historical playback).
+
+## Remaining Wave 15 gate
+
+- Post-merge CI run `37494810971` on exact SHA `25df20bf562acf6c3d78eb2e953f7010729b7c49`: SUCCESS (Web build, Backend build/test/runtime smoke, Chromium Wave 15 merge integration smoke). The separate full-browser E2E step was skipped by workflow conditions; do not claim that suite ran.
+- Productization and final Preview remain active under #306 and #300; localization/help/manual remain open under #379/#424/#425.
+- PR #362 remains open on the independent Preview workbench branch and is not part of the product integration PR set.
+- Current product issues #484/#501/#308 are CLOSED by Product Owner acceptance; do not reopen or count future visual polish as a Wave 15 blocker.
+
+## Owner-directed next coordinator: Home/Building automation
+
+- The next coordinator should start the Home/Building automation-driver program from #472, using #475 as research input. This is an explicit Product Owner priority; the older “WAIT_CURRENT_LANES / planning only” wording in #472 is superseded.
+- Owner decision trail: [#472 program reprioritization](https://github.com/brunolrogerio-collab/EliteSCADA/issues/472#issuecomment-6020829024), [#483 foundation gate](https://github.com/brunolrogerio-collab/EliteSCADA/issues/483#issuecomment-6020829446), [#475 research review](https://github.com/brunolrogerio-collab/EliteSCADA/issues/475#issuecomment-6020829995).
+- Kickoff immediately with a live audit of #469 (reuse its Host Serial foundation), #483 (still OPEN: canonical TAG/DataSource identity, Equipment/Template independence and integration-catalog convergence), and #475 (still OPEN: review each dossier's GO/WAIT/REJECT and legal/hardware/test constraints).
+- Close or narrowly revise the #483 prerequisites against current integration before starting protocol-specific implementation; then launch the first driver slice chosen from verified #475 evidence. Do not duplicate existing BACnet/IP support, invent a second TAG/runtime model, or claim unverified device compatibility.
+- Wave 15 is not declared complete by this handoff: #306/#300/#379/#424/#425 remain tracked. Their remaining productization work must be kept visible while the owner-directed Home/Building stream begins.
+
+---
+
+# FINAL REVALIDATION CORRECTION — 2026-10-03
+
+> Supersedes the active-lane status in earlier 2026-10-03 handoff text below.
+> GitHub live remains authoritative.
+
+Current integration after the first handoff-doc merge:
+`e606d3f5dd50617fb5948372f909a5553dd97c36`
+
+Active branches were released from:
+`aca641501302edb04f32b83b04adf0726d7e8a96`
+
+The resulting `behind 7` against current integration is documentation-only. Do not require DEV rebases merely for those handoff docs.
+
+Final outgoing lane state:
+- #482 `work/w15-visual-library-catalog`: still no implementation commit, no PR; `ahead 0 / behind 0` vs release base.
+- #483 `work/w15-home-building-h0@9b2cea1293e8bdd0ab250a28446bd53cee8d8697`, tree `8fbd95cfeed9e95ca296957e1d5855d2eab78eb8`; one WIP commit touching `web/scada-web/src/engineering/types.ts`; no PR/handoff yet.
+- #484 `content/w15-builtin-asset-curation-b1@055deb4df30eaf3e8af4d33fdc8739cf3d1b9df4`, tree `bca34cc2ea3b12124db703244ed715ebced9e0f9`; 86 draft assets in current batch manifest; no PR/handoff yet.
+
+#483 and #484 are WIP, not Main-accepted.
+CODEX remains parked.
+Protocol-driver fan-out remains blocked.
+
+---
+
+# LATEST DELTA — 2026-10-03 — BATCH 3 CLOSED / NEXT BATCH ACTIVE / MAIN HANDOFF
+
+> GitHub live remains the sole authority. This delta supersedes older current-state wording below when there is a conflict.
+
+Accepted Batch-3 product checkpoint:
+`9b596286a40b1649564075626e817cc61e32e7bc`
+
+Batch-3 exact combined T1 #619 / run `37092144575`: SUCCESS.
+Post-merge slim on the product checkpoint: Web SUCCESS / Backend SUCCESS / Chromium SUCCESS.
+
+Roadmap consolidation then advanced integration documentation-only to:
+`aca641501302edb04f32b83b04adf0726d7e8a96`
+
+Active next batch released from that exact base:
+- #482 Visual Library Catalog V1 — `work/w15-visual-library-catalog` — ahead 0 / behind 0 / no PR;
+- #483 HOME/BUILDING H0 — `work/w15-home-building-h0` — ahead 0 / behind 0 / no PR;
+- #484 Asset Curation Batch 1 — `content/w15-builtin-asset-curation-b1` — WIP head `055deb4df30eaf3e8af4d33fdc8739cf3d1b9df4`, tree `bca34cc2ea3b12124db703244ed715ebced9e0f9`, ahead 1 / behind 0, 86 draft assets, no PR/handoff yet.
+
+Canonical full successor snapshot:
+`docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-03-NEXT-BATCH-ACTIVE.md`
+
+Still blocked:
+- SVG-first/core.svgSymbol V2 until #482 disposition;
+- HOME/BUILDING H1-H6 until #483 disposition;
+- every protocol-specific HOME/BUILDING driver;
+- no CODEX mission now.
+
+Permanent visual rule: PR #451 artwork is rejected and must not be reused.
+
+Final Wave 15 closure still requires #379 final i18n, #424 Help, #425 Manual, #308 visual acceptance, #306 Productization/EEE and #300 final fresh Preview.
+
+---
+
+# LATEST DELTA — 2026-09-27 — CHAT HANDOFF / #362 REVIEW PENDING / CONTAINER-NATIVE CORE DIRECTION
+
+> This delta supersedes older current-state wording below when there is a conflict. GitHub live remains the sole authority.
+
+## Product authority
+
+Accepted Wave 15 product checkpoint remains:
+`1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`
+(tree `5e5fce8ce87f31dfc11b83bb68ff86c67f9f0112`).
+
+Do not confuse later coordination/docs commits with accepted product bytes.
+
+## ENV_A canonical harness
+
+Accepted repaired harness remains:
+`preview/w15-first-project-env-harness@50a4451aa122f7f9fd0af98173c184f6623a147b`
+(tree `5efeafb08725a90ce0c3df689b8d613f165bb569`).
+
+## #360 local operator candidate delivered — review pending
+
+CODEX delivered PR #362:
+- title: `feat(preview): add safe local workbench operator`;
+- branch: `preview/w15-vs-local-runner`;
+- exact HEAD: `13cb1fcaa3091085515e4d84a3d3e894db541f5f`;
+- base: `preview/w15-first-project-env-harness@50a4451...`;
+- PR: OPEN / mergeable / NOT MERGED.
+
+Changed paths:
+- `docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md`;
+- `docs/LOCAL-FIRST-PROJECT-PREVIEW-HARNESS.md`;
+- `docs/VISUAL-STUDIO-AI-LOCAL-ELITESCADA-BOOTSTRAP.md`;
+- `scripts/preview/elite-local.ps1`;
+- `scripts/preview/local-audit.ps1`;
+- `scripts/preview/test-local-operator.ps1`.
+
+CODEX reports static/operator/dependency-identity regressions PASS.
+
+Important:
+**full lifecycle proof on exact HEAD `13cb1f...` is NOT_TESTED** because Main has not accepted this changed harness SHA for a new ENV_A session.
+
+Shared CODEX control rev 0097:
+`4147b108b74ec68082baa3b29c003ea4a515c1d5`.
+
+State:
+`WAIT_PENDING_MAIN_REVIEW / DO_NOT_CONTINUE_OR_MERGE`.
+
+Full Visual Studio AI bootstrap copy:
+Issue #305 comment `5858902468`.
+
+Local-operations evidence handoff:
+Issue #305 comment `5859122865`.
+
+Mandatory next Main action:
+1. revalidate PR #362 live exact head/base;
+2. inspect all six changed files and compare with accepted harness `50a4451...`;
+3. verify reset/persistence/accepted-SHA gating and infrastructure-only scope;
+4. if acceptable, explicitly authorize exact `13cb1f...` for full lifecycle validation;
+5. require full lifecycle proof before merge/promotion.
+
+## Product Owner strategic architecture — containerized core
+
+Product Owner clarified the desired long-term architecture:
+
+**The containerized EliteSCADA Core should be the common product implementation. Platform/host architecture surrounds this same core to make it operational on each supported environment.**
+
+Architecture owner:
+- #363 — `ARCH-CONTAINER-FIRST — distribuição OCI canônica, multi-arch e perfis Windows/Linux/Edge`.
+
+Canonical ADR:
+- `docs/ADR-010-CONTAINER-NATIVE-DISTRIBUTION.md`;
+- commit `c15a6f102945f40de51c39dfcf018554dd2eb14f`.
+
+Stable Product Goal direction:
+- commit `59fcab51ae927e3799c009bb559c60eb679ab932`.
+
+Linux distribution reconciliation:
+- `docs/LINUX-DEBIAN-DISTRIBUTION.md`;
+- commit `0a9236c1a793e886595448f7592cf4385964e1cd`.
+
+Preferred architecture candidate:
+
+`canonical OCI core + external persistent state + host adapter + deployment capacity profile`.
+
+Initial OCI architecture targets:
+- `linux/amd64`;
+- `linux/arm64`.
+
+Host/platform adapters may provide:
+- Windows service/host integration around a validated unattended OCI runtime;
+- Linux systemd/OCI integration;
+- industrial Edge/PLC container manager integration;
+- future appliance/server integration.
+
+Rules:
+- no separate Lite/Edge product fork by default;
+- same product contracts and `.escadapkg`;
+- Edge capacity is an evidence-based deployment envelope, not a second product;
+- commercial license entitlement is independent from physical hardware capacity;
+- do not bind licensing to container ID, random hostname, veth/MAC or image digest;
+- image recreate/update on the same authorized deployment host must not force license reissue;
+- first constrained-Edge topology prefers external PostgreSQL/TimescaleDB;
+- support is per homologated CPU/runtime/Driver/network/resource matrix;
+- container-native does not mean literally every OS/device is automatically supported.
+
+Windows native packaging remains preserved until an unattended industrially supportable Windows container-host spike proves OCI can safely replace it.
+
+Current architecture disposition:
+`CONTAINER-NATIVE PREFERRED ARCHITECTURE CANDIDATE / TECHNICAL VALIDATION REQUIRED / IMPLEMENTATION NOT YET AUTHORIZED`.
+
+#360 must not widen into #363 implementation.
+
+## Human Preview / correction state retained
+
+Human Preview remains:
+`BLOCKED_BY_PRODUCT / COMPLETE_FOR_FIRST_PASS`.
+
+Material correction owners remain:
+- #354 Demo/Runtime authority leakage;
+- #355 Data Source Type -> TAG blocker;
+- #356 Templates authoring discoverability;
+- #359 Security/Authority remote/Codespace failure with remote-latency hypothesis;
+- UX2 #357 / toolbox #358 / Editor #303 / Library-Dynamo #308.
+
+Stage 2 remains prepared, not active.
+
+## Coordinator transfer
+
+Preview control rev 0031:
+`297eb379b282ee3cebb9ce25aa30ac94026500ff`.
+
+Durable ledger:
+Issue #305 comment `5859163983`.
+
+No product mutation is authorized by this handoff.
+
+---
+
+# LATEST DELTA — 2026-09-27 — CONTAINER-NATIVE DISTRIBUTION ARCHITECTURE CANDIDATE
+
+> This delta supersedes older packaging/distribution strategic wording below when there is a conflict. GitHub live remains the sole authority.
+
+Product Owner expanded the local-container work into a strategic distribution direction.
+
+New owner:
+- #363 — `ARCH-CONTAINER-FIRST — distribuição OCI canônica, multi-arch e perfis Windows/Linux/Edge`.
+
+Canonical architecture ADR:
+- `docs/ADR-010-CONTAINER-NATIVE-DISTRIBUTION.md`;
+- commit `c15a6f102945f40de51c39dfcf018554dd2eb14f`.
+
+Stable Product Goal direction:
+- commit `59fcab51ae927e3799c009bb559c60eb679ab932`.
+
+Linux distribution reconciliation:
+- commit `0a9236c1a793e886595448f7592cf4385964e1cd`.
+
+Preferred architecture candidate:
+
+`same EliteSCADA product + canonical OCI image + external persistent state + host adapters + deployment capacity profiles`.
+
+Initial OCI target architectures:
+- `linux/amd64`;
+- `linux/arm64`.
+
+Key rules:
+- do not create a separate Lite/Edge fork by default;
+- Edge capacity limits are evidence-based hardware Deployment Capacity Profiles;
+- commercial license entitlement and physical platform capacity remain independent;
+- do not bind licenses to ephemeral container ID/hostname/veth MAC/image digest;
+- container recreate/update on the same authorized host must not require license reissue;
+- preferred first constrained-Edge topology is EliteSCADA OCI with external PostgreSQL/TimescaleDB;
+- official support is per homologated OCI host/runtime/Driver/resource matrix;
+- Windows native packaging remains preserved until an unattended industrially supportable Windows container-host strategy is proven.
+
+Relationships:
+- #360 collects local lifecycle/evidence only; no ADR-010 implementation in that mission;
+- #361 owns common installed lifecycle/host-adapter semantics;
+- #205/#207 must re-audit #363 when Windows packaging resumes;
+- #306 must only document the container profile after it becomes technically accepted.
+
+Preview control rev 0030:
+`2f9d9512a2a71f78619a80a7f82c092b9ea0ad82`.
+
+Ledger:
+Issue #305 comment `5859084494`.
+
+Disposition:
+`CONTAINER-NATIVE PREFERRED ARCHITECTURE CANDIDATE / TECHNICAL VALIDATION REQUIRED / IMPLEMENTATION NOT YET AUTHORIZED`.
+
+---
+
+# LATEST DELTA — 2026-09-27 — LOCAL OPERATIONS EVIDENCE REQUIRED / INSTALLED SERVICE LIFECYCLE OPENED
+
+> This delta supersedes older local-operator planning wording below when there is a conflict. GitHub live remains the sole authority.
+
+Product Owner added two related operational requirements.
+
+## Canonical local-running evidence
+
+Before #360 completes, CODEX must create:
+
+`docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md`.
+
+The file must preserve real local-operation evidence and failure modes for reuse by:
+- the next fresh Preview;
+- #307/#359 local-vs-Codespace diagnosis;
+- Windows packaging #205/#207;
+- future Linux packaging;
+- installed-service design #361.
+
+Required topics include lifecycle behavior, persistence/destructive boundaries, readiness/health, diagnostics/redaction, provenance-manifest loss, LF/CRLF dependency identity, PowerShell->Bash line endings, evidence/runtime worktree isolation, Docker restart/resume and installer implications.
+
+Evidence labels:
+`CONFIRMED | OBSERVED | HYPOTHESIS | NOT_TESTED`.
+
+Shared CODEX control rev 0096:
+`523458b51dc4a13045ed2efd07452a8fae68bca1`.
+
+#360 requirement comment:
+`5858872903`.
+
+## Installed-service lifecycle
+
+New issue:
+- #361 — `INSTALL-OPS — lifecycle operacional como Windows Service e Linux systemd`.
+
+Product Owner intent:
+reuse the operational **semantics** now being proven locally for future installed administration, but not the Docker Preview implementation itself.
+
+Future production targets:
+- Windows Service / Service Control Manager;
+- Linux systemd.
+
+Normal start/stop/restart/status/diagnose must preserve persistent EliteSCADA state.
+Pause/resume should be implemented only if a technical audit proves safe/meaningful.
+Destructive reset/purge is not a normal service operation.
+
+Packaging links:
+- #205 comment `5858873311`;
+- #306 comment `5858873683`.
+
+Preview control rev 0029:
+`0d5e6523fd49cb87ae13e4da5c902d71fa8bc644`.
+
+Durable ledger:
+Issue #305 comment `5858878923`.
+
+---
+
+# LATEST DELTA — 2026-09-27 — REPAIRED HARNESS ACCEPTED / VISUAL STUDIO LOCAL OPERATOR ACTIVE
+
+> This delta supersedes older ENV_A harness current-state wording below when there is a conflict. GitHub live remains the sole authority.
+
+CODEX final repaired-harness lifecycle proof was accepted from Issue #305 comment `5858036695`.
+
+Accepted harness:
+- SHA `50a4451aa122f7f9fd0af98173c184f6623a147b`;
+- tree `5efeafb08725a90ce0c3df689b8d613f165bb569`;
+- product base `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Canonical harness branch was fast-forwarded:
+`preview/w15-first-project-env-harness -> 50a4451...`.
+
+Accepted proof includes:
+- dependency provenance stable across Windows LF/CRLF materialization;
+- preparation READY;
+- start/status stability;
+- pause/resume;
+- real Docker Desktop restart/resume;
+- separate evidence worktree commit without invalidating runtime preparation;
+- reset preserving dependency preparation;
+- second fresh start without package install/restore;
+- final NOT_STARTED / PREPARATION=READY.
+
+## Visual Studio local operator
+
+Product Owner authorized a reusable local container operator for native Visual Studio AI.
+
+Dedicated branch:
+`preview/w15-vs-local-runner`
+created from exact accepted harness `50a4451...`.
+
+Dedicated issue:
+- #360 — `W15-LOCAL-OPS — operador local containerizado + bootstrap para IA do Visual Studio`.
+
+Active CODEX route:
+`ROUTE-SEQUENTIAL-CODEX-VS-LOCAL-OPERATOR-BOOTSTRAP-78`
+commit `f1ec3ad28ceb0ce13a1d645e6ca84c356036301c`.
+
+Preview control rev 0028:
+`510291282cbdceca9bbdab806dd7f5b4524f55e9`.
+
+Preferred operator:
+`scripts/preview/elite-local.ps1`
+
+Required commands:
+`prepare | start | status | pause | resume | stop | restart | diagnose | reset`.
+
+Default behavior preserves local database/project/workbench state. `reset` is explicitly destructive and must require confirmation.
+
+Required native Visual Studio AI bootstrap:
+`docs/VISUAL-STUDIO-AI-LOCAL-ELITESCADA-BOOTSTRAP.md`.
+
+The bootstrap must let the Product Owner instruct Visual Studio AI in natural language to run, pause, stop, resume, restart and diagnose the local application without improvising Docker commands.
+
+The local operator is also the preferred manual/AI-assisted surface for comparing local behavior against Codespace/remote findings under #307/#359.
+
+This mission is infrastructure/docs only. Product corrections #354/#355/#359 and UX2 remain separate.
+
+Ledger:
+Issue #305 comment `5858162988`.
+
+---
+
+# LATEST DELTA — 2026-09-27 — SECURITY 402 REMOTE-LATENCY HYPOTHESIS ELEVATED
+
+> This delta supersedes older #359 causal wording below when there is a conflict. GitHub live remains the sole authority.
+
+Product Owner correlated the real Codespace Security/Authority failure with the established Wave 14 pattern where some browser/Engineering loads failed through the remote/forwarded path while local API/Vite remained healthy.
+
+This is consistent with:
+- Wave 14 A1 transport root `UNCERTAIN — BOUNDED`, with local API/Vite outage excluded in the captured window and forwarded-browser/static delivery left unresolved;
+- #307 remote/WAN resilience contract.
+
+#359 is now framed with the primary working hypothesis:
+
+`REMOTE_PATH_LATENCY_OR_FORWARDING_EXPOSES_TOO-TIGHT_CLIENT_TIMING / ERROR_MAPPING`.
+
+This is not yet the final root cause.
+
+Required diagnostic order:
+1. ENV_A local / normal latency;
+2. ENV_A local / deterministic remote-like latency+jitter injection;
+3. ENV_B/Codespace forwarded path with exact request/status/body/proxy/API correlation.
+
+Interpretation:
+- local normal failure -> generic Authority/product;
+- local normal pass + injected-latency failure -> #307 generic remote/WAN resilience;
+- local normal + injected-latency pass but Codespace failure -> forwarding/edge/environment remains likely.
+
+Do not infer licensing/Authority semantics from numeric HTTP 402 alone.
+Do not solve by globally increasing all timeouts.
+Read/list operations may use bounded retry under #307; user/role mutations must not be blindly retried after ambiguous transport outcomes.
+
+Stage2 V2-20 update:
+`df057db7fe388d02f2a98266facfff8d726cb94c`.
+
+Preview control rev 0027:
+`a27eef269bd3a2618435a622d944bd7e7fc560a1`.
+
+Ledger:
+Issue #305 comment `5858066237`.
+
+---
+
+# LATEST DELTA — 2026-09-27 — SECURITY/AUTHORITY CODESPACE P1 ADDED
+
+> This delta supersedes older Human Preview findings summaries below when there is a conflict. GitHub live remains the sole authority.
+
+Additional Product Owner Human Preview finding:
+
+- some Engineering surfaces failed to load with an observed HTTP `402` condition;
+- Security/Authority administration remained unusable throughout the real Codespace journey;
+- user creation and user editing could not be exercised.
+
+Triage did not find an explicit intentional product `402 Payment Required` response path, so root cause remains bounded rather than inferred.
+
+Classification:
+`DEFECT / PREVIEW_SECURITY_ADMIN_UNAVAILABLE / ROOT_LAYER_UNCERTAIN_BOUNDED`.
+
+New issue:
+- #359 — `W15-PREVIEW-P1 — Security/Authority administration fails to load in Codespace with observed HTTP 402`.
+
+Cross-linked owners:
+- #302 Authority;
+- #307 remote/WAN resilience.
+
+Human findings:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-HUMAN-PREVIEW-FINDINGS.md`
+commit `4199df90a7f8ece83217e28cdab3e6b4261f4be1`.
+
+Stage2 now includes:
+`V2-20 — Security/Authority mounted UI and HTTP 402 root isolation`
+commit `202e9ccbac805294c24905017bf893ac9606d650`.
+
+Preview control rev 0026:
+`0c6d47a31abf3bff2ef29e913683e34bdd351c3a`.
+
+Future acceptance requires exact network/status/body capture, local-vs-remote isolation, and mounted user create/edit/role-assignment verification.
+
+The active repaired ENV_A harness final lifecycle validation remains uninterrupted.
+
+---
+
+# LATEST DELTA — 2026-09-27 — SECOND DEV UX WAVE PREPARED / ICON-FIRST EDITOR TOOLBOX
+
+> This delta supersedes older post-Preview UX planning wording below when there is a conflict. GitHub live remains the sole authority.
+
+The Product Owner decided to organize the remaining post-Preview usability work as a dedicated **second DEV UX wave** rather than scattered polish.
+
+New umbrella:
+- #357 — `W15-UX2 — segunda leva DEV UX pós-Preview: Engineering usability, authoring e visual workflow`.
+
+New dedicated toolbox item:
+- #358 — `W15-UX2-EDITOR — substituir toolbox textual por paleta compacta de ícones`.
+
+## Binding toolbox decision
+
+The current persistent text-button object toolbox consumes too much Editor workspace and is not sufficiently intuitive.
+
+Target:
+- icon-first compact palette by default;
+- localized tooltip + accessible label per icon;
+- keyboard reachable;
+- clear active/insertion state;
+- category grouping/flyouts where useful;
+- canvas-space priority at representative desktop sizes;
+- no object-schema/renderer fork;
+- no proprietary SCADA/HMI icon copying.
+
+#308 still owns actual Library/Dynamo visual preview before insertion; an icon opening the Library/Dynamo surface is not a substitute for preview.
+
+#303 received the UX2 toolbox decision in comment `5858013095`.
+
+Stage2 contract now includes:
+`V2-19 — icon-first object toolbox`
+via commit `fcf732cc4de95512291fe30bb2cd180c2c3a6375`.
+
+Preview control rev 0025:
+`f5bff65222f3c4adba85c12912c00b101422c20a`.
+
+Planned post-harness correction order:
+1. #354 P0 fresh-project Demo/Runtime authority;
+2. #355 P1 Data Source Type -> TAG blocker;
+3. bounded UX2 DEV slices (#303/#358/#308/#356) in parallel where safe;
+4. integration;
+5. directed Stage2 verification;
+6. repeat fresh first-project Preview.
+
+The currently active ENV_A harness final lifecycle validation remains uninterrupted.
+
+Durable ledger:
+Issue #305 comment `5858016758`.
+
+---
+
+# LATEST DELTA — 2026-09-27 — HUMAN PREVIEW BLOCKED / EMBARGO LIFTED / PRODUCT CORRECTIONS OPENED
+
+> This delta supersedes older Human Preview / embargo wording below when there is a conflict. GitHub live remains the sole authority.
+
+## Human Preview result
+
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 = BLOCKED_BY_PRODUCT`.
+
+Canonical Product Owner evidence:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-HUMAN-PREVIEW-FINDINGS.md`
+commit `e413b3c85224cbf3f62bad6896738ec7ebe7810c`.
+
+The Product Owner reported that the interface improved substantially, but could not create a trustworthy effective data-backed Runtime application.
+
+Material findings:
+- first-project Runtime contained unexpected Demo-like tank/pump/frequency/current content not intentionally created/imported and not readily reconcilable/deletable from Engineering;
+- Data Source Type field did not expose a usable selectable list, blocking Data Source completion and TAG creation;
+- Library/Dynamo preview still absent;
+- Templates have no discoverable create/edit mechanism;
+- Editor Property Inspector has light-on-light readability issues;
+- text object visible content/rename path was not discoverable;
+- rectangle/basic-shape fill/display color could not be changed reliably.
+
+## Embargo lifted / cross-audit
+
+The Human Preview reached a blocked disposition, so the CODEX findings embargo is now LIFTED for Main/CODEX cross-audit work.
+
+Convergent evidence:
+- CODEX independently observed Runtime `Demo · Estação Elevatória` while Engineering showed another project identity and zero TAGs/Data Sources;
+- CODEX also observed Data Sources/TAGs controls not advancing usefully, supportive but not identical to the Product Owner's Type-selector failure.
+
+## Correction owners
+
+New issues:
+- #354 — fresh first project leaks Demo Runtime content / Engineering authority mismatch;
+- #355 — Data Source Type selector unusable blocks TAG creation;
+- #356 — Templates create/edit workflow missing/not discoverable.
+
+Existing issues updated:
+- #303 — Human Preview Editor Properties/text/fill evidence;
+- #308 — Human Preview Library/Dynamo preview evidence.
+
+Preview control rev 0024:
+`1d96f4262c4d2bf8ba7e383453b075f9e28540bd`.
+
+Shared CODEX control rev 0093:
+`9cc5489bb4d4f3d3f005df118fb38fa7bd3cdc24`.
+
+## Stage2
+
+Stage2 contract now includes V2-14..V2-18 for:
+- hidden Demo Runtime leakage/authority;
+- Data Source Type -> TAG -> Runtime path;
+- Templates authoring CRUD/discoverability;
+- Editor first-user property usability;
+- Library/Dynamo visual previews.
+
+Stage2 update:
+`e96f1045a644a70e3f49c6aa0cdd1ebb88eab0da`.
+
+Stage2 remains:
+`PREPARED / NOT ACTIVE`.
+
+## Current CODEX infrastructure work
+
+Do not interrupt the current autonomous final lifecycle validation of:
+`preview/w15-first-project-env-harness-repair@50a4451aa122f7f9fd0af98173c184f6623a147b`.
+
+The repaired harness uses committed Git blob IDs for dependency identity so Windows LF/CRLF checkout differences do not invalidate preparation provenance.
+
+CODEX should finish the full lifecycle proof before Main activates Stage2 or opens product correction execution.
+
+## Current overall state
+
+- Human Preview: `BLOCKED_BY_PRODUCT / COMPLETE_FOR_FIRST_PASS`;
+- findings embargo: `LIFTED`;
+- CODEX Stage1 attempt1: `INCONCLUSIVE / SEALED`;
+- ENV_A repair lifecycle validation: ACTIVE;
+- Stage2: `PREPARED / NOT ACTIVE`;
+- Wave15 Preview acceptance: NOT ACHIEVED.
+
+Durable ledger:
+Issue #305 comment `5857997672`.
+
+---
+
+# LATEST DELTA — 2026-09-27 — ENV_A REPAIR CANDIDATE IN AUTONOMOUS FINAL VALIDATION
+
+> This delta supersedes older ENV_A repair current-state wording below when there is a conflict. GitHub live remains the sole authority.
+
+Human Preview remains:
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 = ACTIVE`.
+
+ENV_B remains:
+`READY / RESUMABLE`.
+
+CODEX Stage1 attempt 1 remains:
+`INCONCLUSIVE / SEALED`.
+
+Attempt-1 evidence/database state was preserved before old runtime cleanup. No product disposition was made from that attempt.
+
+CODEX autonomous infrastructure recovery produced a repair candidate:
+
+- branch: `preview/w15-first-project-env-harness-repair`;
+- SHA: `50a4451aa122f7f9fd0af98173c184f6623a147b`;
+- tree: `5efeafb08725a90ce0c3df689b8d613f165bb569`;
+- product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Accepted root cause:
+the old dependency provenance hashed working-tree bytes. A clean Windows checkout of the same exact Git tree could materialize LF vs CRLF differently, changing `inputsSha` and therefore the dependency key/manifest lookup. The repair uses committed Git blob IDs for dependency identity and normalizes embedded Bash text to LF before PowerShell->Bash execution.
+
+Accepted static/regression evidence:
+- same committed tree across LF/CRLF -> same dependency identity;
+- committed dependency input change -> different identity;
+- Bash CRLF/CR -> LF normalization regression PASS;
+- preparation on repair candidate -> `PREPARATION=READY / STATE=NOT_STARTED`;
+- compare remains Preview/harness-only.
+
+Preview control rev 0023:
+`5c0e57c6336e75a68769f35251cca245963b4801`.
+
+Active shared CODEX route:
+`ROUTE-SEQUENTIAL-CODEX-ENV-A-REPAIR-FINAL-LIFECYCLE-77`
+commit `f7400e554907307506e634dd19b18a0bbb500ece`.
+
+CODEX now continues autonomously through the complete final lifecycle proof:
+- start/status stability;
+- pause/resume;
+- real Docker Desktop restart;
+- separate evidence worktree commit while runtime dependency identity stays READY/stable;
+- reset preserving preparation;
+- second fresh start with no package install/restore;
+- final reset/static/diff cleanliness.
+
+CODEX should not return for ordinary recoverable harness failures; it should iterate safely and return only with a fully validated final candidate or a genuine blocker/preservation risk.
+
+Do not promote the canonical harness branch yet. Main will promote after final proof review.
+
+Stage2 remains:
+`PREPARED / NOT ACTIVE`.
+
+Durable ledger:
+Issue #305 comment `5857900488`.
+
+---
+
+# LATEST DELTA — 2026-09-27 — CODEX AUTONOMOUS ENV_A INFRA RECOVERY
+
+> This delta supersedes older CODEX current-state wording below when there is a conflict. GitHub live remains the sole authority.
+
+Human Preview remains:
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 = ACTIVE`.
+
+ENV_B remains:
+`READY / RESUMABLE`.
+
+CODEX Stage1 attempt 1 remains:
+`INCONCLUSIVE / SEALED`.
+
+The attempt is not classified as a product defect and must not resume as an independent black-box journey in the same CODEX context.
+
+Latest infrastructure reconciliation confirmed:
+- exact accepted runtime worktree `bb451fa6e07982ac12384895f6097d5833761d16`;
+- exact tree `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- sealed session `6f18039a-5e67-49bd-a566-2050cf775aee` still RUNNING;
+- `PREPARATION=REQUIRED` because expected preparation provenance manifest is absent.
+
+Product Owner authorized CODEX to continue useful work autonomously inside the ENV_A infrastructure/harness/evidence boundary.
+
+Active shared route:
+`ROUTE-SEQUENTIAL-CODEX-AUTONOMOUS-ENV-A-INFRA-RECOVERY-76`
+commit `9b3c4b0170cb819a13bf096fefb10c483d024092`.
+
+Preview control rev 0022:
+`40125a09fd4444c64ca874c59dcb4269055940c1`.
+
+CODEX may now:
+- preserve/snapshot attempt1 state;
+- pause/quiesce it safely;
+- diagnose/fix preparation-manifest/provenance loss;
+- create separate evidence worktrees;
+- change Preview harness infrastructure;
+- add regressions;
+- prepare/revalidate dependencies after preservation;
+- create/reset disposable validation sessions;
+- restart Docker Desktop;
+- iterate without returning for each small implementation decision.
+
+Boundaries:
+- no product source changes;
+- no product-state DB repair shortcut;
+- no auth/licensing/Authority weakening;
+- no seeded project/Demo/EEE;
+- no Product Owner observation consumption;
+- no detailed finding disclosure;
+- no new independent Stage1 black-box attempt in the contaminated CODEX context.
+
+CODEX should return only with a fully validated replacement harness candidate or a genuine external blocker.
+
+Stage2 remains:
+`PREPARED / NOT ACTIVE`.
+
+Durable ledger:
+Issue #305 comment `5857659128`.
+
+---
+
+# LATEST DELTA — 2026-09-27 — HUMAN PREVIEW ACTIVE / CODEX STAGE1 ATTEMPT1 SEALED INCONCLUSIVE
+
+> This delta supersedes older CODEX Stage1 current-state wording below when there is a conflict. GitHub live remains the sole authority.
+
+## Human Preview
+
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 = ACTIVE`.
+
+ENV_B remains:
+`READY / RESUMABLE`.
+
+The Product Owner continues the first-project journey independently from the visible no-project boundary.
+
+Detailed CODEX findings remain embargoed and must not influence the Human Preview.
+
+## CODEX Stage1 attempt 1
+
+Main reviewed the coarse handoff and embargoed evidence.
+
+Disposition:
+`STAGE1_ATTEMPT1 = INCONCLUSIVE / SEALED`.
+
+This is not a product-defect disposition and not a completed independent black-box journey.
+
+The attempt has already crossed into post-block diagnostic correlation, so the same CODEX context must not resume black-box exploration as though it were still unspoiled.
+
+Existing ENV_A audit session is preserved; no reset is authorized.
+
+Preview control rev 0021:
+`95a632ba8fb2ef3db8caaff760e94be9953f4ef6`.
+
+Shared CODEX route rev 0090:
+`ROUTE-SEQUENTIAL-CODEX-STAGE1-ATTEMPT1-SEAL-RECONCILE-75`
+commit `f37eebab556b44fa88f4a31ad1c3922568d10518`.
+
+Current CODEX mission is infrastructure reconciliation only:
+- restore runtime worktree to exact accepted harness if needed;
+- verify same session / expected dependency preparation;
+- pause the same session if reconciliation is exact;
+- no product interaction;
+- no prepare/start/resume/reset;
+- no Stage1 retry;
+- no Stage2.
+
+Accepted harness remains:
+`bb451fa6e07982ac12384895f6097d5833761d16`
+/ tree `650d30089596021cb1a564ee1d2f1abfc7d2b509`.
+
+Embargoed evidence branch remains:
+`preview/w15-first-project-codex-evidence`.
+
+A valid future independent CODEX black-box retry requires a fresh CODEX context/agent that has not consumed attempt-1 diagnostic findings.
+
+## Stage2
+
+`W15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION = PREPARED / NOT ACTIVE`.
+
+Main will consider Stage2 after the Human Preview reaches COMPLETE or BLOCKED and the embargo/cross-audit state can be reconciled.
+
+## Immediate coordinator action
+
+1. Let the Product Owner continue Human Preview unaided.
+2. Wait for CODEX's coarse attempt1 seal/reconciliation handoff.
+3. Do not expose embargoed CODEX findings to Product Owner.
+4. Do not start a CODEX retry in the same contaminated context.
+5. After Human Preview completion/block, lift embargo and perform cross-audit reconciliation before deciding retry/Stage2 sequencing.
+
+Durable ledger:
+Issue #305 comment `5857629860`.
+
+---
+
+# LATEST DELTA — 2026-09-27 — BOTH PREVIEW ENVIRONMENTS READY / PARALLEL EXPLORATION ACTIVE
+
+> This delta supersedes older Preview-readiness wording below when there is a conflict. GitHub live remains the sole authority.
+
+Main accepted the real ENV_B stop/resume proof and now has both independent Preview environments READY.
+
+## ENV_A
+
+`ENV_A = READY / CLEAN / RESUMABLE`
+
+Exact harness:
+- SHA `bb451fa6e07982ac12384895f6097d5833761d16`;
+- tree `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- product base `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+## ENV_B
+
+`ENV_B = READY / RESUMABLE`
+
+Real Codespace source:
+`preview/w15-first-project-env-b-codespace`
+at exact branch point `bb451fa6e07982ac12384895f6097d5833761d16`.
+
+Accepted real lifecycle evidence:
+- first Local Administrator created as readiness marker;
+- no project created;
+- same Codespace stopped normally;
+- same Codespace reopened;
+- repository-controlled startup restored EliteSCADA automatically;
+- browser access returned without manual terminal recovery;
+- Administrator marker persisted;
+- product returned to normal no-project / create-project state;
+- no hidden project/import/Demo/EEE state appeared.
+
+5173 remains Private but owner-accessible; this was explicitly reclassified non-blocking by Product Owner. 5080/5432 remain non-public in accepted evidence.
+
+## Parallel exploratory gates
+
+Human Preview:
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 -> ACTIVE`.
+
+Human starting checkpoint:
+Administrator already exists only as ENV_B readiness marker; no project is prepared. The human first-project audit begins from the visible `Criar novo projeto` boundary.
+
+CODEX Stage 1:
+`W15-FIRST-PROJECT-CODEX-BLACKBOX-PREVIEW-01 -> ACTIVE`.
+
+Shared CODEX route:
+`ROUTE-SEQUENTIAL-CODEX-FIRST-PROJECT-BLACKBOX-STAGE1-74`
+commit `689a854638bfc0f26262cb86d1daaeee53b32456`.
+
+Preview control rev 0020:
+`965ceef9753bac16d488c064de5b9bcb1ed55333`.
+
+Embargoed CODEX evidence branch:
+`preview/w15-first-project-codex-evidence`.
+
+## Independence / embargo
+
+Detailed CODEX findings remain embargoed from Product Owner until the human first-project journey completes.
+
+Product Owner findings are not fed to CODEX while its black-box journey is active.
+
+No cross-audit comparison is permitted yet.
+
+## Stage 2
+
+`W15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION = PREPARED / NOT ACTIVE`.
+
+Stage 2 starts only after CODEX Stage 1 is complete/sealed and its project/session state is checkpointed/derived according to the prepared Stage 2 contract.
+
+## Immediate coordinator action
+
+1. Allow Product Owner to perform the first-project journey unaided from `Criar novo projeto`.
+2. Allow CODEX to execute Stage 1 independently on clean ENV_A.
+3. If CODEX needs time interruption, it may use infrastructure-only pause/resume without reset.
+4. Surface only coarse CODEX gate state while embargo is active.
+5. When the Product Owner journey reaches COMPLETE or BLOCKED, end embargo and perform cross-audit comparison.
+6. Only then consider Stage 2 activation.
+
+Durable ledger:
+Issue #305 comment `5857445127`.
+
+---
+
+# LATEST DELTA — 2026-09-27 — ENV_A READY / ENV_B REAL CODESPACE GATE
+
+> This delta supersedes older ENV_A readiness wording below when they conflict. GitHub live remains the sole authority.
+
+Main accepted the final ENV_A readiness proof on exact Preview harness:
+
+- harness SHA: `bb451fa6e07982ac12384895f6097d5833761d16`;
+- harness tree: `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Disposition:
+`ENV_A = READY / CLEAN / RESUMABLE`.
+
+Accepted proof includes:
+- provenance-bound dependency preparation READY;
+- true first-run UI;
+- minimal Administrator created through normal UI;
+- real Docker Desktop restart;
+- same-session product-state continuity;
+- second pause/resume cycle;
+- reset preserving prepared dependencies while deleting product/audit state;
+- second clean start with no npm/NuGet install/restore/bootstrap;
+- final `NOT_STARTED / PREPARATION=READY`;
+- no project created;
+- Stage 1/Stage 2 not started.
+
+Shared CODEX is now:
+`HOLD / ENV_A_READY / WAIT_ENV_B_READY / NO_ACTIVE_EXPLORATORY_MISSION`.
+
+Binding CODEX route:
+`ROUTE-SEQUENTIAL-CODEX-ENV-A-READY-HOLD-FOR-ENV-B-73`
+control commit `d3a2b643a1cd81bd2fbaf2f5197e4cd3769a361b`.
+
+Preview control rev 0013:
+`af6c911623e93ca868176c7b5597b04a9e303f0f`.
+
+For ENV_B Main created a dedicated exact branch from the accepted harness:
+
+`preview/w15-first-project-env-b-codespace`
+at `bb451fa6e07982ac12384895f6097d5833761d16`.
+
+ENV_B runbook updated:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-CODESPACE-ENV-B-RUNBOOK.md`
+commit `1ccc1be58d6d7231da4800d47fe5d165d5e874c6`.
+
+Current next gate:
+create/open one **fresh Codespace** from `preview/w15-first-project-env-b-codespace` and prove:
+- automatic API/Web/database startup;
+- 5173 PUBLIC automatically;
+- 5080/5432 not public;
+- truthful first-run/no-project state;
+- normal stop/resume recovers product automatically;
+- 5173 is re-asserted PUBLIC after resume;
+- no terminal/Ports-panel recovery needed.
+
+Human Preview and CODEX Stage 1 remain HOLD until ENV_B is READY.
+
+Stage 2 remains `PREPARED / NOT ACTIVE`.
+
+---
+
+# LATEST DELTA — 2026-09-27 — ENV_A REPLACEMENT ACCEPTED FOR FINAL READINESS PROOF
+
+> This delta supersedes the ENV_A active-route/candidate wording in the checkpoint immediately below when they conflict. GitHub live remains the sole authority.
+
+Main accepted the new exact Preview harness candidate for **final readiness proof only**:
+
+- harness branch: `preview/w15-first-project-env-harness`;
+- exact SHA: `bb451fa6e07982ac12384895f6097d5833761d16`;
+- exact tree: `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- exact product base remains `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+The replacement separates dependency preparation from product/audit reset:
+- explicit provenance-bound `prepare`;
+- Node/NuGet dependency volumes are external, hash-keyed and provenance-labeled;
+- tool image/version inputs are pinned;
+- `start` / `resume` require prepared provenance and use `--no-build --pull never`;
+- `reset` removes product/audit state while preserving prepared dependencies/tool image;
+- stale/mismatched preparation fails closed.
+
+Local HTTPS inspection is handled only by explicit opt-in during `prepare`:
+- the selected certificate must already be a valid Windows trusted root;
+- only its public PEM is mounted read-only into the preparation container;
+- TLS verification remains enabled;
+- no Windows/Docker/product trust store is changed;
+- the root is not carried into product `start`/`resume`;
+- thumbprint/DER SHA-256 are recorded in local preparation provenance.
+
+Exact-candidate preparation already passed:
+- tool image build: PASS;
+- npm `ci`: PASS;
+- dotnet restore: PASS;
+- offline provenance/marker verification: PASS;
+- second prepare: `READY_REUSED`;
+- current preparation state at handoff: `NOT_STARTED / PREPARATION=READY`.
+
+Binding shared CODEX route:
+`ROUTE-SEQUENTIAL-CODEX-ENV-A-FINAL-EXACT-SHA-READINESS-PROOF-72`
+
+Shared control rev 0087:
+`7de960c87c7f09d4fed65f0c508cdc4b7a3988b0`.
+
+Preview control rev 0012:
+`08471efc2716fd5065bddb279a20d9f48c89e8b8`.
+
+CODEX must now prove on exact `bb451fa...`:
+fresh UI -> minimal Administrator -> pause -> real Docker Desktop restart -> same-session resume -> second pause/resume -> reset preserving `PREPARATION=READY` -> second clean start with **no npm/NuGet network/install/restore** -> final reset.
+
+ENV_A remains:
+`FINAL_READINESS_PROOF_ACTIVE / NOT_READY / BLACKBOX_HOLD`.
+
+ENV_B remains:
+`STATIC_ACCEPTED / WAIT_REAL_CODESPACE_PROOF / HUMAN_PREVIEW_NOT_RELEASED`.
+
+ENV_A Stage 2 remains:
+`PREPARED / NOT ACTIVE`.
+
+Durable ledger: Issue #305 comment `5856654198`.
+
+---
+
+# LIVE CURRENT CHECKPOINT — 2026-09-27 — WAVE 15 FRESH-INSTALL PREVIEW ENVIRONMENT PREPARATION
+
+> This section supersedes older current-state snapshots below when they conflict. Historical entries remain preserved. GitHub live remains the sole authority.
+
+GitHub live was revalidated before this documentation refresh.
+
+- integration branch coordination tip before this refresh: `22fad82c3da98588d98051bd2ceb608da64ff8f3`;
+- exact integrated **product checkpoint** remains `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`;
+- exact product tree remains `5e5fce8ce87f31dfc11b83bb68ff86c67f9f0112`;
+- the integration tip above is one coordination-document commit beyond the product checkpoint; no later product/test/workflow bytes redefine the Preview product base;
+- broader feature T2 is formally accepted: `W15-FOUR-FEATURE-INTEGRATED-T2-01 -> PASS / ACCEPTED`;
+- exact broad evidence: EliteSCADA CI #1584 / run `36290910850` — SUCCESS across Backend build/full tests/Runtime smoke, Web build and Chromium end-to-end.
+
+Final six-lane disposition:
+- Script Engineering: `T2_VERIFIED`;
+- Editor: `T2_VERIFIED`;
+- Authority UX: `INTEGRATED / VERIFIED_COMPLETE`;
+- Licensing UX: `INTEGRATED / VERIFIED_COMPLETE`;
+- FND-05: `VERIFIED / FROZEN`;
+- FND-07: `VERIFIED / FROZEN`.
+
+
+## Fresh-install Preview topology
+
+The six-lane product phase is closed and the Preview has moved into environment-readiness work.
+
+The Product Owner changed the Preview topology before either exploratory journey produced findings:
+
+1. **ENV_A — CODEX local:** EliteSCADA runs locally in an isolated containerized audit environment on the CODEX machine.
+2. **ENV_B — Product Owner human:** a fresh independent GitHub Codespace runs the same exact product bytes.
+3. After both environments are READY, the two exploratory journeys may run independently/in parallel.
+4. No DB, project, browser/session state or findings are shared.
+5. Detailed CODEX findings remain embargoed from the Product Owner until the independent human journey is complete.
+
+Canonical Preview control:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`.
+
+## ENV_A — local CODEX harness
+
+Harness branch:
+`preview/w15-first-project-env-harness`.
+
+Current reviewed candidate before the active correction:
+- SHA `ec050e9bfda121805b1165860a4aeda0eb2582e8`;
+- tree `0d6221540c3678a8b042c51082f7a2ed0a466fa2`;
+- exact parent/product base `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+The branch differs from the product base only by Preview/devcontainer/Compose/startup/lifecycle infrastructure.
+
+### Pause/resume requirement — materially proven
+
+The Product Owner requires the local CODEX audit to survive CODEX usage limits and PC shutdown/restart.
+
+Repository-controlled lifecycle semantics are:
+`start | pause | resume | status | reset`.
+
+On the accepted candidate CODEX proved:
+- clean ENV_A reached RUNNING;
+- first Local Administrator was created through the normal UI as a minimal product-owned persistence marker;
+- no project was created;
+- audit paused as `PAUSED_RESUMABLE`;
+- Docker Desktop was fully restarted with `docker desktop restart --timeout 180`;
+- Docker Desktop/Engine returned with a different Docker session and healthy engine;
+- the exact same audit session resumed;
+- the normal product UI still showed the persisted Administrator/no-project state;
+- a second ordinary pause/resume cycle preserved the same state;
+- explicit reset returned `NOT_STARTED` and removed the dedicated Preview containers/volumes.
+
+Therefore the important user requirement **pause -> power/engine interruption -> resume same audit** is materially proven.
+
+Evidence handoff:
+Issue #305 comment `5856199560`.
+
+## Current ENV_A blocker — dependency preparation incorrectly coupled to product reset
+
+After the successful continuity proof and explicit reset, a fresh start attempted to reinstall runtime npm dependencies because the reset had also removed dependency volumes.
+
+The fresh start stopped before product UI with:
+`UNABLE_TO_VERIFY_LEAF_SIGNATURE`
+while downloading `ws-8.21.3.tgz` from npm.
+
+CODEX correctly did **not**:
+- disable npm TLS;
+- set `NODE_TLS_REJECT_UNAUTHORIZED=0`;
+- change host/container trust;
+- alter product source.
+
+Classification:
+`ENV_A_HARNESS_DEFECT / AUDIT_RESET_DEPENDENCY_BOOTSTRAP_COUPLING`.
+
+Main decision:
+a clean **product/audit reset** must be independent from **toolchain/dependency preparation**.
+
+Required new boundary:
+- preparation/tool caches may persist and must be tied to exact lock/project/harness provenance;
+- product database, Administrator/project/application state and audit session remain explicitly resettable;
+- after successful preparation, repeated `reset -> start` must not download npm/NuGet packages again;
+- no TLS/certificate weakening is allowed.
+
+Active CODEX route:
+`ROUTE-SEQUENTIAL-CODEX-ENV-A-DEPENDENCY-BOUNDARY-FIX-71`.
+
+Shared control rev 0086:
+commit `574011f722bb2234c7a1586fc8d62739892f716a`.
+
+Preview control rev 0011:
+commit `44023a9cf9e29c38d9b0e62f72198fa89e242018`.
+
+ENV_A remains:
+`BLACKBOX_HOLD / NOT_READY`.
+
+## ENV_B — Product Owner Codespace
+
+Canonical runbook:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-CODESPACE-ENV-B-RUNBOOK.md`.
+
+The current static design uses:
+- Compose-backed EliteSCADA + TimescaleDB;
+- `postStartCommand` for every Codespace start/resume;
+- Web port `5173` automatically set to **PUBLIC**;
+- API `5080` remains internal/private;
+- database `5432` remains internal/private;
+- no precreated Administrator/project/Demo/EEE state;
+- after Codespace stop/resume, repository automation must restart the product and re-assert `5173:public` without Product Owner terminal/Ports-panel work.
+
+ENV_B is not yet READY because a real fresh Codespace + stop/resume lifecycle still needs to be exercised.
+
+The currently connected GitHub automation cannot create/start/stop a Codespace. Product Owner interaction should ultimately be limited to creating/opening the prepared Codespace; product startup and port visibility must be automatic.
+
+## CODEX Stage 1 and Stage 2
+
+Stage 1 remains the unspoiled black-box first-project journey:
+`W15-FIRST-PROJECT-CODEX-BLACKBOX-PREVIEW-01`.
+
+It has **not started** because ENV_A is not READY.
+
+A second post-journey verification stage has already been prepared:
+
+`docs/WAVE15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION.md`
+commit `ce7a4b9a26cc5cdf36d466712eef62ab061d978f`.
+
+Stage 2:
+`W15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION = PREPARED / NOT ACTIVE`.
+
+It will only start after Stage 1 evidence is sealed and a derived checkpoint/copy of the CODEX-created project exists. It targets the Wave 14 -> Wave 15 regression contracts: Working/Active authority, truthful failure UX, Editor/schema selection stability, Script Engineering maturity, Server Script recovery, Runtime projection/popup persistence, Popup values, Trends, Authority/Licensing truth and FND-07 Neutral/Detach; FND-05 HA is explicitly not overclaimed from single-node ENV_A.
 
 ## Immediate next safe action
 
-1. Revalidate GitHub live, including the docs-only branch HEAD and exact product/test SHA `e7c8a8...`.
-2. Re-read Wave11 #397 / job `102451385709` and the exact C26.10 package/schema files before editing.
-3. Correct the EEE state-plate composition using only schema-valid public visual objects/properties, with deterministic package and Runtime regressions.
-4. Do not weaken Preview validation or the strict tests.
-5. Do not widen `core.text` solely to accommodate EEE. Any generic schema expansion would require a genuine platform requirement, synchronized backend/browser contracts and full regressions.
-6. Publish only the smallest evidence-supported correction and let all workflows start naturally.
-7. Require all five normal gates green on the same new exact product/test SHA.
-8. Only then mark C26.10 VALIDATED and begin C26.11.
+1. Wait for CODEX to return an exact replacement harness for `ENV_A dependency preparation vs reset`.
+2. Main reviews exact diff/SHA/tree; product semantics must remain untouched.
+3. Prove:
+   - preparation/provenance;
+   - clean start;
+   - Administrator persistence through real Docker Desktop restart;
+   - reset;
+   - second fresh start with **no new npm/NuGet download**;
+   - final reset -> `NOT_STARTED`.
+4. Only then mark ENV_A READY and release Stage 1 on a new clean audit session.
+5. In parallel, once the shared harness impact is known, continue ENV_B real Codespace create/start/stop/resume proof.
+6. Keep Stage 2 PREPARED / NOT ACTIVE until Stage 1 is sealed.
 
-Do not rerun the unchanged `e7c8a8...` candidate: the failure is deterministic and diagnosed.
+Durable ledger:
+Issue #305 comments `5856105046`, `5856118585`, `5856157684`, `5856199560`, `5856218697`.
 
-## C26.7–C26.9 retained validation authority
+---
 
-- C26.7 validated at `b1bd1f664b06684afaecbbff2d27da10760cc1ec`: Elite #1466, Preview #414, Interop #292, Wave11 #392 and L3 #370 — all SUCCESS.
-- C26.8 validated at `6de64ed4d11ac1e525f32d7071b9624e428c96ee`: Elite #1468, Preview #416, Interop #295, Wave11 #394 and L3 #372 — all SUCCESS.
-- C26.9 validated at `55f292359af86f5f28d90cc578d4ac93ccc1f19c`: Elite #1469, Preview #417, Interop #297, Wave11 #395 and L3 #373 — all SUCCESS.
+# LAST CHANGE — EliteSCADA
 
-## Post-C26 quality route — not yet executable
+**Date:** 2026-09-23 BRT  
+**Operational state:** **WAVE 15 ACTIVE / FND-04 VERIFIED+FROZEN / FND-06 ACTIVE / FC0-A BLOCKED ONLY ON FND-06**
 
-Issue #289 and `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md` remain binding, but must not be executed now.
+## Latest verified product checkpoint
 
-Required order:
+Exact frozen Foundation product checkpoint:
 
-`C26 exact-SHA green + accepted -> separately authorized C26->C11 integration -> corrected canonical C11 -> new package/checksum/provenance -> NEW post-C26 Preview -> technical green + fully prepared live environment -> READY FOR WORK AUDIT -> ChatGPT Work real browser audit -> coordinator triage/reproduction/corrections -> new exact candidate -> targeted Work recheck if justified -> final Product Owner homologation`
+`6c810647c9773a19b212d9c33694780141786ac7`
 
-Do not spend the approximately 40-minute Work window preparing database, package, ports, application or users. Create `docs/WORK-UI-AUDIT-HANDOFF.md` only when a real candidate is ready, with exact SHA, real URLs, package SHA-256 and non-secret authentication instructions.
+tree:
 
-## Protected governance
+`1221ff55963052be4e924dd644efbaa65763f546`
 
-- never modify `main` directly;
-- PR #287 is only C26 -> canonical C11 and must not merge before C26 is validated, accepted and its integration is explicitly authorized;
-- PR #288 and PR #266 are validation-only and **MUST NEVER MERGE**;
-- PR #263 is only canonical C11 -> `wave14/corrections-integration`;
-- PR #212 remains OPEN/DRAFT and **MUST NOT MERGE** without later, separate and explicit Product Owner authorization;
-- neither `siga`, green CI, C26 completion, Preview, Work audit nor homologation authorizes #212;
-- preserve Preview #285 untouched as pre-C26 evidence;
-- do not execute issue #289 early;
-- no force push, destructive rebase, branch deletion, blind rerun or unrelated cleanup;
-- never weaken tests, validation, security, authentication, authorization, Identity, Engineering Lock, Licensing, lifecycle, package, Drivers or Runtime Active Revision authority;
-- Runtime/Active must remain self-contained and cannot depend on `.escadalib`;
-- no EEE-specific workaround for a generic product defect;
-- Alarm, Operational Event and Audit remain distinct;
-- Wave13 #205/#207 remains paused.
+This checkpoint includes FND-03, INFRA-CI-01A and FND-04. Exact FND-04 post-merge EliteSCADA CI #1562 / run `35913456486` completed SUCCESS:
+- Web `107358858133` — SUCCESS;
+- Backend build/test/smoke `107358858405` — SUCCESS;
+- Chromium E2E `107359503423` — SUCCESS.
 
-Canonical rotation handoff:
+FND-04 is **VERIFIED/FROZEN**. Its downstream Script TAG reference contract may be consumed but not redefined.
 
-`docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md`
+## Current active work
 
-Copy-ready next-chat handoff:
+FND-06 is the only active FC0-A blocker.
 
-`docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
+- order: `FND06-CODEX-WAIT-POSTMERGE-V4`
+- exact product base: `6c810647c9773a19b212d9c33694780141786ac7`
+- work branch: `work/w15-fnd-06-visual-stability-foundation`
+- dedicated control: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
+- active control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
+- work branch remains untouched at the exact base and no candidate/PR exists yet.
+
+The frozen FND-06 plan covers centralized known-legacy visual compatibility, Screen/Popup selection stability, canonical renderer/public-model authority, Runtime navigation persistence and Working-vs-Active separation. Full single-canvas WYSIWYG remains downstream DEV-EDITOR scope.
+
+## FC0-A preparation
+
+FC0-A remains **BLOCKED only on FND-06 VERIFIED/FROZEN**.
+
+Prepared downstream release file:
+`coord/w15-fnd06-control:docs/WAVE15-FC0-A-RELEASE-PREP.md`
+
+Latest prep commit:
+`dfae2377f0c6802da726650697040181c7b0f453`
+
+Reserved, not-yet-active orders:
+- `DEV-EDITOR-FC0A-01`
+- `DEV-SCRIPT-ENGINEERING-FC0A-01`
+- `DEV-AUTHORITY-UX-FC0A-01`
+- `DEV-LICENSING-UX-FC0A-01`
+
+No downstream product branch is created before Main records the final exact FC0-A SHA/tree.
+
+## Later Foundation preparation
+
+Read-only/source-audit preparation was completed without product mutation:
+
+- FND-05 HA authority control:
+  - branch `coord/w15-fnd05-control`
+  - file `docs/WAVE15-FND05-CONTROL.md`
+  - prep commit `66d0f0e53a9842c719cfe28ef40da3b7fbdd1f6f`
+  - state `PREPARED / NOT ACTIVE`
+- FND-07 installation detach control:
+  - branch `coord/w15-fnd07-control`
+  - file `docs/WAVE15-FND07-CONTROL.md`
+  - prep commit `760e1cb57a1bdb1e146a6326bd55f713c7790add`
+  - state `PREPARED / NOT ACTIVE`
+
+Neither later Foundation is authorized to mutate product while FND-06 owns the sequential high-risk Foundation executor.
+
+## Foundation current Main gate
+
+- FND-04: **VERIFIED/FROZEN**
+  - exact product checkpoint: `6c810647c9773a19b212d9c33694780141786ac7`
+  - tree: `1221ff55963052be4e924dd644efbaa65763f546`
+  - post-merge EliteSCADA CI `35913456486`: SUCCESS
+  - Web / Backend+tests+smoke / Chromium: all SUCCESS
+  - control freeze commit: `0453428521b28e951aa8e9d01742ee58b09f6690`
+- FND-06: **ACTIVE / NOT INTEGRATED**
+  - exact product base: `6c810647c9773a19b212d9c33694780141786ac7`
+  - work branch: `work/w15-fnd-06-visual-stability-foundation`
+  - control branch/file: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
+  - active control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
+  - order: `FND06-CODEX-WAIT-POSTMERGE-V4`
+- FC0-A: **BLOCKED only on FND-06**
+- downstream release package is prepared but not released at `docs/WAVE15-FC0-A-RELEASE-PREP.md` on the FND-06 control branch.
+
+
+
+## FND-06 execution metadata correction
+
+Before first product mutation, Main corrected the prepared FND-06 validation profile to the actual Wave 15 router vocabulary: `UI_EDITOR, RUNTIME_RENDERER`. The exact product seed also proves bare `status` is a persisted legacy identifier alongside `tank`, `value` and `dynamo`; it is not a current canonical `core.*` built-in and no guessed alias is authorized.
+
+Active FND-06 order: `FND06-CODEX-WAIT-POSTMERGE-V4`.
+Control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`.
+
+
+## FC0-A collision guard
+
+The prepared downstream release package now includes a Main-owned parallel-file collision map. Primary ownership is separated across Editor (`engineering/visual-editor/**`), Script Engineering (`engineering/scripts/**` + `python-editor/**`), Authority UX (`UserAdministration*`) and Licensing UX (`web/licensing/**` + `Scada.LicenseGenerator/**`). Shared shell/router/types/i18n/CI files are Main-coordinated hotspots, not free-for-all lane ownership.
+
+Latest FC0-A prep commit: `dfae2377f0c6802da726650697040181c7b0f453`.
+
+
+## Coordinator correction — shared CODEX routing and FC0-A audit
+
+A stale FND-04 CODEX `WAIT` order could cause the reused sequential CODEX chat to stop even though FND-06 was active.
+
+Main corrected this at the source:
+- FND-04 control rev 0016: `ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`
+- commit: `cf19a9b0ce7efbf25d3d85acc2076a8c48148a9d`
+- same sequential CODEX chat/lane is explicitly the FND-06 executor
+- FND-06 control rev 0004: `FND06-CODEX-WAIT-POSTMERGE-V4`
+- commit: `1a1488388fd67bf89380879b07437e1460170f18`
+
+FC0-A sequencing was also tightened:
+- FND-06 freeze no longer releases FC0-A directly;
+- mandatory gate: `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`;
+- audit control created at `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md`, commit `0689a53b6cdcb569dd6c65a8326009dfcf2da9de`;
+- FC0-A release prep updated at `fee82e7dd8eed8cd237e067317fedbe48d64cb97`;
+- FND-05 control rev 0002 / `b995435594f9031a33df5674a0207016405a41d7`;
+- FND-07 control rev 0002 / `503a89d2985db64c1d6666e40d1de06251027687`.
+
+After FND-06, audit must relate Wave 15 implementation to final Wave 14 diagnostics, product premises/gaps and frozen contracts. It must also prove FND-05/FND-07 are non-breaking to FC0-A DEV-consumed contracts.
+
+Only audit PASS releases the four FC0-A DEVs and permits FND-05/FND-07 to activate in parallel.
+
+
+## FND-06 Main review — mounted legacy closeout
+
+Current PR #337 candidate:
+- head `923543705378016090e7067b35954795a9591a57`
+- tree `5657cee7169a4e77370d416add4efcf07184d7c0`
+- natural T1 `35931139983` — SUCCESS
+- 9 changed files, all inside FND-06 allowlist
+- architecture/scope accepted by Main.
+
+Remaining gate before merge:
+- original Wave 14 A7 was a mounted Screen/Popup selection crash that blanked/poisoned Engineering;
+- candidate currently proves model/helper compatibility but lacks the required mounted Screen + Popup persisted-legacy selection regression;
+- active order: `FND06-CODEX-WAIT-POSTMERGE-V4`;
+- control revision `0005`;
+- control commit `8d1f415bc16b556e8133e6a1da1ab89881e7f189`;
+- preferred delta: tests only; minimal production fix only if the mounted scenario exposes a remaining defect.
+
+The same sequential CODEX lane remains the executor. No merge/freeze yet.
+
+
+## PR #337 contract-risk snapshot for post-FND06 FC0-A gate
+
+Post-FND06 audit control:
+- audit: `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+- audit rev: `0002`
+- latest audit-control commit: `9e75fd836d03dc34619f72ba5056e3aa874cfdbb`
+
+PR #337 pre-freeze evidence:
+- candidate `923543705378016090e7067b35954795a9591a57`
+- tree `5657cee7169a4e77370d416add4efcf07184d7c0`
+- natural T1 `35931139983` SUCCESS
+- no Security/Authority/Licensing/Script/lifecycle contract change in its 9-file visual/editor/runtime delta
+- FND-06 still HOLD pending mounted A7 closeout; this is an evidence gate, not a known contract break.
+
+Current FC0-A contract-risk classification:
+- DEV-EDITOR: `LOW / GUARDED` — must consume frozen FND-06 compatibility/renderer authority; mounted A7 proof still pending.
+- DEV-SCRIPT-ENGINEERING: `NONE IDENTIFIED / GUARDED` — FND-04 remains untouched; FND-05 may only fence execution authority around it.
+- DEV-AUTHORITY-UX: `NONE IDENTIFIED / GUARDED` — FND-07 must compose FND-02/AUTH-04, not redefine it.
+- DEV-LICENSING-UX: `LOW BUT MATERIAL RESIDUAL` — FND-05 redundancy entitlement/readiness must remain additive/backward-compatible to frozen FND-03 semantics.
+
+FND-05 hard guard:
+- control rev `0003`
+- commit `85502eaaa3a27fc2c050396b3f40c3e08943ae37`
+- existing FND-03 license validity/meaning, Interactive/ViewOnly/session quota semantics, machine binding and install/replace/remove behavior may not be reinterpreted by HA.
+- if HA needs such a breaking change -> `BLOCKED-CONTRACT` before FC0-A DEV release.
+
+FC0-A release prep snapshot commit:
+`c0e4bd69c89c47efc7dc936a6ac9e61cbbbd8f96`.
+
+This is pre-freeze risk assessment only; final release still requires exact FND-06 freeze + independent post-FND06 audit PASS.
+
+
+## FND-06 merged checkpoint pending freeze
+
+PR #337 is merged.
+
+- candidate: `2257f8f99b5e6deac80d64ed2cc0c43aa8dab1cc`
+- candidate tree: `2ebb839a788bb4fad249877689c25ac1b18f6d74`
+- merge SHA: `624f2eca456310a2c6156538b3616a06e3be075f`
+- merge tree: `fb864fb954b0123e69db379cd6b3120349b43600`
+- candidate T1 `35939646387`: SUCCESS
+- post-merge broad CI `35940661531` / #1563: PENDING/IN PROGRESS at this record
+- FND-06 state: **INTEGRATED / POST-MERGE CI PENDING / NOT YET VERIFIED-FROZEN**
+- CODEX: `FND06-CODEX-WAIT-POSTMERGE-V4 / NO_MUTATION`
+- FND-06 control rev `0006`, commit `8d1f415bc16b556e8133e6a1da1ab89881e7f189`
+
+Post-FND06 audit remains blocking and is preloaded with this exact checkpoint:
+- `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+- audit rev `0003`
+- audit-control commit `a9ed4003acf8c71db035bc854a75f87cf97273fb`
+- state `PREPARED / WAIT_FND06_POST_MERGE_CI_GREEN`
+
+No FC0-A DEV, FND-05 or FND-07 release until FND-06 freezes and the independent audit returns `ACCEPTABLE / FC0A_RELEASE_APPROVED`.
+
+
+## Post-FND06 broad CI exposed generic PostgreSQL blocker
+
+PR #337 merged at `624f2eca456310a2c6156538b3616a06e3be075f`.
+
+Exact broad EliteSCADA CI #1563 / `35940661531`:
+- Web — SUCCESS;
+- Backend build/test/smoke — FAILURE in test;
+- Chromium — skipped downstream.
+
+Only identified failure:
+`PostgreSqlVisualDynamicPersistenceTests.RevisionPersistence_PreservesVisualExpressionConditionAndAnalogFill`
+
+Error:
+`23505: duplicate key value violates unique constraint pg_namespace_nspname_index`
+during `PostgreSqlEngineeringProjectStore.InitializeAsync`.
+
+The store and failing test are byte-identical to the pre-FND06 checkpoint. PR #337 did not touch Persistence/PostgreSQL. Same PostgreSQL catalog-race signature was diagnosed in Wave 14.
+
+Main did not rerun blindly.
+
+Active generic correction:
+- `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
+- control `coord/w15-infra-ci-01b-control:docs/WAVE15-INFRA-CI-01B-CONTROL.md`
+- control commit `358b067d9af6501b2945f311b5d2cd32cab64efa`
+- exact base `624f2eca456310a2c6156538b3616a06e3be075f`
+- work branch `work/w15-infra-ci-01b-postgresql-schema-init`.
+
+FND-06 = INTEGRATED / MAIN-ACCEPTED / FREEZE BLOCKED BY GENERIC INFRA.
+FC0-A audit remains PREPARED.
+
+
+## Broad CI #1564 — PostgreSQL fixed; FND-06 E2E fixture leak remains
+
+Exact run `35944510920` on `eb4563cf0060449b479c4335ef30a19ed65e35ab`:
+- Web SUCCESS;
+- Backend build/test/smoke SUCCESS;
+- Chromium FAILURE: 636 passed / 1 failed.
+
+The PostgreSQL failure that triggered INFRA-CI-01B is closed at the backend gate.
+
+The sole Chromium failure is `runtime.spec.ts`, which saw an extra `fnd06-legacy-screen-*` created by the FND-06 mounted closeout test.
+
+Root cause: JSON import/apply for Screens/Popups is upsert-only. Reapplying the pre-test export cannot delete a new fixture entity.
+
+Active test-only correction:
+- `FND06-CODEX-E2E-FIXTURE-ISOLATION-V6`
+- work `work/w15-fnd06-e2e-fixture-isolation`
+- FND-06 control rev 0010 / `b7b3ab914464a2da87d7b2175eb95a24d8a7db9b`.
+
+No product semantic change is authorized.
+
+
+## Pre-audit finding — W15-P1-01 Server Script recovery
+
+While preparing the mandatory post-FND06 FC0-A audit, Main revalidated the current Server Script runtime against the final Wave 14 backlog contract.
+
+Current source still shows:
+- `ScriptRuntimeExecutionCoordinator.ProcessNextAsync` returns `Throttled` while diagnostics `IsThrottled` is true;
+- the only coordinator exit is explicit `ResetThrottle()`;
+- repository search found no production automatic Server Script caller of `ResetThrottle()`;
+- existing tests prove timeout -> throttled behavior, not bounded cooldown/half-open/probe recovery.
+
+Wave 14/W15-P1-01 explicitly required bounded automatic recovery and rejected a permanent silent throttle latch.
+
+Preliminary disposition:
+`W15-P1-01 = PRELIMINARY BLOCKED_FOUNDATION`
+
+This finding is independent of FND-06 and does not prevent FND-06 from becoming VERIFIED/FROZEN if exact broad CI #1565 is green. It **does** prevent immediate FC0-A release if the independent audit confirms it.
+
+Audit evidence:
+- `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-EVIDENCE.md`
+- preliminary matrix commit `3483faf3aab4940791807b07b4453865629d9077`
+- audit control rev 0008 / commit `18a0fcda2b354779cdf0f1ba4d829a838714b3d2`.
+
+DEV-SCRIPT-ENGINEERING may not absorb this runtime/Foundation correction silently.
+
+
+## Independent AUD routing prepared
+
+The former FND-04 independent AUD lane is now pre-routed, but not activated, for the mandatory post-FND06 closure audit.
+
+- current AUD order: `FC0A-AUD-WAIT-FND06-FINAL-BROAD-0012`
+- state: `WAIT_FND06_FINAL_BROAD`
+- final broad: `35953557122`
+- provisional exact product checkpoint: `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+- FND-04 AUD control rev 0023 / `1be8ef8cbdd555f3fa554e905faafab186c21dd3`
+- next audit: `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+
+AUD must independently confirm/disprove Main's preliminary P1-01 Server Script recovery blocker after activation.
+
+
+## Pre-audit finding — W15-P1-06 truthful Engineering fallback
+
+Exact source inspected at the final FND-06 product checkpoint `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`:
+
+`web/scada-web/src/engineering/EngineeringApp.tsx`
+
+Observed:
+- `snapshot` initializes as null while loading;
+- failed load sets/keeps `snapshot=null` and renders an error/retry state;
+- the sidebar project chip nevertheless renders `snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey ?? 'Demo Project'`;
+- therefore an absent/unloaded public model can still be displayed as `Demo Project`;
+- no-model WorkspaceBar fallbacks can also present `unsaved` / `clean` despite no authoritative Working model.
+
+This matches the Wave14 A6 / W15-P1-06 class that required truthful loading/unavailable/error identity rather than a fictitious Working project.
+
+Preliminary disposition:
+`W15-P1-06 = PRELIMINARY BLOCKED_PRODUCT / SHARED_ENGINEERING_SHELL`
+
+This is not causal to FND-06 and does not block its freeze if broad #1565 is green. If independent audit confirms it, FC0-A remains blocked until a bounded shared-shell correction is integrated/revalidated.
+
+Audit control rev 0009:
+`888473cbf27e003d659ec3dd87de2f0f89240474`
+
+Evidence matrix:
+`a5260ca309742894ee48e8cce17d9175d67cda08`.
+
+
+## Audit blocker correction preparation
+
+Coordination-only preparation exists for the two preliminary blockers. It does **not** authorize product mutation:
+
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-AUDIT-BLOCKER-CORRECTION-PREP.md`
+
+prep commit:
+`5904924faf7dcc13ec42c495ff54fe6ef82ad005`
+
+Prepared, inactive orders:
+- `FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`
+- `FC0A-BLOCKER-P106-ENGINEERING-FALLBACK-V1`
+
+Activation is forbidden until independent audit confirms the corresponding finding on the exact frozen post-FND06 checkpoint.
+
+P1-01 plan preserves FND-04 Script TAG semantics, sandbox isolation, bounded queue/coalescing and Active revision safety while replacing a permanent latch only if confirmed.
+
+P1-06 plan preserves lifecycle/Authority/FND-06 contracts while removing fictitious no-snapshot project/status state and distinguishing transport rejection from actual HTTP response only if confirmed.
+
+
+## FND-06 final freeze / FC0-A audit active
+
+FND-06 is now **VERIFIED/FROZEN**.
+
+Exact product checkpoint:
+- SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
+- tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`;
+- broad `35953557122` / EliteSCADA CI #1565 — **SUCCESS**;
+- Web SUCCESS;
+- Backend build/test/smoke SUCCESS;
+- Chromium end-to-end SUCCESS.
+
+Main verified that divergence above the product checkpoint was coordination-doc-only before freeze.
+
+FND-06 control:
+- rev 0012;
+- commit `44c372d8316733398d25f72f3331b12022ab6594`;
+- CODEX order `FND06-CODEX-FROZEN-FINAL-08 / NO_MUTATION`.
+
+Mandatory independent post-FND06 audit is now **ACTIVE**:
+- audit `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`;
+- audit rev 0010 / `72421abee84ac09415a045b7c86d554dba7dd187`;
+- AUD lane rev 0024 / `0048a198a2c7d2ac40dd1a055c5bcc6346f30fe8`;
+- order `FC0A-AUD-ACTIVE-POST-FND06-0013`.
+
+Main preliminary P1-01 and P1-06 findings remain hypotheses until independent AUD disposition.
+
+No FC0-A DEV, FND-05 or FND-07 release yet.
+
+
+## FC0-A audit completed by Main — corrections required
+
+The Main Coordinator completed the mandatory post-FND06 Wave14->Wave15 audit on frozen product SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`.
+
+Result:
+`CHANGES_REQUIRED`
+
+Confirmed blockers:
+- W15-P1-01 Server Script throttle recovery;
+- W15-P1-06 truthful Engineering fallback.
+
+FND-05 remains additive/compatible and FND-07 compositional/compatible; neither currently forces a breaking change to FC0-A-consumed frozen contracts.
+
+Audit report commit:
+`463d357f8a9c11f774f5da59480e4a17a19569f5`.
+
+First correction activated:
+- `FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`;
+- branch `work/w15-fc0a-p101-server-script-recovery`;
+- exact base `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
+- profile `SCRIPT_RUNTIME`;
+- control `b8858d08a8516588db4be40d2da48ea266fe793e`;
+- routing `a088c884d90bd0c2d86b844f74332306a80b7a7c`.
+
+P1-06 remains queued. No FC0-A lane has been released.
+
+
+## Post-FND06 audit — second-pass deep review
+
+Main completed a distinct second-pass audit on the frozen baseline:
+`560ac9d80cc7e854f2513559dc6afb28cfb4aee3` / tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`.
+
+Report:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-SECOND-PASS.md`
+
+report commit:
+`43c266949236af377ba859c9b8f09fa2d3a3a31a`
+
+audit control rev 0012:
+`62a731cc4291b751e9cb2e91e440fcf0d5ffb3bd`
+
+release-prep refinement:
+`c78895b218608b511e61b90206189d2b641a1e71`
+
+Second-pass conclusion:
+`NO NEW PRE-FC0A BLOCKER IDENTIFIED`.
+
+The two confirmed release blockers remain:
+- W15-P1-01 Server Script bounded recovery;
+- W15-P1-06 truthful Engineering no-model/loading/error state.
+
+New/refined downstream findings:
+- DEV-EDITOR must consume FND-06 compatibility for known-legacy marquee/geometry/z-order/multi-object authoring paths that still use strict built-in lookup;
+- DEV-SCRIPT must make Script Assistant consume the FND-06 compatibility seam for known-legacy property discovery;
+- Script Engineering already has cursor-aware insertion and timer/tagChanged authoring, so those are regression/refinement scope, not greenfield;
+- Python API Help still lacks a formal signature/parameter/return/example contract;
+- DEV-LICENSING must surface requested vs granted Runtime class, explicit ViewOnly request and Interactive-quota fallback/reason UX; backend Authority/capacity contract is already sound;
+- one minor Runtime API message still says `viewer` where canonical public vocabulary is `viewOnly`;
+- W15-P2-01 Trends still lacks explicit realtime/reconnect/last-request/last-success/freshness observability;
+- W15-P2-02 shared Popup/live-value path correctly handles numeric zero/quality but still lacks explicit freshness-age/reason telemetry.
+
+Contract result strengthened:
+- FND-05 remains ADDITIVE / COMPATIBLE;
+- FND-07 remains COMPOSITIONAL / COMPATIBLE;
+- production host uses `EngineeringWorkspace(seedDemo:false)`, so a truthful neutral no-Demo workspace is already representable;
+- existing Authority detach/attach/switch primitives further reduce FND-07 contract risk.
+
+No DEV/FND-05/FND-07 release occurs until P1-01 and P1-06 close and Main reruns the affected release rows.
+
+
+## Main Coordinator takeover — third post-FND06 audit pass (2026-09-24)
+
+Live takeover revalidated against GitHub after coordinator-chat rotation.
+
+- frozen product checkpoint remains `560ac9d80cc7e854f2513559dc6afb28cfb4aee3` / tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`;
+- post-FND06 FC0-A audit remains `CHANGES_REQUIRED`;
+- third Main pass outcome: `NO NEW PRE-FC0A BLOCKER IDENTIFIED`;
+- authoritative third-pass report: `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-THIRD-PASS.md`, commit `b144de748337045bf447a5142d825fa0beac1ff1`;
+- audit control rev 0013: `0d27fe59d154c161418c996a4ea2df6fe59066e6`;
+- confirmed release blockers remain only W15-P1-01 and W15-P1-06;
+- active order remains `FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1` on `work/w15-fc0a-p101-server-script-recovery`;
+- work branch revalidated identical to exact base: 0 ahead / 0 behind / no changed files / no PR;
+- P1-06 remains queued separately; it must not be mixed into P1-01;
+- DEV-EDITOR, DEV-SCRIPT-ENGINEERING, DEV-AUTHORITY-UX, DEV-LICENSING-UX, FND-05 and FND-07 remain HOLD.
+
+Third-pass refinements are downstream/pre-activation only: P2-03 shell responsiveness remains open; P2-04 account accessibility is substantially implemented but needs focused keyboard regression; P2-05/P2-06 remain Engineering layout-density residuals; P2-07 is partially implemented and should not rebuild the existing Dynamo insertion preview; Help routing is surface-level rather than Engineering-section-contextual; FND-07 gained an explicit Engineering Lock × detach/switch/neutral-bootstrap acceptance guard. FND-05 remains additive/compatible; FND-07 remains compositional/compatible.
+
+FND control refreshes:
+- FND-05 hold/activation metadata: `0c69dd307880b6afcd89f352cf76fef183087410`;
+- FND-07 hold metadata + Lock/detach acceptance guard: `d0aba9e375a8330b7720b32f4defcdabf0ec12ae`.
+
+No product code, product branch or release state was changed by this audit pass.
+
+
+## Main decision — consolidated FC0-A correction package (2026-09-24)
+
+Product Owner requested that all known FC0-A findings be corrected now where safely possible, with one larger CODEX delivery before the next Main review.
+
+Active order:
+- `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V2`
+- control: `coord/w15-fnd06-control:docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md`
+- control commit: `0ab4a2f9226a1f3710aa516dff9534d880023218`
+- branch: `work/w15-fc0a-consolidated-corrections`
+- exact base: `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+- exact base tree: `674019fbbc21001a2d68deb853c2c0b293e0a5cb`
+- one consolidated PR only after the package is complete and exact-head validation is green.
+
+The former P1-01-only order/branch is superseded unused; it was identical to base with no PR at supersession.
+
+The package includes the two mandatory blockers plus confirmed shared/downstream residuals that can be safely brought forward: shell responsiveness, account keyboard regression, Engineering scroll composition, Engineering Lock density, Trends/live-value freshness observability, contextual Help routing, canonical viewOnly wording, frozen FND-06 compatibility consumption in Editor/Script Assistant, structured Script API Help/representative recipe, Runtime Session/Licensing requested/granted UX, and Template/Equipment/Library inspection.
+
+Evidence-bounded/speculative items and future Foundations remain outside the package. Frozen FND-01/02/03/04/06/08 semantics may not be redefined.
+
+Sequential CODEX route updated to rev 0027 / commit `93d79a773d7571677a9f43e6f3a80ad21aa25612`.
+No intermediate Main review is required; CODEX returns one final candidate handoff unless a real contract/base/environment blocker prevents safe completion.
+
+
+## Main decision — six prepared parallel DEV chats / CODEX as sequential validator (2026-09-24)
+
+Product Owner clarified that the previous `normally no more than four active coding DEVs` rule was a historical operational throttle for a different context and is **not** a permanent Wave 15 concurrency limit.
+
+Prepared post-FC0A implementation chats:
+- DEV-EDITOR;
+- DEV-SCRIPT-ENGINEERING;
+- DEV-AUTHORITY-UX;
+- DEV-LICENSING-UX;
+- FND-05 DEV;
+- FND-07 DEV.
+
+Canonical cross-lane coordination:
+- branch: `coord/w15-parallel-dev-control`
+- file: `docs/WAVE15-PARALLEL-DEV-CONTROL.md`
+- prepared control commit: `87479d0bc3042435935ac1dbaa119d3a7ed72bd6`
+
+All six are **PREPARED / BLOCKED** until Main records `FC0A_RELEASE_APPROVED` on an exact integrated SHA/tree. No work branch is created before that exact activation base is known.
+
+Execution pipeline:
+`normal DEV chat implements code -> Main reviews -> same DEV corrects material defects -> Main accepts exact candidate for CODEX -> sequential scarce CODEX writes/extends tests, runs focused/adversarial local validation and exact-head T1 -> Main finalizes integration`.
+
+CODEX may make small validation-driven corrections that do not redesign the feature. Material product/design defects return to the owning DEV. Frozen-contract insufficiency returns to Main.
+
+Feature DEV results stay in **separate PRs**; they are not combined into a raw monolithic implementation package. After individually accepted/T1-green merges, Main runs broader integrated T2 on the exact integration head.
+
+FND-05/FND-07 also move to normal-chat DEV implementation:
+- FND-05 prepared order: `FND05-DEV-HA-AUTHORITY-V1`; dedicated control rev 0004 / commit `f3f685cff16ebfef53db4aa69b061d7bac773829`.
+- FND-07 prepared order: `FND07-DEV-DETACH-NEUTRAL-V1`; dedicated control rev 0003 / commit `ae92f5f1ec55464eea7f231c178d0a05dc04df13`.
+
+Foundation validation remains stricter:
+`DEV -> Main contract review -> CODEX adversarial/focused validation -> exact-head T1 -> Main merge -> post-merge validation -> VERIFIED/FROZEN`.
+
+FND-05 additionally requires `CODEX_HA_ADVERSARIAL_GREEN`.
+
+Release preparation was updated:
+- `coord/w15-fnd06-control:docs/WAVE15-FC0-A-RELEASE-PREP.md`
+- commit `349ed55e74b237c77dec64971a7f8dac3ee97c7e`.
+
+ROADMAP current coordination update:
+- commit `08b11987b78adee134de77906fd57b2af199e5fb`.
+
+Current FC0-A product work remains PR #340 / V2 IN PROGRESS. This coordination preparation does not activate any downstream lane and does not alter the current CODEX mission.
+
+Bootstrap texts for each lane will be generated on Product Owner request; the bootstrap is only onboarding convenience and GitHub live controls remain authoritative.
+
+
+## Main decision — two-stage fresh-install partial preview (2026-09-24)
+
+After the four feature DEV lanes are integrated/T2-verified and FND-05/FND-07 are independently VERIFIED/FROZEN, Main will run a partial first-project product audit before later EEE/complete-product acceptance.
+
+Prepared control:
+- branch: `coord/w15-fresh-install-preview-control`
+- file: `docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`
+- prepared commit: `8d209c8f0cacf5c1feb050632645c9537e1f09dc`
+
+Prepared gates:
+- `W15-FIRST-PROJECT-CODEX-BLACKBOX-PREVIEW-01`
+- `W15-FIRST-PROJECT-HUMAN-PREVIEW-01`
+
+The two first-project journeys are independent.
+
+CODEX moment:
+- fresh installation / no project / no EEE / no hidden Demo project;
+- user-like browser exploration;
+- high-level objective only: create a first SCADA application from zero and reach a functional truthful Runtime;
+- no source/control/database/internal API lookup during the black-box journey;
+- no code correction during exploration;
+- source/log/API diagnosis is allowed only after the journey completes or is blocked;
+- detailed CODEX findings are persisted but not surfaced to Product Owner before the human preview.
+
+Human moment:
+- second independent clean environment;
+- Product Owner repeats the same high-level first-project mission as a real user;
+- no CODEX-created project;
+- no detailed CODEX report/checklist before the unaided human journey completes;
+- needing help or becoming blocked is itself audit evidence.
+
+After both journeys:
+- Main unseals and compares findings as BOTH / CODEX_ONLY / HUMAN_ONLY / PATH_DIVERGENCE / NOT_REPRODUCED;
+- a directed follow-up may then cover restart/persistence, Authority/ViewOnly, FND-07 detach -> neutral bootstrap -> Project B -> B/A switching, and a separate HA user-surface/manual transfer check;
+- material blockers are corrected/owned; non-blocking onboarding/usability gaps may feed later Installation UX/product convergence.
+
+T1/T2/T3/T4 green evidence does not replace these audits.
+
+Possible partial-preview dispositions:
+- `ACCEPTABLE_FOR_NEXT_CONVERGENCE`
+- `CHANGES_REQUIRED`
+
+Neither is final Wave 15 acceptance. EEE v15, later T3/T4 and final fresh complete-product Preview remain mandatory.
+
+Roadmap update: `57729b9db0ebcac2c748a9f6f0101eb48c5b625b`.
+Six-lane control link update: `e130b5353c320e9c22f8e1f8f3a7e42a2dd6946c`.
+
+This preparation does not activate the preview now and does not alter current PR #340 / CODEX V2 execution.
+
+
+## Main review — PR #340 V2 complete / narrow V3 closeout active (2026-09-24)
+
+Main reviewed final V2 candidate:
+- PR #340;
+- head `150b808140a5fdf80afd0c88d46ea80f83f630b2`;
+- tree `c2bfbbfe705be64e5c1aac314f96bf8851a913b0`;
+- 15 commits / 41 changed files;
+- natural Wave 15 T1 `36033152318`: SUCCESS across classification, Common T1 sanity, Focused .NET, Focused Chromium, Web semantic build and final gate.
+
+Disposition:
+`FC0-A CONSOLIDATED V2 -> MAIN COORDINATOR — CHANGES_REQUIRED / NARROW V3`
+
+Accepted V2 closures remain preserved. Two bounded groups remain before merge:
+1. actual user-facing Runtime Session Class request/status surface for ViewOnly/Interactive requested-vs-granted/reason truth without FND-03 redesign;
+2. missing R6 mounted evidence for shell no-overflow, Engineering independent scroll, compact Engineering Lock lifecycle and known-legacy advanced-authoring/unknown containment.
+
+Binding control:
+- `coord/w15-fnd06-control:docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md`
+- order `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V4`
+- section 12
+- commit `6a13c88fd112fe94e9c87e1206d9840be75161eb`.
+
+Sequential CODEX route:
+- rev 0030
+- `ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CONSOLIDATED-V3-18`
+- commit `7011f7e2a29f37c105657b1a56ceac62a6ef4d58`.
+
+PR #340 Main review comment: `5819091955`.
+Issue #305 ledger comment: `5819092476`.
+
+No merge/freeze/release occurred. All downstream six lanes remain PREPARED/HOLD until FC0-A final acceptance.
+
+
+## Main review — PR #340 V3 product accepted / final evidence-only closeout active (2026-09-24)
+
+Exact V3:
+- head `1efc16994ea7b11857b0a1aac7da1690276e6d07`
+- tree `da022f95a0c2342188a34ffe6dc830acf84d873a`
+- natural T1 `36036316797`: SUCCESS.
+
+Main accepts the V3 Runtime Session Class product surface and shell compact-width product direction.
+
+Merge remains blocked only on final test/evidence closure:
+- explicit Engineering scroll-composition proof;
+- compact Engineering Lock lifecycle proof including lock-now + clear;
+- known-legacy advanced-authoring + arbitrary-unknown containment proof;
+- focused execution of owner specs that natural T1 did not select.
+
+The T1 Chromium job on V3 executed 16 tests but did not select the Runtime Session mounted spec, app-shell, Engineering Lock or legacy owner-model specs, so its green result is not used as proof for those rows.
+
+Binding control:
+- `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V5`
+- section 13
+- commit `1485bd3d832a57b109d347e0b931b21334d56844`
+
+CODEX route:
+- rev 0031
+- `ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CONSOLIDATED-V4-19`
+- commit `63afda347e798d5e45292161fab382911093ae42`
+
+This is test/validation-only. No new feature scope is authorized.
+
+PR #340 Main comment: `5819317792`.
+Issue #305 ledger: `5819318386`.
+
+No merge/freeze/release occurred. Six downstream lanes remain PREPARED/HOLD.
+
+
+## Main review — PR #340 V4 tests accepted / final execution proof active (2026-09-24)
+
+Exact V4 head `87eafb68e4fea7815a26ccffeb8a070fae6564c8` is test-only and natural T1 `36037962003` is green.
+
+Main accepts the added scroll/Lock/legacy tests directionally, but the T1 Chromium log did not execute those owner specs. It selected only python-runtime-host, runtime, script-engineering-workspace-contract, visual-editor-workspace and local-auth bootstrap.
+
+Merge therefore remains blocked solely on execution proof.
+
+Binding control:
+- `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V6`
+- section 14
+- commit `9990d84750be61c86322951255a67ff22fb4a29d`.
+
+CODEX route:
+- rev 0032
+- `ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CONSOLIDATED-V5-20`
+- commit `96ccc7d6287db9889940b6a57ed54cee115a74e5`.
+
+Required work is validation-only:
+- support multiple profile-owned E2E specs in Wave 15 router;
+- make UI_EDITOR execute app-shell, Engineering Lock and visual-editor owner specs in addition to workspace;
+- make RUNTIME_RENDERER execute runtime-session owner spec in addition to runtime;
+- unit-test router mapping;
+- strengthen Lock backend-state transition and arbitrary-unknown containment assertions;
+- final exact-head natural T1 must visibly execute these owner specs.
+
+Required return:
+`FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — FINAL INTEGRATION HANDOFF V5`.
+
+No merge/freeze/release yet. Six downstream lanes remain PREPARED/HOLD.
+
+
+## FC0-A merged / release blocked by INFRA-CI-01C recurrence (2026-09-24)
+
+FC0-A consolidated PR #340 is merged.
+
+Exact accepted product checkpoint:
+- SHA `d975174ae81ff7ed754585097240778a9862d965`
+- tree `5ac06f47f1bede7a1b0c384c7b1d3c83730015ea`
+- pre-merge Wave 15 T1 `36043296814`: SUCCESS
+- required Chromium owner suite: 54 passed.
+
+The exact post-merge push gate `EliteSCADA CI 36044280802` is red:
+- Web build SUCCESS;
+- Backend build SUCCESS;
+- Backend Test FAILURE;
+- smoke/Chromium skipped downstream.
+
+Only identified failure:
+`PostgreSqlEngineeringSchemaV15CommunicationBindingTests.PostgreSqlRevision_SavePreviewApply_RoundTripsCommunicationBinding`
+with PostgreSQL
+`23505 / pg_namespace_nspname_index`
+on concurrent
+`CREATE SCHEMA IF NOT EXISTS elitescada`.
+
+Main proved the affected Engineering store, shared-schema lock helper, Timescale infrastructure, failing test and existing concurrency regression are byte-identical to frozen pre-FC0A `560ac9d...`. Classification:
+
+`GENERIC_INFRASTRUCTURE_RECURRENCE / NOT_FC0A_PRODUCT_CAUSAL`.
+
+Do not reopen accepted PR #340 product work and do not use a blind rerun as release evidence.
+
+Active blocker:
+- `coord/w15-infra-ci-01c-control:docs/WAVE15-INFRA-CI-01C-POSTGRES-SCHEMA-RACE-RECURRENCE-CONTROL.md`
+- order `INFRA-CI-01C-POSTGRES-SCHEMA-RECURRENCE-V1`
+- control commit `8cf15e123823f5aaae2c911f0f113e804c9dad0d`
+- work branch `work/w15-infra-ci-01c-postgres-schema-recurrence`
+- exact base `d975174ae81ff7ed754585097240778a9862d965`.
+
+Sequential CODEX route:
+- rev 0033
+- `ROUTE-SEQUENTIAL-CODEX-TO-INFRA-CI-01C-21`
+- commit `57dbe4a29ad69483d0a06f1bc0b8dc2f8f908d6b`.
+
+Current state:
+`FC0-A -> POST_MERGE_VALIDATION_BLOCKED_BY_INFRA`.
+
+No `FC0A_RELEASE_APPROVED` yet. All six prepared DEV/FND lanes remain WAIT. Their work branches must not be created/activated from a stale checkpoint; after 01C is integrated and the exact new post-merge gate is green, Main will record the final release base and create/activate them.
+
+
+## FC0-A post-merge Help E2E load blocker (2026-09-24)
+
+INFRA-CI-01C PR #341 merged at `da0e64122f1e4d0293e027f45ef95021cd03c1a1`
+(tree `a724e565f11121a43b97bf0c59683b414c72f48c`).
+
+Exact broad `EliteSCADA CI 36047274028 / #1567`:
+- Web SUCCESS;
+- Backend build/test SUCCESS;
+- Runtime smoke SUCCESS;
+- Chromium FAILURE before test execution.
+
+The PostgreSQL recurrence is closed.
+
+The remaining deterministic blocker is the FC0-A-added
+`contextual-help-routing.spec.ts` importing the React shell `AppNavigation.tsx`;
+its transitive CSS import reaches the Node-side Playwright loader and fails with
+`src/auth/auth.css: Unexpected token (1:0)`.
+
+Classification:
+`FC0A_POSTMERGE_E2E_TEST_LOAD_DEFECT / PR340_TEST_CAUSAL / PRODUCT_BEHAVIOR_NOT_SHOWN_DEFECTIVE`.
+
+Active closeout:
+- control: `coord/w15-fnd06-control:docs/WAVE15-FC0A-POSTMERGE-HELP-E2E-LOAD-CONTROL.md`;
+- order: `FC0A-POSTMERGE-HELP-E2E-LOAD-V1`;
+- branch: `work/w15-fc0a-postmerge-help-e2e-load`;
+- exact base: `da0e6412...`;
+- CODEX route rev 0034 / `ROUTE-SEQUENTIAL-CODEX-TO-FC0A-HELP-E2E-22`.
+
+FC0-A remains NOT RELEASED. Do not activate the six prepared downstream lanes until Main obtains a globally green exact post-merge broad CI and records `FC0A_RELEASE_APPROVED`.
+
+
+## FC0-A broad #1568 — stale Canvas source-contract blocker (2026-09-24)
+
+Current exact release candidate:
+`1ab3550e1afb258e38caaa6de3f6547f481bbef7`
+(tree `701f4591a294885b414284691b1051cf274c9707`).
+
+EliteSCADA CI `36049229264 / #1568`:
+- Web SUCCESS;
+- Backend build/test SUCCESS and Runtime smoke SUCCESS after the single repository-authorized same-SHA retry of the known IEC-104 T2 timing transient;
+- Chromium full suite: 654 passed / 1 failed.
+
+The only Chromium failure is `visual-editor-canvas-source-contract.spec.ts`, whose unchanged historical source assertion still requires `getBuiltinVisualObjectSchema`. The accepted FC0-A product intentionally consumes FND-06's `getVisualSchemaForEngineering` compatibility seam instead. Functional Canvas tests pass.
+
+Classification:
+`STALE_SOURCE_CONTRACT_TEST / PRODUCT_BEHAVIOR_NOT_DEFECTIVE`.
+
+Active closeout:
+- `FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-V1`;
+- control `coord/w15-fnd06-control:docs/WAVE15-FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-CONTROL.md`;
+- branch `work/w15-fc0a-postmerge-canvas-source-contract`;
+- CODEX route rev 0035 / `ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CANVAS-CONTRACT-23`.
+
+FC0-A remains NOT RELEASED and the six post-FC0A lanes remain WAIT until a later exact broad gate is globally green.
+
+
+## FC0-A RELEASE APPROVED / six implementation lanes ACTIVE (2026-09-24)
+
+Main completed the final post-FND06 release audit.
+
+Product release checkpoint:
+- SHA `e3ed5138369c576549cb58a7aff9783792f322d3`
+- tree `4e7627774fbfc111344e3d80fcb9d921eed8377e`
+- exact broad gate `EliteSCADA CI #1569 / 36060017969`: SUCCESS
+- Web build: SUCCESS
+- Backend build/test: SUCCESS
+- Runtime smoke: SUCCESS
+- Chromium full suite: **655 passed / 0 failed**
+
+Final audit:
+`FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — ACCEPTABLE / FC0A_RELEASE_APPROVED`
+rev 0014.
+
+All six implementation branches were created directly from the exact product release SHA and independently revalidated as identical before coding:
+- `work/w15-dev-editor-single-canvas`
+- `work/w15-dev-script-engineering`
+- `work/w15-dev-authority-ux`
+- `work/w15-dev-licensing-ux`
+- `work/w15-fnd-05-ha-authority`
+- `work/w15-fnd-07-detach-neutral`
+
+All six lanes are now `ACTIVE_CODING / AUTHORIZED`.
+
+Control state:
+- central parallel control rev 0002;
+- four feature controls rev 0002;
+- FND-05 control rev 0005 / order `FND05-DEV-HA-AUTHORITY-V1`;
+- FND-07 control rev 0004 / order `FND07-DEV-DETACH-NEUTRAL-V1`.
+
+Sequential CODEX is no longer executing FC0-A closeouts:
+- route rev 0036;
+- `ROUTE-SEQUENTIAL-CODEX-WAIT-POST-FC0A-24`;
+- state `WAIT_FOR_MAIN_ACCEPTED_CANDIDATE`.
+
+Workflow:
+`normal DEV implements -> Main reviews -> same DEV corrects if needed -> Main accepts -> sequential CODEX validates/tests/T1 -> Main integrates`.
+
+Foundations:
+`normal FND DEV implements -> Main contract review -> sequential CODEX adversarial validation -> T1 -> Main integration -> post-merge -> VERIFIED/FROZEN`.
+
+Product release SHA remains `e3ed5138...` even if `wave15/corrections-integration` advances afterward through coordination-only documentation commits.
+
+Ledger: Issue #305 comment `5822605281`.
+
+After all four feature lanes reach integrated T2 verification and FND-05/FND-07 are independently VERIFIED/FROZEN, proceed to the already-defined two-moment fresh-install first-project partial preview: CODEX black-box first, then Product Owner human journey on a separate reset environment.
+
+
+## Post-FC0A six-lane Main review snapshot (2026-09-24)
+
+FC0-A release base remains:
+`e3ed5138369c576549cb58a7aff9783792f322d3`
+(tree `4e7627774fbfc111344e3d80fcb9d921eed8377e`), broad CI #1569 / `36060017969` SUCCESS / Chromium 655 passed.
+
+Current downstream lane dispositions after Main's first candidate review pass:
+
+- Script Engineering PR #344 — `MAIN_ACCEPTED_FOR_CODEX / DEV_WAIT`, exact accepted head `cf0ae2d1...`; shared sequential CODEX route `ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25` is active.
+- Editor PR #349 — `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`, exact head `06eed31d...`, T1 `36066874097` SUCCESS; queued behind active Script validation.
+- Authority UX PR #346 — `DEV_CORRECTION` under `DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`; persisted role keys must remain stable/truthful against user assignments.
+- Licensing UX PR #345 — `DEV_CORRECTION` under `DEV-LICENSING-UX-STATUS-ENTITLEMENTS-02`; canonical Licensing status must expose ESLIC1/ESLIC2 schema truth and signed ESLIC2 session/HA entitlements.
+- FND-05 PR #347 — `DEV_CORRECTION` under `FND05-DEV-PEER-HANDOFF-BOUNDARY-V2-01`; internal HA state machine is accepted directionally, but two independent services need a transport-neutral readiness/authority/lease handoff boundary before CODEX.
+- FND-07 PR #348 — `DEV_CORRECTION` under `FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`; old local-auth E2E incorrectly depended on process Demo state, while Wave 15 requires clean no-Demo first-project/neutral bootstrap truth.
+
+No feature/Foundation candidate is merged yet.
+
+The integration target's post-release product baseline remains unchanged by these reviews; coordination/documentation advances do not authorize lane self-rebase or self-merge.
+
+Central board:
+`coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`, rev 0003.
+
+The prepared two-stage first-project fresh-install preview remains downstream of four feature integrations/T2 plus FND-05/FND-07 VERIFIED/FROZEN.
+
+
+## Post-review CI diagnosis and sequential CODEX queue (2026-09-24)
+
+GitHub live revalidation after the first six-lane Main review pass:
+
+- Script Engineering PR #344 remains the **active sequential CODEX mission** on exact accepted head `cf0ae2d1dcd2d63668b5b1c2c3590a5b6bb9bdaa`.
+- Editor PR #349 remains `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT` on `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`, T1 `36066874097` SUCCESS.
+- Authority PR #346 remains in DEV correction. Its repaired-metadata T1 `36067636970` reached real evidence and found a candidate-causal Web compile defect: TS2345 in `AuthorityPolicyAdministration.logic.ts` caused by a generic number lookup against a literal-key capability Map. That defect is now part of `DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`; unchanged-head rerun is forbidden.
+- Licensing PR #345 remains in DEV correction. T1 `36067628680` had Web/Chromium/Common green and .NET 692/693. The only failure, `Adapter_OutOfOrderIFrameFaultsBeforePublishingAsdu`, is non-causal to Licensing: the exact test, IEC-104 adapter and sequence-state blobs are unchanged from FC0-A.
+- Main proved the IEC-104 failure is an asynchronous **test observation race**: the test waits only for `ProtocolErrors >= 1`, while the adapter increments that counter before `SignalSessionFailure` writes `IsConnected=false` and increments session failures.
+- Separate test-infrastructure closeout prepared:
+  `coord/w15-infra-ci-01d-control:docs/WAVE15-INFRA-CI-01D-IEC104-FAULT-OBSERVATION-RACE-CONTROL.md`,
+  commit `b23cefeaf78a58ea17eaba8cf9a1566f3095ada4`.
+- INFRA-CI-01D is **PREPARED ONLY**. No work branch exists yet and no mutation is authorized.
+- Shared sequential CODEX plan after Script handoff:
+  1. activate/close INFRA-CI-01D from the then-current integration HEAD;
+  2. route CODEX to Editor #349.
+- This queue is planning only. The active route remains Script until Main publishes a new binding route.
+
+Shared CODEX control rev 0038:
+`coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md`,
+commit `163b476252ed1a2459730b716b7dd921470c5903`.
+
+Central six-lane control rev 0004:
+`coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`,
+commit `59223cf41f96f5f7bdfc0e6e0c44f8299fe76031`.
+
+
+## MAIN COORDINATOR CHAT TRANSFER — 2026-09-24
+
+This coordinator chat is being replaced because the current chat runtime became unreliable. GitHub live remains the sole authority.
+
+### Exact live checkpoint at transfer
+
+- integration branch: `wave15/corrections-integration`
+- integration HEAD observed at transfer: `3cdb13ed27b0529265b2e92785c09df09c96af3f`
+- FC0-A released product base: `e3ed5138369c576549cb58a7aff9783792f322d3`
+- FC0-A tree: `4e7627774fbfc111344e3d80fcb9d921eed8377e`
+- release gate: EliteSCADA CI #1569 / `36060017969` / SUCCESS / Chromium 655 passed
+- comparison from prior coordination target `e380e66f...` to transfer HEAD is documentation-only across the canonical handoff/roadmap files; no accepted post-FC0A lane product code has been integrated yet.
+
+### Binding lane state at transfer
+
+1. **DEV-SCRIPT-ENGINEERING / PR #344**
+   - accepted candidate head `cf0ae2d1dcd2d63668b5b1c2c3590a5b6bb9bdaa`
+   - state: `MAIN_ACCEPTED_FOR_CODEX / DEV_WAIT`
+   - active shared CODEX route: `ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25`
+   - no CODEX validation handoff had appeared at the last revalidation; new coordinator must re-check live before acting.
+
+2. **DEV-EDITOR / PR #349**
+   - head `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`
+   - T1 `36066874097`: SUCCESS
+   - state: `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
+   - must not preempt the currently active Script CODEX route unless Main deliberately reorders after live revalidation.
+
+3. **DEV-AUTHORITY-UX / PR #346**
+   - reviewed head `3986475b20e4a72969159bfaed003ad5d72626d4`
+   - state: `DEV_CORRECTION`
+   - order: `DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`
+   - repaired-metadata T1 `36067636970` reached product evidence and found candidate-causal Web TS2345 compile errors in `AuthorityPolicyAdministration.logic.ts`.
+   - do not rerun the unchanged old head as acceptance.
+
+4. **DEV-LICENSING-UX / PR #345**
+   - reviewed head `cdf572d644417fe83aee3003a3da3fe171d7ada3`
+   - state: `DEV_CORRECTION`
+   - order: `DEV-LICENSING-UX-STATUS-ENTITLEMENTS-02`
+   - T1 `36067628680`: Web/Chromium/Common green; .NET 692/693.
+   - only failure was diagnosed as shared IEC-104 test-observation race, not Licensing causal.
+   - prepared infra closeout: `INFRA-CI-01D-IEC104-FAULT-OBSERVATION-RACE-V1`; it is PREPARED ONLY until Main explicitly activates it.
+
+5. **FND-05 / PR #347**
+   - reviewed head `8c2bd2724b7f17711d76c59919f68ed7037483a3`
+   - T1 `36064607662`: SUCCESS
+   - state: `DEV_CORRECTION / PEER_HANDOFF_BOUNDARY_REQUIRED`
+   - current order: `FND05-DEV-PEER-HANDOFF-BOUNDARY-V2-01`
+   - dedicated control rev 0006.
+   - Main accepted the internal HA state-machine direction but requires a transport-neutral two-independent-node readiness/authority/lease handoff boundary before CODEX.
+   - no network/consensus/automatic-failover scope was authorized.
+
+6. **FND-07 / PR #348 (draft)**
+   - reviewed head `ae11e42e8ad5e39b1e2c5a0068f81e4ec31653c6`
+   - state: `DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
+   - current order: `FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`
+   - dedicated control rev 0005.
+   - T1 `36066422907` exposed a stale Demo-dependent E2E fixture; Wave 15 product truth is clean no-Demo fresh-install / neutral bootstrap.
+   - do not restore hidden Demo product behavior merely to satisfy the old test.
+
+### Sequential CODEX queue
+
+Binding active route at transfer: Script Engineering #344.
+
+Planned only, not yet activated:
+1. after Script handoff, Main may activate INFRA-CI-01D to stabilize the shared IEC-104 test observation race;
+2. then Editor #349 is the first already Main-accepted queued product candidate.
+
+A new explicit shared CODEX route is required before the executor changes mission.
+
+### Fresh-install preview remains downstream
+
+The prepared two-stage first-project fresh-install partial preview remains **NOT ACTIVE**.
+
+Entry still requires:
+- four feature lanes integrated with required T2 acceptance;
+- FND-05 and FND-07 post-merge validated and VERIFIED/FROZEN;
+- no known blocking P0/P1 invalidating the journey.
+
+Then:
+1. CODEX black-box first-project journey on a clean environment;
+2. Product Owner human first-project journey on an independent clean environment;
+3. detailed CODEX findings remain embargoed from the Product Owner until the human journey ends;
+4. Main compares both journeys afterward.
+
+Prepared control:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`.
+
+### Mandatory startup for the replacement coordinator
+
+Before any merge, rerun, correction, CODEX reroute or new architecture decision:
+
+1. read `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md` fully;
+2. read `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` fully;
+3. read `docs/CURRENT-COORDINATOR-HANDOFF.md` and `LAST CHANGE.md`;
+4. revalidate live integration HEAD, PRs #344-#349, their exact heads/mergeability/CI/comments, Issue #305, shared CODEX control, central six-lane control, and the dedicated controls of any lane being acted on;
+5. if live GitHub differs from this transfer snapshot, GitHub live wins.
+
+Do not treat the Product Owner as a courier between agents. Normal lane handoffs should be recovered directly from GitHub comments/control planes whenever available.
+
+
+## REPLACEMENT MAIN TAKEOVER — LIVE REVALIDATION AFTER TRANSFER (2026-09-24)
+
+GitHub live supersedes the transfer snapshot where lane heads advanced.
+
+### Integration / product truth
+- FC0-A released product checkpoint remains `e3ed5138369c576549cb58a7aff9783792f322d3` / tree `4e7627774fbfc111344e3d80fcb9d921eed8377e`.
+- takeover integration HEAD before this documentation refresh was `3480ed03a6719aef38e4c1ced2f466aaa4fa10b3`.
+- comparison FC0-A -> that takeover HEAD was 14 commits ahead / 0 behind and changed only the five canonical coordination/documentation files.
+- therefore no post-FC0A feature/Foundation product code had been integrated at takeover.
+
+### Live lane decisions
+1. **Script Engineering / PR #344**
+   - head `cf0ae2d1dcd2d63668b5b1c2c3590a5b6bb9bdaa`;
+   - remains `MAIN_ACCEPTED_FOR_CODEX / ACTIVE_SHARED_CODEX_ROUTE / DEV_WAIT`;
+   - no post-transfer CODEX validation handoff has appeared;
+   - binding route remains `ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25`.
+
+2. **Editor / PR #349**
+   - head `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`;
+   - T1 `36066874097` SUCCESS;
+   - remains `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`.
+
+3. **Licensing UX / PR #345**
+   - corrected head `f5d3212b9c114d3ad6e2239460172db0b3d568f8`;
+   - tree `a3e87f2ef7beb15bc66d6980e12710eddcc30525`;
+   - T1 `36071779912` SUCCESS;
+   - Main accepted the corrected ESLIC1/ESLIC2 schema + signed Interactive/ViewOnly/HA entitlement projection;
+   - state `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`.
+
+4. **Authority UX / PR #346**
+   - corrected head `9fd2462f43c74b085e58be91dbec9ebdf18514c5`;
+   - tree `bdd7ac76c3566aef81e249a9db91810674b7dfe8`;
+   - stable-role-key correction direction accepted;
+   - T1 `36071729747` FAILURE because Web semantic build reports nullable-baseline TS2345 at `AuthorityPolicyAdministration.tsx(341,48)` and `(345,38)`;
+   - remains DEV correction under `DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`;
+   - no unchanged-head rerun.
+
+5. **FND-05 / PR #347**
+   - corrected head `be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`;
+   - tree `c9e94e84c078928ad690217484171fafa6390b46`;
+   - T1 `36072325579` SUCCESS;
+   - Main accepted the transport-neutral two-independent-service readiness/authority/lease handoff boundary directionally;
+   - state `MAIN_ACCEPTED_FOR_CODEX_HA_ADVERSARIAL / QUEUED / DEV_WAIT`;
+   - `CODEX_HA_ADVERSARIAL_GREEN` remains mandatory before integration.
+
+6. **FND-07 / PR #348**
+   - remains DRAFT at `ae11e42e8ad5e39b1e2c5a0068f81e4ec31653c6`;
+   - remains `DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`;
+   - no corrected post-transfer head has appeared.
+
+### Sequential queue / infra
+- INFRA-CI-01D remains `PREPARED / NO_MUTATION`; it is not automatically activated by the Licensing old-head IEC-104 diagnosis.
+- Main will choose the next explicit CODEX route only after Script returns and after a fresh live revalidation.
+- accepted/ready waiting work currently includes Editor #349, Licensing #345 and FND-05 #347 in addition to prepared INFRA-CI-01D; readiness does not itself change the route.
+- fresh-install first-project preview remains PREPARED / NOT ACTIVE.
+
+Central board rev 0005:
+`coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`.
+
+Dedicated control refreshes:
+- Authority rev 0004 / `5e2804963ea919d9224ace341f279660804437ad`;
+- Licensing rev 0004 / `a4a4098f7c65863bb5cc14a9b566f67aee9f7884`;
+- FND-05 rev 0007 / `a3f69a286a62028b49b0809025c45b585ff698f8`.
+
+
+## REPLACEMENT MAIN FOLLOW-UP — FND-07 CORRECTION RETURN (2026-09-24)
+
+FND-07 advanced after the initial takeover revalidation:
+- PR #348 remains DRAFT;
+- corrected head `af7bf1ae51539975b3b3e8b40ea36472249ade2e`;
+- tree `0947177b314dbcbaaebb3ae8ba65eb2fa3498c49`;
+- delta is test-only in `web/scada-web/tests-e2e/local-auth.spec.ts`;
+- fresh pre-project export now proves no hidden Demo/preconfigured Engineering content;
+- first Administrator + first project + genuinely-empty-project assertions now execute past the prior blocker;
+- natural T1 `36072685058` remains FAILURE only in focused Chromium because the historical fixture expects two Engineering security roles `developer + operator`, while the clean bootstrap endpoint truthfully returns one `developer` role and the same run reports `workspace.securityRoleCount == 1`.
+
+Disposition:
+`FND-07 -> DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
+
+Binding order remains:
+`FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`
+
+Dedicated control rev 0006:
+`bc7e3f810b7534d1180196c1e768f4c92a1c60a5`.
+
+Required delta remains test/harness-only unless new product evidence appears. Do not seed hidden Demo/operator state merely to satisfy the old expectation. No CODEX/merge/freeze authority.
+
+
+## 2026-09-25 — Main coordinator forced handoff after FND-07 legacy-test audit
+
+The outgoing Main Coordinator paused the shared CODEX route because CODEX is temporarily unavailable and persisted the exact transfer state in GitHub.
+
+FND-07 PR #348 exact head at transfer:
+`3ecc4a78080685b0556402d50190e09236d6d8fa`.
+
+Latest exact-head T1:
+`36094394912` — Classify/Common/Web/.NET green; Chromium red.
+
+The audit removed several legacy/harness assumptions and exposed/fixed a real activation endpoint nested-Task defect. The remaining blocker is now a clean HTTP 422 from the real Published -> Active path after publish returns 200. Root cause remains open for the replacement Main.
+
+Durable ledger:
+- PR #348 comment `5831728502`;
+- FND-07 control `101e2977cd28e0e7d6c470e61b3e2c5f5a7ffc2c`;
+- shared route `8b3be7727b18888a5dd3c0e046f8926a78c3d7e7`;
+- central board `3c24c683575ae0aaf87483c5b6ec36f95aa1878b`.

@@ -87,7 +87,13 @@ test('unlocked Engineering can configure and lock without making frontend capabi
 
   await page.goto('/engineering');
 
-  await expect(page.getByTestId('engineering-lock-management')).toBeVisible();
+  const management = page.getByTestId('engineering-lock-management');
+  await expect(management).toBeVisible();
+  await expect(management.locator('summary')).toContainText('Sem proteção');
+  await expect(management.locator('summary')).not.toContainText('Engineering Lock');
+  await expect(management).not.toHaveAttribute('open', '');
+  await management.locator('summary').click();
+  await expect(management).toContainText('Engineering Lock');
   await expect(page.getByTestId('engineering-lock-configure-secret')).toHaveAttribute('type', 'password');
   await expect(page.getByRole('heading', { name: 'Visão geral do projeto' })).toBeVisible();
 
@@ -97,4 +103,38 @@ test('unlocked Engineering can configure and lock without making frontend capabi
   await expect(page.getByTestId('engineering-lock-restricted')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Visão geral do projeto' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Licenciamento' }).last()).toBeVisible();
+});
+
+test('configured compact Lock management remains discoverable and applies a backend locked state', async ({ page }) => {
+  let lockRequests = 0;
+  await page.route('**/api/engineering/lock/status', route => route.fulfill({ json: unlockedStatus }));
+  await page.route('**/api/engineering/lock/lock', route => { lockRequests++; return route.fulfill({ json: lockedStatus }); });
+  await page.setViewportSize({ width: 700, height: 720 });
+  await page.goto('/engineering');
+
+  const management = page.getByTestId('engineering-lock-management');
+  await expect(management).toBeVisible();
+  await expect(management.locator('summary')).toContainText('Desbloqueado');
+  await expect(management.locator('summary')).not.toContainText('Engineering Lock');
+  await management.locator('summary').click();
+  await expect(management).toContainText('Engineering Lock');
+  await expect(page.getByRole('button', { name: 'Bloquear agora' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remover segredo' })).toBeVisible();
+  await page.getByRole('button', { name: 'Bloquear agora' }).click();
+  await expect.poll(() => lockRequests).toBe(1);
+  await expect(page.getByTestId('engineering-lock-restricted')).toBeVisible();
+});
+
+test('configured Lock clear path applies the backend cleared state', async ({ page }) => {
+  let clearRequests = 0;
+  await page.route('**/api/engineering/lock/status', route => route.fulfill({ json: unlockedStatus }));
+  await page.route('**/api/engineering/lock/clear', route => { clearRequests++; return route.fulfill({ json: { configured: false, locked: false } }); });
+  await page.setViewportSize({ width: 700, height: 720 });
+  await page.goto('/engineering');
+
+  const management = page.getByTestId('engineering-lock-management');
+  await management.locator('summary').click();
+  await page.getByRole('button', { name: 'Remover segredo' }).click();
+  await expect.poll(() => clearRequests).toBe(1);
+  await expect(page.getByTestId('engineering-lock-configure-secret')).toBeVisible();
 });

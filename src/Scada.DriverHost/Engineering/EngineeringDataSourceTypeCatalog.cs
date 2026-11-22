@@ -1,8 +1,6 @@
 using System.Globalization;
 using Scada.Core.Sources;
 using Scada.Drivers.Abstractions;
-using Scada.Drivers.Modbus;
-using Scada.Drivers.Simulation;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Validation;
 
@@ -38,6 +36,11 @@ public sealed record EngineeringDriverConfigurationSchemaView(
     IReadOnlyCollection<EngineeringDriverConfigurationFieldView> DataSourceFields,
     IReadOnlyCollection<EngineeringDriverConfigurationFieldView> TagBindingFields);
 
+public sealed record EngineeringExternalDependencyView(
+    string Kind,
+    string? Requirement,
+    string? Description);
+
 public sealed record EngineeringDataSourceTypeView(
     string TypeKey,
     string DisplayName,
@@ -46,7 +49,10 @@ public sealed record EngineeringDataSourceTypeView(
     EngineeringDriverCapabilityView Capabilities,
     EngineeringDriverConfigurationSchemaView? ConfigurationSchema,
     string? TagBindingSchemaId,
-    int? TagBindingSchemaVersion);
+    int? TagBindingSchemaVersion,
+    IReadOnlyCollection<string> IntegrationDomains,
+    string? ConnectionModel,
+    IReadOnlyCollection<EngineeringExternalDependencyView> ExternalDependencies);
 
 public sealed record EngineeringDataSourceTypeCatalogView(
     IReadOnlyCollection<EngineeringDataSourceTypeView> DataSourceTypes);
@@ -83,8 +89,6 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
             .Select(registration => EngineeringDataSourceTypeDefinition.ForDriver(registration.Descriptor))
             .Concat(new[]
             {
-                EngineeringDataSourceTypeDefinition.ForDriver(ModbusTcpDriverDescriptorProvider.SharedDescriptor),
-                EngineeringDataSourceTypeDefinition.ForDriver(SimulationDriverDescriptorProvider.SharedDescriptor),
                 EngineeringDataSourceTypeDefinition.ForSource(
                     BuiltInSourceProviderDescriptors.ServerMemory,
                     "Server Memory",
@@ -247,7 +251,31 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
                 descriptor?.SupportsSharedTransportInfrastructure ?? false),
             descriptor is null ? null : ToView(descriptor.ConfigurationSchema),
             tagBindingSchemaId,
-            tagBindingSchemaVersion);
+            tagBindingSchemaVersion,
+            descriptor is null
+                ? Array.Empty<string>()
+                : (descriptor.IntegrationDomains is { Count: > 0 }
+                    ? descriptor.IntegrationDomains.Select(domain => ToCamelCase(domain.ToString())).ToArray()
+                    : new[] { "industrial" }),
+            descriptor is null
+                ? null
+                : ToCamelCase((descriptor.ConnectionModel ?? DriverConnectionModel.DirectNetwork).ToString()),
+            descriptor is null
+                ? Array.Empty<EngineeringExternalDependencyView>()
+                : (descriptor.ExternalDependencies is { Count: > 0 }
+                    ? descriptor.ExternalDependencies
+                        .Select(dependency => new EngineeringExternalDependencyView(
+                            ToCamelCase(dependency.Kind.ToString()),
+                            dependency.Requirement,
+                            dependency.Description))
+                        .ToArray()
+                    : new[]
+                    {
+                        new EngineeringExternalDependencyView(
+                            ToCamelCase(DriverExternalDependencyKind.BuiltIn.ToString()),
+                            null,
+                            null)
+                    }));
     }
 
     private static EngineeringDriverConfigurationSchemaView ToView(DriverConfigurationSchemaDescriptor schema) => new(
@@ -290,6 +318,7 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
             DriverConfigurationValueKind.Duration => "[d.]hh:mm:ss[.fffffff]",
             DriverConfigurationValueKind.Host => "DNS name, IPv4 or IPv6 address",
             DriverConfigurationValueKind.Port => NumericFormat("TCP/UDP port", field.Minimum ?? 1, field.Maximum ?? 65535),
+            DriverConfigurationValueKind.SerialPort => "Server-visible serial device name or path",
             DriverConfigurationValueKind.Identifier => "Stable protocol identifier",
             DriverConfigurationValueKind.Enum when field.AllowedValues is { Count: > 0 } => string.Join(" | ", field.AllowedValues),
             DriverConfigurationValueKind.SecretReference => "Protected-material secret reference key",
@@ -316,6 +345,7 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
             {
                 DriverConfigurationValueKind.Host => "192.168.1.10",
                 DriverConfigurationValueKind.Port => "502",
+                DriverConfigurationValueKind.SerialPort => OperatingSystem.IsWindows() ? "COM3" : "/dev/ttyUSB0",
                 DriverConfigurationValueKind.Identifier => "device-1",
                 DriverConfigurationValueKind.Duration => "00:00:05",
                 DriverConfigurationValueKind.Boolean => "true",

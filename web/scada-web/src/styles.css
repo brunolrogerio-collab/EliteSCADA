@@ -45,6 +45,9 @@ button { font: inherit; }
 .modal header button { border: 0; background: transparent; color: #c9d1da; font-size: 27px; cursor: pointer; }
 .status-grid { padding: 18px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .modal-note { margin: 0 18px 18px; padding: 14px; border: 1px dashed #3b4652; border-radius: 8px; color: #9ca8b5; font-size: 12px; }
+.public-runtime-login-link { position: fixed; top: 12px; right: 16px; z-index: 80; padding: 8px 14px; border: 1px solid #3e6772; border-radius: 8px; background: rgba(14, 22, 29, .96); color: #e7f2f5; font-weight: 600; text-decoration: none; box-shadow: 0 3px 14px rgba(0,0,0,.28); }
+.public-runtime-login-link:hover { background: #1e3038; border-color: #53c8c0; }
+.public-runtime-login-link:focus-visible { outline: 2px solid #53c8c0; outline-offset: 3px; }
 @media (max-width: 800px) { .process { flex-direction: column; gap: 12px; } .pipe.horizontal.first,.pipe.horizontal.second { width: 14px; height: 50px; margin: 0; } .line-values { margin: 0; grid-template-columns: 1fr 1fr; } .tag-strip { grid-template-columns: 1fr; } .runtime-history-page { padding: 14px; } }
 .alarm-banner { margin: 18px 24px 0; padding: 12px 16px; display: flex; align-items: center; gap: 14px; border: 1px solid #7f3f44; background: #2a1d20; border-radius: 9px; }
 .alarm-banner strong { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }

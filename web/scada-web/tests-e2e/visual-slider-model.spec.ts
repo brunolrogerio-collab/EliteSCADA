@@ -33,11 +33,24 @@ test('passive Slider displays a good bound TAG but cannot request writes', () =>
     reference: 'Plant.SP', tagId, value: 42, dataType: 'Double', quality: 'Good', readOnly: false
   }]]);
 
-  const resolved = resolveSliderConfiguration(element, values({ value: 42 }), [], samples);
+  const resolved = resolveSliderConfiguration(element, values({ value: 7 }), [], samples);
   expect(resolved.value).toBe(42);
   expect(resolved.sourceAvailable).toBe(true);
   expect(resolved.interactionEnabled).toBe(false);
   expect(resolved.writeDirection).toBe(false);
+});
+
+test('Slider falls back to its configured value when the bound TAG is unavailable', () => {
+  const element: VisualElementEngineering = {
+    id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    key: 'setpoint',
+    type: 'core.slider',
+    bindings: [{ key: 'value', kind: 'Tag', target: 'Plant.SP', direction: 'read', tagReference: { tagId } }]
+  };
+
+  const resolved = resolveSliderConfiguration(element, values({ value: 17 }), [], new Map());
+  expect(resolved.value).toBe(17);
+  expect(resolved.sourceAvailable).toBe(false);
 });
 
 test('interactive Slider requires stable writable TAG binding and good source', () => {

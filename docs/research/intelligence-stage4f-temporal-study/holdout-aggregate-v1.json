@@ -1,0 +1,5041 @@
+{
+  "calibrationSelection": {
+    "calibrationFeasible": false,
+    "candidateCanBeCalledWinner": false,
+    "eligibleJointCandidates": [
+      "joint-instant-q099",
+      "joint-instant-q0999",
+      "joint-ewma-q099",
+      "joint-ewma-q0999"
+    ],
+    "reason": "no joint candidate met every frozen calibration point-estimate target; freeze instantaneous joint q0.99 as an infeasible reference",
+    "selectedCandidate": "joint-instant-q099"
+  },
+  "candidateThresholds": {
+    "joint-ewma-q099": 6.507679020304951,
+    "joint-ewma-q0999": 8.691586947874637,
+    "joint-instant-q099": 10.901708032101903,
+    "joint-instant-q0999": 15.390543105350414,
+    "marginal-ewma-q099": 2.072608008573363,
+    "marginal-ewma-q0999": 2.448036107955141,
+    "marginal-instant-q099": 2.9444363089241343,
+    "marginal-instant-q0999": 3.426474714276643
+  },
+  "configurationCanonicalSha256": "5E7617337928A3FFB51E1197A9CA57E66F22FA4CED3518817135DCE4631D8D80",
+  "configurationFileSha256": "BF5ACDEBF3084F4A88DB27BDD7F1192EB6F50FE9E825BBF489AD657E5B8C369C",
+  "experimentId": "W15-INTEL-4F-TEMPORAL-2026-10-20-01",
+  "holdoutAnalysis": {
+    "candidateMetrics": {
+      "joint-ewma-q099": {
+        "multi-target-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              71.99999999999999,
+              71.99999999999999
+            ],
+            "meanLatencyDetectedOnly": [
+              22.857142857142858,
+              25.847457627118644
+            ],
+            "pointExceedanceRate": [
+              0.8954166666666666,
+              0.8985416666666667
+            ],
+            "recall": [
+              0.975,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              0.975,
+              1.0
+            ]
+          },
+          "detectedGroups": 119,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 120,
+          "episodesPer24EligibleSimulatedHours": 72.0,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 119,
+            "maximum": 70.0,
+            "meanDetectedOnly": 24.201680672268907,
+            "p50": 20.0,
+            "p95": 40.0
+          },
+          "missedGroups": 1,
+          "pointExceedanceRate": 0.8970138888888889,
+          "pointExceedances": 12917,
+          "preOnsetEpisodes": 1,
+          "recall": 0.9916666666666667,
+          "timelyFractionOfAllGroups": 0.9916666666666667,
+          "timelyWithin600Seconds": 119,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "nonfault-context": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              6.6,
+              16.799999999999997
+            ],
+            "pointExceedanceRate": [
+              0.0077083333333333335,
+              0.014861111111111111
+            ]
+          },
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 19,
+          "episodesPer24EligibleSimulatedHours": 11.399999999999999,
+          "groupsWithOneOrMoreEpisodes": 18,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "latencySeconds": {
+            "detectedGroups": 0,
+            "maximum": null,
+            "meanDetectedOnly": null,
+            "p50": null,
+            "p95": null
+          },
+          "pointExceedanceRate": 0.010972222222222222,
+          "pointExceedances": 158,
+          "preOnsetEpisodes": 0,
+          "wilsonGroupOccurrence95": [
+            0.09703812292584739,
+            0.22467529356724508
+          ]
+        },
+        "relationship-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              176.39999999999998,
+              203.99999999999994
+            ],
+            "meanLatencyDetectedOnly": [
+              229.57983193277312,
+              313.7068965517241
+            ],
+            "pointExceedanceRate": [
+              0.22069444444444444,
+              0.2565277777777778
+            ],
+            "recall": [
+              0.9583333333333334,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              0.8083333333333333,
+              0.9333333333333333
+            ]
+          },
+          "detectedGroups": 118,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 317,
+          "episodesPer24EligibleSimulatedHours": 190.2,
+          "groupsWithOneOrMoreEpisodes": 118,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 13,
+          "latencySeconds": {
+            "detectedGroups": 118,
+            "maximum": 960.0,
+            "meanDetectedOnly": 269.49152542372883,
+            "p50": 220.0,
+            "p95": 770.0
+          },
+          "missedGroups": 2,
+          "pointExceedanceRate": 0.23854166666666668,
+          "pointExceedances": 3435,
+          "preOnsetEpisodes": 1,
+          "recall": 0.9833333333333333,
+          "timelyFractionOfAllGroups": 0.875,
+          "timelyWithin600Seconds": 105,
+          "wilsonGroupOccurrence95": [
+            0.941264037027841,
+            0.9954174354340789
+          ]
+        },
+        "single-current-1scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              104.99999999999997,
+              132.59999999999997
+            ],
+            "meanLatencyDetectedOnly": [
+              322.31481481481484,
+              410.9
+            ],
+            "pointExceedanceRate": [
+              0.09930555555555555,
+              0.12993055555555555
+            ],
+            "recall": [
+              0.8,
+              0.925
+            ],
+            "timelyFractionOfAllGroups": [
+              0.65,
+              0.8083333333333333
+            ]
+          },
+          "detectedGroups": 104,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 198,
+          "episodesPer24EligibleSimulatedHours": 118.80000000000001,
+          "groupsWithOneOrMoreEpisodes": 104,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 16,
+          "latencySeconds": {
+            "detectedGroups": 104,
+            "maximum": 1070.0,
+            "meanDetectedOnly": 365.96153846153845,
+            "p50": 340.0,
+            "p95": 860.0
+          },
+          "missedGroups": 16,
+          "pointExceedanceRate": 0.11479166666666667,
+          "pointExceedances": 1653,
+          "preOnsetEpisodes": 1,
+          "recall": 0.8666666666666667,
+          "timelyFractionOfAllGroups": 0.7333333333333333,
+          "timelyWithin600Seconds": 88,
+          "wilsonGroupOccurrence95": [
+            0.7943520342531573,
+            0.9162339103731271
+          ]
+        },
+        "single-current-2scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              139.79999999999998,
+              161.99999999999997
+            ],
+            "meanLatencyDetectedOnly": [
+              66.58333333333333,
+              86.5
+            ],
+            "pointExceedanceRate": [
+              0.6978472222222222,
+              0.7339583333333334
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 251,
+          "episodesPer24EligibleSimulatedHours": 150.60000000000002,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 290.0,
+            "meanDetectedOnly": 76.08333333333333,
+            "p50": 60.0,
+            "p95": 180.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.7163888888888889,
+          "pointExceedances": 10316,
+          "preOnsetEpisodes": 1,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "single-current-ramp": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              81.6,
+              92.39999999999998
+            ],
+            "meanLatencyDetectedOnly": [
+              285.0833333333333,
+              309.25
+            ],
+            "pointExceedanceRate": [
+              0.6455555555555555,
+              0.661875
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 145,
+          "episodesPer24EligibleSimulatedHours": 87.0,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 470.0,
+            "meanDetectedOnly": 297.5,
+            "p50": 300.0,
+            "p95": 410.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.6534722222222222,
+          "pointExceedances": 9410,
+          "preOnsetEpisodes": 1,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "single-current-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              71.99999999999999,
+              71.99999999999999
+            ],
+            "meanLatencyDetectedOnly": [
+              24.45378151260504,
+              27.916666666666668
+            ],
+            "pointExceedanceRate": [
+              0.8939583333333333,
+              0.8972222222222223
+            ],
+            "recall": [
+              0.975,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              0.975,
+              1.0
+            ]
+          },
+          "detectedGroups": 119,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 120,
+          "episodesPer24EligibleSimulatedHours": 72.0,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 119,
+            "maximum": 80.0,
+            "meanDetectedOnly": 26.134453781512605,
+            "p50": 20.0,
+            "p95": 40.0
+          },
+          "missedGroups": 1,
+          "pointExceedanceRate": 0.8955555555555555,
+          "pointExceedances": 12896,
+          "preOnsetEpisodes": 1,
+          "recall": 0.9916666666666667,
+          "timelyFractionOfAllGroups": 0.9916666666666667,
+          "timelyWithin600Seconds": 119,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "targetDisposition": {
+          "falseEpisodesPer24EligibleSimulatedHours": {
+            "direction": "max",
+            "estimate": 11.399999999999999,
+            "status": "FAIL_POINT_ESTIMATE",
+            "target": 1.0,
+            "uncertaintyReportedSeparately": true
+          },
+          "pointFalsePositiveRate": {
+            "direction": "max",
+            "estimate": 0.010972222222222222,
+            "status": "FAIL_POINT_ESTIMATE",
+            "target": 0.01,
+            "uncertaintyReportedSeparately": true
+          },
+          "strongClasses": {
+            "multi-target-strong": {
+              "recall": {
+                "direction": "min",
+                "estimate": 0.9916666666666667,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              },
+              "within600SecondsOfAllGroups": {
+                "direction": "min",
+                "estimate": 0.9916666666666667,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              }
+            },
+            "relationship-strong": {
+              "recall": {
+                "direction": "min",
+                "estimate": 0.9833333333333333,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              },
+              "within600SecondsOfAllGroups": {
+                "direction": "min",
+                "estimate": 0.875,
+                "status": "FAIL_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              }
+            },
+            "single-current-strong": {
+              "recall": {
+                "direction": "min",
+                "estimate": 0.9916666666666667,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              },
+              "within600SecondsOfAllGroups": {
+                "direction": "min",
+                "estimate": 0.9916666666666667,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              }
+            }
+          }
+        }
+      },
+      "joint-ewma-q0999": {
+        "multi-target-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              71.99999999999999,
+              71.99999999999999
+            ],
+            "meanLatencyDetectedOnly": [
+              28.583333333333332,
+              31.916666666666668
+            ],
+            "pointExceedanceRate": [
+              0.8899305555555556,
+              0.8928472222222222
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 120,
+          "episodesPer24EligibleSimulatedHours": 72.0,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 80.0,
+            "meanDetectedOnly": 30.166666666666668,
+            "p50": 30.0,
+            "p95": 40.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.8914583333333334,
+          "pointExceedances": 12837,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "nonfault-context": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              0.0,
+              1.7999999999999996
+            ],
+            "pointExceedanceRate": [
+              6.944444444444444e-05,
+              0.0011805555555555556
+            ]
+          },
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 1,
+          "episodesPer24EligibleSimulatedHours": 0.6000000000000001,
+          "groupsWithOneOrMoreEpisodes": 1,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "latencySeconds": {
+            "detectedGroups": 0,
+            "maximum": null,
+            "meanDetectedOnly": null,
+            "p50": null,
+            "p95": null
+          },
+          "pointExceedanceRate": 0.0004861111111111111,
+          "pointExceedances": 7,
+          "preOnsetEpisodes": 0,
+          "wilsonGroupOccurrence95": [
+            0.0014725557333420923,
+            0.045696291245049675
+          ]
+        },
+        "relationship-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              106.79999999999998,
+              132.59999999999997
+            ],
+            "meanLatencyDetectedOnly": [
+              359.08256880733944,
+              450.55045871559633
+            ],
+            "pointExceedanceRate": [
+              0.09666666666666666,
+              0.12145833333333333
+            ],
+            "recall": [
+              0.8666666666666667,
+              0.9666666666666667
+            ],
+            "timelyFractionOfAllGroups": [
+              0.6166666666666667,
+              0.7833333333333333
+            ]
+          },
+          "detectedGroups": 110,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 199,
+          "episodesPer24EligibleSimulatedHours": 119.39999999999999,
+          "groupsWithOneOrMoreEpisodes": 110,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 26,
+          "latencySeconds": {
+            "detectedGroups": 110,
+            "maximum": 1070.0,
+            "meanDetectedOnly": 404.45454545454544,
+            "p50": 330.0,
+            "p95": 880.0
+          },
+          "missedGroups": 10,
+          "pointExceedanceRate": 0.10875,
+          "pointExceedances": 1566,
+          "preOnsetEpisodes": 0,
+          "recall": 0.9166666666666666,
+          "timelyFractionOfAllGroups": 0.7,
+          "timelyWithin600Seconds": 84,
+          "wilsonGroupOccurrence95": [
+            0.8533776783593434,
+            0.9541063496250703
+          ]
+        },
+        "single-current-1scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              23.4,
+              43.8
+            ],
+            "meanLatencyDetectedOnly": [
+              426.05263157894734,
+              592.0408163265306
+            ],
+            "pointExceedanceRate": [
+              0.018472222222222223,
+              0.03305555555555555
+            ],
+            "recall": [
+              0.25,
+              0.425
+            ],
+            "timelyFractionOfAllGroups": [
+              0.13333333333333333,
+              0.275
+            ]
+          },
+          "detectedGroups": 40,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 55,
+          "episodesPer24EligibleSimulatedHours": 33.0,
+          "groupsWithOneOrMoreEpisodes": 40,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 16,
+          "latencySeconds": {
+            "detectedGroups": 40,
+            "maximum": 1030.0,
+            "meanDetectedOnly": 511.5,
+            "p50": 500.0,
+            "p95": 950.0
+          },
+          "missedGroups": 80,
+          "pointExceedanceRate": 0.025347222222222222,
+          "pointExceedances": 365,
+          "preOnsetEpisodes": 0,
+          "recall": 0.3333333333333333,
+          "timelyFractionOfAllGroups": 0.2,
+          "timelyWithin600Seconds": 24,
+          "wilsonGroupOccurrence95": [
+            0.25531740501258443,
+            0.4216889837936501
+          ]
+        },
+        "single-current-2scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              196.2,
+              220.79999999999995
+            ],
+            "meanLatencyDetectedOnly": [
+              129.83333333333334,
+              165.58333333333334
+            ],
+            "pointExceedanceRate": [
+              0.44916666666666666,
+              0.49840277777777775
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 348,
+          "episodesPer24EligibleSimulatedHours": 208.79999999999998,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 520.0,
+            "meanDetectedOnly": 147.5,
+            "p50": 110.0,
+            "p95": 340.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.474375,
+          "pointExceedances": 6831,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "single-current-ramp": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              79.79999999999998,
+              88.79999999999998
+            ],
+            "meanLatencyDetectedOnly": [
+              354.5,
+              379.5
+            ],
+            "pointExceedanceRate": [
+              0.5876388888888889,
+              0.6054166666666667
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 140,
+          "episodesPer24EligibleSimulatedHours": 84.0,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 570.0,
+            "meanDetectedOnly": 367.1666666666667,
+            "p50": 360.0,
+            "p95": 490.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.5963888888888889,
+          "pointExceedances": 8588,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "single-current-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              71.99999999999999,
+              71.99999999999999
+            ],
+            "meanLatencyDetectedOnly": [
+              32.083333333333336,
+              37.083333333333336
+            ],
+            "pointExceedanceRate": [
+              0.8854861111111111,
+              0.8897916666666666
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 120,
+          "episodesPer24EligibleSimulatedHours": 72.0,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 100.0,
+            "meanDetectedOnly": 34.416666666666664,
+            "p50": 30.0,
+            "p95": 60.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.8877777777777778,
+          "pointExceedances": 12784,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "targetDisposition": {
+          "falseEpisodesPer24EligibleSimulatedHours": {
+            "direction": "max",
+            "estimate": 0.6000000000000001,
+            "status": "PASS_POINT_ESTIMATE",
+            "target": 1.0,
+            "uncertaintyReportedSeparately": true
+          },
+          "pointFalsePositiveRate": {
+            "direction": "max",
+            "estimate": 0.0004861111111111111,
+            "status": "PASS_POINT_ESTIMATE",
+            "target": 0.01,
+            "uncertaintyReportedSeparately": true
+          },
+          "strongClasses": {
+            "multi-target-strong": {
+              "recall": {
+                "direction": "min",
+                "estimate": 1.0,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              },
+              "within600SecondsOfAllGroups": {
+                "direction": "min",
+                "estimate": 1.0,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              }
+            },
+            "relationship-strong": {
+              "recall": {
+                "direction": "min",
+                "estimate": 0.9166666666666666,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              },
+              "within600SecondsOfAllGroups": {
+                "direction": "min",
+                "estimate": 0.7,
+                "status": "FAIL_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              }
+            },
+            "single-current-strong": {
+              "recall": {
+                "direction": "min",
+                "estimate": 1.0,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              },
+              "within600SecondsOfAllGroups": {
+                "direction": "min",
+                "estimate": 1.0,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              }
+            }
+          }
+        }
+      },
+      "joint-instant-q099": {
+        "multi-target-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              74.99999999999999,
+              81.6
+            ],
+            "meanLatencyDetectedOnly": [
+              20.333333333333332,
+              22.583333333333332
+            ],
+            "pointExceedanceRate": [
+              0.8464583333333333,
+              0.8588888888888889
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 130,
+          "episodesPer24EligibleSimulatedHours": 78.0,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 70.0,
+            "meanDetectedOnly": 21.333333333333332,
+            "p50": 20.0,
+            "p95": 30.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.8530555555555556,
+          "pointExceedances": 12284,
+          "preOnsetEpisodes": 1,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "nonfault-context": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              0.5999999999999999,
+              5.999999999999998
+            ],
+            "pointExceedanceRate": [
+              0.008263888888888888,
+              0.012638888888888889
+            ]
+          },
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 5,
+          "episodesPer24EligibleSimulatedHours": 3.0,
+          "groupsWithOneOrMoreEpisodes": 5,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "latencySeconds": {
+            "detectedGroups": 0,
+            "maximum": null,
+            "meanDetectedOnly": null,
+            "p50": null,
+            "p95": null
+          },
+          "pointExceedanceRate": 0.010347222222222223,
+          "pointExceedances": 149,
+          "preOnsetEpisodes": 0,
+          "wilsonGroupOccurrence95": [
+            0.017926716880109515,
+            0.09384085233703535
+          ]
+        },
+        "relationship-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              115.19999999999997,
+              145.2
+            ],
+            "meanLatencyDetectedOnly": [
+              333.20754716981133,
+              433.1192660550459
+            ],
+            "pointExceedanceRate": [
+              0.12194444444444444,
+              0.1361111111111111
+            ],
+            "recall": [
+              0.85,
+              0.9583333333333334
+            ],
+            "timelyFractionOfAllGroups": [
+              0.6333333333333333,
+              0.7916666666666666
+            ]
+          },
+          "detectedGroups": 109,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 217,
+          "episodesPer24EligibleSimulatedHours": 130.2,
+          "groupsWithOneOrMoreEpisodes": 109,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 23,
+          "latencySeconds": {
+            "detectedGroups": 109,
+            "maximum": 1070.0,
+            "meanDetectedOnly": 381.0091743119266,
+            "p50": 320.0,
+            "p95": 910.0
+          },
+          "missedGroups": 11,
+          "pointExceedanceRate": 0.12895833333333334,
+          "pointExceedances": 1857,
+          "preOnsetEpisodes": 1,
+          "recall": 0.9083333333333333,
+          "timelyFractionOfAllGroups": 0.7166666666666667,
+          "timelyWithin600Seconds": 86,
+          "wilsonGroupOccurrence95": [
+            0.843291530273291,
+            0.9480428171514347
+          ]
+        },
+        "single-current-1scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              28.799999999999994,
+              50.39999999999999
+            ],
+            "meanLatencyDetectedOnly": [
+              398.51063829787233,
+              560.0
+            ],
+            "pointExceedanceRate": [
+              0.042569444444444444,
+              0.05368055555555556
+            ],
+            "recall": [
+              0.3,
+              0.475
+            ],
+            "timelyFractionOfAllGroups": [
+              0.16666666666666666,
+              0.325
+            ]
+          },
+          "detectedGroups": 46,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 65,
+          "episodesPer24EligibleSimulatedHours": 39.0,
+          "groupsWithOneOrMoreEpisodes": 47,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 17,
+          "latencySeconds": {
+            "detectedGroups": 46,
+            "maximum": 970.0,
+            "meanDetectedOnly": 479.5652173913044,
+            "p50": 490.0,
+            "p95": 920.0
+          },
+          "missedGroups": 74,
+          "pointExceedanceRate": 0.04798611111111111,
+          "pointExceedances": 691,
+          "preOnsetEpisodes": 1,
+          "recall": 0.38333333333333336,
+          "timelyFractionOfAllGroups": 0.24166666666666667,
+          "timelyWithin600Seconds": 29,
+          "wilsonGroupOccurrence95": [
+            0.30899196972332565,
+            0.4810621830007269
+          ]
+        },
+        "single-current-2scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              247.79999999999995,
+              275.4
+            ],
+            "meanLatencyDetectedOnly": [
+              117.08333333333333,
+              160.33333333333334
+            ],
+            "pointExceedanceRate": [
+              0.29083333333333333,
+              0.31895833333333334
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 436,
+          "episodesPer24EligibleSimulatedHours": 261.6,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 490.0,
+            "meanDetectedOnly": 138.75,
+            "p50": 90.0,
+            "p95": 380.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.3045833333333333,
+          "pointExceedances": 4386,
+          "preOnsetEpisodes": 1,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "single-current-ramp": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              97.79999999999998,
+              112.79999999999998
+            ],
+            "meanLatencyDetectedOnly": [
+              333.3333333333333,
+              362.8333333333333
+            ],
+            "pointExceedanceRate": [
+              0.5411805555555556,
+              0.5575
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 175,
+          "episodesPer24EligibleSimulatedHours": 105.0,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 550.0,
+            "meanDetectedOnly": 348.0833333333333,
+            "p50": 350.0,
+            "p95": 480.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.549375,
+          "pointExceedances": 7911,
+          "preOnsetEpisodes": 1,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "single-current-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              74.99999999999999,
+              82.19999999999999
+            ],
+            "meanLatencyDetectedOnly": [
+              21.083333333333332,
+              25.083333333333332
+            ],
+            "pointExceedanceRate": [
+              0.8343055555555555,
+              0.8465277777777778
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 131,
+          "episodesPer24EligibleSimulatedHours": 78.6,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 120.0,
+            "meanDetectedOnly": 22.916666666666668,
+            "p50": 20.0,
+            "p95": 40.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.8404166666666667,
+          "pointExceedances": 12102,
+          "preOnsetEpisodes": 1,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "targetDisposition": {
+          "falseEpisodesPer24EligibleSimulatedHours": {
+            "direction": "max",
+            "estimate": 3.0,
+            "status": "FAIL_POINT_ESTIMATE",
+            "target": 1.0,
+            "uncertaintyReportedSeparately": true
+          },
+          "pointFalsePositiveRate": {
+            "direction": "max",
+            "estimate": 0.010347222222222223,
+            "status": "FAIL_POINT_ESTIMATE",
+            "target": 0.01,
+            "uncertaintyReportedSeparately": true
+          },
+          "strongClasses": {
+            "multi-target-strong": {
+              "recall": {
+                "direction": "min",
+                "estimate": 1.0,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              },
+              "within600SecondsOfAllGroups": {
+                "direction": "min",
+                "estimate": 1.0,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              }
+            },
+            "relationship-strong": {
+              "recall": {
+                "direction": "min",
+                "estimate": 0.9083333333333333,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              },
+              "within600SecondsOfAllGroups": {
+                "direction": "min",
+                "estimate": 0.7166666666666667,
+                "status": "FAIL_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              }
+            },
+            "single-current-strong": {
+              "recall": {
+                "direction": "min",
+                "estimate": 1.0,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              },
+              "within600SecondsOfAllGroups": {
+                "direction": "min",
+                "estimate": 1.0,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              }
+            }
+          }
+        }
+      },
+      "joint-instant-q0999": {
+        "multi-target-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              100.19999999999997,
+              116.39999999999998
+            ],
+            "meanLatencyDetectedOnly": [
+              22.583333333333332,
+              26.916666666666668
+            ],
+            "pointExceedanceRate": [
+              0.7461111111111111,
+              0.7663888888888889
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 180,
+          "episodesPer24EligibleSimulatedHours": 108.0,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 100.0,
+            "meanDetectedOnly": 24.583333333333332,
+            "p50": 20.0,
+            "p95": 40.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.7561805555555555,
+          "pointExceedances": 10889,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "nonfault-context": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              0.0,
+              0.0
+            ],
+            "pointExceedanceRate": [
+              0.0009027777777777777,
+              0.002361111111111111
+            ]
+          },
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 0,
+          "episodesPer24EligibleSimulatedHours": 0.0,
+          "groupsWithOneOrMoreEpisodes": 0,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "latencySeconds": {
+            "detectedGroups": 0,
+            "maximum": null,
+            "meanDetectedOnly": null,
+            "p50": null,
+            "p95": null
+          },
+          "pointExceedanceRate": 0.0015972222222222223,
+          "pointExceedances": 23,
+          "preOnsetEpisodes": 0,
+          "wilsonGroupOccurrence95": [
+            0.0,
+            0.031019166418703486
+          ],
+          "zeroEpisodeWilsonGroupOccurrence95": [
+            0.0,
+            0.031019166418703486
+          ]
+        },
+        "relationship-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              45.599999999999994,
+              64.8
+            ],
+            "meanLatencyDetectedOnly": [
+              412.43243243243245,
+              538.082191780822
+            ],
+            "pointExceedanceRate": [
+              0.05951388888888889,
+              0.07076388888888889
+            ],
+            "recall": [
+              0.5083333333333333,
+              0.675
+            ],
+            "timelyFractionOfAllGroups": [
+              0.3,
+              0.475
+            ]
+          },
+          "detectedGroups": 71,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 92,
+          "episodesPer24EligibleSimulatedHours": 55.199999999999996,
+          "groupsWithOneOrMoreEpisodes": 71,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 25,
+          "latencySeconds": {
+            "detectedGroups": 71,
+            "maximum": 1070.0,
+            "meanDetectedOnly": 475.9154929577465,
+            "p50": 500.0,
+            "p95": 920.0
+          },
+          "missedGroups": 49,
+          "pointExceedanceRate": 0.0648611111111111,
+          "pointExceedances": 934,
+          "preOnsetEpisodes": 0,
+          "recall": 0.5916666666666667,
+          "timelyFractionOfAllGroups": 0.38333333333333336,
+          "timelyWithin600Seconds": 46,
+          "wilsonGroupOccurrence95": [
+            0.5022078316314156,
+            0.6754386545251554
+          ]
+        },
+        "single-current-1scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              1.1999999999999997,
+              6.6
+            ],
+            "meanLatencyDetectedOnly": [
+              260.0,
+              821.25
+            ],
+            "pointExceedanceRate": [
+              0.007569444444444445,
+              0.011458333333333333
+            ],
+            "recall": [
+              0.016666666666666666,
+              0.09166666666666666
+            ],
+            "timelyFractionOfAllGroups": [
+              0.008333333333333333,
+              0.06666666666666667
+            ]
+          },
+          "detectedGroups": 6,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 6,
+          "episodesPer24EligibleSimulatedHours": 3.5999999999999996,
+          "groupsWithOneOrMoreEpisodes": 6,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 2,
+          "latencySeconds": {
+            "detectedGroups": 6,
+            "maximum": 940.0,
+            "meanDetectedOnly": 531.6666666666666,
+            "p50": 420.0,
+            "p95": 940.0
+          },
+          "missedGroups": 114,
+          "pointExceedanceRate": 0.009444444444444445,
+          "pointExceedances": 136,
+          "preOnsetEpisodes": 0,
+          "recall": 0.05,
+          "timelyFractionOfAllGroups": 0.03333333333333333,
+          "timelyWithin600Seconds": 4,
+          "wilsonGroupOccurrence95": [
+            0.023114364414465793,
+            0.10480288536236734
+          ]
+        },
+        "single-current-2scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              117.6,
+              148.79999999999998
+            ],
+            "meanLatencyDetectedOnly": [
+              286.5686274509804,
+              380.1869158878505
+            ],
+            "pointExceedanceRate": [
+              0.11416666666666667,
+              0.13319444444444445
+            ],
+            "recall": [
+              0.8,
+              0.925
+            ],
+            "timelyFractionOfAllGroups": [
+              0.6583333333333333,
+              0.8083333333333333
+            ]
+          },
+          "detectedGroups": 104,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 222,
+          "episodesPer24EligibleSimulatedHours": 133.2,
+          "groupsWithOneOrMoreEpisodes": 104,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 16,
+          "latencySeconds": {
+            "detectedGroups": 104,
+            "maximum": 1060.0,
+            "meanDetectedOnly": 331.0576923076923,
+            "p50": 270.0,
+            "p95": 850.0
+          },
+          "missedGroups": 16,
+          "pointExceedanceRate": 0.12361111111111112,
+          "pointExceedances": 1780,
+          "preOnsetEpisodes": 0,
+          "recall": 0.8666666666666667,
+          "timelyFractionOfAllGroups": 0.7333333333333333,
+          "timelyWithin600Seconds": 88,
+          "wilsonGroupOccurrence95": [
+            0.7943520342531573,
+            0.9162339103731271
+          ]
+        },
+        "single-current-ramp": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              107.99999999999997,
+              127.19999999999997
+            ],
+            "meanLatencyDetectedOnly": [
+              428.3333333333333,
+              459.25
+            ],
+            "pointExceedanceRate": [
+              0.41881944444444447,
+              0.43875
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              0.975,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 196,
+          "episodesPer24EligibleSimulatedHours": 117.60000000000001,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 1,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 670.0,
+            "meanDetectedOnly": 443.5,
+            "p50": 440.0,
+            "p95": 570.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.4288888888888889,
+          "pointExceedances": 6176,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 0.9916666666666667,
+          "timelyWithin600Seconds": 119,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "single-current-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              106.19999999999997,
+              127.19999999999997
+            ],
+            "meanLatencyDetectedOnly": [
+              28.5,
+              36.333333333333336
+            ],
+            "pointExceedanceRate": [
+              0.7120138888888888,
+              0.7346527777777778
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 194,
+          "episodesPer24EligibleSimulatedHours": 116.39999999999999,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 150.0,
+            "meanDetectedOnly": 32.166666666666664,
+            "p50": 20.0,
+            "p95": 80.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.7236111111111111,
+          "pointExceedances": 10420,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "targetDisposition": {
+          "falseEpisodesPer24EligibleSimulatedHours": {
+            "direction": "max",
+            "estimate": 0.0,
+            "status": "PASS_POINT_ESTIMATE",
+            "target": 1.0,
+            "uncertaintyReportedSeparately": true
+          },
+          "pointFalsePositiveRate": {
+            "direction": "max",
+            "estimate": 0.0015972222222222223,
+            "status": "PASS_POINT_ESTIMATE",
+            "target": 0.01,
+            "uncertaintyReportedSeparately": true
+          },
+          "strongClasses": {
+            "multi-target-strong": {
+              "recall": {
+                "direction": "min",
+                "estimate": 1.0,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              },
+              "within600SecondsOfAllGroups": {
+                "direction": "min",
+                "estimate": 1.0,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              }
+            },
+            "relationship-strong": {
+              "recall": {
+                "direction": "min",
+                "estimate": 0.5916666666666667,
+                "status": "FAIL_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              },
+              "within600SecondsOfAllGroups": {
+                "direction": "min",
+                "estimate": 0.38333333333333336,
+                "status": "FAIL_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              }
+            },
+            "single-current-strong": {
+              "recall": {
+                "direction": "min",
+                "estimate": 1.0,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              },
+              "within600SecondsOfAllGroups": {
+                "direction": "min",
+                "estimate": 1.0,
+                "status": "PASS_POINT_ESTIMATE",
+                "target": 0.9,
+                "uncertaintyReportedSeparately": true
+              }
+            }
+          }
+        }
+      },
+      "marginal-ewma-q099": {
+        "multi-target-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              71.99999999999999,
+              71.99999999999999
+            ],
+            "meanLatencyDetectedOnly": [
+              28.833333333333332,
+              32.016806722689076
+            ],
+            "pointExceedanceRate": [
+              0.8902777777777777,
+              0.8933333333333333
+            ],
+            "recall": [
+              0.975,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              0.975,
+              1.0
+            ]
+          },
+          "detectedGroups": 119,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 120,
+          "episodesPer24EligibleSimulatedHours": 72.0,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 119,
+            "maximum": 70.0,
+            "meanDetectedOnly": 30.42016806722689,
+            "p50": 30.0,
+            "p95": 40.0
+          },
+          "missedGroups": 1,
+          "pointExceedanceRate": 0.8917361111111111,
+          "pointExceedances": 12841,
+          "preOnsetEpisodes": 1,
+          "recall": 0.9916666666666667,
+          "timelyFractionOfAllGroups": 0.9916666666666667,
+          "timelyWithin600Seconds": 119,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "nonfault-context": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              4.799999999999999,
+              12.599999999999998
+            ],
+            "pointExceedanceRate": [
+              0.005069444444444444,
+              0.010138888888888888
+            ]
+          },
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 14,
+          "episodesPer24EligibleSimulatedHours": 8.399999999999999,
+          "groupsWithOneOrMoreEpisodes": 14,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "latencySeconds": {
+            "detectedGroups": 0,
+            "maximum": null,
+            "meanDetectedOnly": null,
+            "p50": null,
+            "p95": null
+          },
+          "pointExceedanceRate": 0.007361111111111111,
+          "pointExceedances": 106,
+          "preOnsetEpisodes": 0,
+          "wilsonGroupOccurrence95": [
+            0.0707811780783005,
+            0.18633351617603885
+          ]
+        },
+        "relationship-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              6.6,
+              16.799999999999997
+            ],
+            "meanLatencyDetectedOnly": [
+              510.0,
+              788.75
+            ],
+            "pointExceedanceRate": [
+              0.005486111111111111,
+              0.011875
+            ],
+            "recall": [
+              0.08333333333333333,
+              0.20833333333333334
+            ],
+            "timelyFractionOfAllGroups": [
+              0.016666666666666666,
+              0.1
+            ]
+          },
+          "detectedGroups": 17,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 19,
+          "episodesPer24EligibleSimulatedHours": 11.399999999999999,
+          "groupsWithOneOrMoreEpisodes": 18,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 10,
+          "latencySeconds": {
+            "detectedGroups": 17,
+            "maximum": 1070.0,
+            "meanDetectedOnly": 651.1764705882352,
+            "p50": 640.0,
+            "p95": 1070.0
+          },
+          "missedGroups": 103,
+          "pointExceedanceRate": 0.008472222222222223,
+          "pointExceedances": 122,
+          "preOnsetEpisodes": 1,
+          "recall": 0.14166666666666666,
+          "timelyFractionOfAllGroups": 0.058333333333333334,
+          "timelyWithin600Seconds": 7,
+          "wilsonGroupOccurrence95": [
+            0.09703812292584739,
+            0.22467529356724508
+          ]
+        },
+        "single-current-1scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              50.999999999999986,
+              71.39999999999999
+            ],
+            "meanLatencyDetectedOnly": [
+              410.5970149253731,
+              542.1917808219179
+            ],
+            "pointExceedanceRate": [
+              0.04027777777777778,
+              0.05555555555555555
+            ],
+            "recall": [
+              0.525,
+              0.6916666666666667
+            ],
+            "timelyFractionOfAllGroups": [
+              0.31666666666666665,
+              0.49166666666666664
+            ]
+          },
+          "detectedGroups": 73,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 101,
+          "episodesPer24EligibleSimulatedHours": 60.599999999999994,
+          "groupsWithOneOrMoreEpisodes": 74,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 25,
+          "latencySeconds": {
+            "detectedGroups": 73,
+            "maximum": 980.0,
+            "meanDetectedOnly": 476.16438356164383,
+            "p50": 480.0,
+            "p95": 940.0
+          },
+          "missedGroups": 47,
+          "pointExceedanceRate": 0.04777777777777778,
+          "pointExceedances": 688,
+          "preOnsetEpisodes": 1,
+          "recall": 0.6083333333333333,
+          "timelyFractionOfAllGroups": 0.4,
+          "timelyWithin600Seconds": 48,
+          "wilsonGroupOccurrence95": [
+            0.5273408053842049,
+            0.6987547224514311
+          ]
+        },
+        "single-current-2scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              209.99999999999994,
+              233.99999999999994
+            ],
+            "meanLatencyDetectedOnly": [
+              114.66666666666667,
+              149.66666666666666
+            ],
+            "pointExceedanceRate": [
+              0.4334027777777778,
+              0.48020833333333335
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 371,
+          "episodesPer24EligibleSimulatedHours": 222.60000000000002,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 500.0,
+            "meanDetectedOnly": 131.83333333333334,
+            "p50": 100.0,
+            "p95": 340.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.4565972222222222,
+          "pointExceedances": 6575,
+          "preOnsetEpisodes": 1,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "single-current-ramp": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              88.19999999999999,
+              102.6
+            ],
+            "meanLatencyDetectedOnly": [
+              334.6666666666667,
+              366.75
+            ],
+            "pointExceedanceRate": [
+              0.5820138888888889,
+              0.6004861111111112
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 159,
+          "episodesPer24EligibleSimulatedHours": 95.4,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 530.0,
+            "meanDetectedOnly": 350.5833333333333,
+            "p50": 350.0,
+            "p95": 490.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.5913888888888889,
+          "pointExceedances": 8516,
+          "preOnsetEpisodes": 1,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "single-current-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              71.99999999999999,
+              74.99999999999999
+            ],
+            "meanLatencyDetectedOnly": [
+              36.80672268907563,
+              43.529411764705884
+            ],
+            "pointExceedanceRate": [
+              0.8779861111111111,
+              0.8848611111111111
+            ],
+            "recall": [
+              0.975,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              0.975,
+              1.0
+            ]
+          },
+          "detectedGroups": 119,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 122,
+          "episodesPer24EligibleSimulatedHours": 73.19999999999999,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 119,
+            "maximum": 110.0,
+            "meanDetectedOnly": 40.0,
+            "p50": 40.0,
+            "p95": 80.0
+          },
+          "missedGroups": 1,
+          "pointExceedanceRate": 0.8815277777777778,
+          "pointExceedances": 12694,
+          "preOnsetEpisodes": 1,
+          "recall": 0.9916666666666667,
+          "timelyFractionOfAllGroups": 0.9916666666666667,
+          "timelyWithin600Seconds": 119,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "targetDisposition": "CONTROL_ONLY_NOT_ELIGIBLE_FOR_SELECTION"
+      },
+      "marginal-ewma-q0999": {
+        "multi-target-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              71.99999999999999,
+              71.99999999999999
+            ],
+            "meanLatencyDetectedOnly": [
+              36.916666666666664,
+              40.75
+            ],
+            "pointExceedanceRate": [
+              0.8823611111111112,
+              0.8856944444444445
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 120,
+          "episodesPer24EligibleSimulatedHours": 72.0,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 80.0,
+            "meanDetectedOnly": 38.75,
+            "p50": 40.0,
+            "p95": 60.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.8840972222222222,
+          "pointExceedances": 12731,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "nonfault-context": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              0.0,
+              1.7999999999999996
+            ],
+            "pointExceedanceRate": [
+              0.0,
+              0.0009027777777777777
+            ]
+          },
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 1,
+          "episodesPer24EligibleSimulatedHours": 0.6000000000000001,
+          "groupsWithOneOrMoreEpisodes": 1,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "latencySeconds": {
+            "detectedGroups": 0,
+            "maximum": null,
+            "meanDetectedOnly": null,
+            "p50": null,
+            "p95": null
+          },
+          "pointExceedanceRate": 0.00034722222222222224,
+          "pointExceedances": 5,
+          "preOnsetEpisodes": 0,
+          "wilsonGroupOccurrence95": [
+            0.0014725557333420923,
+            0.045696291245049675
+          ]
+        },
+        "relationship-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              0.0,
+              0.0
+            ],
+            "meanLatencyDetectedOnly": null,
+            "pointExceedanceRate": [
+              0.0,
+              0.0005555555555555556
+            ],
+            "recall": [
+              0.0,
+              0.0
+            ],
+            "timelyFractionOfAllGroups": [
+              0.0,
+              0.0
+            ]
+          },
+          "detectedGroups": 0,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 0,
+          "episodesPer24EligibleSimulatedHours": 0.0,
+          "groupsWithOneOrMoreEpisodes": 0,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 0,
+            "maximum": null,
+            "meanDetectedOnly": null,
+            "p50": null,
+            "p95": null
+          },
+          "missedGroups": 120,
+          "pointExceedanceRate": 0.0002777777777777778,
+          "pointExceedances": 4,
+          "preOnsetEpisodes": 0,
+          "recall": 0.0,
+          "timelyFractionOfAllGroups": 0.0,
+          "timelyWithin600Seconds": 0,
+          "wilsonGroupOccurrence95": [
+            0.0,
+            0.031019166418703486
+          ]
+        },
+        "single-current-1scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              3.599999999999999,
+              11.999999999999996
+            ],
+            "meanLatencyDetectedOnly": [
+              398.3333333333333,
+              711.25
+            ],
+            "pointExceedanceRate": [
+              0.003263888888888889,
+              0.008263888888888888
+            ],
+            "recall": [
+              0.05,
+              0.15833333333333333
+            ],
+            "timelyFractionOfAllGroups": [
+              0.025,
+              0.11666666666666667
+            ]
+          },
+          "detectedGroups": 12,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 13,
+          "episodesPer24EligibleSimulatedHours": 7.800000000000001,
+          "groupsWithOneOrMoreEpisodes": 12,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 4,
+          "latencySeconds": {
+            "detectedGroups": 12,
+            "maximum": 980.0,
+            "meanDetectedOnly": 547.5,
+            "p50": 520.0,
+            "p95": 980.0
+          },
+          "missedGroups": 108,
+          "pointExceedanceRate": 0.005625,
+          "pointExceedances": 81,
+          "preOnsetEpisodes": 0,
+          "recall": 0.1,
+          "timelyFractionOfAllGroups": 0.06666666666666667,
+          "timelyWithin600Seconds": 8,
+          "wilsonGroupOccurrence95": [
+            0.058133592026010775,
+            0.166681741108952
+          ]
+        },
+        "single-current-2scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              158.39999999999998,
+              187.79999999999995
+            ],
+            "meanLatencyDetectedOnly": [
+              279.15966386554624,
+              367.1666666666667
+            ],
+            "pointExceedanceRate": [
+              0.17854166666666665,
+              0.21597222222222223
+            ],
+            "recall": [
+              0.9583333333333334,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              0.775,
+              0.9
+            ]
+          },
+          "detectedGroups": 118,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 288,
+          "episodesPer24EligibleSimulatedHours": 172.8,
+          "groupsWithOneOrMoreEpisodes": 118,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 17,
+          "latencySeconds": {
+            "detectedGroups": 118,
+            "maximum": 1040.0,
+            "meanDetectedOnly": 320.76271186440675,
+            "p50": 220.0,
+            "p95": 900.0
+          },
+          "missedGroups": 2,
+          "pointExceedanceRate": 0.1976388888888889,
+          "pointExceedances": 2846,
+          "preOnsetEpisodes": 0,
+          "recall": 0.9833333333333333,
+          "timelyFractionOfAllGroups": 0.8416666666666667,
+          "timelyWithin600Seconds": 101,
+          "wilsonGroupOccurrence95": [
+            0.941264037027841,
+            0.9954174354340789
+          ]
+        },
+        "single-current-ramp": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              86.39999999999998,
+              99.6
+            ],
+            "meanLatencyDetectedOnly": [
+              431.5833333333333,
+              461.4166666666667
+            ],
+            "pointExceedanceRate": [
+              0.5040277777777777,
+              0.5265972222222223
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              0.9583333333333334,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 155,
+          "episodesPer24EligibleSimulatedHours": 93.0,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 2,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 640.0,
+            "meanDetectedOnly": 446.6666666666667,
+            "p50": 450.0,
+            "p95": 570.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.5151388888888889,
+          "pointExceedances": 7418,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 0.9833333333333333,
+          "timelyWithin600Seconds": 118,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "single-current-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              83.39999999999998,
+              94.79999999999998
+            ],
+            "meanLatencyDetectedOnly": [
+              54.25,
+              65.75
+            ],
+            "pointExceedanceRate": [
+              0.8338194444444444,
+              0.8498611111111111
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 148,
+          "episodesPer24EligibleSimulatedHours": 88.80000000000001,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 200.0,
+            "meanDetectedOnly": 59.833333333333336,
+            "p50": 50.0,
+            "p95": 120.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.8421527777777778,
+          "pointExceedances": 12127,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "targetDisposition": "CONTROL_ONLY_NOT_ELIGIBLE_FOR_SELECTION"
+      },
+      "marginal-instant-q099": {
+        "multi-target-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              76.79999999999998,
+              85.79999999999998
+            ],
+            "meanLatencyDetectedOnly": [
+              20.666666666666668,
+              23.166666666666668
+            ],
+            "pointExceedanceRate": [
+              0.8197222222222222,
+              0.8332638888888889
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 135,
+          "episodesPer24EligibleSimulatedHours": 81.0,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 70.0,
+            "meanDetectedOnly": 21.833333333333332,
+            "p50": 20.0,
+            "p95": 30.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.8268055555555556,
+          "pointExceedances": 11906,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "nonfault-context": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              0.0,
+              2.999999999999999
+            ],
+            "pointExceedanceRate": [
+              0.0075,
+              0.010972222222222222
+            ]
+          },
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 2,
+          "episodesPer24EligibleSimulatedHours": 1.2000000000000002,
+          "groupsWithOneOrMoreEpisodes": 2,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "latencySeconds": {
+            "detectedGroups": 0,
+            "maximum": null,
+            "meanDetectedOnly": null,
+            "p50": null,
+            "p95": null
+          },
+          "pointExceedanceRate": 0.009166666666666667,
+          "pointExceedances": 132,
+          "preOnsetEpisodes": 0,
+          "wilsonGroupOccurrence95": [
+            0.004582564565921137,
+            0.0587359629721589
+          ]
+        },
+        "relationship-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              0.0,
+              4.199999999999999
+            ],
+            "meanLatencyDetectedOnly": [
+              200.0,
+              510.0
+            ],
+            "pointExceedanceRate": [
+              0.0075,
+              0.011041666666666667
+            ],
+            "recall": [
+              0.0,
+              0.058333333333333334
+            ],
+            "timelyFractionOfAllGroups": [
+              0.0,
+              0.058333333333333334
+            ]
+          },
+          "detectedGroups": 3,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 3,
+          "episodesPer24EligibleSimulatedHours": 1.7999999999999998,
+          "groupsWithOneOrMoreEpisodes": 3,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 3,
+            "maximum": 510.0,
+            "meanDetectedOnly": 306.6666666666667,
+            "p50": 210.0,
+            "p95": 510.0
+          },
+          "missedGroups": 117,
+          "pointExceedanceRate": 0.009166666666666667,
+          "pointExceedances": 132,
+          "preOnsetEpisodes": 0,
+          "recall": 0.025,
+          "timelyFractionOfAllGroups": 0.025,
+          "timelyWithin600Seconds": 3,
+          "wilsonGroupOccurrence95": [
+            0.008538174769902228,
+            0.0709300333278661
+          ]
+        },
+        "single-current-1scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              10.2,
+              20.4
+            ],
+            "meanLatencyDetectedOnly": [
+              371.8181818181818,
+              601.8518518518518
+            ],
+            "pointExceedanceRate": [
+              0.020625,
+              0.02673611111111111
+            ],
+            "recall": [
+              0.13333333333333333,
+              0.275
+            ],
+            "timelyFractionOfAllGroups": [
+              0.06666666666666667,
+              0.18333333333333332
+            ]
+          },
+          "detectedGroups": 24,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 25,
+          "episodesPer24EligibleSimulatedHours": 15.0,
+          "groupsWithOneOrMoreEpisodes": 24,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 10,
+          "latencySeconds": {
+            "detectedGroups": 24,
+            "maximum": 940.0,
+            "meanDetectedOnly": 488.75,
+            "p50": 510.0,
+            "p95": 920.0
+          },
+          "missedGroups": 96,
+          "pointExceedanceRate": 0.02361111111111111,
+          "pointExceedances": 340,
+          "preOnsetEpisodes": 0,
+          "recall": 0.2,
+          "timelyFractionOfAllGroups": 0.11666666666666667,
+          "timelyWithin600Seconds": 14,
+          "wilsonGroupOccurrence95": [
+            0.13824476478840256,
+            0.2803667350628196
+          ]
+        },
+        "single-current-2scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              139.2,
+              171.59999999999997
+            ],
+            "meanLatencyDetectedOnly": [
+              279.7413793103448,
+              376.6666666666667
+            ],
+            "pointExceedanceRate": [
+              0.13506944444444444,
+              0.15354166666666666
+            ],
+            "recall": [
+              0.9,
+              0.9833333333333333
+            ],
+            "timelyFractionOfAllGroups": [
+              0.7,
+              0.8416666666666667
+            ]
+          },
+          "detectedGroups": 113,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 258,
+          "episodesPer24EligibleSimulatedHours": 154.8,
+          "groupsWithOneOrMoreEpisodes": 113,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 20,
+          "latencySeconds": {
+            "detectedGroups": 113,
+            "maximum": 1040.0,
+            "meanDetectedOnly": 328.76106194690266,
+            "p50": 240.0,
+            "p95": 890.0
+          },
+          "missedGroups": 7,
+          "pointExceedanceRate": 0.14444444444444443,
+          "pointExceedances": 2080,
+          "preOnsetEpisodes": 0,
+          "recall": 0.9416666666666667,
+          "timelyFractionOfAllGroups": 0.775,
+          "timelyWithin600Seconds": 93,
+          "wilsonGroupOccurrence95": [
+            0.8844740796636988,
+            0.9714589899997798
+          ]
+        },
+        "single-current-ramp": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              133.2,
+              155.99999999999997
+            ],
+            "meanLatencyDetectedOnly": [
+              432.0833333333333,
+              465.1666666666667
+            ],
+            "pointExceedanceRate": [
+              0.3675,
+              0.38868055555555553
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              0.9333333333333333,
+              0.9916666666666667
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 241,
+          "episodesPer24EligibleSimulatedHours": 144.60000000000002,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 4,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 690.0,
+            "meanDetectedOnly": 448.25,
+            "p50": 450.0,
+            "p95": 590.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.3782638888888889,
+          "pointExceedances": 5447,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 0.9666666666666667,
+          "timelyWithin600Seconds": 116,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "single-current-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              159.59999999999997,
+              185.99999999999994
+            ],
+            "meanLatencyDetectedOnly": [
+              35.75,
+              47.916666666666664
+            ],
+            "pointExceedanceRate": [
+              0.6143055555555555,
+              0.6407638888888889
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 288,
+          "episodesPer24EligibleSimulatedHours": 172.8,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 200.0,
+            "meanDetectedOnly": 41.5,
+            "p50": 30.0,
+            "p95": 110.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.6277083333333333,
+          "pointExceedances": 9039,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "targetDisposition": "CONTROL_ONLY_NOT_ELIGIBLE_FOR_SELECTION"
+      },
+      "marginal-instant-q0999": {
+        "multi-target-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              109.79999999999998,
+              126.6
+            ],
+            "meanLatencyDetectedOnly": [
+              24.666666666666668,
+              31.833333333333332
+            ],
+            "pointExceedanceRate": [
+              0.7070833333333333,
+              0.7285416666666666
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 197,
+          "episodesPer24EligibleSimulatedHours": 118.19999999999999,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 170.0,
+            "meanDetectedOnly": 27.833333333333332,
+            "p50": 20.0,
+            "p95": 70.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.7180555555555556,
+          "pointExceedances": 10340,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "nonfault-context": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              0.0,
+              0.0
+            ],
+            "pointExceedanceRate": [
+              0.0011805555555555556,
+              0.003125
+            ]
+          },
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 0,
+          "episodesPer24EligibleSimulatedHours": 0.0,
+          "groupsWithOneOrMoreEpisodes": 0,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "latencySeconds": {
+            "detectedGroups": 0,
+            "maximum": null,
+            "meanDetectedOnly": null,
+            "p50": null,
+            "p95": null
+          },
+          "pointExceedanceRate": 0.0020833333333333333,
+          "pointExceedances": 30,
+          "preOnsetEpisodes": 0,
+          "wilsonGroupOccurrence95": [
+            0.0,
+            0.031019166418703486
+          ],
+          "zeroEpisodeWilsonGroupOccurrence95": [
+            0.0,
+            0.031019166418703486
+          ]
+        },
+        "relationship-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              0.0,
+              0.0
+            ],
+            "meanLatencyDetectedOnly": null,
+            "pointExceedanceRate": [
+              0.0011805555555555556,
+              0.0027083333333333334
+            ],
+            "recall": [
+              0.0,
+              0.0
+            ],
+            "timelyFractionOfAllGroups": [
+              0.0,
+              0.0
+            ]
+          },
+          "detectedGroups": 0,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 0,
+          "episodesPer24EligibleSimulatedHours": 0.0,
+          "groupsWithOneOrMoreEpisodes": 0,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 0,
+            "maximum": null,
+            "meanDetectedOnly": null,
+            "p50": null,
+            "p95": null
+          },
+          "missedGroups": 120,
+          "pointExceedanceRate": 0.001875,
+          "pointExceedances": 27,
+          "preOnsetEpisodes": 0,
+          "recall": 0.0,
+          "timelyFractionOfAllGroups": 0.0,
+          "timelyWithin600Seconds": 0,
+          "wilsonGroupOccurrence95": [
+            0.0,
+            0.031019166418703486
+          ]
+        },
+        "single-current-1scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              0.5999999999999999,
+              5.399999999999999
+            ],
+            "meanLatencyDetectedOnly": [
+              210.0,
+              730.0
+            ],
+            "pointExceedanceRate": [
+              0.004861111111111111,
+              0.0077777777777777776
+            ],
+            "recall": [
+              0.008333333333333333,
+              0.075
+            ],
+            "timelyFractionOfAllGroups": [
+              0.0,
+              0.058333333333333334
+            ]
+          },
+          "detectedGroups": 4,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 4,
+          "episodesPer24EligibleSimulatedHours": 2.4000000000000004,
+          "groupsWithOneOrMoreEpisodes": 4,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 1,
+          "latencySeconds": {
+            "detectedGroups": 4,
+            "maximum": 730.0,
+            "meanDetectedOnly": 475.0,
+            "p50": 420.0,
+            "p95": 730.0
+          },
+          "missedGroups": 116,
+          "pointExceedanceRate": 0.00625,
+          "pointExceedances": 90,
+          "preOnsetEpisodes": 0,
+          "recall": 0.03333333333333333,
+          "timelyFractionOfAllGroups": 0.025,
+          "timelyWithin600Seconds": 3,
+          "wilsonGroupOccurrence95": [
+            0.0130375510983506,
+            0.082580337559106
+          ]
+        },
+        "single-current-2scale": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              45.599999999999994,
+              67.19999999999999
+            ],
+            "meanLatencyDetectedOnly": [
+              383.0769230769231,
+              515.1428571428571
+            ],
+            "pointExceedanceRate": [
+              0.05333333333333334,
+              0.06576388888888889
+            ],
+            "recall": [
+              0.475,
+              0.6416666666666667
+            ],
+            "timelyFractionOfAllGroups": [
+              0.3,
+              0.475
+            ]
+          },
+          "detectedGroups": 67,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 93,
+          "episodesPer24EligibleSimulatedHours": 55.800000000000004,
+          "groupsWithOneOrMoreEpisodes": 67,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 21,
+          "latencySeconds": {
+            "detectedGroups": 67,
+            "maximum": 980.0,
+            "meanDetectedOnly": 447.3134328358209,
+            "p50": 450.0,
+            "p95": 910.0
+          },
+          "missedGroups": 53,
+          "pointExceedanceRate": 0.059236111111111114,
+          "pointExceedances": 853,
+          "preOnsetEpisodes": 0,
+          "recall": 0.5583333333333333,
+          "timelyFractionOfAllGroups": 0.38333333333333336,
+          "timelyWithin600Seconds": 46,
+          "wilsonGroupOccurrence95": [
+            0.4690452309131966,
+            0.6440025330046214
+          ]
+        },
+        "single-current-ramp": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              152.39999999999998,
+              172.79999999999995
+            ],
+            "meanLatencyDetectedOnly": [
+              509.8333333333333,
+              544.0
+            ],
+            "pointExceedanceRate": [
+              0.24583333333333332,
+              0.26729166666666665
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              0.7333333333333333,
+              0.875
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 271,
+          "episodesPer24EligibleSimulatedHours": 162.60000000000002,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 23,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 830.0,
+            "meanDetectedOnly": 527.6666666666666,
+            "p50": 520.0,
+            "p95": 670.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.25666666666666665,
+          "pointExceedances": 3696,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 0.8083333333333333,
+          "timelyWithin600Seconds": 97,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "single-current-strong": {
+          "bootstrap95": {
+            "episodesPer24EligibleSimulatedHours": [
+              233.99999999999994,
+              261.59999999999997
+            ],
+            "meanLatencyDetectedOnly": [
+              57.166666666666664,
+              81.83333333333333
+            ],
+            "pointExceedanceRate": [
+              0.4426388888888889,
+              0.4715972222222222
+            ],
+            "recall": [
+              1.0,
+              1.0
+            ],
+            "timelyFractionOfAllGroups": [
+              1.0,
+              1.0
+            ]
+          },
+          "detectedGroups": 120,
+          "eligibleHours": 40.0,
+          "eligiblePoints": 14400,
+          "eligibleSourceGroups": 120,
+          "episodeCount": 413,
+          "episodesPer24EligibleSimulatedHours": 247.79999999999998,
+          "groupsWithOneOrMoreEpisodes": 120,
+          "independentSourceGroups": 120,
+          "ineligiblePoints": 0,
+          "ineligibleReasons": {},
+          "lateGroups": 0,
+          "latencySeconds": {
+            "detectedGroups": 120,
+            "maximum": 390.0,
+            "meanDetectedOnly": 68.91666666666667,
+            "p50": 40.0,
+            "p95": 200.0
+          },
+          "missedGroups": 0,
+          "pointExceedanceRate": 0.4570138888888889,
+          "pointExceedances": 6581,
+          "preOnsetEpisodes": 0,
+          "recall": 1.0,
+          "timelyFractionOfAllGroups": 1.0,
+          "timelyWithin600Seconds": 120,
+          "wilsonGroupOccurrence95": [
+            0.9689808335812966,
+            1.0
+          ]
+        },
+        "targetDisposition": "CONTROL_ONLY_NOT_ELIGIBLE_FOR_SELECTION"
+      }
+    },
+    "pairedComparisons": {
+      "joint-ewma-q099-minus-joint-instant-q099": {
+        "multi-target-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -10.2,
+              -2.4
+            ],
+            "leftMinusRightMean": -6.0,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              1.9327731092436975,
+              3.865546218487395
+            ],
+            "leftMinusRightMean": 2.857142857142857,
+            "matchedGroups": 119
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.03819444444444443,
+              0.04993055555555556
+            ],
+            "leftMinusRightMean": 0.043958333333333356,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              -0.025,
+              0.0
+            ],
+            "leftMinusRightMean": -0.008333333333333333,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              -0.025,
+              0.0
+            ],
+            "leftMinusRightMean": -0.008333333333333333,
+            "matchedGroups": 120
+          }
+        },
+        "nonfault-context": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              4.2,
+              13.2
+            ],
+            "leftMinusRightMean": 8.4,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              -0.0020833333333333333,
+              0.0034027777777777784
+            ],
+            "leftMinusRightMean": 0.0006250000000000002,
+            "matchedGroups": 120
+          }
+        },
+        "relationship-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              42.6,
+              76.2
+            ],
+            "leftMinusRightMean": 60.0,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -180.6422018348624,
+              -95.96330275229357
+            ],
+            "leftMinusRightMean": -137.43119266055047,
+            "matchedGroups": 109
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.09708333333333331,
+              0.12187499999999996
+            ],
+            "leftMinusRightMean": 0.10958333333333334,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.03333333333333333,
+              0.125
+            ],
+            "leftMinusRightMean": 0.075,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.1,
+              0.23333333333333334
+            ],
+            "leftMinusRightMean": 0.15833333333333333,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-1scale": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              67.8,
+              92.4
+            ],
+            "leftMinusRightMean": 79.8,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -221.30434782608697,
+              -94.56521739130434
+            ],
+            "leftMinusRightMean": -156.7391304347826,
+            "matchedGroups": 46
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.05604166666666669,
+              0.07812500000000004
+            ],
+            "leftMinusRightMean": 0.06680555555555556,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.39166666666666666,
+              0.575
+            ],
+            "leftMinusRightMean": 0.48333333333333334,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.4,
+              0.575
+            ],
+            "leftMinusRightMean": 0.49166666666666664,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-2scale": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -130.2,
+              -91.8
+            ],
+            "leftMinusRightMean": -111.0,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -82.83333333333333,
+              -44.75
+            ],
+            "leftMinusRightMean": -62.666666666666664,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.39958333333333323,
+              0.423263888888889
+            ],
+            "leftMinusRightMean": 0.41180555555555554,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-ramp": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -27.0,
+              -9.0
+            ],
+            "leftMinusRightMean": -18.0,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -63.5,
+              -37.833333333333336
+            ],
+            "leftMinusRightMean": -50.583333333333336,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.09645833333333333,
+              0.11159722222222221
+            ],
+            "leftMinusRightMean": 0.10409722222222223,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -10.8,
+              -3.0
+            ],
+            "leftMinusRightMean": -6.6,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              1.680672268907563,
+              4.873949579831932
+            ],
+            "leftMinusRightMean": 3.361344537815126,
+            "matchedGroups": 119
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.04888888888888893,
+              0.06180555555555561
+            ],
+            "leftMinusRightMean": 0.055138888888888925,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              -0.025,
+              0.0
+            ],
+            "leftMinusRightMean": -0.008333333333333333,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              -0.025,
+              0.0
+            ],
+            "leftMinusRightMean": -0.008333333333333333,
+            "matchedGroups": 120
+          }
+        }
+      },
+      "joint-ewma-q099-minus-marginal-ewma-q099": {
+        "multi-target-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -7.226890756302521,
+              -5.126050420168068
+            ],
+            "leftMinusRightMean": -6.218487394957983,
+            "matchedGroups": 119
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.004444444444444439,
+              0.006111111111111114
+            ],
+            "leftMinusRightMean": 0.0052777777777777805,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        },
+        "nonfault-context": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -0.6,
+              7.2
+            ],
+            "leftMinusRightMean": 3.0,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.0013888888888888887,
+              0.0059027777777777785
+            ],
+            "leftMinusRightMean": 0.0036111111111111114,
+            "matchedGroups": 120
+          }
+        },
+        "relationship-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              164.4,
+              193.8
+            ],
+            "leftMinusRightMean": 178.8,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -494.70588235294116,
+              -215.88235294117646
+            ],
+            "leftMinusRightMean": -350.0,
+            "matchedGroups": 17
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.21298611111111118,
+              0.24722222222222232
+            ],
+            "leftMinusRightMean": 0.23006944444444447,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.775,
+              0.9
+            ],
+            "leftMinusRightMean": 0.8416666666666667,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.7416666666666667,
+              0.8833333333333333
+            ],
+            "leftMinusRightMean": 0.8166666666666667,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-1scale": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              45.0,
+              71.4
+            ],
+            "leftMinusRightMean": 58.2,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -169.1304347826087,
+              -49.130434782608695
+            ],
+            "leftMinusRightMean": -110.8695652173913,
+            "matchedGroups": 69
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.05541666666666668,
+              0.07854166666666669
+            ],
+            "leftMinusRightMean": 0.06701388888888889,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.16666666666666666,
+              0.35
+            ],
+            "leftMinusRightMean": 0.25833333333333336,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.24166666666666667,
+              0.425
+            ],
+            "leftMinusRightMean": 0.3333333333333333,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-2scale": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -87.0,
+              -56.4
+            ],
+            "leftMinusRightMean": -72.0,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -71.91666666666667,
+              -40.416666666666664
+            ],
+            "leftMinusRightMean": -55.75,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.24340277777777777,
+              0.2753472222222223
+            ],
+            "leftMinusRightMean": 0.2597916666666667,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-ramp": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -15.6,
+              -1.2
+            ],
+            "leftMinusRightMean": -8.4,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -67.83333333333333,
+              -38.75
+            ],
+            "leftMinusRightMean": -53.083333333333336,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.05416666666666667,
+              0.0699305555555556
+            ],
+            "leftMinusRightMean": 0.06208333333333334,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -3.0,
+              0.0
+            ],
+            "leftMinusRightMean": -1.2,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -16.554621848739497,
+              -11.428571428571429
+            ],
+            "leftMinusRightMean": -13.865546218487395,
+            "matchedGroups": 119
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.011458333333333338,
+              0.016666666666666673
+            ],
+            "leftMinusRightMean": 0.014027777777777794,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        }
+      },
+      "joint-ewma-q0999-minus-joint-instant-q0999": {
+        "multi-target-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -45.0,
+              -27.6
+            ],
+            "leftMinusRightMean": -36.0,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              3.4166666666666665,
+              7.25
+            ],
+            "leftMinusRightMean": 5.583333333333333,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.12534722222222233,
+              0.14611111111111114
+            ],
+            "leftMinusRightMean": 0.1352777777777778,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        },
+        "nonfault-context": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              0.0,
+              1.8
+            ],
+            "leftMinusRightMean": 0.6,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              -0.001736111111111111,
+              -0.0005555555555555556
+            ],
+            "leftMinusRightMean": -0.0011111111111111111,
+            "matchedGroups": 120
+          }
+        },
+        "relationship-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              52.2,
+              76.8
+            ],
+            "leftMinusRightMean": 64.2,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -137.32394366197184,
+              -47.74647887323944
+            ],
+            "leftMinusRightMean": -90.28169014084507,
+            "matchedGroups": 71
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.03618055555555554,
+              0.052152777777777756
+            ],
+            "leftMinusRightMean": 0.04388888888888889,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.24166666666666667,
+              0.4166666666666667
+            ],
+            "leftMinusRightMean": 0.325,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.23333333333333334,
+              0.4
+            ],
+            "leftMinusRightMean": 0.31666666666666665,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-1scale": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              20.4,
+              39.0
+            ],
+            "leftMinusRightMean": 29.4,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -130.0,
+              5.0
+            ],
+            "leftMinusRightMean": -41.666666666666664,
+            "matchedGroups": 6
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.010694444444444447,
+              0.022222222222222223
+            ],
+            "leftMinusRightMean": 0.01590277777777778,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.20833333333333334,
+              0.36666666666666664
+            ],
+            "leftMinusRightMean": 0.2833333333333333,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.1,
+              0.23333333333333334
+            ],
+            "leftMinusRightMean": 0.16666666666666666,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-2scale": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              53.4,
+              97.8
+            ],
+            "leftMinusRightMean": 75.6,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -236.73076923076923,
+              -151.53846153846155
+            ],
+            "leftMinusRightMean": -192.21153846153845,
+            "matchedGroups": 104
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.3324305555555555,
+              0.3685416666666669
+            ],
+            "leftMinusRightMean": 0.35076388888888893,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.075,
+              0.19166666666666668
+            ],
+            "leftMinusRightMean": 0.13333333333333333,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.18333333333333332,
+              0.35
+            ],
+            "leftMinusRightMean": 0.26666666666666666,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-ramp": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -45.0,
+              -23.4
+            ],
+            "leftMinusRightMean": -33.6,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -90.91666666666667,
+              -62.0
+            ],
+            "leftMinusRightMean": -76.33333333333333,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.1571527777777777,
+              0.17791666666666658
+            ],
+            "leftMinusRightMean": 0.1675,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.025
+            ],
+            "leftMinusRightMean": 0.008333333333333333,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -54.6,
+              -34.8
+            ],
+            "leftMinusRightMean": -44.4,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -0.4166666666666667,
+              4.833333333333333
+            ],
+            "leftMinusRightMean": 2.25,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.15409722222222227,
+              0.17486111111111108
+            ],
+            "leftMinusRightMean": 0.16416666666666668,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        }
+      },
+      "joint-ewma-q0999-minus-marginal-ewma-q0999": {
+        "multi-target-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -9.75,
+              -7.5
+            ],
+            "leftMinusRightMean": -8.583333333333334,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.006319444444444472,
+              0.008402777777777799
+            ],
+            "leftMinusRightMean": 0.0073611111111111325,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        },
+        "nonfault-context": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -1.8,
+              1.8
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              -0.0004166666666666667,
+              0.0007638888888888889
+            ],
+            "leftMinusRightMean": 0.00013888888888888886,
+            "matchedGroups": 120
+          }
+        },
+        "relationship-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              106.2,
+              133.2
+            ],
+            "leftMinusRightMean": 119.4,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": null,
+            "leftMinusRightMean": null,
+            "matchedGroups": 0
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.09701388888888894,
+              0.12097222222222222
+            ],
+            "leftMinusRightMean": 0.10847222222222223,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.8666666666666667,
+              0.9583333333333334
+            ],
+            "leftMinusRightMean": 0.9166666666666666,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.6166666666666667,
+              0.775
+            ],
+            "leftMinusRightMean": 0.7,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-1scale": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              17.4,
+              33.6
+            ],
+            "leftMinusRightMean": 25.2,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -119.0909090909091,
+              -8.181818181818182
+            ],
+            "leftMinusRightMean": -55.45454545454545,
+            "matchedGroups": 11
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.014236111111111109,
+              0.0254861111111111
+            ],
+            "leftMinusRightMean": 0.01972222222222222,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.15833333333333333,
+              0.31666666666666665
+            ],
+            "leftMinusRightMean": 0.23333333333333334,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.075,
+              0.2
+            ],
+            "leftMinusRightMean": 0.13333333333333333,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-2scale": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              16.2,
+              55.2
+            ],
+            "leftMinusRightMean": 36.0,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -213.38983050847457,
+              -138.98305084745763
+            ],
+            "leftMinusRightMean": -175.08474576271186,
+            "matchedGroups": 118
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.2588194444444443,
+              0.2951388888888889
+            ],
+            "leftMinusRightMean": 0.2767361111111111,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.041666666666666664
+            ],
+            "leftMinusRightMean": 0.016666666666666666,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.09166666666666666,
+              0.225
+            ],
+            "leftMinusRightMean": 0.15833333333333333,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-ramp": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -17.4,
+              -1.2
+            ],
+            "leftMinusRightMean": -9.0,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -94.5,
+              -64.41666666666667
+            ],
+            "leftMinusRightMean": -79.5,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.07166666666666664,
+              0.09187500000000003
+            ],
+            "leftMinusRightMean": 0.08125,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.041666666666666664
+            ],
+            "leftMinusRightMean": 0.016666666666666666,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -22.8,
+              -11.4
+            ],
+            "leftMinusRightMean": -16.8,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -30.75,
+              -20.75
+            ],
+            "leftMinusRightMean": -25.416666666666668,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.03833333333333332,
+              0.05375000000000005
+            ],
+            "leftMinusRightMean": 0.04562500000000002,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        }
+      },
+      "joint-instant-q099-minus-marginal-instant-q099": {
+        "multi-target-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -6.6,
+              0.6
+            ],
+            "leftMinusRightMean": -3.0,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -1.1666666666666667,
+              0.08333333333333333
+            ],
+            "leftMinusRightMean": -0.5,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.023194444444444438,
+              0.029097222222222184
+            ],
+            "leftMinusRightMean": 0.026250000000000002,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        },
+        "nonfault-context": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -1.2,
+              4.8
+            ],
+            "leftMinusRightMean": 1.8,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              -0.00041666666666666653,
+              0.002777777777777778
+            ],
+            "leftMinusRightMean": 0.0011805555555555556,
+            "matchedGroups": 120
+          }
+        },
+        "relationship-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              114.0,
+              142.2
+            ],
+            "leftMinusRightMean": 128.4,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -460.0,
+              -10.0
+            ],
+            "leftMinusRightMean": -183.33333333333334,
+            "matchedGroups": 3
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.11319444444444439,
+              0.12631944444444448
+            ],
+            "leftMinusRightMean": 0.11979166666666667,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.825,
+              0.9416666666666667
+            ],
+            "leftMinusRightMean": 0.8833333333333333,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.6083333333333333,
+              0.775
+            ],
+            "leftMinusRightMean": 0.6916666666666667,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-1scale": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              15.6,
+              32.4
+            ],
+            "leftMinusRightMean": 24.0,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -104.76190476190476,
+              91.9047619047619
+            ],
+            "leftMinusRightMean": -12.380952380952381,
+            "matchedGroups": 21
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.0198611111111111,
+              0.0290972222222222
+            ],
+            "leftMinusRightMean": 0.024374999999999997,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.1,
+              0.26666666666666666
+            ],
+            "leftMinusRightMean": 0.18333333333333332,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.05,
+              0.2
+            ],
+            "leftMinusRightMean": 0.125,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-2scale": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              89.4,
+              123.6
+            ],
+            "leftMinusRightMean": 106.8,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -230.1769911504425,
+              -146.99115044247787
+            ],
+            "leftMinusRightMean": -186.81415929203538,
+            "matchedGroups": 113
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.14930555555555552,
+              0.17111111111111107
+            ],
+            "leftMinusRightMean": 0.16013888888888891,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.016666666666666666,
+              0.1
+            ],
+            "leftMinusRightMean": 0.058333333333333334,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.15,
+              0.3
+            ],
+            "leftMinusRightMean": 0.225,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-ramp": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -52.2,
+              -27.0
+            ],
+            "leftMinusRightMean": -39.6,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -117.33333333333333,
+              -83.0
+            ],
+            "leftMinusRightMean": -100.16666666666667,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.16215277777777776,
+              0.18062499999999992
+            ],
+            "leftMinusRightMean": 0.1711111111111111,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.008333333333333333,
+              0.075
+            ],
+            "leftMinusRightMean": 0.03333333333333333,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -108.6,
+              -81.0
+            ],
+            "leftMinusRightMean": -94.2,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -24.5,
+              -13.0
+            ],
+            "leftMinusRightMean": -18.583333333333332,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.20145833333333335,
+              0.22354166666666667
+            ],
+            "leftMinusRightMean": 0.21270833333333333,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        }
+      },
+      "joint-instant-q0999-minus-marginal-instant-q0999": {
+        "multi-target-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -18.0,
+              -3.6
+            ],
+            "leftMinusRightMean": -10.2,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -6.166666666666667,
+              -1.0
+            ],
+            "leftMinusRightMean": -3.25,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.03374999999999996,
+              0.042708333333333334
+            ],
+            "leftMinusRightMean": 0.03812499999999999,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        },
+        "nonfault-context": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              -0.00125,
+              0.00020833333333333335
+            ],
+            "leftMinusRightMean": -0.0004861111111111111,
+            "matchedGroups": 120
+          }
+        },
+        "relationship-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              45.6,
+              65.4
+            ],
+            "leftMinusRightMean": 55.2,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": null,
+            "leftMinusRightMean": null,
+            "matchedGroups": 0
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.05777777777777777,
+              0.06819444444444446
+            ],
+            "leftMinusRightMean": 0.06298611111111112,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.5,
+              0.6833333333333333
+            ],
+            "leftMinusRightMean": 0.5916666666666667,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.3,
+              0.4666666666666667
+            ],
+            "leftMinusRightMean": 0.38333333333333336,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-1scale": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -2.4,
+              4.2
+            ],
+            "leftMinusRightMean": 1.2,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 1
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.0014583333333333332,
+              0.005069444444444444
+            ],
+            "leftMinusRightMean": 0.0031944444444444446,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              -0.03333333333333333,
+              0.06666666666666667
+            ],
+            "leftMinusRightMean": 0.016666666666666666,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              -0.025,
+              0.041666666666666664
+            ],
+            "leftMinusRightMean": 0.008333333333333333,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-2scale": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              62.4,
+              93.6
+            ],
+            "leftMinusRightMean": 77.4,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -222.96875,
+              -68.75
+            ],
+            "leftMinusRightMean": -145.0,
+            "matchedGroups": 64
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.05694444444444445,
+              0.07138888888888889
+            ],
+            "leftMinusRightMean": 0.064375,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.21666666666666667,
+              0.4
+            ],
+            "leftMinusRightMean": 0.30833333333333335,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.25,
+              0.45
+            ],
+            "leftMinusRightMean": 0.35,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-ramp": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -57.6,
+              -33.0
+            ],
+            "leftMinusRightMean": -45.0,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -102.33333333333333,
+              -66.08333333333333
+            ],
+            "leftMinusRightMean": -84.16666666666667,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.16361111111111118,
+              0.18076388888888895
+            ],
+            "leftMinusRightMean": 0.17222222222222222,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.11666666666666667,
+              0.25833333333333336
+            ],
+            "leftMinusRightMean": 0.18333333333333332,
+            "matchedGroups": 120
+          }
+        },
+        "single-current-strong": {
+          "episodesPer24EligibleSimulatedHours": {
+            "bootstrap95": [
+              -145.8,
+              -117.0
+            ],
+            "leftMinusRightMean": -131.4,
+            "matchedGroups": 120
+          },
+          "latencySecondsAmongMatchedDetections": {
+            "bootstrap95": [
+              -48.916666666666664,
+              -25.5
+            ],
+            "leftMinusRightMean": -36.75,
+            "matchedGroups": 120
+          },
+          "pointExceedanceRate": {
+            "bootstrap95": [
+              0.25624999999999987,
+              0.2777777777777777
+            ],
+            "leftMinusRightMean": 0.2665972222222222,
+            "matchedGroups": 120
+          },
+          "recall": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          },
+          "timelyFractionOfAllGroups": {
+            "bootstrap95": [
+              0.0,
+              0.0
+            ],
+            "leftMinusRightMean": 0.0,
+            "matchedGroups": 120
+          }
+        }
+      }
+    },
+    "processing": {
+      "candidateThresholdDecisionEvaluations": 806400,
+      "experimentGroupIDsGenerated": [
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        141,
+        142,
+        143,
+        144,
+        145,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151,
+        152,
+        153,
+        154,
+        155,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        163,
+        164,
+        165,
+        166,
+        167,
+        168,
+        169,
+        170,
+        171,
+        172,
+        173,
+        174,
+        175,
+        176,
+        177,
+        178,
+        179,
+        180,
+        181,
+        182,
+        183,
+        184,
+        185,
+        186,
+        187,
+        188,
+        189,
+        190,
+        191,
+        192,
+        193,
+        194,
+        195,
+        196,
+        197,
+        198,
+        199,
+        200,
+        201,
+        202,
+        203,
+        204,
+        205,
+        206,
+        207,
+        208,
+        209,
+        210,
+        211,
+        212,
+        213,
+        214,
+        215,
+        216,
+        217,
+        218,
+        219,
+        220,
+        221,
+        222,
+        223,
+        224,
+        225,
+        226,
+        227,
+        228,
+        229,
+        230,
+        231,
+        232,
+        233,
+        234,
+        235,
+        236,
+        237,
+        238,
+        239
+      ],
+      "holdoutGroupIDsGenerated": [
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        141,
+        142,
+        143,
+        144,
+        145,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151,
+        152,
+        153,
+        154,
+        155,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        163,
+        164,
+        165,
+        166,
+        167,
+        168,
+        169,
+        170,
+        171,
+        172,
+        173,
+        174,
+        175,
+        176,
+        177,
+        178,
+        179,
+        180,
+        181,
+        182,
+        183,
+        184,
+        185,
+        186,
+        187,
+        188,
+        189,
+        190,
+        191,
+        192,
+        193,
+        194,
+        195,
+        196,
+        197,
+        198,
+        199,
+        200,
+        201,
+        202,
+        203,
+        204,
+        205,
+        206,
+        207,
+        208,
+        209,
+        210,
+        211,
+        212,
+        213,
+        214,
+        215,
+        216,
+        217,
+        218,
+        219,
+        220,
+        221,
+        222,
+        223,
+        224,
+        225,
+        226,
+        227,
+        228,
+        229,
+        230,
+        231,
+        232,
+        233,
+        234,
+        235,
+        236,
+        237,
+        238,
+        239
+      ],
+      "rowLevelFilesWritten": false,
+      "scenarioRuns": 840,
+      "sourceScalarTargetVisits": 302400,
+      "sourceVectorPasses": 1,
+      "sourceVectorVisits": 100800,
+      "statisticScoreEvaluations": 403200,
+      "uniqueGeneratedScalarTargetValues": 302400,
+      "uniqueGeneratedVectors": 100800
+    }
+  },
+  "holdoutIdentity": "W15-INTEL-4F-TEMPORAL-HOLDOUT-2026-10-20-01",
+  "partitionDigest": "DFA6137184DEDFAB4FCF2D0343787D33A19AC6D53DE5D39B676C92857EC8A2F0",
+  "preHoldoutCommit": "80173fb454af5098df95c53ec571696743f88192",
+  "productMethodApproval": false,
+  "realFieldExposureStatus": "UNMEASURED",
+  "resourceDisposition": "WITHIN_PREREGISTERED_LIMITS",
+  "resources": {
+    "cpuSeconds": 48.09375,
+    "os": "Windows-11-10.0.26200-SP0",
+    "peakRssBytes": 41418752,
+    "pythonVersion": "3.14.6",
+    "wallSeconds": 51.72239450000052,
+    "workerCount": 1
+  },
+  "schemaVersion": 1,
+  "studyId": "W15-INTELLIGENCE-4F-TEMPORAL-STUDY-01",
+  "syntheticEvidenceOnly": true
+}

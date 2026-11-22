@@ -1,6 +1,9 @@
+using Scada.Api.Persistence;
+using Scada.Core.Persistence;
 using System.Security.Cryptography;
 using Scada.Api.Reports;
 using Scada.Api.Runtime;
+using Scada.Api.Licensing;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
@@ -15,7 +18,7 @@ public static class HistoricalQueryConfiguration
     public const string EnabledKey = "HistoricalQuery:Enabled";
     public const string CursorKeyBase64Key = "HistoricalQuery:CursorKeyBase64";
 
-    public static bool AddConfiguredHistoricalQuery(this WebApplicationBuilder builder)
+    public static bool AddConfiguredHistoricalQuery(this WebApplicationBuilder builder, DatabaseRuntimeConnectionSet? database = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
@@ -29,7 +32,8 @@ public static class HistoricalQueryConfiguration
             throw new InvalidOperationException(
                 "Historical Query requires Historian:Provider=timescaledb so historian.samples has a durable query provider.");
 
-        var connectionString = builder.Configuration.GetConnectionString("Historian")
+        var connectionString = database?.HistorianConnectionString
+            ?? builder.Configuration.GetConnectionString("Historian")
             ?? builder.Configuration.GetConnectionString("EliteScada");
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new InvalidOperationException(
@@ -62,26 +66,48 @@ public static class HistoricalQueryConfiguration
         }
 
         builder.Services.AddSingleton<RuntimeTagRegistryView>();
-        builder.Services.AddSingleton<IHistoricalDatasetProvider>(sp =>
+        builder.Services.AddSingleton(sp =>
             new TimescaleHistoricalQueryProvider(
                 connectionString,
                 sp.GetRequiredService<RuntimeTagRegistryView>()));
+        builder.Services.AddSingleton<IHistoricalDatasetProvider>(sp =>
+            sp.GetRequiredService<TimescaleHistoricalQueryProvider>());
+        builder.Services.AddSingleton<IHistoricalDatasetProvider>(sp =>
+            new TimescaleHistoricalQueryProviderV2(sp.GetRequiredService<TimescaleHistoricalQueryProvider>()));
+        builder.Services.AddSingleton<IHistoricalRetrievalProvider>(sp =>
+            sp.GetRequiredService<TimescaleHistoricalQueryProvider>());
 
-        builder.Services.AddSingleton<PostgreSqlAlarmHistoryStore>(_ =>
-            new PostgreSqlAlarmHistoryStore(connectionString));
+        builder.Services.AddSingleton<PostgreSqlAlarmHistoryStore>(sp =>
+            new PostgreSqlAlarmHistoryStore(
+                connectionString,
+                sp.GetService<IDurableWriteAdmission>()));
         builder.Services.AddSingleton<IHistoricalDatasetProvider, AlarmHistoryDatasetProviderAdapter>();
 
-        builder.Services.AddSingleton<PostgreSqlOperationalEventHistoryStore>(_ =>
-            new PostgreSqlOperationalEventHistoryStore(connectionString));
+        builder.Services.AddSingleton<PostgreSqlOperationalEventHistoryStore>(sp =>
+            new PostgreSqlOperationalEventHistoryStore(
+                connectionString,
+                sp.GetService<IDurableWriteAdmission>()));
         builder.Services.AddSingleton<IHistoricalDatasetProvider>(sp =>
             sp.GetRequiredService<PostgreSqlOperationalEventHistoryStore>());
 
         builder.AddHistoricalQueryApiCore();
         builder.AddReportExecutionApiCore();
+        builder.Services.AddScoped<AssetProcessIntelligenceAnalyticsService>();
         builder.Services.AddHostedService<AlarmHistoryPersistenceHostedService>();
         builder.Services.AddHostedService<OperationalEventHistoryPersistenceHostedService>();
         return true;
     }
+}
+
+internal sealed class TimescaleHistoricalQueryProviderV2(TimescaleHistoricalQueryProvider provider)
+    : IHistoricalDatasetProvider
+{
+    public string Dataset => HistoricalDatasets.HistorianSamplesV2;
+
+    public Task<HistoricalProviderPage> QueryAsync(
+        HistoricalQueryExecution query,
+        CancellationToken cancellationToken = default) =>
+        provider.QueryVersion2Async(query, cancellationToken);
 }
 
 internal sealed class AlarmHistoryDatasetProviderAdapter(PostgreSqlAlarmHistoryStore store)

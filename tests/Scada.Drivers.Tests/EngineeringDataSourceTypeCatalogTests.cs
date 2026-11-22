@@ -20,8 +20,6 @@ public sealed class EngineeringDataSourceTypeCatalogTests
         var expected = runtime.Registrations.Select(x => x.Descriptor.DriverType)
             .Concat(new[]
             {
-                ModbusTcpDriverDescriptorProvider.DriverTypeId,
-                SimulationDriverDescriptorProvider.DriverTypeId,
                 BuiltInSourceProviderDescriptors.ServerMemory.TypeKey,
                 BuiltInSourceProviderDescriptors.ClientMemory.TypeKey
             })
@@ -34,6 +32,46 @@ public sealed class EngineeringDataSourceTypeCatalogTests
             Assert.Contains(catalog.DataSourceTypes, entry =>
                 entry.TypeKey.Equals(registration.Descriptor.DriverType, StringComparison.OrdinalIgnoreCase) &&
                 entry.DisplayName == registration.Descriptor.DisplayName));
+    }
+
+    [Fact]
+    public void Catalog_ProjectsIntegrationMetadataWithoutDriverSpecificFrontendKnowledge()
+    {
+        var catalog = BuildCatalog().Describe();
+
+        var modbusRtu = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == ModbusRtuDriverDescriptorProvider.DriverTypeId);
+        Assert.Contains("industrial", modbusRtu.IntegrationDomains);
+        Assert.Equal("hostSerial", modbusRtu.ConnectionModel);
+        Assert.Contains(modbusRtu.ExternalDependencies, dependency =>
+            dependency.Kind == "hostResource" && dependency.Requirement == "serialPort");
+
+        var bacnet = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == BacnetDriverDescriptor.DriverType);
+        Assert.Contains("building", bacnet.IntegrationDomains);
+        Assert.Contains("industrial", bacnet.IntegrationDomains);
+
+        var mqtt = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == Scada.Drivers.Mqtt.MqttDriverDescriptorProvider.DriverType);
+        Assert.Contains("industrial", mqtt.IntegrationDomains);
+        Assert.Contains("ioT", mqtt.IntegrationDomains);
+
+        var zwave = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == ZWaveJsDriverDescriptorProvider.DriverType);
+        Assert.Equal("hostSerial", zwave.ConnectionModel);
+        Assert.Contains("building", zwave.IntegrationDomains);
+        Assert.Contains("residential", zwave.IntegrationDomains);
+        Assert.Contains(zwave.ExternalDependencies, dependency => dependency.Kind == "optionalSidecar" &&
+            dependency.Requirement?.Contains("Node.js", StringComparison.Ordinal) == true);
+        Assert.Contains(zwave.ConfigurationSchema!.DataSourceFields, field => field.Key == "hostResourceId" && field.Required);
+        Assert.Equal(ZWaveJsDriverDescriptorProvider.TagBindingSchemaId, zwave.TagBindingSchemaId);
+    }
+
+    [Fact]
+    public void Catalog_LegacyDescriptorMetadataFallsBackSafely()
+    {
+        var catalog = BuildCatalog().Describe();
+        var opcUa = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == OpcUaDriverDescriptorProvider.DriverTypeId);
+
+        Assert.Equal(new[] { "industrial" }, opcUa.IntegrationDomains);
+        Assert.Equal("directNetwork", opcUa.ConnectionModel);
+        Assert.Contains(opcUa.ExternalDependencies, dependency => dependency.Kind == "builtIn");
     }
 
     [Fact]

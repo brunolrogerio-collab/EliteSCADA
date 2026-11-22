@@ -9,22 +9,49 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   rectangle: 'core.rectangle',
   ellipse: 'core.ellipse',
   line: 'core.line',
+  arc: 'core.arc',
+  bezier: 'core.bezier',
   polygon: 'core.polygon',
   text: 'core.text',
   image: 'core.image',
+  model3d: 'core.model3d',
+  svgSymbol: 'core.svgSymbol',
+  videoPlayer: 'core.videoPlayer',
+  pdfViewer: 'core.pdfViewer',
+  reportLauncher: 'core.reportLauncher',
   valueDisplay: 'core.valueDisplay',
   trend: 'core.trend',
   alarmBrowser: 'core.alarmBrowser',
   eventBrowser: 'core.eventBrowser',
   button: 'core.button',
-  slider: 'core.slider'
+  checkBox: 'core.checkBox',
+  comboBox: 'core.comboBox',
+  slider: 'core.slider',
+  numericInput: 'core.numericInput',
+  measurementDial: 'core.measurementDial',
+  measurementRing: 'core.measurementRing',
+  measurementBar: 'core.measurementBar',
+  measurementThermometer: 'core.measurementThermometer',
+  measurementBands: 'core.measurementBands',
+  measurementTarget: 'core.measurementTarget',
+  intelligencePerformanceV1B: 'core.intelligencePerformanceV1B',
+  intelligenceProfileCoverageV1: 'core.intelligenceProfileCoverageV1',
+  intelligenceReferenceEvidenceV1: 'core.intelligenceReferenceEvidenceV1',
+  intelligenceContextEligibilityV1: 'core.intelligenceContextEligibilityV1',
+  intelligenceCurrentFrequencyComparisonV1: 'core.intelligenceCurrentFrequencyComparisonV1',
+  intelligenceSingleTargetDeviationV1: 'core.intelligenceSingleTargetDeviationV1',
+  intelligenceExperimentalJointDeviationV1: 'core.intelligenceExperimentalJointDeviationV1',
+  intelligenceProcessStageCoverageV1: 'core.intelligenceProcessStageCoverageV1',
+  intelligenceProcessStageInsightsV1: 'core.intelligenceProcessStageInsightsV1',
+  intelligenceContextualDeviationV2: 'core.intelligenceContextualDeviationV2'
 } as const;
 
 export type BuiltinVisualObjectType = typeof BUILTIN_VISUAL_OBJECT_TYPES[keyof typeof BUILTIN_VISUAL_OBJECT_TYPES];
 
 const ANALOG_FILL_CAPABLE_TYPES = new Set<string>([
   BUILTIN_VISUAL_OBJECT_TYPES.rectangle,
-  BUILTIN_VISUAL_OBJECT_TYPES.ellipse
+  BUILTIN_VISUAL_OBJECT_TYPES.ellipse,
+  BUILTIN_VISUAL_OBJECT_TYPES.bezier
 ]);
 
 const GEOMETRY: readonly CommonVisualPropertyKey[] = [
@@ -97,6 +124,12 @@ const TREND: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.trendLegendVisible,
   VISUAL_PROPERTY_KEYS.trendGridVisible,
   VISUAL_PROPERTY_KEYS.trendAxesVisible,
+  VISUAL_PROPERTY_KEYS.trendLeftAxisVisible,
+  VISUAL_PROPERTY_KEYS.trendRightAxisVisible,
+  VISUAL_PROPERTY_KEYS.trendAxisLabelsVisible,
+  VISUAL_PROPERTY_KEYS.trendTimeAxisVisible,
+  VISUAL_PROPERTY_KEYS.trendAxisFontSize,
+  VISUAL_PROPERTY_KEYS.trendLegendFontSize,
   VISUAL_PROPERTY_KEYS.trendQualityVisible
 ];
 
@@ -105,6 +138,22 @@ const BROWSER: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.strokeColor,
   VISUAL_PROPERTY_KEYS.strokeWidth,
   VISUAL_PROPERTY_KEYS.cornerRadius
+];
+
+const MEASUREMENT: readonly CommonVisualPropertyKey[] = [
+  VISUAL_PROPERTY_KEYS.value,
+  VISUAL_PROPERTY_KEYS.unit,
+  VISUAL_PROPERTY_KEYS.minimum,
+  VISUAL_PROPERTY_KEYS.maximum,
+  VISUAL_PROPERTY_KEYS.decimalPlacesEnabled,
+  VISUAL_PROPERTY_KEYS.decimalPlaces,
+  VISUAL_PROPERTY_KEYS.measurementTheme,
+  VISUAL_PROPERTY_KEYS.measurementQualityVisible,
+  VISUAL_PROPERTY_KEYS.measurementFreshnessVisible,
+  VISUAL_PROPERTY_KEYS.measurementStaleAfterSeconds,
+  VISUAL_PROPERTY_KEYS.measurementUnit,
+  VISUAL_PROPERTY_KEYS.trackColor,
+  VISUAL_PROPERTY_KEYS.thumbColor
 ];
 
 const BASE = [...GEOMETRY, ...TRANSFORM, ...VISIBILITY, ...EFFECTS] as const;
@@ -126,9 +175,24 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     ...BASE,
     ...STROKE
   ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.arc, schema(BUILTIN_VISUAL_OBJECT_TYPES.arc, [
+    ...BASE,
+    ...FILL,
+    ...STROKE,
+    VISUAL_PROPERTY_KEYS.arcStyle,
+    VISUAL_PROPERTY_KEYS.arcStartAngle,
+    VISUAL_PROPERTY_KEYS.arcEndAngle
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.bezier, schema(BUILTIN_VISUAL_OBJECT_TYPES.bezier, [
+    ...BASE,
+    ...FILL,
+    ...STROKE,
+    VISUAL_PROPERTY_KEYS.bezierPath
+  ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.polygon, schema(BUILTIN_VISUAL_OBJECT_TYPES.polygon, [
     ...BASE,
     ...FILL,
+    VISUAL_PROPERTY_KEYS.polygonFillRule,
     ...STROKE
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.text, schema(BUILTIN_VISUAL_OBJECT_TYPES.text, [
@@ -140,14 +204,60 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.assetRef,
     VISUAL_PROPERTY_KEYS.imageFit,
     VISUAL_PROPERTY_KEYS.imagePositionX,
-    VISUAL_PROPERTY_KEYS.imagePositionY
+    VISUAL_PROPERTY_KEYS.imagePositionY,
+    VISUAL_PROPERTY_KEYS.imageZoom
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.model3d, schema(BUILTIN_VISUAL_OBJECT_TYPES.model3d, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.assetRef,
+    VISUAL_PROPERTY_KEYS.viewYawDeg,
+    VISUAL_PROPERTY_KEYS.viewPitchDeg,
+    VISUAL_PROPERTY_KEYS.runtimeViewInteractionEnabled
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer, schema(BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.assetRef,
+    VISUAL_PROPERTY_KEYS.imageFit,
+    VISUAL_PROPERTY_KEYS.mediaAutoplay,
+    VISUAL_PROPERTY_KEYS.mediaMuted,
+    VISUAL_PROPERTY_KEYS.mediaLoop,
+    VISUAL_PROPERTY_KEYS.mediaControls,
+    VISUAL_PROPERTY_KEYS.mediaSourceId
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer, schema(BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.assetRef,
+    VISUAL_PROPERTY_KEYS.pdfInitialPage,
+    VISUAL_PROPERTY_KEYS.pdfZoom,
+    VISUAL_PROPERTY_KEYS.pdfToolbarVisible
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher, schema(BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.reportKey,
+    VISUAL_PROPERTY_KEYS.backgroundColor,
+    ...STROKE,
+    VISUAL_PROPERTY_KEYS.cornerRadius,
+    ...TEXT
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol, schema(BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.assetRef,
+    VISUAL_PROPERTY_KEYS.fillColor,
+    VISUAL_PROPERTY_KEYS.strokeColor,
+    VISUAL_PROPERTY_KEYS.strokeWidth
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay, schema(BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay, [
     ...BASE,
     VISUAL_PROPERTY_KEYS.backgroundColor,
     ...STROKE,
     VISUAL_PROPERTY_KEYS.cornerRadius,
-    ...TEXT
+    ...TEXT,
+    VISUAL_PROPERTY_KEYS.valueFormat,
+    VISUAL_PROPERTY_KEYS.showEngineeringUnit,
+    VISUAL_PROPERTY_KEYS.textColorGood,
+    VISUAL_PROPERTY_KEYS.textColorBad,
+    VISUAL_PROPERTY_KEYS.decimalPlacesEnabled,
+    VISUAL_PROPERTY_KEYS.decimalPlaces
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.trend, schema(BUILTIN_VISUAL_OBJECT_TYPES.trend, [
     ...BASE,
@@ -168,6 +278,23 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.cornerRadius,
     ...TEXT
   ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.checkBox, schema(BUILTIN_VISUAL_OBJECT_TYPES.checkBox, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.backgroundColor,
+    ...STROKE,
+    VISUAL_PROPERTY_KEYS.cornerRadius,
+    ...TEXT,
+    VISUAL_PROPERTY_KEYS.checked,
+    VISUAL_PROPERTY_KEYS.interactionEnabled
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.comboBox, schema(BUILTIN_VISUAL_OBJECT_TYPES.comboBox, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.backgroundColor,
+    ...STROKE,
+    VISUAL_PROPERTY_KEYS.cornerRadius,
+    ...TEXT,
+    VISUAL_PROPERTY_KEYS.interactionEnabled
+  ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.slider, schema(BUILTIN_VISUAL_OBJECT_TYPES.slider, [
     ...BASE,
     VISUAL_PROPERTY_KEYS.value,
@@ -182,6 +309,104 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.strokeColor,
     VISUAL_PROPERTY_KEYS.strokeWidth,
     VISUAL_PROPERTY_KEYS.cornerRadius
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.numericInput, schema(BUILTIN_VISUAL_OBJECT_TYPES.numericInput, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.backgroundColor,
+    VISUAL_PROPERTY_KEYS.strokeColor,
+    VISUAL_PROPERTY_KEYS.strokeWidth,
+    VISUAL_PROPERTY_KEYS.strokeStyle,
+    VISUAL_PROPERTY_KEYS.cornerRadius,
+    VISUAL_PROPERTY_KEYS.textColor,
+    VISUAL_PROPERTY_KEYS.textColorEditing,
+    VISUAL_PROPERTY_KEYS.textColorGood,
+    VISUAL_PROPERTY_KEYS.textColorBad,
+    VISUAL_PROPERTY_KEYS.fontFamily,
+    VISUAL_PROPERTY_KEYS.fontSize,
+    VISUAL_PROPERTY_KEYS.fontWeight,
+    VISUAL_PROPERTY_KEYS.horizontalAlignment,
+    VISUAL_PROPERTY_KEYS.value,
+    VISUAL_PROPERTY_KEYS.unit,
+    VISUAL_PROPERTY_KEYS.decimalPlacesEnabled,
+    VISUAL_PROPERTY_KEYS.decimalPlaces,
+    VISUAL_PROPERTY_KEYS.minimum,
+    VISUAL_PROPERTY_KEYS.maximum,
+    VISUAL_PROPERTY_KEYS.step,
+    VISUAL_PROPERTY_KEYS.interactionEnabled,
+    VISUAL_PROPERTY_KEYS.showApplyButton,
+    VISUAL_PROPERTY_KEYS.showCancelButton,
+    VISUAL_PROPERTY_KEYS.showSteppers
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementDial, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementDial, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementRing, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementRing, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementBar, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementBar, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementThermometer, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementBands, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementBands, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT, VISUAL_PROPERTY_KEYS.measurementBandOneEnd, VISUAL_PROPERTY_KEYS.measurementBandTwoEnd])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, schema(BUILTIN_VISUAL_OBJECT_TYPES.measurementTarget, [...BASE, VISUAL_PROPERTY_KEYS.backgroundColor, VISUAL_PROPERTY_KEYS.strokeColor, VISUAL_PROPERTY_KEYS.strokeWidth, VISUAL_PROPERTY_KEYS.cornerRadius, ...MEASUREMENT, VISUAL_PROPERTY_KEYS.measurementTarget])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligencePerformanceV1B, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.intelligenceScopeId,
+    VISUAL_PROPERTY_KEYS.intelligenceAssignmentId,
+    VISUAL_PROPERTY_KEYS.intelligenceProfileId,
+    VISUAL_PROPERTY_KEYS.intelligenceRuleId,
+    VISUAL_PROPERTY_KEYS.intelligenceRuleVersion,
+    VISUAL_PROPERTY_KEYS.intelligenceSignalIds
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProfileCoverageV1, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.intelligenceScopeId,
+    VISUAL_PROPERTY_KEYS.intelligenceProfileId
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceReferenceEvidenceV1, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.intelligenceScopeId,
+    VISUAL_PROPERTY_KEYS.intelligenceProfileId
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextEligibilityV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextEligibilityV1, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.intelligenceScopeId,
+    VISUAL_PROPERTY_KEYS.intelligenceAssignmentId,
+    VISUAL_PROPERTY_KEYS.intelligenceProfileId,
+    VISUAL_PROPERTY_KEYS.intelligenceOperatingContexts
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceCurrentFrequencyComparisonV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceCurrentFrequencyComparisonV1, [
+    ...BASE, VISUAL_PROPERTY_KEYS.intelligenceScopeId, VISUAL_PROPERTY_KEYS.intelligenceAssignmentId, VISUAL_PROPERTY_KEYS.intelligenceProfileId,
+    VISUAL_PROPERTY_KEYS.intelligenceCurrentFrequencySignals
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceSingleTargetDeviationV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceSingleTargetDeviationV1, [
+    ...BASE, VISUAL_PROPERTY_KEYS.intelligenceScopeId, VISUAL_PROPERTY_KEYS.intelligenceAssignmentId, VISUAL_PROPERTY_KEYS.intelligenceProfileId,
+    VISUAL_PROPERTY_KEYS.intelligenceSingleTargetSignals
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceExperimentalJointDeviationV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceExperimentalJointDeviationV1, [
+    ...BASE, VISUAL_PROPERTY_KEYS.intelligenceScopeId, VISUAL_PROPERTY_KEYS.intelligenceAssignmentId, VISUAL_PROPERTY_KEYS.intelligenceProfileId,
+    VISUAL_PROPERTY_KEYS.intelligenceOperatingContexts, VISUAL_PROPERTY_KEYS.intelligenceJointSignals
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageCoverageV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageCoverageV1, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.intelligenceStageId,
+    VISUAL_PROPERTY_KEYS.intelligenceStageKey,
+    VISUAL_PROPERTY_KEYS.intelligenceStageName,
+    VISUAL_PROPERTY_KEYS.intelligenceStageMembers
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceProcessStageInsightsV1, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.intelligenceStageId,
+    VISUAL_PROPERTY_KEYS.intelligenceStageKey,
+    VISUAL_PROPERTY_KEYS.intelligenceStageName,
+    VISUAL_PROPERTY_KEYS.intelligenceStageMembers
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2, schema(BUILTIN_VISUAL_OBJECT_TYPES.intelligenceContextualDeviationV2, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.intelligenceScopeId,
+    VISUAL_PROPERTY_KEYS.intelligenceAssignmentId,
+    VISUAL_PROPERTY_KEYS.intelligenceProfileId,
+    VISUAL_PROPERTY_KEYS.intelligenceSignalIds,
+    VISUAL_PROPERTY_KEYS.intelligenceFirstContextSignalId,
+    VISUAL_PROPERTY_KEYS.intelligenceFirstContextLowerInclusiveCanonical,
+    VISUAL_PROPERTY_KEYS.intelligenceFirstContextUpperExclusiveCanonical,
+    VISUAL_PROPERTY_KEYS.intelligenceSecondContextSignalId,
+    VISUAL_PROPERTY_KEYS.intelligenceSecondContextLowerInclusiveCanonical,
+    VISUAL_PROPERTY_KEYS.intelligenceSecondContextUpperExclusiveCanonical
   ])]
 ]);
 

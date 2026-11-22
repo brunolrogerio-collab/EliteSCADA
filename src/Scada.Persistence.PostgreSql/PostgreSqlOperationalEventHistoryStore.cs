@@ -1,4 +1,5 @@
 using System.Text;
+using Scada.Core.Persistence;
 using System.Text.Json;
 using Npgsql;
 using NpgsqlTypes;
@@ -69,23 +70,31 @@ public sealed class PostgreSqlOperationalEventHistoryStore : IHistoricalDatasetP
         """;
 
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
     private readonly Task _initializeTask;
 
-    public PostgreSqlOperationalEventHistoryStore(string connectionString)
+    public PostgreSqlOperationalEventHistoryStore(
+        string connectionString,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("PostgreSQL connection string is required.", nameof(connectionString));
 
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
         _initializeTask = InitializeAsync();
     }
 
     public string Dataset => HistoricalDatasets.OperationalEvents;
 
+    public Task EnsureInitializedAsync(CancellationToken cancellationToken = default) =>
+        _initializeTask.WaitAsync(cancellationToken);
+
     public async Task AppendAsync(
         OperationalEventOccurred occurrence,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("operational-event-history", cancellationToken);
         ArgumentNullException.ThrowIfNull(occurrence);
         if (occurrence.EventId == Guid.Empty || occurrence.DefinitionId == Guid.Empty)
             throw new ArgumentException("Operational Event history requires stable event and definition identities.", nameof(occurrence));

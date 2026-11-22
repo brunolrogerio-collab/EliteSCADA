@@ -1,5 +1,6 @@
 using Scada.Security.Audit;
 using Scada.Security.Authorization;
+using Scada.Core.Commands;
 
 namespace Scada.Api.Security;
 
@@ -69,6 +70,105 @@ public sealed class ApiAuditService(
                 path,
                 subjectId);
             throw new AuditAdmissionUnavailableException(ex);
+        }
+    }
+
+    public async ValueTask RecordServerScriptCommandAdmissionAsync(
+        SecurityPrincipal principal,
+        string projectKey,
+        long revision,
+        Guid scriptId,
+        Guid commandId,
+        Guid invocationId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await store.WriteAsync(
+                AuditEvent.Create(
+                    SubjectId(principal),
+                    principal.DisplayName,
+                    AuditActions.ProtectedMutationAdmission,
+                    AuditOutcome.Succeeded,
+                    "rich-command",
+                    commandId.ToString("D"),
+                    new Dictionary<string, string>
+                    {
+                        ["scriptId"] = scriptId.ToString("D"),
+                        ["invocationId"] = invocationId.ToString("D")
+                    },
+                    invocationId.ToString("D"),
+                    projectKey: projectKey,
+                    revision: revision,
+                    roles: principal.Roles,
+                    source: "server-script-admission"),
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Server Script Rich Command admission could not be persisted for project {ProjectKey}, script {ScriptId}, command {CommandId}.",
+                projectKey,
+                scriptId,
+                commandId);
+            throw new AuditAdmissionUnavailableException(ex);
+        }
+    }
+
+    public async ValueTask RecordServerScriptCommandOutcomeAsync(
+        SecurityPrincipal principal,
+        string projectKey,
+        long revision,
+        Guid scriptId,
+        RichCommandResult result)
+    {
+        var outcome = result.Outcome switch
+        {
+            RichCommandOutcome.Accepted or RichCommandOutcome.Completed => AuditOutcome.Succeeded,
+            RichCommandOutcome.Rejected when result.Code?.StartsWith("authorization.", StringComparison.Ordinal) == true => AuditOutcome.Denied,
+            _ => AuditOutcome.Failed
+        };
+        var details = new Dictionary<string, string>
+        {
+            ["scriptId"] = scriptId.ToString("D"),
+            ["invocationId"] = result.InvocationId.ToString("D"),
+            ["commandOutcome"] = result.Outcome.ToString()
+        };
+        if (!string.IsNullOrWhiteSpace(result.Code))
+            details["resultCode"] = result.Code;
+
+        try
+        {
+            await sink.WriteAsync(
+                AuditEvent.Create(
+                    SubjectId(principal),
+                    principal.DisplayName,
+                    AuditActions.CommandExecute,
+                    outcome,
+                    "rich-command",
+                    result.CommandId.ToString("D"),
+                    Sanitize(details),
+                    result.InvocationId.ToString("D"),
+                    projectKey: projectKey,
+                    revision: revision,
+                    roles: principal.Roles,
+                    source: "server-script"),
+                CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Failed to persist Server Script Rich Command outcome for project {ProjectKey}, script {ScriptId}, command {CommandId}, invocation {InvocationId}.",
+                projectKey,
+                scriptId,
+                result.CommandId,
+                result.InvocationId);
         }
     }
 

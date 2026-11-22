@@ -480,7 +480,7 @@ public sealed class OpcUaCommunicationRuntimePlanner : ICommunicationDriverRunti
             metadata,
             access,
             dto.AddressSelector,
-            dto.CommunicationBinding);
+            dto.CommunicationBinding, ControlledEngineeringUnit: dto.ControlledEngineeringUnit);
     }
 
     private static void SetBindingSetting(

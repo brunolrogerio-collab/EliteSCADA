@@ -1,0 +1,21 @@
+{
+  "syntheticOnly": true,
+  "projectNameShown": true,
+  "projectKeyHidden": true,
+  "setupLinks": 6,
+  "unsavedNamePreserved": true,
+  "permitRearmedThroughUi": true,
+  "navigationAnalyticQueries": 0,
+  "explicitActivationWrites": 1,
+  "configurationWrites": 0,
+  "pageErrors": [],
+  "mobileGeometry": {
+    "clientWidth": 366,
+    "scrollWidth": 366
+  },
+  "headingGeometry": {
+    "clientWidth": 366,
+    "scrollWidth": 366
+  },
+  "messageHeight": 47
+}

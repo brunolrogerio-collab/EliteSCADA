@@ -9,6 +9,7 @@ import {
 import type { VisualTweenFrameClock } from '../visual-runtime/runtimeVisualTween';
 import {
   createClientVisualPythonCapabilityProvider,
+  type ClientVisualPythonTagWriter,
   type ClientVisualPythonVisualPropertyProvider
 } from './createClientVisualPythonCapabilityProvider';
 import {
@@ -21,6 +22,13 @@ export type ClientVisualObjectInteractionRequest = Readonly<{
   visualDefinitionId: string;
   objectId: string;
   eventKey: string;
+  pointer?: Readonly<{
+    x: number;
+    y: number;
+    type: string;
+    button: number;
+    buttons: number;
+  }>;
   context: ScriptEngineeringContext;
 }>;
 
@@ -39,10 +47,14 @@ export type ClientVisualPythonRuntimeFactory = (
 ) => ClientVisualPythonRuntimeHandle;
 
 export type ClientVisualEventDispatcherOptions = Readonly<{
+  visualDefinitionId: string;
   instances: ReadonlyMap<string, RuntimeVisualInstance>;
+  /** Dynamo roots render as transient groups but do not own a visual-property instance. */
+  eventOnlyObjectIds?: ReadonlySet<string>;
   onVisualStateChanged?: () => void;
   frameClock?: VisualTweenFrameClock;
   runtimeFactory?: ClientVisualPythonRuntimeFactory;
+  tagWriter?: ClientVisualPythonTagWriter | null;
 }>;
 
 /**
@@ -58,20 +70,30 @@ export type ClientVisualEventDispatcherOptions = Readonly<{
  */
 export class ClientVisualEventDispatcher {
   private readonly instances: ReadonlyMap<string, RuntimeVisualInstance>;
+  private readonly eventOnlyObjectIds: ReadonlySet<string>;
+  private readonly visualDefinitionId: string;
   private readonly visualProviders = new Map<string, ClientVisualPythonVisualPropertyProvider>();
   private readonly runtimeFactory: ClientVisualPythonRuntimeFactory;
+  private readonly tagWriter: ClientVisualPythonTagWriter | null | undefined;
   private sequence = 0;
 
   constructor(options: ClientVisualEventDispatcherOptions) {
     this.instances = options.instances;
+    this.eventOnlyObjectIds = new Set(options.eventOnlyObjectIds ?? []);
+    this.visualDefinitionId = options.visualDefinitionId.trim();
     this.runtimeFactory = options.runtimeFactory ?? (runtimeOptions => new ClientVisualPythonRuntime(runtimeOptions));
+    this.tagWriter = options.tagWriter;
 
     const notify = options.onVisualStateChanged ?? (() => undefined);
     const baseClock = options.frameClock ?? browserFrameClock();
     const clock = createInvalidatingClock(baseClock, notify);
 
     for (const [objectId, instance] of this.instances) {
-      const provider = createVisualPythonPropertyCapabilityProvider(instance, { clock });
+      const provider = createVisualPythonPropertyCapabilityProvider(
+        instance,
+        { clock },
+        { visualDefinitionId: this.visualDefinitionId }
+      );
       this.visualProviders.set(objectId, createInvalidatingVisualProvider(provider, notify));
     }
   }
@@ -83,24 +105,23 @@ export class ClientVisualEventDispatcher {
       return Object.freeze([]);
     }
 
-    // Wave 10 canonical objectInteraction currently exposes Click only. Do not
-    // guess future interaction subtypes from an eventKind that cannot encode them.
-    if (request.eventKey.toLocaleLowerCase('en-US') !== 'click') {
-      return Object.freeze([]);
-    }
+    const eventKey = request.eventKey.trim().toLocaleLowerCase('en-US');
+    if (!['click', 'pointerenter', 'pointermove', 'pointerleave'].includes(eventKey)) return Object.freeze([]);
 
     const references = request.context.visualEventReferences
       .filter(reference =>
         reference.visualDefinitionId === request.visualDefinitionId &&
         reference.visualObjectId === request.objectId &&
-        reference.eventKind === 'objectInteraction')
+        reference.eventKind === 'objectInteraction' &&
+        (reference.eventKey ?? 'click').trim().toLocaleLowerCase('en-US') === eventKey)
       .sort(compareReferences);
 
     if (references.length === 0) return Object.freeze([]);
 
     const instance = this.instances.get(request.objectId);
     const visualProvider = this.visualProviders.get(request.objectId);
-    if (!instance || !visualProvider || instance.isDisposed) {
+    const eventOnly = !instance && this.eventOnlyObjectIds.has(request.objectId);
+    if ((!instance && !eventOnly) || (instance && instance.isDisposed) || (instance && !visualProvider)) {
       return Object.freeze(references.map(reference => faultedRecord(
         reference,
         'Canonical Runtime Visual Instance is unavailable for this interaction.'
@@ -122,8 +143,8 @@ export class ClientVisualEventDispatcher {
   private async dispatchReference(
     request: ClientVisualObjectInteractionRequest,
     reference: ScriptVisualEventReference,
-    instance: RuntimeVisualInstance,
-    visualProvider: ClientVisualPythonVisualPropertyProvider
+    instance: RuntimeVisualInstance | undefined,
+    visualProvider: ClientVisualPythonVisualPropertyProvider | undefined
   ): Promise<ClientVisualEventDispatchRecord> {
     const script = request.context.scripts.find(candidate => candidate.id === reference.scriptId);
     if (!script || !script.enabled || script.scope !== 'clientVisual') {
@@ -137,16 +158,19 @@ export class ClientVisualEventDispatcher {
       return faultedRecord(reference, 'Referenced Python entry point is not declared for objectInteraction.');
     }
 
+    const runtimeInstanceId = instance?.runtimeInstanceId ?? `visual-event-only-${this.visualDefinitionId}-${request.objectId}`;
     const runtime = this.runtimeFactory({
       identity: {
         scriptId: script.id,
-        runtimeInstanceId: `visual-event-${instance.runtimeInstanceId}-${++this.sequence}`,
-        visualRuntimeInstanceId: instance.runtimeInstanceId
+        runtimeInstanceId: `visual-event-${runtimeInstanceId}-${++this.sequence}`,
+        visualRuntimeInstanceId: runtimeInstanceId
       },
       source: script.source,
       handlerNames: [...new Set(script.entryPoints.map(entryPoint => entryPoint.handlerName).filter(Boolean))],
       capabilityProvider: createClientVisualPythonCapabilityProvider({
-        visualPropertyProvider: visualProvider
+        ...(visualProvider ? { visualPropertyProvider: visualProvider } : {}),
+        tagDependencies: script.dependencies,
+        tagWriter: this.tagWriter
       })
     });
 
@@ -159,7 +183,8 @@ export class ClientVisualEventDispatcher {
           eventKey: request.eventKey,
           visualDefinitionId: request.visualDefinitionId,
           visualObjectId: request.objectId,
-          visualRuntimeInstanceId: instance.runtimeInstanceId
+          visualRuntimeInstanceId: runtimeInstanceId,
+          pointer: request.pointer ? Object.freeze({ ...request.pointer }) : null
         })
       );
       return Object.freeze({ reference: cloneReference(reference), result: Object.freeze({ ...result }) });

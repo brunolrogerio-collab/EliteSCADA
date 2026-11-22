@@ -1,5 +1,6 @@
 using Scada.Api.Realtime;
 using Scada.Api.Runtime;
+using Scada.Engineering.Security;
 using Scada.Security.Audit;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;
@@ -34,6 +35,15 @@ public sealed record UpdateLocalUserRequest(
 
 public sealed record ResetLocalUserPasswordRequest(string Password);
 
+public sealed record LocalAuthenticationSessionPolicyAdminResponse(
+    long Version,
+    int AccessTokenMinutes,
+    bool Persistent);
+
+public sealed record UpdateLocalAuthenticationSessionPolicyRequest(
+    long ExpectedVersion,
+    int AccessTokenMinutes);
+
 public static class LocalUserAdministrationApi
 {
     private const string ListAction = "auth.user.list";
@@ -41,6 +51,8 @@ public static class LocalUserAdministrationApi
     private const string UpdateAction = "auth.user.update";
     private const string ResetPasswordAction = "auth.user.password_reset";
     private const string RolesAction = "auth.role.list";
+    private const string SessionPolicyReadAction = "auth.local_session_policy.read";
+    private const string SessionPolicyUpdateAction = "auth.local_session_policy.update";
 
     public static IEndpointRouteBuilder MapLocalUserAdministrationEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -52,7 +64,7 @@ public static class LocalUserAdministrationApi
             ILocalIdentityStore store,
             CancellationToken ct) =>
         {
-            var authorization = await AuthorizeAsync(context, runtime, security, audit, ListAction, "users", ct);
+            var authorization = await AuthorizeAsync(context, security, audit, ListAction, "users");
             if (authorization.Failure is not null) return authorization.Failure;
 
             var users = await store.ListAsync(ct);
@@ -73,15 +85,15 @@ public static class LocalUserAdministrationApi
         endpoints.MapGet("/api/auth/roles", async (
             HttpContext context,
             ScadaRuntimeFacade runtime,
-            EngineeringWorkspace workspace,
+            IAuthorityPolicyStore authorityPolicies,
             ApiAuthorizationService security,
             ApiAuditService audit,
             CancellationToken ct) =>
         {
-            var authorization = await AuthorizeAsync(context, runtime, security, audit, RolesAction, "roles", ct);
+            var authorization = await AuthorizeAsync(context, security, audit, RolesAction, "roles");
             if (authorization.Failure is not null) return authorization.Failure;
 
-            var roles = workspace.SecurityPolicies.SnapshotRoles()
+            var roles = authorityPolicies.Snapshot().Roles
                 .OrderBy(role => role.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(role => new LocalRoleAdminResponse(role.Key, role.Name, role.Description))
                 .ToArray();
@@ -99,17 +111,113 @@ public static class LocalUserAdministrationApi
             return Results.Ok(roles);
         });
 
+        endpoints.MapGet("/api/auth/local-session-policy", async (
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            ILocalAuthenticationSessionPolicyStore store,
+            LocalIdentityRuntimeOptions identityRuntime,
+            CancellationToken ct) =>
+        {
+            var authorization = await AuthorizeAsync(context, security, audit, SessionPolicyReadAction, "local-login");
+            if (authorization.Failure is not null) return authorization.Failure;
+
+            var policy = await store.GetAsync(ct);
+            await audit.RecordAsync(
+                context,
+                authorization.Check!.Principal,
+                SessionPolicyReadAction,
+                AuditOutcome.Succeeded,
+                "local-authentication-session-policy",
+                "local-login",
+                new Dictionary<string, string>
+                {
+                    ["version"] = policy.Version.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["accessTokenMinutes"] = policy.AccessTokenMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                });
+            return Results.Ok(ToSessionPolicyResponse(policy, identityRuntime));
+        });
+
+        endpoints.MapPut("/api/auth/local-session-policy", async (
+            UpdateLocalAuthenticationSessionPolicyRequest request,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            ILocalAuthenticationSessionPolicyStore store,
+            LocalIdentityRuntimeOptions identityRuntime,
+            CancellationToken ct) =>
+        {
+            var authorization = await AuthorizeAsync(context, security, audit, SessionPolicyUpdateAction, "local-login");
+            if (authorization.Failure is not null) return authorization.Failure;
+
+            if (request.ExpectedVersion < 1)
+                return Results.BadRequest(new { error = "Expected session policy version must be positive." });
+
+            try
+            {
+                LocalAuthenticationSessionPolicy.ValidateAccessTokenMinutes(request.AccessTokenMinutes);
+                var previous = await store.GetAsync(ct);
+                var updated = await store.TryUpdateAsync(
+                    request.ExpectedVersion,
+                    request.AccessTokenMinutes,
+                    ct);
+                if (updated is null)
+                {
+                    var current = await store.GetAsync(ct);
+                    await audit.RecordAsync(
+                        context,
+                        authorization.Check!.Principal,
+                        SessionPolicyUpdateAction,
+                        AuditOutcome.Failed,
+                        "local-authentication-session-policy",
+                        "local-login",
+                        new Dictionary<string, string>
+                        {
+                            ["reason"] = "version-conflict",
+                            ["expectedVersion"] = request.ExpectedVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            ["currentVersion"] = current.Version.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        });
+                    return Results.Conflict(new
+                    {
+                        error = "The local login session setting changed elsewhere. Reload it before saving again.",
+                        currentVersion = current.Version
+                    });
+                }
+
+                await audit.RecordAsync(
+                    context,
+                    authorization.Check!.Principal,
+                    SessionPolicyUpdateAction,
+                    AuditOutcome.Succeeded,
+                    "local-authentication-session-policy",
+                    "local-login",
+                    new Dictionary<string, string>
+                    {
+                        ["previousAccessTokenMinutes"] = previous.AccessTokenMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["accessTokenMinutes"] = updated.AccessTokenMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["version"] = updated.Version.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
+                return Results.Ok(ToSessionPolicyResponse(updated, identityRuntime));
+            }
+            catch (ArgumentOutOfRangeException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        });
+
         endpoints.MapPost("/api/auth/users", async (
             CreateLocalUserRequest request,
             HttpContext context,
             ScadaRuntimeFacade runtime,
-            EngineeringWorkspace workspace,
+            IAuthorityPolicyStore authorityPolicies,
             ApiAuthorizationService security,
             ApiAuditService audit,
             ILocalIdentityStore store,
             CancellationToken ct) =>
         {
-            var authorization = await AuthorizeAsync(context, runtime, security, audit, CreateAction, "new", ct);
+            var authorization = await AuthorizeAsync(context, security, audit, CreateAction, "new");
             if (authorization.Failure is not null) return authorization.Failure;
 
             try
@@ -121,7 +229,7 @@ public static class LocalUserAdministrationApi
 
                 var normalizedUsername = LocalIdentityNormalization.NormalizeUsername(username);
                 LocalPasswordHasher.ValidatePassword(request.Password);
-                var roles = ValidateRoles(request.Roles, workspace);
+                var roles = ValidateRoles(request.Roles, authorityPolicies);
                 if (roles.Unknown.Length > 0)
                     return UnknownRoles(roles.Unknown);
 
@@ -175,21 +283,21 @@ public static class LocalUserAdministrationApi
             UpdateLocalUserRequest request,
             HttpContext context,
             ScadaRuntimeFacade runtime,
-            EngineeringWorkspace workspace,
+            IAuthorityPolicyStore authorityPolicies,
             ApiAuthorizationService security,
             ApiAuditService audit,
             ILocalIdentityStore store,
             TagRealtimeHub realtime,
             CancellationToken ct) =>
         {
-            var authorization = await AuthorizeAsync(context, runtime, security, audit, UpdateAction, id.ToString(), ct);
+            var authorization = await AuthorizeAsync(context, security, audit, UpdateAction, id.ToString());
             if (authorization.Failure is not null) return authorization.Failure;
 
             var displayName = request.DisplayName?.Trim() ?? string.Empty;
             if (displayName.Length is < 1 or > 300)
                 return Results.BadRequest(new { error = "Display name must contain between 1 and 300 characters." });
 
-            var roles = ValidateRoles(request.Roles, workspace);
+            var roles = ValidateRoles(request.Roles, authorityPolicies);
             if (roles.Unknown.Length > 0)
                 return UnknownRoles(roles.Unknown);
 
@@ -209,7 +317,7 @@ public static class LocalUserAdministrationApi
 
                 var users = await store.ListAsync(ct);
                 var projected = users.Select(user => user.Id == id ? updated : user).ToArray();
-                if (!await HasEnabledLocalAdministratorAsync(projected, security, runtime, ct))
+                if (!HasEnabledLocalAdministrator(projected, security))
                 {
                     return Results.BadRequest(new
                     {
@@ -249,7 +357,7 @@ public static class LocalUserAdministrationApi
             TagRealtimeHub realtime,
             CancellationToken ct) =>
         {
-            var authorization = await AuthorizeAsync(context, runtime, security, audit, ResetPasswordAction, id.ToString(), ct);
+            var authorization = await AuthorizeAsync(context, security, audit, ResetPasswordAction, id.ToString());
             if (authorization.Failure is not null) return authorization.Failure;
 
             try
@@ -296,27 +404,23 @@ public static class LocalUserAdministrationApi
 
     private static async Task<(ApiAuthorizationCheck? Check, IResult? Failure)> AuthorizeAsync(
         HttpContext context,
-        ScadaRuntimeFacade runtime,
         ApiAuthorizationService security,
         ApiAuditService audit,
         string action,
-        string targetId,
-        CancellationToken ct)
+        string targetId)
     {
-        var roleAdmin = await security.CheckRuntimeAsync(
+        // User/role administration is node-local application security, not a
+        // process-value operation. It must remain available on a standby node.
+        var roleAdmin = security.CheckWorkspace(
             context,
-            runtime,
-            SecurityCapability.UserRoleAdmin,
-            cancellationToken: ct);
+            SecurityCapability.UserRoleAdmin);
         if (roleAdmin.Allowed) return (roleAdmin, null);
 
         if (roleAdmin.IsAuthenticated)
         {
-            var systemAdmin = await security.CheckRuntimeAsync(
+            var systemAdmin = security.CheckWorkspace(
                 context,
-                runtime,
-                SecurityCapability.SystemAdmin,
-                cancellationToken: ct);
+                SecurityCapability.SystemAdmin);
             if (systemAdmin.Allowed) return (systemAdmin, null);
         }
 
@@ -338,10 +442,10 @@ public static class LocalUserAdministrationApi
 
     private static (IReadOnlyCollection<string> Normalized, string[] Unknown) ValidateRoles(
         IReadOnlyCollection<string>? requested,
-        EngineeringWorkspace workspace)
+        IAuthorityPolicyStore authorityPolicies)
     {
         var normalized = LocalIdentityNormalization.NormalizeRoles(requested ?? Array.Empty<string>());
-        var known = workspace.SecurityPolicies.SnapshotRoles()
+        var known = authorityPolicies.Snapshot().Roles
             .Select(role => role.Key)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var unknown = normalized.Where(role => !known.Contains(role)).ToArray();
@@ -351,15 +455,20 @@ public static class LocalUserAdministrationApi
     private static IResult UnknownRoles(IReadOnlyCollection<string> unknown) =>
         Results.BadRequest(new
         {
-            error = "One or more assigned role keys are not defined in the current Engineering workspace.",
+            error = "One or more assigned role keys are not defined in the canonical Security Authority.",
             unknownRoles = unknown
         });
 
-    private static async Task<bool> HasEnabledLocalAdministratorAsync(
+    private static LocalAuthenticationSessionPolicyAdminResponse ToSessionPolicyResponse(
+        LocalAuthenticationSessionPolicy policy,
+        LocalIdentityRuntimeOptions identityRuntime) => new(
+        policy.Version,
+        policy.AccessTokenMinutes,
+        identityRuntime.DurableStore);
+
+    private static bool HasEnabledLocalAdministrator(
         IEnumerable<LocalUserAccount> users,
-        ApiAuthorizationService security,
-        ScadaRuntimeFacade runtime,
-        CancellationToken ct)
+        ApiAuthorizationService security)
     {
         foreach (var user in users.Where(user => user.IsEnabled))
         {
@@ -369,18 +478,14 @@ public static class LocalUserAdministrationApi
                 LocalIdentityNormalization.NormalizeRoles(user.Roles),
                 true);
 
-            var roleAdmin = await security.CheckRuntimeAsync(
+            var roleAdmin = security.CheckWorkspace(
                 candidate,
-                runtime,
-                SecurityCapability.UserRoleAdmin,
-                cancellationToken: ct);
+                SecurityCapability.UserRoleAdmin);
             if (roleAdmin.Allowed) return true;
 
-            var systemAdmin = await security.CheckRuntimeAsync(
+            var systemAdmin = security.CheckWorkspace(
                 candidate,
-                runtime,
-                SecurityCapability.SystemAdmin,
-                cancellationToken: ct);
+                SecurityCapability.SystemAdmin);
             if (systemAdmin.Allowed) return true;
         }
 

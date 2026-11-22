@@ -1,4 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../../visual-runtime';
+import type { EngineeringLocale } from '../../i18n';
+import { COMBO_BOX_OPTIONS_PROPERTY, comboBoxOptionEventKey, isComboBoxOptionEventKey, normalizeComboBoxOptions, type ComboBoxOption } from '../controlVisualModel';
 import { loadEngineeringSnapshot } from '../../api';
 import {
   buildProjectReferenceCatalog,
@@ -22,20 +25,28 @@ import type {
 } from '../../scripts/scriptEngineeringTypes';
 import type { VisualElementEngineering } from '../../types';
 import { initializeClientMemory } from '../../../runtime/clientMemory';
-import type { VisualEditorBindingSourceCatalogItem } from '../visualEditorContracts';
+import type { VisualEditorBindingSourceCatalogItem, VisualEditorMutationIntent } from '../visualEditorContracts';
+import type { VisualNavigationActionEngineering } from '../../../runtime/visual-navigation/runtimeVisualNavigationModel';
 
 type EventsEditorProps = {
   visualDefinitionId?: string | null;
   visualObjectId?: string | null;
   sourceCatalog?: readonly VisualEditorBindingSourceCatalogItem[];
+  locale?: EngineeringLocale;
+  commandParameterKeys?: readonly string[];
+  element?: VisualElementEngineering;
+  onMutationIntent?: (intent: VisualEditorMutationIntent) => void;
   disabled?: boolean;
   onApplied?: () => Promise<void> | void;
 };
 
-type EventChoice = 'click' | 'initialize' | 'dispose' | 'tagChanged' | 'clientMemoryChanged' | 'timer';
+type EventChoice = 'click' | 'pointerEnter' | 'pointerMove' | 'pointerLeave' | 'initialize' | 'dispose' | 'tagChanged' | 'clientMemoryChanged' | 'timer';
 
-const EVENT_CHOICES: ReadonlyArray<{ value: EventChoice; label: string; eventKind: ScriptEngineeringEventKind }> = [
-  { value: 'click', label: 'Click', eventKind: 'objectInteraction' },
+const EVENT_CHOICES: ReadonlyArray<{ value: EventChoice; label: string; eventKind: ScriptEngineeringEventKind; eventKey?: string }> = [
+  { value: 'click', label: 'Click', eventKind: 'objectInteraction', eventKey: 'click' },
+  { value: 'pointerEnter', label: 'Pointer enters object', eventKind: 'objectInteraction', eventKey: 'pointerenter' },
+  { value: 'pointerMove', label: 'Pointer moves over object', eventKind: 'objectInteraction', eventKey: 'pointermove' },
+  { value: 'pointerLeave', label: 'Pointer leaves object', eventKind: 'objectInteraction', eventKey: 'pointerleave' },
   { value: 'initialize', label: 'Initialize', eventKind: 'initialize' },
   { value: 'dispose', label: 'Dispose', eventKind: 'dispose' },
   { value: 'tagChanged', label: 'TAG value change', eventKind: 'tagChanged' },
@@ -47,6 +58,10 @@ export function EventsEditor({
   visualDefinitionId,
   visualObjectId,
   sourceCatalog,
+  locale = 'en',
+  commandParameterKeys = Object.freeze([]),
+  element,
+  onMutationIntent,
   disabled = false,
   onApplied
 }: EventsEditorProps) {
@@ -54,6 +69,11 @@ export function EventsEditor({
   const [references, setReferences] = useState<readonly ScriptVisualEventReference[]>([]);
   const [resolvedVisualDefinitionId, setResolvedVisualDefinitionId] = useState<string | null>(visualDefinitionId ?? null);
   const [resolvedSourceCatalog, setResolvedSourceCatalog] = useState<readonly VisualEditorBindingSourceCatalogItem[]>(sourceCatalog ?? Object.freeze([]));
+  const [visualTargets, setVisualTargets] = useState<Readonly<{ screens: readonly { key: string; name: string }[]; popups: readonly { key: string; name: string }[] }>>({ screens: [], popups: [] });
+  const [quickActionKind, setQuickActionKind] = useState<'setValue' | 'toggleBoolean' | 'setTrue' | 'setFalse' | 'openPopup' | 'openScreen' | 'executeCommand'>('setValue');
+  const [quickTargetId, setQuickTargetId] = useState('');
+  const [quickOption, setQuickOption] = useState('');
+  const [quickValue, setQuickValue] = useState('');
   const [choice, setChoice] = useState<EventChoice>('click');
   const [scriptId, setScriptId] = useState('');
   const [entryPoint, setEntryPoint] = useState('');
@@ -65,6 +85,7 @@ export function EventsEditor({
   const [error, setError] = useState<string | null>(null);
 
   const eventKind = EVENT_CHOICES.find(item => item.value === choice)!.eventKind;
+  const eventKey = EVENT_CHOICES.find(item => item.value === choice)!.eventKey ?? 'click';
   const selectedScript = scripts.find(script => script.id === scriptId) ?? null;
   const matchingEntryPoints = useMemo(
     () => (selectedScript?.entryPoints ?? []).filter(item => item.eventKind === eventKind),
@@ -72,9 +93,27 @@ export function EventsEditor({
   );
   const selectedEntryPoint = matchingEntryPoints.find(item => item.handlerName === entryPoint) ?? null;
   const tagTargets = useMemo(
-    () => resolvedSourceCatalog.filter(item => item.kind === 'Tag' && item.tagReference?.tagId),
+    () => resolvedSourceCatalog.filter(item => item.kind === 'Tag' && item.tagReference?.tagId && item.writable !== false),
     [resolvedSourceCatalog]
   );
+  const quickTagTargets = useMemo(() => tagTargets.filter(item =>
+    quickActionKind === 'toggleBoolean' || quickActionKind === 'setTrue' || quickActionKind === 'setFalse'
+      ? isBooleanDataType(item.dataType)
+      : true), [tagTargets, quickActionKind]);
+  const quickNavigationTargets = quickActionKind === 'openPopup' ? visualTargets.popups : visualTargets.screens;
+  const selectedQuickTag = quickTagTargets.find(item => item.tagReference?.tagId === quickTargetId) ?? null;
+  const configuredActions = element?.actions ?? [];
+  const isComboBox = element?.type === BUILTIN_VISUAL_OBJECT_TYPES.comboBox;
+  const optionText = (pt: string, en: string, es: string) => locale === 'pt-BR' ? pt : locale === 'es' ? es : en;
+  let comboOptions: readonly ComboBoxOption[] = [];
+  if (isComboBox) {
+    try { comboOptions = normalizeComboBoxOptions(element?.properties?.[COMBO_BOX_OPTIONS_PROPERTY]); }
+    catch { /* Options are configured on the Properties tab. */ }
+  }
+  const selectedQuickEvent = isComboBox
+    ? (comboOptions.some(option => option.value === quickOption) ? comboBoxOptionEventKey(quickOption) : '')
+    : 'click';
+  const replacesAction = configuredActions.some(action => action.eventKey.toLowerCase() === selectedQuickEvent);
   const selectedTagTarget = tagTargets.find(item => item.tagReference?.tagId === targetId) ?? null;
   const memoryTargets = useMemo(
     () => resolvedSourceCatalog.filter(item => item.kind === 'ClientMemory' && item.tagReference?.tagId),
@@ -110,12 +149,17 @@ export function EventsEditor({
   useEffect(() => {
     if (visualDefinitionId) setResolvedVisualDefinitionId(visualDefinitionId);
     if (sourceCatalog) setResolvedSourceCatalog(sourceCatalog);
-    if (visualDefinitionId && sourceCatalog) return;
 
+    // The workspace may provide the current definition and reference catalog,
+    // but navigation actions still need the canonical screen/popup targets.
     let cancelled = false;
     void Promise.all([loadEngineeringSnapshot(), initializeClientMemory()])
       .then(([snapshot, memoryDefinitions]) => {
         if (cancelled) return;
+        setVisualTargets({
+          screens: (snapshot.package.screens ?? []).map(item => ({ key: item.key, name: item.name ?? item.key })),
+          popups: (snapshot.package.popups ?? []).map(item => ({ key: item.key, name: item.name ?? item.key }))
+        });
         if (!visualDefinitionId) {
           const screen = (snapshot.package.screens ?? []).find(candidate =>
             Boolean(visualObjectId) && containsVisualObject(candidate.elements ?? [], visualObjectId!));
@@ -169,12 +213,13 @@ export function EventsEditor({
   const buildReference = (): ScriptVisualEventReference => {
     if (!resolvedVisualDefinitionId) throw new Error('Apply the visual definition before authoring events.');
     if (!selectedScript || !selectedEntryPoint) throw new Error('Select a valid Script entry point.');
-    if (choice === 'click' && !visualObjectId) throw new Error('Select one visual object for a Click event.');
+    if (eventKind === 'objectInteraction' && !visualObjectId) throw new Error('Select one visual object for an object interaction event.');
 
     const reference: ScriptVisualEventReference = {
       visualDefinitionId: resolvedVisualDefinitionId,
       visualObjectId: choice === 'initialize' || choice === 'dispose' || choice === 'timer' ? null : visualObjectId ?? null,
       eventKind,
+      ...(eventKind === 'objectInteraction' ? { eventKey } : {}),
       scriptId: selectedScript.id,
       entryPoint: selectedEntryPoint.handlerName,
       targetReference: null,
@@ -249,6 +294,7 @@ export function EventsEditor({
           item.visualDefinitionId === reference.visualDefinitionId &&
           (item.visualObjectId ?? null) === (reference.visualObjectId ?? null) &&
           item.eventKind === reference.eventKind &&
+          (item.eventKey ?? 'click').toLocaleLowerCase('en-US') === eventKey.toLocaleLowerCase('en-US') &&
           item.scriptId === reference.scriptId &&
           item.entryPoint === reference.entryPoint
         )),
@@ -283,9 +329,105 @@ export function EventsEditor({
 
   const unavailable = disabled || !resolvedVisualDefinitionId;
 
+  const addQuickAction = () => {
+    if (!element?.id || !onMutationIntent || !selectedQuickEvent) return;
+    let action: VisualNavigationActionEngineering;
+    switch (quickActionKind) {
+      case 'setValue': {
+        if (!selectedQuickTag?.tagReference?.tagId) return;
+        const value = parseTagValue(quickValue, selectedQuickTag.dataType);
+        if (value === undefined) return;
+        action = { eventKey: selectedQuickEvent, kind: 'SetTagValue', targetKey: selectedQuickTag.tagReference.tagId, parameters: { value }, version: 1 };
+        break;
+      }
+      case 'toggleBoolean':
+      case 'setTrue':
+      case 'setFalse':
+        if (!selectedQuickTag?.tagReference?.tagId) return;
+        action = quickActionKind === 'toggleBoolean'
+          ? { eventKey: selectedQuickEvent, kind: 'ToggleTagBoolean', targetKey: selectedQuickTag.tagReference.tagId, version: 1 }
+          : { eventKey: selectedQuickEvent, kind: 'SetTagValue', targetKey: selectedQuickTag.tagReference.tagId, parameters: { value: quickActionKind === 'setTrue' }, version: 1 };
+        break;
+      case 'openPopup':
+        if (!quickTargetId) return;
+        action = { eventKey: selectedQuickEvent, kind: 'OpenPopup', targetKey: quickTargetId, version: 1 };
+        break;
+      case 'openScreen':
+        if (!quickTargetId) return;
+        action = { eventKey: selectedQuickEvent, kind: 'NavigateScreen', targetKey: quickTargetId, version: 1 };
+        break;
+      case 'executeCommand':
+        if (!quickTargetId || !commandParameterKeys.includes(quickTargetId)) return;
+        action = {
+          eventKey: selectedQuickEvent,
+          kind: 'ExecuteCommand',
+          commandParameterKey: quickTargetId,
+          version: 1
+        };
+        break;
+    }
+    onMutationIntent({ kind: 'visualAction.set', objectId: element.id, action });
+    setQuickTargetId('');
+    setQuickValue('');
+  };
+
   return <section className="visual-editor-events" data-testid="visual-events-editor">
-    <header><strong>Events</strong><span>Canonical Python event associations</span></header>
+    <header><strong>{isComboBox ? optionText('Ações por opção', 'Option actions', 'Acciones por opción') : 'Events'}</strong>
+      <span>{isComboBox ? optionText('A ação ocorre quando o operador escolhe a opção.', 'The action runs when the operator selects the option.', 'La acción se ejecuta cuando el operador elige la opción.') : 'Actions run when the object is clicked'}</span></header>
     {unavailable ? <p>Apply this visual object before editing canonical event associations.</p> : <>
+      <section className="visual-editor-events__quick" aria-label="Create automatic event">
+        {isComboBox ? <label><span>{optionText('Opção do ComboBox', 'ComboBox option', 'Opción del ComboBox')}</span>
+          <select value={quickOption} data-testid="visual-events-quick-option" onChange={event => {
+            setQuickOption(event.currentTarget.value); setQuickTargetId(''); setQuickValue('');
+          }}>
+            <option value="">{optionText('Selecione a opção', 'Select the option', 'Seleccione la opción')}</option>
+            {comboOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label> : <strong>Quick event</strong>}
+        <label><span>{isComboBox ? optionText("Ação", "Action", "Acción") : "When"}</span><select value={quickActionKind} onChange={event => { setQuickActionKind(event.currentTarget.value as typeof quickActionKind); setQuickTargetId(''); setQuickValue(''); }} data-testid="visual-events-quick-kind">
+          <option value="setValue">{isComboBox ? optionText("Alterar valor da TAG", "Set TAG value", "Cambiar valor del TAG") : "Set variable value"}</option>
+          <option value="toggleBoolean">{isComboBox ? optionText("Alternar TAG Booleano", "Toggle Boolean TAG", "Alternar TAG booleano") : "Toggle Boolean"}</option>
+          <option value="setTrue">Set Boolean true</option>
+          <option value="setFalse">Set Boolean false</option>
+          <option value="openPopup">Open popup</option>
+          <option value="openScreen">{isComboBox ? optionText("Abrir tela", "Open screen", "Abrir pantalla") : "Open screen"}</option>
+          {commandParameterKeys.length > 0 ? <option value="executeCommand">Execute Command parameter</option> : null}
+        </select></label>
+        {quickActionKind === 'executeCommand' ? <label><span>Command parameter</span><select value={quickTargetId} onChange={event => setQuickTargetId(event.currentTarget.value)} data-testid="visual-events-quick-target">
+          <option value="">Select Command parameter</option>
+          {commandParameterKeys.map(key => <option key={key} value={key}>{key}</option>)}
+        </select></label> : quickActionKind === 'openPopup' || quickActionKind === 'openScreen' ? <label><span>{quickActionKind === 'openPopup' ? 'Popup' : 'Screen'}</span><select value={quickTargetId} onChange={event => setQuickTargetId(event.currentTarget.value)} data-testid="visual-events-quick-target">
+          <option value="">Select destination</option>
+          {quickNavigationTargets.map(target => <option key={target.key} value={target.key}>{target.name}</option>)}
+        </select></label> : <>
+          <label><span>Variable (TAG)</span><select value={quickTargetId} onChange={event => { setQuickTargetId(event.currentTarget.value); setQuickValue(''); }} data-testid="visual-events-quick-target">
+            <option value="">Select variable</option>
+            {quickTagTargets.map(target => <option key={target.tagReference!.tagId} value={target.tagReference!.tagId}>{target.label}</option>)}
+          </select></label>
+          {quickActionKind === 'setValue' && selectedQuickTag ? <label><span>Value</span>{isBooleanDataType(selectedQuickTag.dataType)
+            ? <select value={quickValue} onChange={event => setQuickValue(event.currentTarget.value)} data-testid="visual-events-quick-value"><option value="">Select value</option><option value="true">True</option><option value="false">False</option></select>
+            : <input value={quickValue} onChange={event => setQuickValue(event.currentTarget.value)} inputMode={isNumericDataType(selectedQuickTag.dataType) ? 'decimal' : 'text'} data-testid="visual-events-quick-value" />}</label> : null}
+        </>}
+        <small>{isComboBox
+          ? optionText('Configure uma ação por opção. Use Pré-visualizar e Aplicar para salvar no projeto.',
+            'Configure one action per option. Use Preview and Apply to save it to the project.',
+            'Configure una acción por opción. Use Vista previa y Aplicar para guardarla.')
+          : "One automatic action per trigger. This wizard uses Click. After adding, use the editor's Preview and Apply actions below to save it."}</small>
+        <button type="button" className="secondary" disabled={!onMutationIntent || !element?.id || !selectedQuickEvent || (quickActionKind === 'executeCommand' || quickActionKind === 'openPopup' || quickActionKind === 'openScreen' ? !quickTargetId : !selectedQuickTag?.tagReference?.tagId || (quickActionKind === 'setValue' && parseTagValue(quickValue, selectedQuickTag?.dataType) === undefined))} onClick={addQuickAction} data-testid="visual-events-quick-add">{isComboBox
+          ? (replacesAction ? optionText('Substituir ação', 'Replace action', 'Reemplazar acción') : optionText('Adicionar ação', 'Add action', 'Añadir acción'))
+          : replacesAction ? 'Replace click event' : 'Add event'}</button>
+        {configuredActions.map((action, index) => <div className="visual-editor-events__configured" key={`${action.eventKey}:${index}`}>
+          <code>{formatQuickAction(action, resolvedSourceCatalog, visualTargets.screens, visualTargets.popups,
+              isComboBoxOptionEventKey(action.eventKey)
+                ? comboOptions.find(option => comboBoxOptionEventKey(option.value) === action.eventKey.toLowerCase())?.label ??
+                  optionText('Opção removida', 'Removed option', 'Opción eliminada')
+                : 'Click')}</code>
+          <button type="button" aria-label={`Remove ${action.eventKey} event`} disabled={!onMutationIntent || !element?.id} onClick={() => onMutationIntent?.({ kind: 'visualAction.remove', objectId: element!.id!, eventKey: action.eventKey })}>Remove</button>
+        </div>)}
+      </section>
+      <details className="visual-editor-events__scripts">
+        <summary>Python script associations</summary>
+      <p>Select an enabled client-visual Script with a matching event handler to preview and apply a Python association. Automatic actions above do not require a Script.</p>
       <label><span>Event</span><select data-testid="visual-events-event" value={choice} onChange={event => setChoice(event.currentTarget.value as EventChoice)}>
         {EVENT_CHOICES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
       </select></label>
@@ -333,11 +475,50 @@ export function EventsEditor({
       {previewToken ? <small>{previewToken.preview.canApply ? 'Validated Engineering candidate.' : 'Invalid Engineering candidate.'}</small> : null}
       <div className="visual-editor-events-list">
         {applicableReferences.map((reference, index) => <code key={`${reference.scriptId}:${reference.entryPoint}:${index}`}>
-          {reference.eventKind} → {reference.entryPoint}{formatTagSelector(reference)}
+          {reference.eventKind === 'objectInteraction' ? (reference.eventKey ?? 'click') : reference.eventKind} → {reference.entryPoint}{formatTagSelector(reference)}
         </code>)}
       </div>
+      </details>
     </>}
   </section>;
+}
+
+function isBooleanDataType(value?: string | null): boolean {
+  return /^(bool|boolean)$/i.test(value?.trim() ?? '');
+}
+
+function isNumericDataType(value?: string | null): boolean {
+  return /(int|uint|float|double|decimal|number|single)/i.test(value?.trim() ?? '');
+}
+
+function parseTagValue(raw: string, dataType?: string | null): string | number | boolean | undefined {
+  if (isBooleanDataType(dataType)) return raw === 'true' ? true : raw === 'false' ? false : undefined;
+  if (isNumericDataType(dataType)) {
+    if (!raw.trim()) return undefined;
+    const value = Number(raw.trim().replace(',', '.'));
+    return Number.isFinite(value) ? value : undefined;
+  }
+  return raw;
+}
+
+function formatQuickAction(
+  action: VisualNavigationActionEngineering,
+  catalog: readonly VisualEditorBindingSourceCatalogItem[],
+  screens: readonly { key: string; name: string }[],
+  popups: readonly { key: string; name: string }[],
+  trigger: string
+): string {
+  const kind = String(action.kind).toLocaleLowerCase('en-US');
+  const name = kind === 'openpopup'
+    ? popups.find(item => item.key === action.targetKey)?.name ?? action.targetKey ?? ''
+    : kind === 'navigatescreen'
+      ? screens.find(item => item.key === action.targetKey)?.name ?? action.targetKey ?? ''
+      : catalog.find(item => item.tagReference?.tagId === action.targetKey)?.label ?? action.targetKey ?? '';
+  if (kind === 'toggletagboolean') return `${trigger} → Toggle ${name}`;
+  if (kind === 'settagvalue') return `${trigger} → Set ${name} = ${String(action.parameters?.value ?? '')}`;
+  if (kind === 'executecommand' && action.commandParameterKey) return `${trigger} → Execute Command parameter ${action.commandParameterKey}`;
+  if (kind === 'executecommand' && action.commandId) return `${trigger} → Execute Command ${action.commandId}`;
+  return `${trigger} → ${kind === 'openpopup' ? 'Open popup' : kind === 'navigatescreen' ? 'Open screen' : action.kind} ${name}`;
 }
 
 function formatTagSelector(reference: ScriptVisualEventReference): string {

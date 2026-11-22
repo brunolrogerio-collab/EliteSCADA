@@ -104,12 +104,19 @@ public sealed class EngineeringRuntimeCommunicationDiagnosticsTests
 
         serverB.ResponseDelay = TimeSpan.Zero;
         serverB.DropConnections();
+        var readsAfterForcedDisconnect = runtime.Describe().CommunicationDrivers
+            .Single(item => item.DataSourceKey == "plc.b")
+            .Counters.ReadOperations;
         await WaitForAsync(() =>
         {
             var diagnostics = runtime.Describe().CommunicationDrivers.ToDictionary(item => item.DataSourceKey);
             return diagnostics["plc.b"].State == CommunicationDriverOperationalState.Healthy
                 && diagnostics["plc.b"].Counters.ConsecutiveFailures == 0
                 && diagnostics["plc.b"].Counters.Reconnects >= 1
+                // Healthy can be published as soon as the transport reconnects. Require
+                // a completed post-disconnect read before issuing a non-retried write,
+                // whose outcome must remain unambiguous if the TCP peer is still closing.
+                && diagnostics["plc.b"].Counters.ReadOperations > readsAfterForcedDisconnect
                 && diagnostics["plc.a"].State == CommunicationDriverOperationalState.Healthy;
         }, TimeSpan.FromSeconds(5));
 

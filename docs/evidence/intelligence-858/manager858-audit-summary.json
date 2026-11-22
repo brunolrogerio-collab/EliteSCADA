@@ -1,0 +1,24 @@
+{
+  "syntheticOnly": true,
+  "events": [
+    {
+      "action": "engineering.intelligence.scope.activate",
+      "outcome": 0,
+      "count": 6,
+      "stableResourceIds": true
+    },
+    {
+      "action": "engineering.intelligence.scope.activate",
+      "outcome": 1,
+      "count": 3,
+      "stableResourceIds": false
+    },
+    {
+      "action": "engineering.intelligence.scope.pause",
+      "outcome": 0,
+      "count": 3,
+      "stableResourceIds": true
+    }
+  ],
+  "denialTarget": "Generic scope marker; successful transitions retain exact Equipment/Location identities."
+}

@@ -1,5 +1,6 @@
 using Scada.Core.Sources;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Interactions;
 
 namespace Scada.Engineering.Scripts;
 
@@ -29,6 +30,23 @@ public sealed record ScriptEngineeringReferenceResolution(
     string? DiagnosticMessage = null)
 {
     public bool IsResolved => Target is not null && DiagnosticCode is null;
+}
+
+public enum ScriptTagReferenceResolutionState
+{
+    Found,
+    NotFound,
+    Ambiguous,
+    Stale,
+    IdentityDrift
+}
+
+public sealed record ScriptTagReferenceResolution(
+    ScriptTagReferenceResolutionState State,
+    ScriptEngineeringReferenceTarget? ExpectedTarget = null,
+    ScriptEngineeringReferenceTarget? VisibleTarget = null)
+{
+    public bool IsResolved => State == ScriptTagReferenceResolutionState.Found;
 }
 
 /// <summary>
@@ -181,6 +199,77 @@ public sealed class ScriptEngineeringReferenceResolver
         return Resolve(dependency.Kind, dependency.StableReference);
     }
 
+    /// <summary>
+    /// Resolves an optional readable TAG binding without granting the path any
+    /// authority. The stable dependency and expected TagValueReference remain
+    /// the authoritative identity.
+    /// </summary>
+    public ScriptTagReferenceResolution ResolveTagBinding(ScriptEngineeringDependency dependency)
+    {
+        ArgumentNullException.ThrowIfNull(dependency);
+        if (!TryValidateTagBinding(dependency, out var diagnostic))
+            throw new ArgumentException(diagnostic, nameof(dependency));
+
+        var binding = dependency.TagBinding!;
+
+        var expected = Resolve(dependency.Kind, dependency.StableReference).Target;
+        var visible = References
+            .Where(target => target.Kind == dependency.Kind &&
+                string.Equals(target.EntityPath, binding.Reference.Trim(), StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (visible.Length > 1)
+            return new ScriptTagReferenceResolution(ScriptTagReferenceResolutionState.Ambiguous, expected);
+
+        if (visible.Length == 1)
+        {
+            return visible[0].EntityId == binding.Expected.TagId
+                ? new ScriptTagReferenceResolution(ScriptTagReferenceResolutionState.Found, expected, visible[0])
+                : new ScriptTagReferenceResolution(ScriptTagReferenceResolutionState.IdentityDrift, expected, visible[0]);
+        }
+
+        return expected is null
+            ? new ScriptTagReferenceResolution(ScriptTagReferenceResolutionState.NotFound)
+            : new ScriptTagReferenceResolution(ScriptTagReferenceResolutionState.Stale, expected);
+    }
+
+    /// <summary>
+    /// Keeps malformed persisted bindings out of the public resolution-state
+    /// model. Resolution describes only catalog outcomes; malformed contract
+    /// data is a validation diagnostic.
+    /// </summary>
+    public static bool TryValidateTagBinding(ScriptEngineeringDependency dependency, out string diagnostic)
+    {
+        ArgumentNullException.ThrowIfNull(dependency);
+        var binding = dependency.TagBinding;
+        if (binding is null)
+        {
+            diagnostic = "Readable TAG binding is required.";
+            return false;
+        }
+
+        if (binding.Version != 1 || string.IsNullOrWhiteSpace(binding.Reference))
+        {
+            diagnostic = "Readable TAG binding must use version 1 and a non-empty visible reference.";
+            return false;
+        }
+
+        if (binding.Expected is null || binding.Expected.TagId == Guid.Empty)
+        {
+            diagnostic = "Readable TAG binding must carry an expected stable TAG identity.";
+            return false;
+        }
+
+        if (!Guid.TryParse(dependency.StableReference, out var stableId) || stableId != binding.Expected.TagId)
+        {
+            diagnostic = "Readable TAG binding expected identity must match the declared stable dependency.";
+            return false;
+        }
+
+        diagnostic = string.Empty;
+        return true;
+    }
+
     public static bool IsAllowedForScope(
         ScriptEngineeringScope scope,
         ScriptEngineeringDependencyKind kind)
@@ -192,7 +281,9 @@ public sealed class ScriptEngineeringReferenceResolver
         return scope switch
         {
             ScriptEngineeringScope.ClientVisual =>
-                kind != ScriptEngineeringDependencyKind.ServerMemoryTag,
+                kind is not (
+                    ScriptEngineeringDependencyKind.ServerMemoryTag or
+                    ScriptEngineeringDependencyKind.RichCommand),
 
             ScriptEngineeringScope.Server =>
                 kind is not (
@@ -211,9 +302,14 @@ public sealed class ScriptEngineeringReferenceResolver
         ArgumentNullException.ThrowIfNull(package);
 
         var visualObjectReferences = EnumerateVisualObjectReferences(package);
-        var references = additionalReferences is null
-            ? visualObjectReferences
-            : visualObjectReferences.Concat(additionalReferences);
+        var richCommandReferences = (package.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>())
+            .Where(command => command is not null && command.CommandId != Guid.Empty)
+            .Select(command => new ScriptEngineeringReference(
+                ScriptEngineeringDependencyKind.RichCommand,
+                ScriptEngineeringReferenceKeys.RichCommand(command.CommandId)));
+        var references = visualObjectReferences.Concat(richCommandReferences);
+        if (additionalReferences is not null)
+            references = references.Concat(additionalReferences);
 
         return Create(
             package.Tags,
@@ -337,6 +433,7 @@ public sealed class ScriptEngineeringReferenceResolver
             ScriptEngineeringDependencyKind.ClientMemoryTag or
             ScriptEngineeringDependencyKind.ServerMemoryTag => ScriptEngineeringReferenceKeys.Tag(id),
             ScriptEngineeringDependencyKind.Resource => ScriptEngineeringReferenceKeys.Resource(id),
+            ScriptEngineeringDependencyKind.RichCommand => ScriptEngineeringReferenceKeys.RichCommand(id),
             _ => string.Empty
         };
 

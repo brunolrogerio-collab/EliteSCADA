@@ -5,6 +5,7 @@ using System.Threading.Channels;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.Events;
+using Scada.Security.Authentication;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.Realtime;
@@ -19,6 +20,7 @@ public sealed class TagRealtimeHub : IDisposable
     private readonly IDisposable _subscription;
     private readonly ApiAuthorizationService _security;
     private readonly ScadaRuntimeFacade _runtime;
+    private readonly IAuthorityLifecycleStore? _authorityLifecycle;
     private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
     private readonly CancellationTokenSource _disposeCancellation = new();
     private int _disposed;
@@ -26,10 +28,12 @@ public sealed class TagRealtimeHub : IDisposable
     public TagRealtimeHub(
         Scada.Core.Abstractions.IScadaEventBus eventBus,
         ApiAuthorizationService security,
-        ScadaRuntimeFacade runtime)
+        ScadaRuntimeFacade runtime,
+        IAuthorityLifecycleStore? authorityLifecycle = null)
     {
         _security = security;
         _runtime = runtime;
+        _authorityLifecycle = authorityLifecycle;
         _subscription = eventBus.Subscribe<TagValueChanged>(BroadcastAsync);
     }
 
@@ -38,7 +42,11 @@ public sealed class TagRealtimeHub : IDisposable
         SecurityPrincipal principal,
         bool enforceAuthorization,
         DateTimeOffset? expiresAtUtc,
-        CancellationToken cancellationToken)
+        long? localAuthorityEpoch,
+        CancellationToken cancellationToken,
+        Guid? runtimeSessionId = null,
+        string? runtimeClientInstanceId = null,
+        PublicRuntimeSessionIdentity? publicRuntimeVisitor = null)
     {
         if (Volatile.Read(ref _disposed) != 0)
         {
@@ -68,6 +76,10 @@ public sealed class TagRealtimeHub : IDisposable
             principal,
             enforceAuthorization,
             expiresAtUtc,
+            localAuthorityEpoch,
+            runtimeSessionId,
+            runtimeClientInstanceId,
+            publicRuntimeVisitor,
             lifetime.Token,
             SendTimeout);
         _clients[clientId] = client;
@@ -160,7 +172,80 @@ public sealed class TagRealtimeHub : IDisposable
             return;
         }
 
-        if (client.EnforceAuthorization)
+        if (client.LocalAuthorityEpoch.HasValue)
+        {
+            if (_authorityLifecycle is null)
+            {
+                // A locally issued JWT must never bypass its durable Authority fence, even if
+                // an unsupported composition omitted the local lifecycle service.
+                RemoveClient(id, client, WebSocketCloseStatus.PolicyViolation, "authority session validation unavailable");
+                return;
+            }
+
+            try
+            {
+                var lifecycle = await _authorityLifecycle.GetAsync(_disposeCancellation.Token);
+                if (!AuthorityLifecycleSessionFence.IsCurrent(lifecycle, client.LocalAuthorityEpoch.Value))
+                {
+                    RemoveClient(id, client, WebSocketCloseStatus.PolicyViolation, "authority session revoked");
+                    return;
+                }
+            }
+            catch
+            {
+                // The canonical lifecycle cannot be read: fail closed rather than leak TAG data.
+                RemoveClient(id, client, WebSocketCloseStatus.PolicyViolation, "authority session validation unavailable");
+                return;
+            }
+        }
+
+        if (client.RuntimeSessionId.HasValue)
+        {
+            try
+            {
+                var lease = await _security.ValidateRuntimeSessionAsync(
+                    client.Principal,
+                    _runtime,
+                    client.RuntimeSessionId.Value,
+                    client.RuntimeClientInstanceId,
+                    _disposeCancellation.Token);
+                if (!lease.IsValid)
+                {
+                    RemoveClient(id, client, WebSocketCloseStatus.PolicyViolation, "runtime session lease invalid");
+                    return;
+                }
+            }
+            catch
+            {
+                RemoveClient(id, client, WebSocketCloseStatus.PolicyViolation, "runtime session validation unavailable");
+                return;
+            }
+        }
+
+        if (client.PublicRuntimeVisitor is { } publicVisitor)
+        {
+            if (!_security.IsPublicRuntimePolicyCurrent(publicVisitor, _runtime))
+            {
+                RemoveClient(id, client, WebSocketCloseStatus.PolicyViolation, "public runtime policy revoked");
+                return;
+            }
+
+            try
+            {
+                if (!await _security.CanReadPublicRuntimeTagAsync(
+                        publicVisitor,
+                        _runtime,
+                        evt.Tag,
+                        _disposeCancellation.Token))
+                    return;
+            }
+            catch
+            {
+                RemoveClient(id, client, WebSocketCloseStatus.PolicyViolation, "public runtime authorization unavailable");
+                return;
+            }
+        }
+        else if (client.EnforceAuthorization)
         {
             try
             {
@@ -231,6 +316,10 @@ public sealed class TagRealtimeHub : IDisposable
             SecurityPrincipal principal,
             bool enforceAuthorization,
             DateTimeOffset? expiresAtUtc,
+            long? localAuthorityEpoch,
+            Guid? runtimeSessionId,
+            string? runtimeClientInstanceId,
+            PublicRuntimeSessionIdentity? publicRuntimeVisitor,
             CancellationToken connectionLifetime,
             TimeSpan sendTimeout)
         {
@@ -238,6 +327,10 @@ public sealed class TagRealtimeHub : IDisposable
             Principal = principal;
             EnforceAuthorization = enforceAuthorization;
             ExpiresAtUtc = expiresAtUtc;
+            LocalAuthorityEpoch = localAuthorityEpoch;
+            RuntimeSessionId = runtimeSessionId;
+            RuntimeClientInstanceId = runtimeClientInstanceId;
+            PublicRuntimeVisitor = publicRuntimeVisitor;
             _senderCancellation = CancellationTokenSource.CreateLinkedTokenSource(connectionLifetime);
             _sendTimeout = sendTimeout;
         }
@@ -246,6 +339,14 @@ public sealed class TagRealtimeHub : IDisposable
         public SecurityPrincipal Principal { get; }
         public bool EnforceAuthorization { get; }
         public DateTimeOffset? ExpiresAtUtc { get; }
+        /// <summary>
+        /// Present only for locally issued JWTs. External providers retain their own session
+        /// semantics and are deliberately not fenced by the local Authority lifecycle.
+        /// </summary>
+        public long? LocalAuthorityEpoch { get; }
+        public Guid? RuntimeSessionId { get; }
+        public string? RuntimeClientInstanceId { get; }
+        public PublicRuntimeSessionIdentity? PublicRuntimeVisitor { get; }
 
         public bool TryQueue(ReadOnlyMemory<byte> payload)
         {

@@ -56,6 +56,10 @@ test('C15 scalar property chrome is localized without changing canonical enum va
   expect(trendPropertyLabel('pt-BR', VISUAL_PROPERTY_KEYS.trendMode)).toBe('Modo do Trend');
   expect(trendPropertyLabel('en', VISUAL_PROPERTY_KEYS.trendMode)).toBe('Trend mode');
   expect(trendPropertyLabel('es', VISUAL_PROPERTY_KEYS.trendMode)).toBe('Modo del Trend');
+  expect(trendPropertyLabel('pt-BR', VISUAL_PROPERTY_KEYS.trendAxisFontSize)).toBe('Tamanho da fonte dos eixos');
+  expect(trendPropertyLabel('pt-BR', VISUAL_PROPERTY_KEYS.trendLegendFontSize)).toBe('Tamanho da fonte da legenda');
+  expect(trendPropertyLabel('en', VISUAL_PROPERTY_KEYS.trendAxisFontSize)).toBe('Axis font size');
+  expect(trendPropertyLabel('es', VISUAL_PROPERTY_KEYS.trendLegendFontSize)).toBe('Tamaño de fuente de la leyenda');
 
   expect(trendPropertyOptionLabel('pt-BR', VISUAL_PROPERTY_KEYS.trendMode, 'history')).toBe('Histórico');
   expect(trendPropertyOptionLabel('pt-BR', VISUAL_PROPERTY_KEYS.trendMode, 'live')).toBe('Tempo real');

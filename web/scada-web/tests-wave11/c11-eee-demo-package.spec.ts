@@ -11,7 +11,8 @@ const canonicalProjectName = 'EliteSCADA — EEE Demo';
 const sourceProductSha = '08e2530671de10d48933c4b712a1a1abc9e41dce';
 const packageFileName = 'EliteSCADA-EEE-Demo.escadapkg';
 const packageMediaType = 'application/vnd.elitescada.project-package';
-const builtinDynamoCount = 8;
+// BuiltinDynamoCatalogV1 1.5.0 ships 15 native library symbols.
+const builtinDynamoCount = 15;
 const applicationDynamoKey = 'eee.dynamo.pump';
 
 test('C11 canonical eee-demo Active project exports, inspects and re-previews as a portable package', async ({ request }) => {
@@ -21,6 +22,12 @@ test('C11 canonical eee-demo Active project exports, inspects and re-previews as
   expect(applicationDynamos(original.dynamos)).toHaveLength(0);
 
   const candidate = buildEeeDemoPackage(original);
+
+  // Mutable role definitions belong to the separately managed Authority. The
+  // portable project carries only its immutable identity reference.
+  expect(candidate.securityRoles ?? []).toHaveLength(0);
+  expect(candidate.authorityPolicyReference?.contract).toBe('elitescada.authority-policy');
+  expect(candidate.authorityPolicyReference?.roleIds?.length).toBeGreaterThan(0);
 
   expect(candidate.startupScreenId).toBe(EEE_HMI.screens.overview.id);
   expect(candidate.screens).toHaveLength(6);
@@ -91,7 +98,7 @@ test('C11 canonical eee-demo Active project exports, inspects and re-previews as
   expect(inspection.engineering.alarms).toBeGreaterThan(0);
   expect(inspection.engineering.dataSources).toBeGreaterThan(0);
   expect(inspection.engineering.commands).toBeGreaterThan(0);
-  expect(inspection.engineering.securityRoles).toBeGreaterThan(0);
+  expect(inspection.engineering.securityRoles).toBe(0);
 
   const previewResponse = await request.post('/api/project-package/import/preview?mode=CreateAndUpdate', {
     headers: {

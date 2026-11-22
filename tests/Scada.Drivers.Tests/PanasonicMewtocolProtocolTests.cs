@@ -358,7 +358,10 @@ public sealed class PanasonicMewtocolProtocolTests
             commands.Add(ExtractCommand(read));
             await second.GetStream().WriteAsync(BuildResponse(1, "$RD3412"), timeout.Token);
         }, timeout.Token);
-        var options = TcpOptions(endpoint.Port, TimeSpan.FromMilliseconds(250));
+        // Keep the request window generous enough for a busy CI runner to establish
+        // the loopback connection; the peer deliberately withholds the reply after
+        // receiving WD, so the timeout still exercises an ambiguous write outcome.
+        var options = TcpOptions(endpoint.Port, TimeSpan.FromSeconds(2));
         var session = new PanasonicMewtocolTcpSession(options);
         Assert.True(PanasonicMewtocolAddress.TryParse("DT100", options.FamilyProfile, out var address, out var error), error);
         var tag = TagDefinition.Create("Writable word", "PLC.DT100", TagDataType.Int32, readOnly: false);

@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
+import { admitInteractiveRuntimeSession, terminateRuntimeSession } from '../tests-e2e/runtimeSessionLease';
 import {
   resolveVisualDynamicState,
   visualTagSampleKey,
@@ -276,6 +277,11 @@ async function savePublishActivate(request: APIRequestContext, projectName: stri
 }
 
 async function writeTag(request: APIRequestContext, tagId: string, value: number) {
-  const response = await request.post(`/api/tags/${encodeURIComponent(tagId)}/write`, { data: { value } });
-  expect(response.status(), `TAG write failed: HTTP ${response.status()} ${await response.text()}`).toBe(202);
+  const leaseHeaders = await admitInteractiveRuntimeSession(request);
+  try {
+    const response = await request.post(`/api/tags/${encodeURIComponent(tagId)}/write`, { data: { value }, headers: leaseHeaders });
+    expect(response.status(), `TAG write failed: HTTP ${response.status()} ${await response.text()}`).toBe(202);
+  } finally {
+    await terminateRuntimeSession(request, leaseHeaders);
+  }
 }

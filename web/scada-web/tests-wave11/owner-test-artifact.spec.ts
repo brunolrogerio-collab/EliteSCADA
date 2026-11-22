@@ -162,7 +162,7 @@ test('runtime-only operator sees only permitted application surfaces and backend
 
   try {
     await page.goto('/');
-    const navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+    const navigation = page.getByRole('navigation', { name: 'SCADIVO' });
     await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
     await expect(navigation.getByRole('link', { name: /Runtime/ })).toBeVisible();
     await expect(navigation.getByRole('link', { name: /Engineering/ })).toHaveCount(0);
@@ -209,7 +209,9 @@ test('operator controls keep alarms and history in-context during native fullscr
   expect(after!.width).toBeCloseTo(before!.width, 1);
   expect(after!.height).toBeCloseTo(before!.height, 1);
   await page.getByRole('button', { name: /Close alarms|Fechar alarmes|Cerrar alarmas/ }).click();
-  await expect(alarmOverlay).toHaveCount(0);
+  // Operator overlays stay mounted and toggle their hidden state so focus and
+  // panel state remain stable across Runtime navigation/fullscreen changes.
+  await expect(alarmOverlay).toBeHidden();
 
   const enterFullscreen = page.getByRole('button', { name: /Fullscreen|Tela cheia|Pantalla completa/ }).first();
   await enterFullscreen.click();
@@ -252,7 +254,7 @@ test('operator controls keep alarms and history in-context during native fullscr
   await expect(fullscreenAlarmOverlay).toBeVisible();
 
   await historyButton.click();
-  await expect(fullscreenAlarmOverlay).toHaveCount(0);
+  await expect(fullscreenAlarmOverlay).toBeHidden();
   await expect(historyOverlay).toBeVisible();
 
   await page.getByRole('button', { name: /Close history|Fechar histórico|Cerrar histórico/ }).click();
@@ -261,7 +263,10 @@ test('operator controls keep alarms and history in-context during native fullscr
   await expect(navigator).toHaveAttribute('data-active-screen-key', activeScreenBeforeHistory ?? '');
   expect(await page.locator('.runtime-visual-popup').count()).toBe(popupCountBeforeHistory);
 
-  const exitFullscreen = page.getByRole('button', { name: /Exit fullscreen|Sair da tela cheia|Salir de pantalla completa/ }).first();
+  const runtimeUserMenu = page.getByTestId('runtime-user-summary');
+  await runtimeUserMenu.getByTestId('session-menu-toggle').click();
+  const exitFullscreen = runtimeUserMenu.getByTestId('session-exit-fullscreen');
+  await expect(exitFullscreen).toBeVisible();
   await exitFullscreen.click();
   await expect.poll(async () => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
 });

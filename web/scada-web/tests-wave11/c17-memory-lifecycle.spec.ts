@@ -1,11 +1,12 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { createE2eJwt } from '../tests-e2e/jwt';
+import { admitInteractiveRuntimeSession, terminateRuntimeSession } from '../tests-e2e/runtimeSessionLease';
 
 const projectKey = 'e2e-wave11';
-const serverSourceKey = 'memory.server.c17';
-const clientSourceKey = 'memory.client.c17';
-const serverTagPath = 'C17.Server.Value';
-const clientTagPath = 'C17.Client.Value';
+const serverSourceKey = 'Server_Memory_C17';
+const clientSourceKey = 'Client_Memory_C17';
+const serverTagPath = 'Server_Value_C17';
+const clientTagPath = 'Client_Value_C17';
 const runtimeClientToken = createE2eJwt('wave11-c17-runtime-client', ['developer'], 'Wave 11 C17 Runtime Client');
 
 test.use({ locale: 'pt-BR' });
@@ -74,8 +75,16 @@ test('Internal Memory is authored through normal Engineering UI and survives Sav
       return payload.current?.value ?? null;
     }).toBe(12.5);
 
-    const writeResponse = await request.post(`/api/tags/${serverTag.id}/write`, { data: { value: 42.25 } });
-    expect(writeResponse.status()).toBe(202);
+    const leaseHeaders = await admitInteractiveRuntimeSession(request);
+    try {
+      const writeResponse = await request.post(`/api/tags/${serverTag.id}/write`, {
+        data: { value: 42.25 },
+        headers: leaseHeaders
+      });
+      expect(writeResponse.status(), await writeResponse.text()).toBe(202);
+    } finally {
+      await terminateRuntimeSession(request, leaseHeaders);
+    }
     await expect.poll(async () => {
       const response = await request.get(`/api/tags/by-path/${encodeURIComponent(serverTagPath)}`);
       if (!response.ok()) return null;
@@ -148,7 +157,7 @@ async function createRuntimeClientContext(browser: Browser): Promise<BrowserCont
 
 async function createDataSource(page: Page, name: string, key: string, typeKey: string) {
   await page.goto('/engineering');
-  await page.getByRole('button', { name: /Data Sources/ }).click();
+  await page.getByRole('button', { name: /^Fontes de dados\b/ }).click();
   const editor = page.getByTestId('schema-data-source-editor');
   await expect(editor).toBeVisible();
   await editor.locator('header button').first().click();
@@ -156,7 +165,6 @@ async function createDataSource(page: Page, name: string, key: string, typeKey: 
 
   const basicFields = editor.locator('.eng-editor-form-grid').first().locator('input');
   await basicFields.nth(0).fill(name);
-  await basicFields.nth(1).fill(key);
   await page.getByTestId('data-source-preview').click();
   await expect(page.getByTestId('data-source-apply')).toBeEnabled();
   await page.getByTestId('data-source-apply').click();
@@ -165,7 +173,7 @@ async function createDataSource(page: Page, name: string, key: string, typeKey: 
     const response = await page.request.get('/api/engineering/export/json');
     if (!response.ok()) return false;
     const model = await response.json() as any;
-    return model.dataSources.some((source: any) => source.key === key && source.driver === typeKey);
+    return model.dataSources.some((source: any) => source.key === key && source.name === name && source.driver === typeKey);
   }).toBeTruthy();
 }
 
@@ -180,8 +188,7 @@ async function createMemoryTag(page: Page, options: {
   await page.goto('/engineering');
   await page.getByRole('button', { name: /^TAGs\b/ }).click();
   await page.getByRole('button', { name: 'Nova TAG' }).click();
-  await page.getByLabel('Nome').fill(options.name);
-  await page.getByLabel('Path').fill(options.path);
+  await page.getByLabel('Nome da TAG').fill(options.name);
   await page.getByLabel('Tipo de dado').selectOption(options.dataType);
 
   const sourceSelect = page.getByTestId('tag-source-select');
@@ -197,10 +204,12 @@ async function createMemoryTag(page: Page, options: {
 
   const readOnly = page.getByRole('checkbox', { name: 'Somente leitura' });
   if (options.writable) await readOnly.uncheck();
-  if (options.historian) await page.getByLabel('Histórico habilitado').check();
+  if (options.historian) {
+    await page.getByTestId('tag-historian-disclosure').locator('summary').click();
+    await page.getByLabel('Histórico habilitado').check();
+  }
 
-  await page.getByRole('button', { name: 'Validar preview' }).click();
-  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+  await page.getByTestId('engineering-preview').click();
   await expect(page.getByTestId('engineering-apply')).toBeEnabled();
   await page.getByTestId('engineering-apply').click();
   await page.waitForLoadState('domcontentloaded');

@@ -1,0 +1,663 @@
+{
+  "schema": "scada.engineering",
+  "schemaVersion": 30,
+  "tags": [
+    {
+      "id": "10000000-0000-0000-0000-000000000007",
+      "name": "Flow",
+      "path": "Demo.Discharge.Flow",
+      "dataType": "double",
+      "source": "builtin.simulation",
+      "address": null,
+      "engineeringUnit": "m³/h",
+      "description": null,
+      "readOnly": true,
+      "scaleMinimum": null,
+      "scaleMaximum": null,
+      "historian": {
+        "enabled": false,
+        "strategy": "none",
+        "deadband": null,
+        "periodMilliseconds": null,
+        "maximumPeriodMilliseconds": null
+      },
+      "metadata": null,
+      "accessPolicy": null,
+      "initialValue": null,
+      "addressSelector": null,
+      "communicationBinding": null,
+      "dataSourceId": null,
+      "historianCaptureProfileId": null,
+      "controlledEngineeringUnit": null
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000006",
+      "name": "Discharge Pressure",
+      "path": "Demo.Discharge.Pressure",
+      "dataType": "double",
+      "source": "builtin.simulation",
+      "address": null,
+      "engineeringUnit": "bar",
+      "description": null,
+      "readOnly": true,
+      "scaleMinimum": null,
+      "scaleMaximum": null,
+      "historian": {
+        "enabled": false,
+        "strategy": "none",
+        "deadband": null,
+        "periodMilliseconds": null,
+        "maximumPeriodMilliseconds": null
+      },
+      "metadata": null,
+      "accessPolicy": null,
+      "initialValue": null,
+      "addressSelector": null,
+      "communicationBinding": null,
+      "dataSourceId": null,
+      "historianCaptureProfileId": null,
+      "controlledEngineeringUnit": null
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000004",
+      "name": "Pump Current",
+      "path": "Demo.P01.Current",
+      "dataType": "double",
+      "source": "builtin.simulation",
+      "address": null,
+      "engineeringUnit": "A",
+      "description": null,
+      "readOnly": true,
+      "scaleMinimum": null,
+      "scaleMaximum": null,
+      "historian": {
+        "enabled": false,
+        "strategy": "none",
+        "deadband": null,
+        "periodMilliseconds": null,
+        "maximumPeriodMilliseconds": null
+      },
+      "metadata": null,
+      "accessPolicy": null,
+      "initialValue": null,
+      "addressSelector": null,
+      "communicationBinding": null,
+      "dataSourceId": null,
+      "historianCaptureProfileId": null,
+      "controlledEngineeringUnit": null
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000003",
+      "name": "Pump Fault",
+      "path": "Demo.P01.Fault",
+      "dataType": "boolean",
+      "source": "builtin.simulation",
+      "address": null,
+      "engineeringUnit": null,
+      "description": null,
+      "readOnly": true,
+      "scaleMinimum": null,
+      "scaleMaximum": null,
+      "historian": {
+        "enabled": false,
+        "strategy": "none",
+        "deadband": null,
+        "periodMilliseconds": null,
+        "maximumPeriodMilliseconds": null
+      },
+      "metadata": null,
+      "accessPolicy": null,
+      "initialValue": null,
+      "addressSelector": null,
+      "communicationBinding": null,
+      "dataSourceId": null,
+      "historianCaptureProfileId": null,
+      "controlledEngineeringUnit": null
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000005",
+      "name": "Pump Frequency",
+      "path": "Demo.P01.Frequency",
+      "dataType": "double",
+      "source": "builtin.simulation",
+      "address": null,
+      "engineeringUnit": "Hz",
+      "description": null,
+      "readOnly": false,
+      "scaleMinimum": null,
+      "scaleMaximum": null,
+      "historian": {
+        "enabled": false,
+        "strategy": "none",
+        "deadband": null,
+        "periodMilliseconds": null,
+        "maximumPeriodMilliseconds": null
+      },
+      "metadata": null,
+      "accessPolicy": null,
+      "initialValue": null,
+      "addressSelector": null,
+      "communicationBinding": null,
+      "dataSourceId": null,
+      "historianCaptureProfileId": null,
+      "controlledEngineeringUnit": null
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000002",
+      "name": "Pump Running",
+      "path": "Demo.P01.Running",
+      "dataType": "boolean",
+      "source": "builtin.simulation",
+      "address": null,
+      "engineeringUnit": null,
+      "description": null,
+      "readOnly": false,
+      "scaleMinimum": null,
+      "scaleMaximum": null,
+      "historian": {
+        "enabled": false,
+        "strategy": "none",
+        "deadband": null,
+        "periodMilliseconds": null,
+        "maximumPeriodMilliseconds": null
+      },
+      "metadata": null,
+      "accessPolicy": null,
+      "initialValue": null,
+      "addressSelector": null,
+      "communicationBinding": null,
+      "dataSourceId": null,
+      "historianCaptureProfileId": null,
+      "controlledEngineeringUnit": null
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000001",
+      "name": "Tank Level",
+      "path": "Demo.Tank01.Level",
+      "dataType": "double",
+      "source": "builtin.simulation",
+      "address": null,
+      "engineeringUnit": "%",
+      "description": null,
+      "readOnly": true,
+      "scaleMinimum": null,
+      "scaleMaximum": null,
+      "historian": {
+        "enabled": false,
+        "strategy": "none",
+        "deadband": null,
+        "periodMilliseconds": null,
+        "maximumPeriodMilliseconds": null
+      },
+      "metadata": null,
+      "accessPolicy": null,
+      "initialValue": null,
+      "addressSelector": null,
+      "communicationBinding": null,
+      "dataSourceId": null,
+      "historianCaptureProfileId": null,
+      "controlledEngineeringUnit": null
+    }
+  ],
+  "alarms": [
+    {
+      "id": "20000000-0000-0000-0000-000000000001",
+      "name": "High discharge pressure",
+      "tagId": "10000000-0000-0000-0000-000000000006",
+      "tagPath": "Demo.Discharge.Pressure",
+      "type": "high",
+      "priority": "high",
+      "setpoint": 9,
+      "digitalActiveValue": true,
+      "alarmClass": null,
+      "area": "Demo",
+      "message": "Discharge pressure above 9.0 bar",
+      "activationDelayMilliseconds": null,
+      "requiresAcknowledgement": true,
+      "shelvingAllowed": true,
+      "enabled": true,
+      "metadata": null,
+      "soundProfile": null,
+      "locationId": null,
+      "equipmentId": null
+    },
+    {
+      "id": "20000000-0000-0000-0000-000000000002",
+      "name": "Pump P01 fault",
+      "tagId": "10000000-0000-0000-0000-000000000003",
+      "tagPath": "Demo.P01.Fault",
+      "type": "digital",
+      "priority": "critical",
+      "setpoint": null,
+      "digitalActiveValue": true,
+      "alarmClass": null,
+      "area": "Demo",
+      "message": "Pump P01 fault active",
+      "activationDelayMilliseconds": null,
+      "requiresAcknowledgement": true,
+      "shelvingAllowed": true,
+      "enabled": true,
+      "metadata": null,
+      "soundProfile": null,
+      "locationId": null,
+      "equipmentId": null
+    }
+  ],
+  "dataSources": [
+    {
+      "id": "40000000-0000-0000-0000-000000000001",
+      "key": "builtin.simulation",
+      "name": "Built-in Simulation",
+      "driver": "builtin.simulation",
+      "enabled": true,
+      "settings": {
+        "scanIntervalMilliseconds": "500"
+      },
+      "secretReferences": null,
+      "metadata": {
+        "system": "true"
+      }
+    }
+  ],
+  "templates": [
+    {
+      "id": "41000000-0000-0000-0000-000000000001",
+      "key": "pump.standard",
+      "name": "Standard Pump",
+      "bindings": [
+        {
+          "key": "running",
+          "kind": "tag",
+          "target": "{equipmentPath}.Running",
+          "direction": "read",
+          "metadata": null,
+          "tagReference": null
+        },
+        {
+          "key": "fault",
+          "kind": "tag",
+          "target": "{equipmentPath}.Fault",
+          "direction": "read",
+          "metadata": null,
+          "tagReference": null
+        },
+        {
+          "key": "current",
+          "kind": "tag",
+          "target": "{equipmentPath}.Current",
+          "direction": "read",
+          "metadata": null,
+          "tagReference": null
+        },
+        {
+          "key": "frequency",
+          "kind": "tag",
+          "target": "{equipmentPath}.Frequency",
+          "direction": "readWrite",
+          "metadata": null,
+          "tagReference": null
+        }
+      ],
+      "properties": {
+        "category": "pump",
+        "defaultFrequencyHz": "60"
+      },
+      "context": {
+        "domain": "pumping"
+      },
+      "metadata": null,
+      "elements": null
+    }
+  ],
+  "equipment": [
+    {
+      "id": "42000000-0000-0000-0000-000000000001",
+      "path": "Demo.P01",
+      "name": "Pump P01",
+      "templateKey": "pump.standard",
+      "bindings": [
+        {
+          "key": "running",
+          "kind": "tag",
+          "target": "Demo.P01.Running",
+          "direction": "read",
+          "metadata": null,
+          "tagReference": null
+        },
+        {
+          "key": "fault",
+          "kind": "tag",
+          "target": "Demo.P01.Fault",
+          "direction": "read",
+          "metadata": null,
+          "tagReference": null
+        },
+        {
+          "key": "current",
+          "kind": "tag",
+          "target": "Demo.P01.Current",
+          "direction": "read",
+          "metadata": null,
+          "tagReference": null
+        },
+        {
+          "key": "frequency",
+          "kind": "tag",
+          "target": "Demo.P01.Frequency",
+          "direction": "readWrite",
+          "metadata": null,
+          "tagReference": null
+        }
+      ],
+      "properties": {
+        "displayLabel": "P01"
+      },
+      "context": {
+        "area": "Demo",
+        "process": "Discharge"
+      },
+      "metadata": null,
+      "templateId": null,
+      "locationId": null,
+      "sourceBindings": null,
+      "capabilities": null
+    }
+  ],
+  "screens": [
+    {
+      "id": "44000000-0000-0000-0000-000000000001",
+      "key": "demo.overview",
+      "name": "Demo Overview",
+      "route": "/demo",
+      "elements": [
+        {
+          "key": "tank01",
+          "type": "tank",
+          "dynamoKey": null,
+          "equipmentPath": null,
+          "bindings": [
+            {
+              "key": "level",
+              "kind": "tag",
+              "target": "Demo.Tank01.Level",
+              "direction": "read",
+              "metadata": null,
+              "tagReference": null
+            }
+          ],
+          "properties": {
+            "label": "Reservatório TK01",
+            "x": 100,
+            "y": 100
+          },
+          "context": null,
+          "children": null,
+          "metadata": null,
+          "id": "93a82ca2-7c94-41ac-b769-c1a1eecf369c",
+          "propertyExpressions": null,
+          "booleanConditions": null,
+          "analogFill": null,
+          "propertyMaps": null,
+          "dynamoParameters": null,
+          "actions": null,
+          "dynamoDefinitionId": null,
+          "equipmentId": null
+        },
+        {
+          "key": "pressure",
+          "type": "value",
+          "dynamoKey": null,
+          "equipmentPath": null,
+          "bindings": [
+            {
+              "key": "value",
+              "kind": "tag",
+              "target": "Demo.Discharge.Pressure",
+              "direction": "read",
+              "metadata": null,
+              "tagReference": null
+            }
+          ],
+          "properties": {
+            "label": "Pressão"
+          },
+          "context": null,
+          "children": null,
+          "metadata": null,
+          "id": "b78b6ec5-7a24-4d0f-9abb-fe8152ef1893",
+          "propertyExpressions": null,
+          "booleanConditions": null,
+          "analogFill": null,
+          "propertyMaps": null,
+          "dynamoParameters": null,
+          "actions": null,
+          "dynamoDefinitionId": null,
+          "equipmentId": null
+        },
+        {
+          "key": "flow",
+          "type": "value",
+          "dynamoKey": null,
+          "equipmentPath": null,
+          "bindings": [
+            {
+              "key": "value",
+              "kind": "tag",
+              "target": "Demo.Discharge.Flow",
+              "direction": "read",
+              "metadata": null,
+              "tagReference": null
+            }
+          ],
+          "properties": {
+            "label": "Vazão"
+          },
+          "context": null,
+          "children": null,
+          "metadata": null,
+          "id": "d1d15a79-9970-4f38-96e9-9661e4468c96",
+          "propertyExpressions": null,
+          "booleanConditions": null,
+          "analogFill": null,
+          "propertyMaps": null,
+          "dynamoParameters": null,
+          "actions": null,
+          "dynamoDefinitionId": null,
+          "equipmentId": null
+        }
+      ],
+      "properties": {
+        "canvasWidth": "1366",
+        "canvasHeight": "768"
+      },
+      "context": {
+        "area": "Demo",
+        "process": "Pumping"
+      },
+      "metadata": null
+    }
+  ],
+  "popups": [
+    {
+      "id": "45000000-0000-0000-0000-000000000001",
+      "key": "popup.pump.standard",
+      "name": "Standard Pump Popup",
+      "templateKey": "pump.standard",
+      "elements": [
+        {
+          "key": "current",
+          "type": "value",
+          "dynamoKey": null,
+          "equipmentPath": null,
+          "bindings": [
+            {
+              "key": "value",
+              "kind": "tag",
+              "target": "{equipmentPath}.Current",
+              "direction": "read",
+              "metadata": null,
+              "tagReference": null
+            }
+          ],
+          "properties": {
+            "label": "Corrente"
+          },
+          "context": null,
+          "children": null,
+          "metadata": null,
+          "id": "61e3cb3d-b64a-4abb-9861-ad11973d7f03",
+          "propertyExpressions": null,
+          "booleanConditions": null,
+          "analogFill": null,
+          "propertyMaps": null,
+          "dynamoParameters": null,
+          "actions": null,
+          "dynamoDefinitionId": null,
+          "equipmentId": null
+        },
+        {
+          "key": "frequency",
+          "type": "value",
+          "dynamoKey": null,
+          "equipmentPath": null,
+          "bindings": [
+            {
+              "key": "value",
+              "kind": "tag",
+              "target": "{equipmentPath}.Frequency",
+              "direction": "readWrite",
+              "metadata": null,
+              "tagReference": null
+            }
+          ],
+          "properties": {
+            "label": "Frequência"
+          },
+          "context": null,
+          "children": null,
+          "metadata": null,
+          "id": "cb79c1c3-342f-4f62-ac67-41a5c0ef5aa3",
+          "propertyExpressions": null,
+          "booleanConditions": null,
+          "analogFill": null,
+          "propertyMaps": null,
+          "dynamoParameters": null,
+          "actions": null,
+          "dynamoDefinitionId": null,
+          "equipmentId": null
+        },
+        {
+          "key": "fault",
+          "type": "status",
+          "dynamoKey": null,
+          "equipmentPath": null,
+          "bindings": [
+            {
+              "key": "active",
+              "kind": "tag",
+              "target": "{equipmentPath}.Fault",
+              "direction": "read",
+              "metadata": null,
+              "tagReference": null
+            }
+          ],
+          "properties": {
+            "label": "Falha"
+          },
+          "context": null,
+          "children": null,
+          "metadata": null,
+          "id": "468392a5-265f-4fc1-ab4c-0f2d72c3d014",
+          "propertyExpressions": null,
+          "booleanConditions": null,
+          "analogFill": null,
+          "propertyMaps": null,
+          "dynamoParameters": null,
+          "actions": null,
+          "dynamoDefinitionId": null,
+          "equipmentId": null
+        }
+      ],
+      "properties": {
+        "width": "640",
+        "height": "420"
+      },
+      "context": {
+        "role": "equipment-details"
+      },
+      "metadata": null,
+      "x": 0,
+      "y": 0,
+      "templateId": null
+    }
+  ],
+  "commands": [
+    {
+      "id": "30000000-0000-0000-0000-000000000001",
+      "key": "demo.p01.start",
+      "name": "Start Pump P01",
+      "kind": "writeTagValue",
+      "value": "True",
+      "targetTagId": "10000000-0000-0000-0000-000000000002",
+      "targetTagPath": "Demo.P01.Running",
+      "description": "Starts the demo pump through the operational command domain.",
+      "area": "Demo",
+      "equipmentPath": "Demo.P01",
+      "enabled": true,
+      "metadata": null
+    },
+    {
+      "id": "30000000-0000-0000-0000-000000000002",
+      "key": "demo.p01.stop",
+      "name": "Stop Pump P01",
+      "kind": "writeTagValue",
+      "value": "False",
+      "targetTagId": "10000000-0000-0000-0000-000000000002",
+      "targetTagPath": "Demo.P01.Running",
+      "description": "Stops the demo pump through the operational command domain.",
+      "area": "Demo",
+      "equipmentPath": "Demo.P01",
+      "enabled": true,
+      "metadata": null
+    }
+  ],
+  "gateways": [],
+  "scripts": [],
+  "scriptVisualEventReferences": [],
+  "visualAssets": [],
+  "reports": [],
+  "operationalEvents": [],
+  "startupScreenId": null,
+  "engineeringLock": {
+    "locked": false,
+    "verifier": null
+  },
+  "authorityPolicyReference": null,
+  "historianCaptureProfiles": [],
+  "dataQueries": [],
+  "alarmViews": [],
+  "branding": null,
+  "runtimePresentation": {
+    "historicalPlaybackEnabled": false,
+    "mobileOrientation": "landscape",
+    "version": 1,
+    "header": null,
+    "mobileScreens": null,
+    "stationProfiles": null
+  },
+  "mediaSources": [],
+  "locations": [],
+  "transientEventDefinitions": [],
+  "capabilityEventReferences": [],
+  "richCommandDefinitions": [],
+  "driverCommandBindings": [],
+  "assetProcessIntelligence": {
+    "version": 1,
+    "scopes": [],
+    "profiles": [],
+    "assignments": [],
+    "processStages": [],
+    "operatingContextProfiles": []
+  },
+  "resourceOrganizations": []
+}

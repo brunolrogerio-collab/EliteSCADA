@@ -14,7 +14,7 @@
     -->
     <EliteScadaProductName>SCADIVO</EliteScadaProductName>
     <EliteScadaProductChannel>Alpha</EliteScadaProductChannel>
-    <EliteScadaProductVersion>0.15.2.1</EliteScadaProductVersion>
+    <EliteScadaProductVersion>0.16.1.1</EliteScadaProductVersion>
     <Product>$(EliteScadaProductName)</Product>
     <AssemblyVersion>$(EliteScadaProductVersion)</AssemblyVersion>
     <FileVersion>$(EliteScadaProductVersion)</FileVersion>

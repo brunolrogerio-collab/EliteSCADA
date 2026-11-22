@@ -1,4 +1,4 @@
-#requires -Version 7.2
+#requires -Version 7.4
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][ValidatePattern('^[a-fA-F0-9]{40}$')][string]$ProductCommit,
@@ -140,7 +140,7 @@ $inventory = foreach ($file in (Get-ChildItem -LiteralPath $payload -Recurse -Fi
 $inventory | ConvertTo-Json -Depth 3 | Set-Content -Encoding utf8NoBOM "$out/files.json"
 & $compiler /Q "/DProductName=$name" "/DChannel=$channel" "/DProductVersion=$version" "/DPayloadDir=$payload" "/DBrandDir=$brand" "/O$out" "$PSScriptRoot/scadivo.iss"
 $exe = Get-Item -LiteralPath "$out/$name-$channel-$version-win-x64-lab.exe"
-if ($exe.VersionInfo.FileVersion -ne $version) { throw 'Installer version mismatch.' }
+if ($exe.VersionInfo.FileVersion.Trim() -ne $version) { throw 'Installer version mismatch.' }
 [ordered]@{
     product = "$name $channel $version"; productCommit = $ProductCommit; recipeCommit = $recipeCommit
     profile = 'windows-x64-payload-lab'; signed = $false; dotnetSdk = $sdk; node = $nodeVersion; npm = $npmVersion

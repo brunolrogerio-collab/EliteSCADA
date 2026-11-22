@@ -176,12 +176,7 @@ begin
   end;
   if Existing or WizardSilent then Exit;
   Result := HostAction(PrepareScript(), 'CheckPorts', PortArguments());
-  if not Result then begin
-    SuppressibleMsgBox(HostFailure('PrepareFailed'), mbError, MB_OK, IDOK);
-    case HostExitCode of
-      21..23: PortsPage.Edits[HostExitCode - 21].SetFocus();
-    end;
-  end;
+  if not Result then SuppressibleMsgBox(HostFailure('PrepareFailed'), mbError, MB_OK, IDOK);
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;

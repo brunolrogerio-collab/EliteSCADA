@@ -2,6 +2,16 @@ import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 
 test('C16 working package carries an explicit persisted Startup Screen before lifecycle activation', async ({ request }) => {
+  const administrator = await request.post('/api/auth/bootstrap', {
+    headers: { Authorization: '' },
+    data: {
+      username: 'wave11-fixture-admin',
+      displayName: 'Wave 11 Fixture Administrator',
+      password: 'Wave11-fixture-password-123!'
+    }
+  });
+  expect(administrator.ok(), await administrator.text()).toBeTruthy();
+
   const firstProject = await request.post('/api/engineering/persistence/projects/first', {
     data: { projectKey: 'e2e-wave11', projectName: 'Wave 11 E2E' }
   });

@@ -41,3 +41,14 @@ Execute o ensaio em Windows 11 x64 limpo, com PowerShell elevado. Ele usa portas
 ```
 
 O resultado fica em `smoke-native.json`. Os logs de instalação, reparo e remoção ficam na pasta da compilação. Os logs dos serviços ficam em `%ProgramData%\SCADIVO Windows\logs`. A interface da bandeja abre a página de Licenciamento, onde as permissões da conta do SCADIVO controlam a visualização do consumo. A distribuição comercial tem qualificação de assinatura, atualização entre versões e suporte de drivers próprios no [roteiro da Wave 16](../../docs/WAVE16-RELEASE-ROADMAP.md).
+
+### Validar atualização
+
+Gere dois instaladores com a mesma receita e use uma máquina de teste sem SCADIVO e sem dados retidos. O ensaio cria um administrador, um projeto e uma amostra do Historian na revisão anterior. Depois atualiza sem redefinir as portas, entra com o mesmo administrador, confere a revisão do projeto, compara as amostras do banco e verifica se a remoção completa permite iniciar uma instalação nova.
+
+~~~powershell
+$evidence = New-Item -ItemType Directory -Path 'artifacts/windows-upgrade'
+./packaging/windows/Test-NativeUpgrade.ps1 -PreviousBuild $previousBuild -CurrentBuild $out -EvidenceDirectory $evidence.FullName
+~~~
+
+As evidências registram os hashes exatos dos dois instaladores. A remoção completa no fim do ensaio se aplica à instalação criada pelo teste.

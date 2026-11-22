@@ -139,8 +139,7 @@ end;
 
 function PortArguments(): String;
 begin
-  Result := Format(' -WebPort %d -ApiPort %d -DbPort %d',
-    [StrToIntDef(PortsPage.Values[0], 0), StrToIntDef(PortsPage.Values[1], 0), StrToIntDef(PortsPage.Values[2], 0)]);
+  Result := Format(' -WebPort %d -ApiPort %d -DbPort %d', [StrToIntDef(PortsPage.Values[0], 0), StrToIntDef(PortsPage.Values[1], 0), StrToIntDef(PortsPage.Values[2], 0)]);
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;

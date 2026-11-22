@@ -1,3 +1,4 @@
+import { mockMountedRuntimeAdmission } from './runtimeSessionLease';
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 const ANALOG_ID = '11111111-1111-4111-8111-111111111111';
@@ -61,6 +62,7 @@ function projection(enabled:boolean, header?:Record<string,unknown>){
 
 async function installShell(page:Page, enabled:boolean){
  await page.routeWebSocket('**/ws/tags',()=>{});
+ await mockMountedRuntimeAdmission(page);
  await page.route('**/api/auth/config',r=>r.fulfill({json:{authenticationEnabled:true,localLoginEnabled:true,initialAdministratorRequired:false,initialAdministratorSetupAvailable:false,initialAdministratorBlockedReason:null,passwordPolicy:{minimumLength:8,maximumLength:1024}}}));
  await page.route('**/api/auth/me',r=>r.fulfill({json:{subjectId:'w15-user',username:'w15',displayName:'W15',roles:['developer'],identityProvider:'local'}}));
  await page.route('**/api/auth/local-session',r=>r.fulfill({json:{authenticated:true,username:'w15'}}));
@@ -95,6 +97,7 @@ test('Runtime header keeps tools, project/screen titles and clock in configured 
   overviewVisible:true,historyVisible:true,alarmsVisible:true,playbackVisible:false
  };
  await page.routeWebSocket('**/ws/tags',()=>{});
+ await mockMountedRuntimeAdmission(page);
  await page.route('**/api/auth/config',r=>r.fulfill({json:{authenticationEnabled:true,localLoginEnabled:true,initialAdministratorRequired:false,initialAdministratorSetupAvailable:false,passwordPolicy:{minimumLength:8,maximumLength:1024}}}));
  await page.route('**/api/auth/me',r=>r.fulfill({json:{subjectId:'w15-user',username:'w15',displayName:'W15',roles:['developer'],identityProvider:'local'}}));
  await page.route('**/api/auth/local-session',r=>r.fulfill({json:{authenticated:true,username:'w15'}}));

@@ -9,7 +9,7 @@ import {
 } from '../src/python-runtime/pythonRuntimeContracts';
 
 test('Wave 06 development host is cross-origin isolated for bounded Pyodide interruption', async ({ page }) => {
-  const response = await page.goto('/');
+  const response = await page.goto('/tests-e2e/harness/browser-environment.html');
   expect(response).not.toBeNull();
 
   const headers = response!.headers();

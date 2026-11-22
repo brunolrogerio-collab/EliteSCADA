@@ -1,3 +1,4 @@
+import { mockMountedRuntimeAdmission } from './runtimeSessionLease';
 import { expect, test, type Page } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
@@ -58,6 +59,7 @@ async function installRuntimeContract(
   mobileScreens?: Readonly<Record<string, string>>,
   mobileScreen?: typeof mobileVariant
 ) {
+  await mockMountedRuntimeAdmission(page);
   await page.route('**/api/auth/config', route => route.fulfill({
     json: {
       authenticationEnabled: true,

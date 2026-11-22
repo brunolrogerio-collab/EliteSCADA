@@ -7,6 +7,25 @@ test('C16 working package carries an explicit persisted Startup Screen before li
   });
   expect(firstProject.ok(), await firstProject.text()).toBeTruthy();
 
+  const policyResponse = await request.get('/api/auth/authority-policy');
+  expect(policyResponse.ok(), await policyResponse.text()).toBeTruthy();
+  const policy = await policyResponse.json();
+  const updatedPolicy = await request.put('/api/auth/authority-policy', {
+    data: {
+      schema: policy.schema,
+      schemaVersion: policy.schemaVersion,
+      expectedVersion: policy.version,
+      roles: [...policy.roles, {
+        id: '46000000-0000-0000-0000-000000000011',
+        key: 'operator',
+        name: 'Wave 11 Operator',
+        grants: [{ capability: 'view' }, { capability: 'tagRead' }]
+      }],
+      scopes: policy.scopes
+    }
+  });
+  expect(updatedPolicy.ok(), await updatedPolicy.text()).toBeTruthy();
+
   const workingResponse = await request.get('/api/engineering/export/json');
   expect(workingResponse.ok()).toBeTruthy();
   const working = await workingResponse.json();

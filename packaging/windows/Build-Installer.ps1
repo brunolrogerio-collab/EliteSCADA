@@ -146,9 +146,13 @@ if ($exe.VersionInfo.FileVersion.Trim() -ne $version) { throw 'Installer version
     profile = 'windows-x64-payload-lab'; signed = $false; dotnetSdk = $sdk; node = $nodeVersion; npm = $npmVersion
     innoSetup = '6.7.3'; webLockSha256 = (Get-FileHash "$web/package-lock.json").Hash
     markSource = 'web/scada-web/public/scadivo-mark.svg'; markSha256 = $mark.Hash
+    artwork = @(foreach ($asset in (Get-ChildItem -LiteralPath $brand -File | Sort-Object Name)) {
+        [ordered]@{ name = $asset.Name; bytes = $asset.Length; sha256 = (Get-FileHash -LiteralPath $asset.FullName).Hash }
+    })
     inventorySha256 = (Get-FileHash "$out/files.json").Hash; files = $inventory.Count
     artifact = $exe.Name; bytes = $exe.Length; sha256 = (Get-FileHash -LiteralPath $exe.FullName).Hash.ToLowerInvariant()
 } | ConvertTo-Json | Set-Content -Encoding utf8NoBOM "$out/manifest.json"
+Copy-Item -LiteralPath $brand -Destination $out -Recurse
 Write-Output "Installer and evidence: $out"
 # Only remove the generated short-path working tree of this successful build.
 $resolvedWork = (Resolve-Path -LiteralPath $work).Path

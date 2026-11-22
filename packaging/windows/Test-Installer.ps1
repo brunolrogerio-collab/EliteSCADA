@@ -54,10 +54,30 @@ try {
         $value = [Environment]::GetEnvironmentVariable($keyName)
         if ($value) { $start.Environment[$keyName] = $value }
     }
-    $start.Environment['DOTNET_ENVIRONMENT'] = 'Development'
+    $dbImage = 'timescale/timescaledb:2.29.2-pg18'
+    $dbPassword = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))
+    $previousPassword = $env:POSTGRES_PASSWORD
+    try {
+        $env:POSTGRES_PASSWORD = $dbPassword
+        $dbId = docker run --pull=never --rm -d -p 127.0.0.1::5432 -e POSTGRES_PASSWORD -e POSTGRES_DB=scadivo_lab $dbImage
+        if ($LASTEXITCODE -or $dbId -notmatch '^[a-f0-9]{64}$') { throw 'Cannot start the isolated PostgreSQL fixture.' }
+    } finally { $env:POSTGRES_PASSWORD = $previousPassword }
+    $portSpec = docker port $dbId 5432/tcp
+    if ($LASTEXITCODE -or $portSpec -notmatch '^127\.0\.0\.1:(\d+)$') { throw 'Cannot resolve the fixture port.' }
+    $port = $Matches[1]
+    $dbReady = $false
+    for ($attempt=0; $attempt -lt 60; $attempt++) {
+        docker exec $dbId pg_isready -q -h 127.0.0.1 -U postgres -d scadivo_lab
+        if ($LASTEXITCODE -eq 0) { $dbReady = $true; break }
+        Start-Sleep -Seconds 1
+    }
+    if (!$dbReady) { throw 'The isolated database did not become ready.' }
+    $start.Environment['ConnectionStrings__EliteScada'] = "Host=127.0.0.1;Port=$port;Database=scadivo_lab;Username=postgres;Password=$dbPassword"
+    $start.Environment['DOTNET_ENVIRONMENT'] = 'Production'
     $start.Environment['ASPNETCORE_URLS'] = 'http://127.0.0.1:0'
     $start.Environment['InstallationNetwork__WebRootPath'] = Join-Path $release 'web'
     $start.Environment['Authentication__Enabled'] = 'true'
+    $start.Environment['Authentication__Local__Enabled'] = 'true'
     $start.Environment['Authentication__Jwt__Issuer'] = 'installer-lab'
     $start.Environment['Authentication__Jwt__Audience'] = 'installer-lab'
     $start.Environment['Authentication__Jwt__SigningKey'] = $key
@@ -88,13 +108,20 @@ try {
     $probe = Join-Path $install 'retained-probe.txt'
     Set-Content -LiteralPath $probe -Value 'operator-owned'
 } finally {
-    Invoke-LabSetup $uninstaller.FullName @(('/LOG="' + $work.FullName + '\uninstall.log"'))
+    try {
+        if ($dbId -match '^[a-f0-9]{64}$') {
+            docker stop -t 10 $dbId | Out-Null
+            if ($LASTEXITCODE) { throw 'Could not stop the disposable database.' }
+        }
+    } finally {
+        Invoke-LabSetup $uninstaller.FullName @(('/LOG="' + $work.FullName + '\uninstall.log"'))
+    }
 }
 if (!(Test-Path -LiteralPath $probe) -or (Test-Path -LiteralPath "$release/api/Scada.Api.exe") -or
     (Test-Path ("HKCU:\{0}" -f $registration))) { throw 'Uninstall verification failed.' }
 [ordered]@{
     installerSha256 = $manifest.sha256; filesVerified = $inventory.Count; install = 'passed'; repair = 'passed'
-    mode = 'disposable per-user payload, loopback API with in-memory lab state'; windows = [Environment]::OSVersion.Version.ToString()
+    mode = 'disposable per-user payload, loopback API with disposable PostgreSQL'; dbImage = $dbImage; windows = [Environment]::OSVersion.Version.ToString()
     health = $health; apiVersion = $identity.displayVersion; apiCommit = $identity.buildCommit
     web = 'index and JavaScript bundle'; uninstall = 'passed'; unownedFileRetained = $true
 } | ConvertTo-Json | Tee-Object -FilePath "$build/smoke.json"

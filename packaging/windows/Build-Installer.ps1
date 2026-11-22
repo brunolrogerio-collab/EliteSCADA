@@ -24,12 +24,13 @@ $payload = Join-Path $work 'payload'
 $web = Join-Path $source 'web/scada-web'
 $brand = Join-Path $work 'brand'
 $api = Join-Path $payload 'api'
+$published = Join-Path $work 'publish'
 $ui = Join-Path $payload 'web'
 foreach ($dir in @($source, $brand, $api, $ui, $out)) { New-Item -ItemType Directory -Path $dir | Out-Null }
 
 # Only committed product/build inputs enter this private evaluation. Operator data and
 # ignored local build products are never release inputs.
-$inputs = @('Directory.Build.props', 'global.json', 'src', 'assets/sources', 'assets/licenses',
+$inputs = @('Directory.Build.props', 'global.json', 'src', 'assets/sources', 'assets/licenses', 'assets/catalog/taxonomy.v1.json',
     'web/scada-web/package.json', 'web/scada-web/package-lock.json', 'web/scada-web/tsconfig.json',
     'web/scada-web/vite.config.ts', 'web/scada-web/index.html', 'web/scada-web/scripts/sync-pyodide.mjs',
     'web/scada-web/src', 'web/scada-web/public', 'website/scadivo/site/scadivo-mark.svg')
@@ -63,7 +64,7 @@ if ($finding = $inspected | Select-String -Pattern '-----BEGIN (?:[A-Z ]+ )?PRIV
 Push-Location $source
 try {
     $sdk = dotnet --version
-    dotnet publish src/Scada.Api/Scada.Api.csproj -c Release -r win-x64 --self-contained true -o $api -p:DebugType=None -p:DebugSymbols=false "-p:SourceRevisionId=$ProductCommit"
+    dotnet publish src/Scada.Api/Scada.Api.csproj -c Release -r win-x64 --self-contained true -o $published -p:DebugType=None -p:DebugSymbols=false "-p:SourceRevisionId=$ProductCommit"
 } finally { Pop-Location }
 Push-Location $web
 try {
@@ -74,17 +75,56 @@ try {
     node "$PSScriptRoot/render-brand.mjs" $web $brand
 } finally { Pop-Location }
 
+# Publish may include content brought in transitively by project references.
+# Select the native payload rather than shipping that tree wholesale.
+Get-ChildItem -LiteralPath $published -File | Where-Object {
+    $_.Extension -in '.dll','.exe' -or $_.Name -in 'Scada.Api.deps.json','Scada.Api.runtimeconfig.json',
+        'Scada.Api.staticwebassets.endpoints.json','Scada.DriverHost.deps.json','Scada.DriverHost.runtimeconfig.json','ServerScriptRunner.py'
+} | Copy-Item -Destination $api
+$sidecars = New-Item -ItemType Directory -Path "$api/sidecars"
+foreach ($driver in 'knx-ip','zigbee-native','zwave-js') {
+    Copy-Item -LiteralPath "$published/sidecars/$driver" -Recurse -Destination $sidecars
+}
 # Only the Vite runtime bundle, operator resources and the browser Python runtime.
 foreach ($entry in 'assets','help','installation','index.html','scadivo-mark.svg') {
     Copy-Item -LiteralPath "$web/dist/$entry" -Destination $ui -Recurse
 }
 $pythonWeb = Join-Path $ui 'pyodide'
 New-Item -ItemType Directory -Path $pythonWeb | Out-Null
-foreach ($entry in 'pyodide.mjs','pyodide.asm.js','pyodide.asm.wasm','python_stdlib.zip','pyodide-lock.json') {
+foreach ($entry in 'pyodide.mjs','pyodide.asm.mjs','pyodide.asm.wasm','python_stdlib.zip','pyodide-lock.json') {
     Copy-Item -LiteralPath "$web/dist/pyodide/$entry" -Destination $pythonWeb
 }
 $notices = New-Item -ItemType Directory -Path "$payload/notices"
-Copy-Item -LiteralPath "$web/node_modules/pyodide/LICENSE", "$source/assets/licenses/ELITESCADA-ORIGINAL-ASSET-NOTICE.md" -Destination $notices
+Copy-Item -LiteralPath "$source/assets/licenses/ELITESCADA-ORIGINAL-ASSET-NOTICE.md" -Destination $notices
+$pyVersion = (Get-Content "$web/node_modules/pyodide/package.json" -Raw | ConvertFrom-Json).version
+Copy-Item -LiteralPath "$PSScriptRoot/notices/pyodide-$pyVersion/LICENSE" -Destination "$notices/pyodide-LICENSE.txt"
+$lock = Get-Content "$web/package-lock.json" -Raw | ConvertFrom-Json -AsHashtable
+foreach ($entry in $lock.packages.GetEnumerator()) {
+    if (!$entry.Key -or $entry.Value.dev) { continue }
+    $dir = Join-Path $web $entry.Key
+    if (!(Test-Path -LiteralPath $dir -PathType Container)) { continue }
+    $texts = Get-ChildItem -LiteralPath $dir -File | Where-Object Name -Match '^(licen[sc]e|notice|copying|ofl)(\.|$)'
+    if ($texts) {
+        $target = New-Item -ItemType Directory -Path "$notices/npm/$($entry.Key.Replace('node_modules/',''))" -Force
+        $texts | Copy-Item -Destination $target
+    }
+}
+$assets = Get-Content "$source/src/Scada.Api/obj/project.assets.json" -Raw | ConvertFrom-Json -AsHashtable
+$deps = Get-Content "$api/Scada.Api.deps.json" -Raw | ConvertFrom-Json -AsHashtable
+foreach ($library in $deps.libraries.GetEnumerator()) {
+    if ($library.Value.type -notin 'package','runtimepack') { continue }
+    $id = $library.Key -replace '^runtimepack\.',''
+    foreach ($folder in $assets.packageFolders.Keys) {
+        $dir = Join-Path $folder $id
+        if (!(Test-Path -LiteralPath $dir -PathType Container)) { continue }
+        $texts = Get-ChildItem -LiteralPath $dir -File | Where-Object Name -Match '^(licen[sc]e|third-party-notices|notice|copying)(\.|$)'
+        if ($texts) {
+            $target = New-Item -ItemType Directory -Path "$notices/nuget/$id" -Force
+            $texts | Copy-Item -Destination $target
+        }
+        break
+    }
+}
 Copy-Item -LiteralPath "$brand/scadivo.ico" -Destination $payload
 foreach ($entry in 'Scada.Api.exe','Scada.Api.dll','Scada.Api.runtimeconfig.json','hostfxr.dll','coreclr.dll') {
     if (!(Test-Path -LiteralPath "$api/$entry" -PathType Leaf)) { throw "Missing win-x64 runtime file: $entry" }

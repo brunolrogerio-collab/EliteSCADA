@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
+import { admitInteractiveRuntimeSession, terminateRuntimeSession } from '../tests-e2e/runtimeSessionLease';
 
 const projectKey = 'e2e-wave11';
 const screenStartId = '16000000-0000-0000-0000-000000000001';
@@ -19,8 +20,13 @@ async function runningValue(request: APIRequestContext): Promise<boolean | null>
 }
 
 async function executeCommand(request: APIRequestContext, commandId: string) {
-  const response = await request.post(`/api/commands/${encodeURIComponent(commandId)}/execute`);
-  expect(response.ok(), `Command ${commandId} failed: HTTP ${response.status()} ${await response.text()}`).toBeTruthy();
+  const leaseHeaders = await admitInteractiveRuntimeSession(request);
+  try {
+    const response = await request.post(`/api/commands/${encodeURIComponent(commandId)}/execute`, { headers: leaseHeaders });
+    expect(response.ok(), `Command ${commandId} failed: HTTP ${response.status()} ${await response.text()}`).toBeTruthy();
+  } finally {
+    await terminateRuntimeSession(request, leaseHeaders);
+  }
 }
 
 test('C16 Screen Dynamo and Popup execute canonical Commands in the Active HMI Runtime', async ({ page, request }) => {

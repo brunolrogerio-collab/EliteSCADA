@@ -202,7 +202,14 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   );
   expect(activateBResponse.ok(), `Activate B failed: HTTP ${activateBResponse.status()} ${await activateBResponse.text()}`).toBeTruthy();
 
-  await expect(activeApplication).toHaveAttribute('data-runtime-revision', String(savedB.revision));
+  // The Runtime lease is bound to the active revision. After activation, the next
+  // 20-second heartbeat retires the old lease and admits the same logical client
+  // against the new revision, so allow one complete heartbeat/reacquisition cycle.
+  await expect(activeApplication).toHaveAttribute(
+    'data-runtime-revision',
+    String(savedB.revision),
+    { timeout: 30_000 }
+  );
   await expect(page.getByTestId('runtime-engineering-canvas').getByText('REVISION B ACTIVE', { exact: true })).toBeVisible();
 
   const activeBResponse = await request.get('/api/runtime/application');

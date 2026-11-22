@@ -222,6 +222,9 @@ export function buildEeeFoundationPackage(base: any): any {
   return {
     schema: base.schema,
     schemaVersion: base.schemaVersion,
+    // Security roles live in the canonical Authority store. Engineering test
+    // packages carry only the immutable Authority reference.
+    authorityPolicyReference: base.authorityPolicyReference ?? null,
     exportedAt: '2026-09-04T00:00:00.000Z',
     tags, alarms, dataSources: [source], templates: [], equipment: [], dynamos: [], screens: [], popups: [], securityRoles: [],
     commands, gateways: [], scripts: [script], scriptVisualEventReferences: [], visualAssets: [], reports: [], operationalEvents, startupScreenId: null

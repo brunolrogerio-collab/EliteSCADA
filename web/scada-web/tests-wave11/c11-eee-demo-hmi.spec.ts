@@ -2,6 +2,7 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 import { runtimeDynamoElementIdentity } from '../src/runtime/visual-navigation/runtimeVisualNavigationModel';
 import { EEE_IDS, EEE_PATHS } from './c11-eee-demo-foundation-canonical';
 import { buildEeeDemoPackage, EEE_HMI } from './c11-eee-demo-hmi';
+import { admitInteractiveRuntimeSession, terminateRuntimeSession } from '../tests-e2e/runtimeSessionLease';
 
 const projectKey = 'e2e-wave11';
 const TAG_QUALITY = { Good: 0, Unavailable: 8 } as const;
@@ -105,14 +106,17 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expect.poll(async () => Number(await fill.getAttribute('data-fill-percent')), { timeout: 10_000 })
       .toBeGreaterThan(initialFill);
 
-    const pumpDynamos = page.locator(`[data-dynamo-key="${EEE_HMI.dynamoKey}"]`);
+    // The engineering library mounts separate Dynamo previews on the same page.
+    // Count only the two instances rendered by the Active Runtime canvas.
+    const runtimeCanvas = page.getByTestId('runtime-engineering-canvas');
+    const pumpDynamos = runtimeCanvas.locator(`.visual-editor-dynamo[data-dynamo-key="${EEE_HMI.dynamoKey}"]`);
     await expect(pumpDynamos).toHaveCount(2);
     const p01 = page.locator(`[data-object-id="${EEE_HMI.elements.p01}"]`);
     const p02 = page.locator(`[data-object-id="${EEE_HMI.elements.p02}"]`);
-    const p01StoppedPlate = p01.locator(`[data-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p01, EEE_HMI.dynamo.statePlates.stopped)}"]`);
-    const p01RunningPlate = p01.locator(`[data-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p01, EEE_HMI.dynamo.statePlates.running)}"]`);
-    const p01FaultPlate = p01.locator(`[data-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p01, EEE_HMI.dynamo.statePlates.fault)}"]`);
-    const p02RunningPlate = p02.locator(`[data-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p02, EEE_HMI.dynamo.statePlates.running)}"]`);
+    const p01StoppedPlate = p01.locator(`[data-runtime-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p01, EEE_HMI.dynamo.statePlates.stopped)}"]`);
+    const p01RunningPlate = p01.locator(`[data-runtime-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p01, EEE_HMI.dynamo.statePlates.running)}"]`);
+    const p01FaultPlate = p01.locator(`[data-runtime-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p01, EEE_HMI.dynamo.statePlates.fault)}"]`);
+    const p02RunningPlate = p02.locator(`[data-runtime-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p02, EEE_HMI.dynamo.statePlates.running)}"]`);
     // Active Runtime expands persisted Dynamo instances into transient group
     // roots. Their stable instance identity is therefore the canonical runtime
     // object identity, while data-dynamo-instance-id belongs to the direct
@@ -319,6 +323,11 @@ async function readCurrent(request: APIRequestContext, path: string): Promise<{ 
 }
 
 async function executeCommand(request: APIRequestContext, commandId: string) {
-  const response = await request.post(`/api/commands/${commandId}/execute`);
-  expect(response.ok(), `Command ${commandId} failed: HTTP ${response.status()} ${await response.text()}`).toBeTruthy();
+  const leaseHeaders = await admitInteractiveRuntimeSession(request);
+  try {
+    const response = await request.post(`/api/commands/${commandId}/execute`, { headers: leaseHeaders });
+    expect(response.ok(), `Command ${commandId} failed: HTTP ${response.status()} ${await response.text()}`).toBeTruthy();
+  } finally {
+    await terminateRuntimeSession(request, leaseHeaders);
+  }
 }

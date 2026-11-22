@@ -124,7 +124,11 @@ export default defineConfig({
         EngineeringRuntime__ProjectKey: 'e2e-wave11',
         Historian__Provider: 'timescaledb',
         HistoricalQuery__Enabled: 'true',
-        HistoricalQuery__CursorKeyBase64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+        HistoricalQuery__CursorKeyBase64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+        // CI/local SQL startup is slower than the production default 250 ms
+        // Server Script budget; keep the fixture deterministic with the same
+        // bounded 2 s budget used by the runtime integration tests.
+        ServerScripts__HandlerTimeoutMs: '2000'
       }
     },
     {

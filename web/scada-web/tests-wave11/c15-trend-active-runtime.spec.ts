@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { admitInteractiveRuntimeSession, terminateRuntimeSession } from '../tests-e2e/runtimeSessionLease';
 
 const projectKey = 'e2e-wave11';
 const runtimeSourceKey = 'memory.server.wave11.c15';
@@ -99,7 +100,7 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts li
       visible: true,
       opacity: 1,
       trendMode: 'history',
-      trendWindowSeconds: 3600,
+      trendWindowSeconds: 60,
       trendRefreshSeconds: 30,
       trendLegendVisible: true,
       trendGridVisible: true,
@@ -181,7 +182,8 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts li
     width: 420,
     height: 180,
     zIndex: 152,
-    trendMode: 'history'
+    trendMode: 'history',
+    trendWindowSeconds: 60
   });
   expect(activeHistoryTrend?.properties?.pens).toEqual(historyPens);
 
@@ -206,31 +208,41 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts li
   expect(activeFrequency!.id).toBe(frequencyTag.id);
   expect(activeFrequency!.readOnly).toBeFalsy();
 
-  const historicalValue = 47.125;
-  const writeResponse = await request.post(`/api/tags/${activeFrequency!.id}/write`, {
-    data: { value: historicalValue }
-  });
-  expect(writeResponse.status(), `C15 historian seed write failed: HTTP ${writeResponse.status()} ${await writeResponse.text()}`).toBe(202);
+  const historicalValues = [47.125, 48.25, 49.5];
+  const leaseHeaders = await admitInteractiveRuntimeSession(request);
+  try {
+    for (const [index, value] of historicalValues.entries()) {
+      const writeResponse = await request.post(`/api/tags/${activeFrequency!.id}/write`, {
+        data: { value },
+        headers: leaseHeaders
+      });
+      expect(writeResponse.status(), `C15 historian seed write failed: HTTP ${writeResponse.status()} ${await writeResponse.text()}`).toBe(202);
+      if (index < historicalValues.length - 1) await new Promise(resolve => setTimeout(resolve, 1_000));
+    }
 
-  await expect.poll(async () => {
-    const historyResponse = await request.post('/api/historical/query', {
-      data: {
-        version: 1,
-        datasetKey: 'historian.samples',
-        timeRange: { kind: 'relative', durationSeconds: 3600, anchor: 'now' },
-        filters: [{
-          field: 'tag.id',
-          operator: 'in',
-          values: [{ kind: 'guid', value: activeFrequency!.id }]
-        }],
-        orderBy: [{ field: 'timestamp', direction: 'ascending' }],
-        page: { limit: 100 }
-      }
-    });
-    if (!historyResponse.ok()) return false;
-    const payload = await historyResponse.json() as any;
-    return (payload.rows ?? []).some((row: any) => Number(row.cells?.value?.value) === historicalValue);
-  }, { timeout: 15_000 }).toBe(true);
+    await expect.poll(async () => {
+      const historyResponse = await request.post('/api/historical/query', {
+        data: {
+          version: 1,
+          datasetKey: 'historian.samples',
+          timeRange: { kind: 'relative', durationSeconds: 3600, anchor: 'now' },
+          filters: [{
+            field: 'tag.id',
+            operator: 'in',
+            values: [{ kind: 'guid', value: activeFrequency!.id }]
+          }],
+          orderBy: [{ field: 'timestamp', direction: 'ascending' }],
+          page: { limit: 100 }
+        }
+      });
+      if (!historyResponse.ok()) return false;
+      const payload = await historyResponse.json() as any;
+      const values = (payload.rows ?? []).map((row: any) => Number(row.cells?.value?.value));
+      return historicalValues.every(value => values.includes(value));
+    }, { timeout: 15_000 }).toBe(true);
+  } finally {
+    await terminateRuntimeSession(request, leaseHeaders);
+  }
 
   await page.goto('/');
   const activeApplication = page.getByTestId('runtime-engineering-application');
@@ -248,7 +260,8 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts li
 
   const mountedHistoryTrend = page.locator(`[data-testid="visual-trend"][data-object-id="${historyTrendId}"]`);
   await expect(mountedHistoryTrend).toBeVisible();
-  await expect(mountedHistoryTrend).toHaveAttribute('data-trend-mode', 'history');
+  // Authored history trends mount as a relative Historian query at Runtime.
+  await expect(mountedHistoryTrend).toHaveAttribute('data-trend-mode', 'relative');
   await expect(mountedHistoryTrend).toHaveAttribute('data-trend-source', 'historian');
   await expect(mountedHistoryTrend).toHaveAttribute('data-trend-state', 'ready');
   await expect(mountedHistoryTrend).toHaveAttribute('data-trend-pen-count', '1');
@@ -256,7 +269,9 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts li
   await expect(mountedHistoryTrend.getByTestId('visual-trend-series')).toHaveCount(1);
   await expect(mountedHistoryTrend.getByTestId('visual-trend-empty')).toHaveCount(0);
 
-  const historicalRoute = '**/api/historical/query';
+  // Runtime trend visuals use the dedicated data-query endpoint, not the
+  // general Historical Browser query route.
+  const historicalRoute = '**/api/historical/data-query';
   await page.route(historicalRoute, async route => {
     await route.fulfill({
       status: 404,
@@ -269,7 +284,7 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts li
   const failedHistoryTrend = page.locator(`[data-testid="visual-trend"][data-object-id="${historyTrendId}"]`);
   await expect(failedHistoryTrend).toBeVisible();
   await expect(failedHistoryTrend).toHaveAttribute('data-trend-state', 'error');
-  await expect(failedHistoryTrend).toHaveAttribute('title', /Historical query failed with HTTP 404/i);
+  await expect(failedHistoryTrend).toHaveAttribute('title', /Trend historian query failed with HTTP 404/i);
   await expect(failedHistoryTrend.getByTestId('visual-trend-empty')).toHaveText('History unavailable');
   await expect(failedHistoryTrend.getByTestId('visual-trend-empty')).not.toContainText('404');
   await expect(failedHistoryTrend.getByTestId('visual-trend-empty')).not.toHaveText('No data');
@@ -287,7 +302,7 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts li
         fromUtc: '2026-09-07T00:00:00.000Z',
         toUtc: '2026-09-07T01:00:00.000Z',
         nextCursor: null,
-        pageSize: 0
+        resultLimit: 0
       })
     });
   });

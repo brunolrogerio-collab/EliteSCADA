@@ -66,7 +66,7 @@ if ($finding = $inspected | Select-String -Pattern '-----BEGIN (?:[A-Z ]+ )?PRIV
 Push-Location $source
 try {
     $sdk = dotnet --version
-    dotnet publish src/Scada.Api/Scada.Api.csproj -c Release -r win-x64 --self-contained true -o $published -p:DebugType=None -p:DebugSymbols=false "-p:SourceRevisionId=$ProductCommit"
+    dotnet publish src/Scada.Api/Scada.Api.csproj -c Release -r win-x64 --self-contained true -o $published -p:DebugType=None -p:DebugSymbols=false "-p:PathMap=$source=/_/scadivo" "-p:SourceRevisionId=$ProductCommit"
 } finally { Pop-Location }
 Push-Location $web
 try {

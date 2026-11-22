@@ -45,4 +45,4 @@ Copy-Item "$PSScriptRoot/Primeiros passos.html" -Destination $Payload
 Copy-Item "$DependencyDirectory/vc_redist.x64.exe" -Destination $hostDir
 Copy-Item "$PSScriptRoot/dependencies.json" -Destination $thirdParty
 $csc = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
-& $csc /nologo /target:winexe /platform:x64 /r:System.ServiceProcess.dll /codepage:65001 /optimize+ /warnaserror "/win32icon:$BrandDirectory/scadivo.ico" "/out:$Payload/ScadivoTray.exe" "$PSScriptRoot/ScadivoTray.cs"
+& $csc /nologo /target:winexe /platform:x64 /r:System.ServiceProcess.dll /codepage:65001 /optimize+ /warnaserror "/win32icon:$(Join-Path $BrandDirectory 'scadivo.ico')" "/out:$(Join-Path $Payload 'ScadivoTray.exe')" (Join-Path $PSScriptRoot 'ScadivoTray.cs')

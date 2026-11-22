@@ -86,7 +86,7 @@ function New-HexSecret { return [BitConverter]::ToString((New-SecretBytes)).Repl
 function Save-Json([string]$path, $object) {
     $staging = "$path.new"
     [IO.File]::WriteAllText($staging, ($object | ConvertTo-Json -Depth 9))
-    if ([IO.File]::Exists($path)) { [IO.File]::Replace($staging,$path,$null) }
+    if ([IO.File]::Exists($path)) { [IO.File]::Replace($staging,$path,[NullString]::Value) }
     else { [IO.File]::Move($staging,$path) }
 }
 function Set-NativeServicePath([string]$name, [string]$imagePath) {
@@ -166,10 +166,10 @@ function Write-HostConfiguration([string]$versionRoot, $instance) {
   <onfailure action="none" />
 </service>
 "@
-    $xml.service.executable = Join-Path $versionRoot 'api\Scada.Api.exe'
-    $xml.service.arguments = '--contentRoot "' + $apiConfig + '" --environment Production'
-    $xml.service.workingdirectory = $apiConfig
-    $xml.service.logpath = $logs
+    $xml.SelectSingleNode('/service/executable').InnerText = [string](Join-Path $versionRoot 'api\Scada.Api.exe')
+    $xml.SelectSingleNode('/service/arguments').InnerText = '--contentRoot "' + $apiConfig + '" --environment Production'
+    $xml.SelectSingleNode('/service/workingdirectory').InnerText = $apiConfig
+    $xml.SelectSingleNode('/service/logpath').InnerText = $logs
     $xml.Save($xmlPath)
 }
 
@@ -225,11 +225,29 @@ try {
         if (Get-ChildItem -LiteralPath $pgData -Force | Select-Object -First 1) {
             throw 'The PostgreSQL data directory contains an incomplete initialization.'
         }
-        $passwordFile = Join-Path $apiConfig 'initdb.pw'
+        # initdb uses a restricted Windows token. Grant its caller access only
+        # to the staging directory, then apply the service ACL to the data.
+        $scratch = Join-Path $root ('init-' + [Guid]::NewGuid().ToString('N'))
+        New-PrivateDirectory $scratch
+        $setupSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+        $scratchAcl = Get-Acl -LiteralPath $scratch
+        $setupRule = New-Object Security.AccessControl.FileSystemAccessRule(
+            $setupSid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
+        $scratchAcl.AddAccessRule($setupRule)
+        Set-Acl -LiteralPath $scratch -AclObject $scratchAcl
+        $passwordFile = Join-Path $scratch 'password.txt'
+        $freshData = Join-Path $scratch 'data'
         try {
             [IO.File]::WriteAllText($passwordFile,$instance.DbPassword)
-            Invoke-Checked "$pgBin\initdb.exe" @('-D',$pgData,'-U','postgres','--encoding=UTF8','--locale=C','--auth=scram-sha-256',"--pwfile=$passwordFile")
-        } finally { [IO.File]::Delete($passwordFile) }
+            Invoke-Checked "$pgBin\initdb.exe" @('-D',$freshData,'-U','postgres','--encoding=UTF8','--locale=C','--auth=scram-sha-256',"--pwfile=$passwordFile")
+            $databaseAcl = Get-Acl -LiteralPath $pgData
+            [IO.Directory]::Delete($pgData)
+            [IO.Directory]::Move($freshData,$pgData)
+            Set-Acl -LiteralPath $pgData -AclObject $databaseAcl
+        } finally {
+            [IO.File]::Delete($passwordFile)
+            if (!(Get-ChildItem -LiteralPath $scratch -Force | Select-Object -First 1)) { [IO.Directory]::Delete($scratch) }
+        }
         [IO.File]::AppendAllText("$pgData\postgresql.conf",@"
 
 listen_addresses = '127.0.0.1'

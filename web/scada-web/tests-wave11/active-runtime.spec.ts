@@ -54,7 +54,7 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   const baselineScreen = workingA.screens.find((screen: any) => screen.key === 'demo.overview');
   expect(baselineScreen).toBeTruthy();
   const baselinePressure = baselineScreen.elements.find((element: any) => element.key === 'pressure');
-  expect(baselinePressure?.properties?.label).toBe('PressÃ£o');
+  expect(baselinePressure?.properties?.label).toBe('Pressão');
   expect(workingA.visualAssets.some((asset: any) => asset.id === importedAsset.asset.id)).toBeTruthy();
 
   baselineScreen.elements.push({
@@ -123,7 +123,7 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   await expect(page.getByTestId('runtime-simulation-fallback')).toHaveCount(0);
   await expect(page.getByTestId('runtime-visual-navigator')).toHaveAttribute('data-active-screen-key', 'demo.overview');
   const activeCanvas = page.getByTestId('runtime-engineering-canvas');
-  await expect(activeCanvas.getByText('PressÃ£o', { exact: true })).toBeVisible();
+  await expect(activeCanvas.getByText('Pressão', { exact: true })).toBeVisible();
 
   const activeAssetImage = activeCanvas.locator('img[alt="active-asset"]');
   await expect(activeAssetImage).toBeVisible();
@@ -154,7 +154,7 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   expect(activeA.revision).toBe(savedA.revision);
   expect(activeA.package.visualAssets.some((asset: any) => asset.id === importedAsset.asset.id)).toBeTruthy();
   expect(activeA.package.screens.find((screen: any) => screen.key === 'demo.overview')
-    .elements.find((element: any) => element.key === 'pressure').properties.label).toBe('PressÃ£o');
+    .elements.find((element: any) => element.key === 'pressure').properties.label).toBe('Pressão');
 
   const workingB = structuredClone(workingA);
   const screenB = workingB.screens.find((screen: any) => screen.key === 'demo.overview');
@@ -169,7 +169,7 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   await page.waitForTimeout(3500);
   await expect(activeApplication).toHaveAttribute('data-runtime-revision', String(savedA.revision));
   await expect(activeCanvas.getByText('REVISION B ACTIVE', { exact: true })).toHaveCount(0);
-  await expect(activeCanvas.getByText('PressÃ£o', { exact: true })).toBeVisible();
+  await expect(activeCanvas.getByText('Pressão', { exact: true })).toBeVisible();
   await expect(activeAssetImage).toHaveAttribute(
     'src',
     new RegExp(`/api/runtime/visual-assets/${importedAsset.asset.id}/content$`, 'i')
@@ -180,7 +180,7 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   const projectionDuringWorking = await projectionDuringWorkingResponse.json() as any;
   expect(projectionDuringWorking.revision).toBe(savedA.revision);
   expect(projectionDuringWorking.package.screens.find((screen: any) => screen.key === 'demo.overview')
-    .elements.find((element: any) => element.key === 'pressure').properties.label).toBe('PressÃ£o');
+    .elements.find((element: any) => element.key === 'pressure').properties.label).toBe('Pressão');
 
   const saveBResponse = await request.post(`/api/engineering/persistence/${projectKey}/save`, {
     data: { projectName: 'Wave 11 E2E' }

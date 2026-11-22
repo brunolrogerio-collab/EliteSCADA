@@ -4,7 +4,9 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.ServiceProcess;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -12,6 +14,12 @@ using Microsoft.Win32;
 internal static class ScadivoTray
 {
     private const string ServiceName = "ScadivoRuntime";
+    private const uint AssociationIsProtocol = 0x1000;
+    private const uint AssociationExecutable = 2;
+
+    [DllImport("shlwapi.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+    private static extern int AssocQueryStringW(uint flags, uint associationString, string association,
+        string extra, StringBuilder output, ref uint outputLength);
 
     [STAThread]
     private static void Main(string[] arguments)
@@ -72,34 +80,31 @@ internal static class ScadivoTray
         }
     }
 
+    private static string ResolveHttpBrowser()
+    {
+        var path = new StringBuilder(2048);
+        var length = (uint)path.Capacity;
+        return AssocQueryStringW(AssociationIsProtocol, AssociationExecutable, "http", "open",
+            path, ref length) == 0 && File.Exists(path.ToString()) ? path.ToString() : null;
+    }
+
     private static void Open(string target)
     {
+        var browser = ResolveHttpBrowser();
         try
         {
-            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
-            return;
+            var start = browser == null
+                ? new ProcessStartInfo(target) { UseShellExecute = true }
+                : new ProcessStartInfo(browser, target) { UseShellExecute = false };
+            using (Process.Start(start))
+            {
+            }
         }
         catch (Win32Exception)
         {
-            // The Windows URL handler can be missing or point to an invalid registration.
+            MessageBox.Show("Abra um navegador e acesse " + target, "SCADIVO",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
-
-        var edge = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-            @"Microsoft\Edge\Application\msedge.exe");
-        if (File.Exists(edge))
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo(edge, target) { UseShellExecute = false });
-                return;
-            }
-            catch (Win32Exception)
-            {
-            }
-        }
-
-        MessageBox.Show("Abra um navegador e acesse " + target, "SCADIVO",
-            MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private static void AddAction(ContextMenuStrip menu, string title, string action)

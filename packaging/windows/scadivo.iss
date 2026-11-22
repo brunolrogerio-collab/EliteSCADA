@@ -51,6 +51,9 @@ spanish.PortsHelp=Mantenga los valores predeterminados o cambie los puertos que 
 brazilianportuguese.InvalidPorts=Informe três portas diferentes entre 1024 e 65535.
 english.InvalidPorts=Enter three different ports between 1024 and 65535.
 spanish.InvalidPorts=Introduzca tres puertos distintos entre 1024 y 65535.
+brazilianportuguese.PortUnavailable=A porta %1 de %2 está indisponível neste computador. Escolha outra porta de %2 e avance novamente.
+english.PortUnavailable=Port %1 for %2 is unavailable on this computer. Choose a different %2 port and continue.
+spanish.PortUnavailable=El puerto %1 de %2 no está disponible en este equipo. Elija otro puerto de %2 y continúe.
 brazilianportuguese.PrepareFailed=O instalador não conseguiu preparar os serviços. Confira as portas e o log em ProgramData\SCADIVO Windows\logs\installer.log.
 english.PrepareFailed=Setup could not prepare the services. Check ports and ProgramData\SCADIVO Windows\logs\installer.log.
 spanish.PrepareFailed=El instalador no pudo preparar los servicios. Revise los puertos y ProgramData\SCADIVO Windows\logs\installer.log.
@@ -89,6 +92,8 @@ Filename: "{app}\releases\{#ProductVersion}\ScadivoTray.exe"; Parameters: "--ope
 var
   PortsPage: TInputQueryWizardPage;
   Existing: Boolean;
+  HostScriptExtracted: Boolean;
+  HostExitCode: Integer;
 
 function ReleaseDir(): String;
 begin
@@ -96,15 +101,33 @@ begin
 end;
 
 function HostAction(Script, Action, Values: String): Boolean;
-var
-  ExitCode: Integer;
 begin
-  ExitCode := -1;
+  HostExitCode := -1;
   Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
     '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File "' + Script +
     '" -Action ' + Action + ' -Release "' + ReleaseDir() + '"' + Values,
-    '', SW_HIDE, ewWaitUntilTerminated, ExitCode) and (ExitCode = 0);
-  Log(Format('SCADIVO %s returned %d', [Action, ExitCode]));
+    '', SW_HIDE, ewWaitUntilTerminated, HostExitCode) and (HostExitCode = 0);
+  Log(Format('SCADIVO %s returned %d', [Action, HostExitCode]));
+end;
+
+function PrepareScript(): String;
+begin
+  if not HostScriptExtracted then begin
+    ExtractTemporaryFile('Install-Host.ps1');
+    HostScriptExtracted := True;
+  end;
+  Result := ExpandConstant('{tmp}\Install-Host.ps1');
+end;
+
+function HostFailure(DefaultMessage: String): String;
+begin
+  case HostExitCode of
+    21: Result := FmtMessage(CustomMessage('PortUnavailable'), [PortsPage.Values[0], 'Web']);
+    22: Result := FmtMessage(CustomMessage('PortUnavailable'), [PortsPage.Values[1], 'API']);
+    23: Result := FmtMessage(CustomMessage('PortUnavailable'), [PortsPage.Values[2], 'PostgreSQL']);
+  else
+    Result := CustomMessage(DefaultMessage);
+  end;
 end;
 
 procedure InitializeWizard();
@@ -144,8 +167,21 @@ end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
-  Result := (CurPageID <> PortsPage.ID) or ValidPorts();
-  if not Result then MsgBox(CustomMessage('InvalidPorts'), mbError, MB_OK);
+  Result := True;
+  if CurPageID <> PortsPage.ID then Exit;
+  Result := ValidPorts();
+  if not Result then begin
+    SuppressibleMsgBox(CustomMessage('InvalidPorts'), mbError, MB_OK, IDOK);
+    Exit;
+  end;
+  if Existing or WizardSilent then Exit;
+  Result := HostAction(PrepareScript(), 'CheckPorts', PortArguments());
+  if not Result then begin
+    SuppressibleMsgBox(HostFailure('PrepareFailed'), mbError, MB_OK, IDOK);
+    case HostExitCode of
+      21..23: PortsPage.Edits[HostExitCode - 21].SetFocus();
+    end;
+  end;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
@@ -153,17 +189,14 @@ begin
   Result := '';
   if not ValidPorts() then
     Result := CustomMessage('InvalidPorts')
-  else begin
-    ExtractTemporaryFile('Install-Host.ps1');
-    if not HostAction(ExpandConstant('{tmp}\Install-Host.ps1'), 'Prepare', PortArguments()) then
-      Result := CustomMessage('PrepareFailed');
-  end;
+  else if not HostAction(PrepareScript(), 'Prepare', PortArguments()) then
+    Result := HostFailure('PrepareFailed');
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if (CurStep = ssPostInstall) and (not HostAction(ReleaseDir() + '\host\Install-Host.ps1', 'Install', PortArguments())) then
-    RaiseException(CustomMessage('InstallFailed'));
+    RaiseException(HostFailure('InstallFailed'));
 end;
 
 function InitializeUninstall(): Boolean;

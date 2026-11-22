@@ -1,7 +1,7 @@
 #requires -Version 5.1
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][ValidateSet('Prepare','Install','Remove')][string]$Action,
+    [Parameter(Mandatory)][ValidateSet('CheckPorts','Prepare','Install','Remove')][string]$Action,
     [Parameter(Mandatory)][string]$Release,
     [ValidateRange(1024,65535)][int]$WebPort = 18080,
     [ValidateRange(1024,65535)][int]$ApiPort = 15120,
@@ -96,10 +96,15 @@ function Set-NativeServicePath([string]$name, [string]$imagePath) {
 }
 function Assert-Ports([int[]]$ports) {
     if (@($ports | Select-Object -Unique).Count -ne $ports.Count) { throw 'Choose three different ports.' }
-    foreach ($port in $ports) {
+    for ($index = 0; $index -lt $ports.Count; $index++) {
+        $port = $ports[$index]
         $listener = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback,$port)
         $listener.ExclusiveAddressUse = $true
-        try { $listener.Start() } catch { throw "127.0.0.1:$port is in use. Choose another port." }
+        try { $listener.Start() } catch {
+            $failure = [InvalidOperationException]::new("127.0.0.1:$port is unavailable. Choose another port.", $_.Exception)
+            $failure.Data['SetupExitCode'] = 21 + $index
+            throw $failure
+        }
         finally { $listener.Stop() }
     }
 }
@@ -174,6 +179,10 @@ function Write-HostConfiguration([string]$versionRoot, $instance) {
 }
 
 try {
+    if ($Action -eq 'CheckPorts') {
+        Assert-Ports @($WebPort,$ApiPort,$DbPort)
+        exit 0
+    }
     Confirm-ServiceOwnership $apiService 'host\ScadivoService.exe'
     Confirm-ServiceOwnership $dbService 'postgres\bin\pg_ctl.exe'
     if ($Action -eq 'Remove') {
@@ -300,7 +309,10 @@ log_directory = 'log'
     exit 0
 } catch {
     $summary = $_.Exception.Message
-    if ([IO.Directory]::Exists($logs)) { Add-Content -LiteralPath "$logs\installer.log" -Value "$(Get-Date -Format s) $Action $summary" }
+    if ($Action -ne 'CheckPorts' -and [IO.Directory]::Exists($logs)) {
+        Add-Content -LiteralPath "$logs\installer.log" -Value "$(Get-Date -Format s) $Action $summary"
+    }
     Write-Error $summary -ErrorAction Continue
+    if ($_.Exception.Data.Contains('SetupExitCode')) { exit ([int]$_.Exception.Data['SetupExitCode']) }
     exit 1
 }

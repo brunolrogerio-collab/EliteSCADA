@@ -109,7 +109,7 @@ if ([IO.Path]::GetDirectoryName($resolvedRoot) -ne $programData -or
     [IO.Path]::GetFileName($resolvedRoot) -ne 'SCADIVO Windows') { throw 'Unexpected QA data root.' }
 $retainedTestData = Join-Path $programData ('SCADIVO Windows QA ' + [Guid]::NewGuid().ToString('N'))
 Move-Item -LiteralPath $resolvedRoot -Destination $retainedTestData
-Remove-Item -LiteralPath $registry
+if (Test-Path -LiteralPath $registry) { Remove-Item -LiteralPath $registry }
 [ordered]@{
     installerSha256=$manifest.sha256; product=$identity.displayVersion; productCommit=$identity.buildCommit
     windows=[Environment]::OSVersion.Version.ToString(); payloadFiles=$manifest.files

@@ -19,7 +19,13 @@ main{max-width:48rem;margin:auto}h1,a{color:#21d0c3}code{overflow-wrap:anywhere}
 <h2>Monitor e diagnóstico</h2>
 <p>O ícone SCADIVO na bandeja mostra se o serviço responde. O menu abre Licenciamento e permite iniciar, parar ou reiniciar o serviço com autorização do Windows.</p>
 <p>As portas padrão são Web 18080, API 15120 e PostgreSQL 15432. Na primeira instalação, o assistente permite escolher outras portas. Os serviços escutam somente no próprio computador.</p>
-<p>Se a instalação falhar, confira <code>%ProgramData%\SCADIVO Windows\logs</code>. A desinstalação preserva os dados em <code>%ProgramData%\SCADIVO Windows</code>. Guarde um backup antes de atualizar.</p>
+<p>Se a instalação falhar, confira <code>%ProgramData%\SCADIVO Windows\logs</code>.</p>
+<h2>Desinstalar</h2>
+<p>Em Aplicativos Instalados do Windows, escolha SCADIVO e selecione <strong>Desinstalar</strong>.</p>
+<ul>
+<li><strong>Desinstalar e manter os dados</strong> deixa o banco, os usuários, a configuração e a licença em <code>%ProgramData%\SCADIVO Windows</code>.</li>
+<li><strong>Desinstalar e apagar os dados locais</strong> apaga essa pasta após confirmação. Guarde um backup se quiser recuperar os dados mais tarde. A próxima instalação inicia um banco novo.</li>
+</ul>
 <p><a href="https://scadivo.com/">scadivo.com</a></p>
 </main>
 </html>

@@ -5,7 +5,8 @@ param(
     [Parameter(Mandatory)][string]$Release,
     [ValidateRange(1024,65535)][int]$WebPort = 18080,
     [ValidateRange(1024,65535)][int]$ApiPort = 15120,
-    [ValidateRange(1024,65535)][int]$DbPort = 15432
+    [ValidateRange(1024,65535)][int]$DbPort = 15432,
+    [switch]$PurgeData
 )
 
 $ErrorActionPreference = 'Stop'
@@ -72,6 +73,39 @@ function Confirm-ServiceOwnership([string]$name, [string]$suffix) {
         $pattern = '^"?' + [regex]::Escape($programRoot) + '\\\d+\.\d+\.\d+\.\d+\\' + [regex]::Escape($suffix) + '(?:"|\s|$)'
         if (!$entry.PathName -or $entry.PathName -notmatch $pattern) { throw "Service name already in use: $name." }
     }
+}
+
+function Resolve-LocalDataForRemoval([string]$applicationData) {
+    $parent = (Resolve-Path -LiteralPath $applicationData).Path
+    $candidate = Join-Path $parent 'SCADIVO Windows'
+    if (!(Test-Path -LiteralPath $candidate)) { return }
+    $folder = Get-Item -LiteralPath $candidate -Force
+    if (!$folder.PSIsContainer -or [IO.Path]::GetDirectoryName($folder.FullName) -ne $parent -or
+        [IO.Path]::GetFileName($folder.FullName) -ne 'SCADIVO Windows') {
+        throw 'Unexpected SCADIVO data directory.'
+    }
+    $pending = New-Object 'Collections.Generic.Stack[IO.DirectoryInfo]'
+    $pending.Push($folder)
+    while ($pending.Count) {
+        $directory = $pending.Pop()
+        if ($directory.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+            throw 'Complete removal requires a SCADIVO data directory without junctions or symbolic links.'
+        }
+        foreach ($item in (Get-ChildItem -LiteralPath $directory.FullName -Force)) {
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                throw 'Complete removal requires a SCADIVO data directory without junctions or symbolic links.'
+            }
+            if ($item.PSIsContainer) { $pending.Push($item) }
+        }
+    }
+    return $folder.FullName
+}
+
+function Stop-InstalledMonitor {
+    $pattern = '^' + [regex]::Escape($programRoot) + '\\\d+\.\d+\.\d+\.\d+\\ScadivoTray\.exe$'
+    Get-Process -Name ScadivoTray -ErrorAction SilentlyContinue | Where-Object {
+        $_.Path -match $pattern
+    } | Stop-Process -ErrorAction Stop
 }
 
 function New-SecretBytes {
@@ -179,6 +213,7 @@ function Write-HostConfiguration([string]$versionRoot, $instance) {
 }
 
 try {
+    if ($PurgeData -and $Action -ne 'Remove') { throw 'Data removal requires uninstall mode.' }
     if ($Action -eq 'CheckPorts') {
         Assert-Ports @($WebPort,$ApiPort,$DbPort)
         exit 0
@@ -186,13 +221,23 @@ try {
     Confirm-ServiceOwnership $apiService 'host\ScadivoService.exe'
     Confirm-ServiceOwnership $dbService 'postgres\bin\pg_ctl.exe'
     if ($Action -eq 'Remove') {
+        if ($PurgeData) {
+            $null = Resolve-LocalDataForRemoval ([Environment]::GetFolderPath('CommonApplicationData'))
+        }
         Stop-ManagedService $apiService
         Stop-ManagedService $dbService
+        Stop-InstalledMonitor
         foreach ($name in $apiService,$dbService) {
             if (Get-Service $name -ErrorAction SilentlyContinue) { Invoke-Checked "$env:WINDIR\System32\sc.exe" @('delete',$name) }
         }
         $xmlPath = Join-Path $Release 'host\ScadivoService.xml'
         if ([IO.File]::Exists($xmlPath)) { [IO.File]::Delete($xmlPath) }
+        $registryPath = 'HKLM:\SOFTWARE\SCADIVO\Windows'
+        if (Test-Path -LiteralPath $registryPath) { Remove-Item -LiteralPath $registryPath }
+        if ($PurgeData) {
+            $dataPath = Resolve-LocalDataForRemoval ([Environment]::GetFolderPath('CommonApplicationData'))
+            if ($dataPath) { Remove-Item -LiteralPath $dataPath -Recurse -Force }
+        }
         exit 0
     }
     New-PrivateDirectory $root

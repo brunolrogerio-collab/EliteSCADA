@@ -69,6 +69,27 @@ spanish.Guide=Primeros pasos
 brazilianportuguese.Monitor=Monitor do SCADIVO
 english.Monitor=SCADIVO Monitor
 spanish.Monitor=Monitor de SCADIVO
+brazilianportuguese.UninstallTitle=O que deseja fazer com os dados do SCADIVO?
+english.UninstallTitle=What should happen to SCADIVO data?
+spanish.UninstallTitle=¿Qué desea hacer con los datos de SCADIVO?
+brazilianportuguese.KeepData=Desinstalar e manter os dados
+english.KeepData=Uninstall and keep data
+spanish.KeepData=Desinstalar y conservar los datos
+brazilianportuguese.KeepDataNote=Preserva projetos, histórico, usuários e licença para reinstalação.
+english.KeepDataNote=Keeps projects, history, users and license for reinstallation.
+spanish.KeepDataNote=Conserva proyectos, historial, usuarios y licencia para la reinstalación.
+brazilianportuguese.PurgeData=Desinstalar e apagar os dados locais
+english.PurgeData=Uninstall and erase local data
+spanish.PurgeData=Desinstalar y borrar los datos locales
+brazilianportuguese.PurgeDataNote=Apaga o banco local, a configuração e a licença desta instalação.
+english.PurgeDataNote=Erases this installation's local database, configuration and license.
+spanish.PurgeDataNote=Borra la base local, la configuración y la licencia de esta instalación.
+brazilianportuguese.ConfirmPurge=Apagar definitivamente os projetos, o histórico, os usuários e a licença local desta instalação?
+english.ConfirmPurge=Permanently erase the projects, history, users and local license of this installation?
+spanish.ConfirmPurge=¿Borrar definitivamente los proyectos, el historial, los usuarios y la licencia local de esta instalación?
+brazilianportuguese.RemovalFailed=Não foi possível concluir a remoção. Confira o log em ProgramData\SCADIVO Windows\logs\installer.log.
+english.RemovalFailed=Uninstall could not complete. Check ProgramData\SCADIVO Windows\logs\installer.log.
+spanish.RemovalFailed=No se pudo completar la desinstalación. Revise ProgramData\SCADIVO Windows\logs\installer.log.
 
 [Messages]
 brazilianportuguese.WelcomeLabel2=O assistente instala o SCADIVO, o banco local e o monitor de saúde. Ao concluir, abra o SCADIVO para criar o administrador.
@@ -94,6 +115,7 @@ var
   Existing: Boolean;
   HostScriptExtracted: Boolean;
   HostExitCode: Integer;
+  PurgeOnUninstall: Boolean;
 
 function ReleaseDir(): String;
 begin
@@ -131,10 +153,8 @@ begin
 end;
 
 procedure InitializeWizard();
-var
-  InstalledPort: Cardinal;
 begin
-  Existing := RegQueryDWordValue(HKLM64, 'SOFTWARE\SCADIVO\Windows', 'WebPort', InstalledPort);
+  Existing := FileExists(ExpandConstant('{commonappdata}\SCADIVO Windows\instance.json'));
   PortsPage := CreateInputQueryPage(wpWelcome, CustomMessage('Ports'), 'SCADIVO', CustomMessage('PortsHelp'));
   PortsPage.Add('Web', False);
   PortsPage.Add('API', False);
@@ -195,7 +215,28 @@ begin
 end;
 
 function InitializeUninstall(): Boolean;
+var
+  Choice: Integer;
 begin
-  Result := HostAction(ReleaseDir() + '\host\Install-Host.ps1', 'Remove', '');
-  if not Result then SuppressibleMsgBox(CustomMessage('InstallFailed'), mbError, MB_OK, IDOK);
+  Result := True;
+  PurgeOnUninstall := False;
+  if UninstallSilent then Exit;
+  if not DirExists(ExpandConstant('{commonappdata}\SCADIVO Windows')) then Exit;
+  Choice := TaskDialogMsgBox(CustomMessage('UninstallTitle'), '', mbConfirmation, MB_YESNOCANCEL, [CustomMessage('KeepData') + #13#10 + CustomMessage('KeepDataNote'), CustomMessage('PurgeData') + #13#10 + CustomMessage('PurgeDataNote')], 0);
+  Result := Choice = IDYES;
+  if Choice = IDNO then begin
+    PurgeOnUninstall := MsgBox(CustomMessage('ConfirmPurge'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
+    Result := PurgeOnUninstall;
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Options: String;
+begin
+  if CurUninstallStep <> usUninstall then Exit;
+  Options := '';
+  if PurgeOnUninstall then Options := ' -PurgeData';
+  if not HostAction(ReleaseDir() + '\host\Install-Host.ps1', 'Remove', Options) then
+    RaiseException(CustomMessage('RemovalFailed'));
 end;

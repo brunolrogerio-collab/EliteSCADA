@@ -30,7 +30,9 @@ O manifesto identifica os commits do produto e da receita, os pacotes nativos, a
 
 ## Instalar e testar
 
-O assistente usa as portas locais 18080 para a Web, 15120 para a API e 15432 para o PostgreSQL. Na primeira instalação, o usuário pode escolher outras portas. A remoção preserva os dados em `%ProgramData%\SCADIVO Windows`. O diretório de programas é `%ProgramFiles%\SCADIVO`.
+O assistente usa as portas locais 18080 para a Web, 15120 para a API e 15432 para o PostgreSQL. Na primeira instalação, o usuário pode escolher outras portas. O diretório de programas é `%ProgramFiles%\SCADIVO`.
+
+O desinstalador oferece duas opções. **Manter os dados** preserva o banco, a configuração e a licença em `%ProgramData%\SCADIVO Windows` para reinstalação. **Apagar os dados locais** remove essa pasta após confirmação e permite reinstalar do zero. A desinstalação silenciosa preserva os dados. Cópias e backups em outros diretórios ficam disponíveis para restauração.
 
 Execute o ensaio em Windows 11 x64 limpo, com PowerShell elevado. Ele usa portas de teste e cria o primeiro administrador com uma senha aleatória. Confere os arquivos instalados, o início automático registrado no Windows, a disponibilidade da API nos dois endereços, a interface Web, reinício dos serviços, reparo e remoção com retenção de dados.
 

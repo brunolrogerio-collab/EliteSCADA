@@ -39,3 +39,40 @@ O escopo acima é de planejamento e entrega da Wave 16. A direção original do 
 6. Edge SQLite. Recuperar o protótipo identificado no ensaio da #408, gerar imagem ARM64 distinta e montar o diretório do banco e WAL em armazenamento persistente. Medir o pico conjunto desde a partida, com meta de 220 MB e teto de 230 MB. Comparar amostras anteriores e posteriores, identificadores dos alarmes e contagem de ocorrências após interrupção e restauração. Ensaiar disco cheio e corte físico em equipamento dedicado. Os 215,04 MB medidos em x86-64 são referência para comparação.
 7. Em cada atualização, salvar backup consistente de banco, identidade e configuração, verificar restauração em cópia e registrar a revisão ativa. Instalar a candidata, reiniciar, comparar revisão, licença, vínculos e histórico. Se a migração impedir retorno direto, restaurar a versão anterior e seu backup compatível. Exercitar reparo, remoção com dados preservados e expurgo explícito em cópia descartável.
 8. A equipe do produto entrega manifesto com SHA, tamanho, checksum, assinatura, inventário e resultado por ambiente físico, VM ou emulação. Repetir o empacotamento com uma segunda versão para provar a reutilização. O primeiro instalador sem assinatura destina-se à avaliação privada. Entregar ao responsável pelo portal os artefatos aprovados, os manuais offline PT/EN/ES e a tabela de FAQ com recursos, limites contratados, capacidade medida e lacunas por ambiente.
+## Procedimentos de entrega depois do Windows x64
+
+### Pacote nativo Debian e Ubuntu
+
+1. Preparar uma VM limpa por linha da matriz amd64. Registrar distribuição, versão, arquitetura e snapshot inicial. Construir com o SDK de global.json e dependências Web do lockfile. Publicar a API com `dotnet publish src/Scada.Api/Scada.Api.csproj -c Release -r linux-x64 --self-contained true`. Acrescentar ao pacote a Web compilada, os ativos offline e cada dependência nativa redistribuível. Conferir o carregamento efetivo de drivers, scripts e mídia em cada distribuição.
+2. Gerar os metadados Debian com dependências resolvidas na distribuição alvo. Inspecionar arquitetura, versão, dependências e caminhos com `dpkg-deb --info` e `dpkg-deb --contents`. Instalar com APT na VM limpa e repetir em rede isolada usando um repositório local com as dependências. Registrar quais pacotes o administrador precisa fornecer.
+3. Registrar a API como serviço de sistema. A conta do serviço precisa ler os binários e gravar somente nos destinos de estado autorizados. Configurar acesso protegido ao banco, iniciar o serviço e verificar revisão ativa, Engenharia, Runtime, histórico e licença após reboot sem sessão gráfica. Em desktop, verificar a bandeja com usuário comum e a autorização dos comandos administrativos.
+4. Com um projeto preenchido, atualizar pelo gerenciador de pacotes. Comparar a revisão, os usuários e as amostras antes e depois. Repetir com banco indisponível durante a partida e comprovar que a recuperação usa o banco configurado. Registrar por versão do sistema a instalação offline, a atualização, a remoção com retenção e a restauração do backup.
+
+### Imagens completas amd64 e arm64
+
+Construir os dois Dockerfiles a partir da raiz do repositório. O arquivo docker-compose.stable.yml fornece os contextos e a topologia de referência. Na base da Wave 15 a etapa final da API usa uma imagem SDK .NET 10.0.400. Inventariar os comandos efetivamente usados em execução antes de experimentar uma base menor. Comparar inicialização, scripts, drivers, mídia e consumo na mesma carga.
+
+1. Para cada Dockerfile, construir ambos os destinos com Buildx e exportar o índice e as imagens. Registrar digest do índice, digest de cada arquitetura, versões das imagens de banco e mídia e o SHA-256 dos arquivos para carga offline. Conferir a arquitetura de cada dependência, inclusive binários executados em processos auxiliares.
+2. Em Linux amd64, carregar o conjunto em host limpo. Inicializar com PostgreSQL/TimescaleDB externo e repetir com banco em volume dedicado. Restaurar a EEE simulada e registrar identidade da instalação, revisão, leituras antigas e ocorrência de alarme. Recriar API e Web, comparar os registros e confirmar que entram leituras novas.
+3. Em Linux ARM64 físico, repetir a mesma carga. Registrar modelo, kernel, arquitetura, memória, armazenamento, dispositivos e drivers exercitados. Testar também o carregamento offline, a estabilidade da licença e a troca de imagem por digest com volumes preservados. Registrar testes emulados em coluna própria.
+4. Entregar o Compose com referências imutáveis, inventário de volumes, portas, requisitos do banco e procedimento de backup. Ensaiar restauração em destino vazio e retorno à versão anterior com esquema compatível antes de oferecer atualização.
+
+### Perfil compacto para VPS
+
+Usar cópia da revisão 75. Recuperar o override e os resultados originais conforme o [ensaio da #408](https://github.com/brunolrogerio-collab/EliteSCADA/issues/408#issuecomment-7072644632). Conferir os valores efetivos do Compose e do PostgreSQL após a partida. Os tetos ensaiados foram API 235 MB, Web 13,5 MB, gateway 31,5 MB e banco 318 MB, com 48 MiB de buffers compartilhados. Reservar orçamento separado para sistema operacional e segunda aplicação.
+
+Executar as mesmas consultas com seis clientes, ingestão das duas bombas e um consumidor de vídeo. Medir desde a partida e repetir com cache aquecido, consultas frias, manutenção do banco e a segunda aplicação em carga simultânea. Registrar pico simultâneo do grupo, memória disponível do host, swap, encerramentos por falta de memória, latência p95 e equivalência das amostras. Publicar o perfil como opção com a carga medida. O valor de referência da demo pública é 768 MiB de buffers compartilhados.
+
+### Edge com banco remoto e Edge ARM64 com SQLite
+
+Para banco remoto, medir API, Web e gateway no dispositivo e registrar a latência até o PostgreSQL. Interromper o enlace em laboratório, observar a indicação de indisponibilidade e conferir a retomada e as lacunas do histórico. Informar ao instalador a dependência da rede e o consumo do servidor externo.
+
+Para SQLite, recuperar o protótipo da #408 e preparar uma imagem com identidade própria. Montar o diretório inteiro do SQLite em armazenamento persistente para manter banco, WAL e arquivos auxiliares juntos. Criar backup consistente pela API de backup SQLite ou após parada limpa. Restaurar em volume novo e conferir integridade, revisão publicada, tendências e ocorrências de alarme.
+
+No ARM64 alvo, manter a aplicação de automação em execução e medir a memória do equipamento e do conjunto SCADIVO. Registrar frequência de aquisição, retenção, clientes, vídeo e crescimento em disco. Em bancada descartável, interromper energia durante escrita, reiniciar, comparar amostras confirmadas e procurar ocorrências duplicadas. Repetir com volume cheio e após liberar espaço. A meta do conjunto é 220 MB com teto de 230 MB. A edição do projeto, permissões, supressão de alarmes e recursos analíticos precisam ter seu estado registrado individualmente antes da divulgação de capacidades.
+
+### Manual, FAQ e aceite da entrega
+
+Para cada ambiente, o responsável pelo pacote entrega o manifesto e as evidências à documentação. Um revisor segue o manual offline em uma instalação limpa em português, inglês e espanhol, até abrir o Runtime, consultar uma tendência e localizar a saúde e o consumo da licença. Registrar idioma, plataforma, versão, resultado e limitações observadas.
+
+O responsável pelo produto reúne os pacotes homologados, imagens offline, manuais, notas de versão e tabela do FAQ. Cada linha do FAQ informa arquitetura, banco, recursos, capacidade medida, limites da licença e margem de memória do host. O responsável pelo portal recebe o conjunto e verifica download, tamanho e checksum do arquivo servido contra o manifesto aprovado.

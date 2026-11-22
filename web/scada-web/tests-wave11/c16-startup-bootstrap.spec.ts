@@ -1,24 +1,34 @@
+import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 
 test('C16 working package carries an explicit persisted Startup Screen before lifecycle activation', async ({ request }) => {
   const workingResponse = await request.get('/api/engineering/export/json');
   expect(workingResponse.ok()).toBeTruthy();
-  const working = await workingResponse.json() as any;
-  const overview = working.screens?.find((screen: any) => screen.key === 'demo.overview');
+  const working = await workingResponse.json();
+  const fixture = JSON.parse(await readFile(
+    new URL('./demo-workspace.json', import.meta.url), 'utf8'
+  ));
+  const overview = fixture.screens.find((screen: { key: string }) => screen.key === 'demo.overview');
   expect(overview?.id).toBeTruthy();
 
-  if (working.startupScreenId !== overview.id) {
-    const applyResponse = await request.post('/api/engineering/import/json/apply', {
-      data: {
-        ...working,
-        startupScreenId: overview.id
-      }
-    });
-    expect(
-      applyResponse.ok(),
-      `Startup Screen bootstrap failed: HTTP ${applyResponse.status()} ${await applyResponse.text()}`
-    ).toBeTruthy();
-  }
+  const workspaceResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceResponse.ok()).toBeTruthy();
+  const workspace = await workspaceResponse.json();
+  const candidate = {
+    ...fixture,
+    authorityPolicyReference: working.authorityPolicyReference,
+    startupScreenId: overview.id
+  };
+  const preview = await request.post('/api/engineering/import/json/preview', { data: candidate });
+  const previewBody = await preview.text();
+  expect(preview.ok(), previewBody).toBeTruthy();
+  expect(JSON.parse(previewBody).canApply, previewBody).toBe(true);
+
+  const applied = await request.post('/api/engineering/import/json/apply', {
+    headers: { 'x-elitescada-workspace-version': String(workspace.changeVersion) },
+    data: candidate
+  });
+  expect(applied.ok(), await applied.text()).toBeTruthy();
 
   const persistedResponse = await request.get('/api/engineering/export/json');
   expect(persistedResponse.ok()).toBeTruthy();

@@ -46,6 +46,20 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_licensing
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_licensing"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -72,6 +86,8 @@ jobs:
           --filter "FullyQualifiedName~Scada.Drivers.Tests.ProductLicensedRuntimeCoordinatorTests"
           --logger "console;verbosity=normal"
       - name: Host licensing composition smoke
+        env:
+          ConnectionStrings__EliteScada: 'Host=127.0.0.1;Port=5432;Database=elitescada_licensing;Username=postgres;Password=postgres;Pooling=false'
         shell: bash
         run: |
           set -uo pipefail

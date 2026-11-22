@@ -84,10 +84,13 @@ try {
     $process = [Diagnostics.Process]::Start($start)
     try {
         $stderr = $process.StandardError.ReadToEndAsync()
-        $deadline = [DateTime]::UtcNow.AddSeconds(60)
+        $deadline = [DateTime]::UtcNow.AddMinutes(2)
         $endpoint = $null
         while ([DateTime]::UtcNow -lt $deadline) {
-            $line = $process.StandardOutput.ReadLineAsync().WaitAsync([timespan]::FromSeconds(10)).GetAwaiter().GetResult()
+            # Startup may perform migrations before the first console message.
+            $remaining = $deadline - [DateTime]::UtcNow
+            if ($remaining -le [TimeSpan]::Zero) { break }
+            $line = $process.StandardOutput.ReadLineAsync().WaitAsync($remaining).GetAwaiter().GetResult()
             if ($null -eq $line) { throw "API exited. $($stderr.GetAwaiter().GetResult())" }
             Add-Content -LiteralPath $log -Value $line
             if ($line -match 'Now listening on: (http://127\.0\.0\.1:\d+)') { $endpoint = $Matches[1]; break }

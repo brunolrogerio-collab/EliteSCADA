@@ -33,7 +33,7 @@ foreach ($dir in @($source, $brand, $api, $ui, $out)) { New-Item -ItemType Direc
 $inputs = @('Directory.Build.props', 'global.json', 'src', 'assets/sources', 'assets/licenses', 'assets/catalog/taxonomy.v1.json',
     'web/scada-web/package.json', 'web/scada-web/package-lock.json', 'web/scada-web/tsconfig.json',
     'web/scada-web/vite.config.ts', 'web/scada-web/index.html', 'web/scada-web/scripts/sync-pyodide.mjs',
-    'web/scada-web/src', 'web/scada-web/public', 'website/scadivo/site/scadivo-mark.svg')
+    'web/scada-web/src', 'web/scada-web/public')
 $archive = Join-Path $work 'product.zip'
 git -C $repo archive --format=zip -o $archive $ProductCommit -- @inputs
 tar.exe -xf $archive -C $source
@@ -45,7 +45,9 @@ if ($name -ne 'SCADIVO' -or $channel -notmatch '^[a-zA-Z0-9-]+$' -or $version -n
     throw 'Invalid canonical product identity.'
 }
 $mark = Get-FileHash "$web/public/scadivo-mark.svg"
-if ($mark.Hash -ne (Get-FileHash "$source/website/scadivo/site/scadivo-mark.svg").Hash) {
+$productMark = git -C $repo rev-parse --verify "${ProductCommit}:web/scada-web/public/scadivo-mark.svg"
+$approvedMark = git -C $repo rev-parse --verify "${recipeCommit}:website/scadivo/site/scadivo-mark.svg"
+if ($productMark -ne $approvedMark) {
     throw 'The product and site marks differ. Review the artwork before building.'
 }
 

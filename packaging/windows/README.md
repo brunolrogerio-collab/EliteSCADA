@@ -4,7 +4,7 @@ Esta primeira etapa da [fábrica de versões](../../docs/WAVE16-RELEASE-ROADMAP.
 
 ## Gerar uma versão
 
-Use uma máquina de build Windows x64 com Git, PowerShell 7.4 ou superior, o SDK selecionado por `global.json`, Node.js 24 com npm, Microsoft Edge e Inno Setup 6.7.3. Para o compilador, o SHA-256 do [instalador original 6.7.3](https://github.com/jrsoftware/issrc/releases/tag/is-6_7_3) é `9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732`. A página inicial do assistente, o ícone multirresolução e o ícone de remoção derivam do SVG do produto. A compilação confere a marca com a do site no mesmo commit.
+Use uma máquina de build Windows x64 com Git, PowerShell 7.4 ou superior, o SDK selecionado por `global.json`, Node.js 24 com npm, Microsoft Edge e Inno Setup 6.7.3. Para o compilador, o SHA-256 do [instalador original 6.7.3](https://github.com/jrsoftware/issrc/releases/tag/is-6_7_3) é `9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732`. A página inicial do assistente, o ícone multirresolução e o ícone de remoção derivam do SVG do produto. A compilação confere a marca com a do site na revisão da receita.
 
 Na raiz do repositório, selecione o SHA completo do produto e uma pasta de saída nova. A receita pode estar em um commit diferente do produto. Ela lê nome, canal e versão de `Directory.Build.props`. Registre as alterações da receita no Git antes de gerar.
 

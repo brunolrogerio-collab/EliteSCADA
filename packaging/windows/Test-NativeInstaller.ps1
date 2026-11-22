@@ -12,9 +12,10 @@ $build = (Resolve-Path -LiteralPath $BuildDirectory).Path
 $manifest = Get-Content "$build\manifest.json" -Raw | ConvertFrom-Json
 $root = Join-Path $env:ProgramData 'SCADIVO Windows'
 $program = Join-Path $env:ProgramFiles 'SCADIVO'
+$registry = 'HKLM:\SOFTWARE\SCADIVO\Windows'
 $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if (!$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'The service smoke requires elevation.' }
-if ((Test-Path $root) -or (Test-Path $program) -or (Get-Service ScadivoRuntime,ScadivoPostgres -ErrorAction SilentlyContinue)) {
+if ((Test-Path $root) -or (Test-Path $program) -or (Test-Path $registry) -or (Get-Service ScadivoRuntime,ScadivoPostgres -ErrorAction SilentlyContinue)) {
     throw 'Use a clean Windows host or VM without an installation or retained SCADIVO data.'
 }
 if ($manifest.profile -ne 'windows-x64-private-evaluation') { throw 'Use a Windows evaluation build.' }
@@ -101,6 +102,14 @@ if ((Get-Service ScadivoRuntime,ScadivoPostgres -ErrorAction SilentlyContinue) -
     !(Test-Path -LiteralPath "$root\postgres\PG_VERSION") -or
     !(Test-Path -LiteralPath "$root\instance.json")) { throw 'Removal or data retention failed.' }
 
+# Keep evidence of the removal without making future installs reuse the QA database.
+$resolvedRoot = (Resolve-Path -LiteralPath $root).Path
+$programData = (Resolve-Path -LiteralPath $env:ProgramData).Path
+if ([IO.Path]::GetDirectoryName($resolvedRoot) -ne $programData -or
+    [IO.Path]::GetFileName($resolvedRoot) -ne 'SCADIVO Windows') { throw 'Unexpected QA data root.' }
+$retainedTestData = Join-Path $programData ('SCADIVO Windows QA ' + [Guid]::NewGuid().ToString('N'))
+Move-Item -LiteralPath $resolvedRoot -Destination $retainedTestData
+Remove-Item -LiteralPath $registry
 [ordered]@{
     installerSha256=$manifest.sha256; product=$identity.displayVersion; productCommit=$identity.buildCommit
     windows=[Environment]::OSVersion.Version.ToString(); payloadFiles=$manifest.files

@@ -38,7 +38,8 @@ public sealed record FaqInput(string? Slug, string? Category, string? TitlePt, s
 public sealed record PublicContactInput(string? Name, string? Email, string? Category, string? SubjectKey,
     string? OtherSubject, string? Message, string? Locale, string? Website);
 public sealed record DownloadReleaseInput(string? Version, string? Platform, string? NotesPt, string? NotesEn,
-    string? NotesEs, string? OfficialUrl, string? Sha256, bool Published);
+    string? NotesEs, string? OfficialUrl, string? Sha256, bool Published, string? Category = null,
+    string? TitlePt = null, string? TitleEn = null, string? TitleEs = null);
 
 public sealed class PortalOperations(
     PortalDb db, UserManager<PortalUser> users, SignInManager<PortalUser> signIn, IConfiguration configuration,
@@ -563,7 +564,7 @@ public sealed class PortalOperations(
     {
         var candidates = await db.Releases.AsNoTracking().Where(x => x.Published).OrderByDescending(x => x.CreatedAtUtc).Take(100).ToListAsync();
         return Results.Ok(candidates.Where(PortalDownloadCatalog.Ready).Take(40)
-            .Select(x => new { x.Id, x.Version, x.Platform, x.NotesPt, x.NotesEn, x.NotesEs, x.Sha256, x.CreatedAtUtc }));
+            .Select(x => new { x.Id, x.Category, x.Version, x.Platform, x.TitlePt, x.TitleEn, x.TitleEs, x.NotesPt, x.NotesEn, x.NotesEs, x.Sha256, x.CreatedAtUtc }));
     }
 
     public async Task<IResult> AdminReleases()
@@ -576,7 +577,7 @@ public sealed class PortalOperations(
             .ToDictionaryAsync(item => item.Id!, item => item.Count);
         return Results.Ok(releases.Select(x => new
         {
-            x.Id, x.Version, x.Platform, x.OfficialUrl, x.Sha256, x.NotesPt, x.NotesEn, x.NotesEs,
+            x.Id, x.Category, x.Version, x.Platform, x.TitlePt, x.TitleEn, x.TitleEs, x.OfficialUrl, x.Sha256, x.NotesPt, x.NotesEn, x.NotesEs,
             x.Published, x.CreatedAtUtc, downloadStarts = totals.GetValueOrDefault(x.Id.ToString("D"))
         }));
     }
@@ -584,8 +585,14 @@ public sealed class PortalOperations(
     public async Task<IResult> SaveRelease(Guid? id, DownloadReleaseInput input, HttpContext context)
     {
         var version = input.Version?.Trim();
-        var platform = input.Platform?.Trim();
-        if (!PortalDownloadCatalog.ValidVersion(version) || !PortalDownloadCatalog.Platforms.Contains(platform ?? "") ||
+        var category = input.Category?.Trim() ?? "software";
+        var platform = category == "documentation" ? "" : input.Platform?.Trim() ?? "";
+        var titlePt = input.TitlePt?.Trim() ?? version ?? "";
+        var titleEn = input.TitleEn?.Trim() ?? version ?? "";
+        var titleEs = input.TitleEs?.Trim() ?? version ?? "";
+        if (!PortalDownloadCatalog.Categories.Contains(category) || !PortalDownloadCatalog.ValidVersion(version) ||
+            (category == "documentation" ? platform.Length != 0 : !PortalDownloadCatalog.Platforms.Contains(platform)) ||
+            titlePt.Length > 160 || titleEn.Length > 160 || titleEs.Length > 160 ||
             (input.NotesPt?.Length ?? 0) > 8000 || (input.NotesEn?.Length ?? 0) > 8000 || (input.NotesEs?.Length ?? 0) > 8000) return Invalid();
         var url = input.OfficialUrl?.Trim() ?? "";
         var hash = input.Sha256?.Trim().ToLowerInvariant() ?? "";
@@ -593,14 +600,17 @@ public sealed class PortalOperations(
         if (hash.Length > 0 && !PortalDownloadCatalog.ValidHash(hash)) return Invalid("download-invalid-sha256");
         var candidate = new DownloadRelease
         {
-            Version = version!, Platform = platform!, OfficialUrl = url, Sha256 = hash,
+            Category = category, Version = version!, Platform = platform, TitlePt = titlePt, TitleEn = titleEn, TitleEs = titleEs,
+            OfficialUrl = url, Sha256 = hash,
             NotesPt = input.NotesPt?.Trim() ?? "", NotesEn = input.NotesEn?.Trim() ?? "", NotesEs = input.NotesEs?.Trim() ?? ""
         };
         if (input.Published && !PortalDownloadCatalog.Ready(candidate)) return Invalid("download-not-ready");
         var release = id.HasValue ? await db.Releases.FindAsync(id.Value) : new DownloadRelease();
         if (release is null) return Results.NotFound();
         var wasPublished = release.Published;
-        release.Version = candidate.Version; release.Platform = candidate.Platform; release.OfficialUrl = candidate.OfficialUrl;
+        release.Category = candidate.Category; release.Version = candidate.Version; release.Platform = candidate.Platform;
+        release.TitlePt = candidate.TitlePt; release.TitleEn = candidate.TitleEn; release.TitleEs = candidate.TitleEs;
+        release.OfficialUrl = candidate.OfficialUrl;
         release.Sha256 = candidate.Sha256; release.NotesPt = candidate.NotesPt; release.NotesEn = candidate.NotesEn; release.NotesEs = candidate.NotesEs;
         release.Published = input.Published;
         if (!id.HasValue) db.Releases.Add(release);

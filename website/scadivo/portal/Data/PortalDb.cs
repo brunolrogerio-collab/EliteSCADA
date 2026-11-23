@@ -112,8 +112,12 @@ public sealed class EmailOutbox
 public sealed class DownloadRelease
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public string Category { get; set; } = "software";
     public string Version { get; set; } = "";
     public string Platform { get; set; } = "";
+    public string TitlePt { get; set; } = "";
+    public string TitleEn { get; set; } = "";
+    public string TitleEs { get; set; } = "";
     public string NotesPt { get; set; } = "";
     public string NotesEn { get; set; } = "";
     public string NotesEs { get; set; } = "";
@@ -252,7 +256,11 @@ public sealed class PortalDb(DbContextOptions<PortalDb> options) : IdentityDbCon
         builder.Entity<EmailOutbox>().Property(x => x.RecipientAddress).HasMaxLength(256);
         builder.Entity<EmailOutbox>().Property(x => x.ReplyToAddress).HasMaxLength(256);
         builder.Entity<EmailOutbox>().Property(x => x.TemplateDataJson).HasColumnType("text");
-        builder.Entity<DownloadRelease>().HasIndex(x => new { x.Version, x.Platform }).IsUnique();
+        builder.Entity<DownloadRelease>().HasIndex(x => new { x.Version, x.Platform, x.Category }).IsUnique();
+        builder.Entity<DownloadRelease>().Property(x => x.Category).HasMaxLength(24).HasDefaultValue("software");
+        builder.Entity<DownloadRelease>().Property(x => x.TitlePt).HasMaxLength(160).HasDefaultValue("");
+        builder.Entity<DownloadRelease>().Property(x => x.TitleEn).HasMaxLength(160).HasDefaultValue("");
+        builder.Entity<DownloadRelease>().Property(x => x.TitleEs).HasMaxLength(160).HasDefaultValue("");
         builder.Entity<DownloadRelease>().Property(x => x.Sha256).HasMaxLength(64);
         builder.Entity<PortalDailyView>().ToTable("PortalDailyViews").HasKey(x => new { x.Day, x.Surface });
         builder.Entity<PortalDailyView>().Property(x => x.Surface).HasMaxLength(8);

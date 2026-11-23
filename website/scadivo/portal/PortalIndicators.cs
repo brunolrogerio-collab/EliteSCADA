@@ -55,11 +55,11 @@ public sealed class PortalIndicators(PortalDb db, TimeProvider clock)
             .Select(group => new { Id = group.Key, Count = group.LongCount() })
             .ToDictionaryAsync(row => row.Id!, row => row.Count, cancellationToken);
         var releases = await db.Releases.AsNoTracking().OrderByDescending(release => release.CreatedAtUtc).Take(200)
-            .Select(release => new { release.Id, release.Platform, release.Version, release.Published })
+            .Select(release => new { release.Id, release.Category, release.Platform, release.Version, release.Published })
             .ToListAsync(cancellationToken);
         var downloads = releases.Select(release => new
         {
-            release.Id, release.Platform, release.Version, release.Published,
+            release.Id, release.Category, release.Platform, release.Version, release.Published,
             count = downloadCounts.GetValueOrDefault(release.Id.ToString("D"))
         });
 

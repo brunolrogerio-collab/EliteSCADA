@@ -26,9 +26,20 @@ const portalDownloads = (() => {
     const categoryPicker = select('category', [['', tr('Todas as categorias', 'All categories', 'Todas las categorías')], ...categoryOptions()], '', { 'aria-label': tr('Categoria', 'Category', 'Categoría') });
     const platformPicker = select('platform', [['', tr('Todas as plataformas', 'All platforms', 'Todas las plataformas')], ...platformOptions()], '', { 'aria-label': tr('Plataforma', 'Platform', 'Plataforma') });
     const platformFilter = field(tr('Plataforma', 'Platform', 'Plataforma'), platformPicker);
-    const downloadIcon = () => h('svg', { viewBox: '0 0 24 24', width: '19', height: '19', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
-      h('path', { d: 'M12 3v12' }), h('path', { d: 'm7 10 5 5 5-5' }), h('path', { d: 'M5 20h14' })
-    ]);
+    const downloadIcon = () => {
+      const namespace = 'http://www.w3.org/2000/svg';
+      const icon = document.createElementNS(namespace, 'svg');
+      const attributes = {
+        viewBox: '0 0 24 24', width: '19', height: '19', fill: 'none',
+        stroke: 'currentColor', 'stroke-width': '1.8', 'stroke-linecap': 'round',
+        'stroke-linejoin': 'round', 'aria-hidden': 'true'
+      };
+      for (const [name, value] of Object.entries(attributes)) icon.setAttribute(name, value);
+      const path = document.createElementNS(namespace, 'path');
+      path.setAttribute('d', 'M12 3v12 M7 10l5 5 5-5 M5 20h14');
+      icon.append(path);
+      return icon;
+    };
     const itemView = release => {
       const title = release[titleKey(state.lang)] || release.version;
       const titleButton = h('summary', {}, title);

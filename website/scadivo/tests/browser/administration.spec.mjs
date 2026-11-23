@@ -167,7 +167,13 @@ test('delegated administrator can save drafts, preserve all translated notes and
   await page.locator('.download-item summary').click();
   await expect(page.locator('.download-item details[open]')).toHaveCount(1);
   await expect(page.getByText('English release notes', { exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Download v1.0.0', exact: true })).toHaveAttribute('href', '/portal/api/downloads/synthetic-release/file');
+  const downloadLink = page.getByRole('link', { name: 'Download v1.0.0', exact: true });
+  await expect(downloadLink).toHaveAttribute('href', '/portal/api/downloads/synthetic-release/file');
+  const icon = downloadLink.locator('svg');
+  await expect(icon).toBeVisible();
+  expect(await icon.evaluate(element =>
+    element instanceof SVGSVGElement && element.querySelector('path') instanceof SVGPathElement
+  )).toBe(true);
   await page.getByLabel('Platform', { exact: true }).selectOption('linux-x64');
   await expect(page.getByRole('link', { name: 'Download v1.0.0', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Administration', exact: true }).click();

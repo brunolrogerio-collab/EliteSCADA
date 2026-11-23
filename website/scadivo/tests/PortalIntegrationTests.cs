@@ -2054,6 +2054,30 @@ public sealed class PortalIntegrationTests(ITestOutputHelper output)
             Assert.Equal(HttpStatusCode.NotFound, (await ordinaryMember.Client.GetAsync($"api/downloads/{releaseId}/file")).StatusCode);
             Assert.Contains((await staff.Get("/admin/downloads")).EnumerateArray(), item => item.GetProperty("id").GetGuid() == releaseId);
 
+            var manualUrl = $"https://github.com/brunolrogerio-collab/EliteSCADA/releases/download/{version}/SCADIVO-Manual-pt-BR.pdf";
+            var manual = await staff.Send("/admin/downloads", HttpMethod.Post, new
+            {
+                version, category = "documentation", platform = "",
+                titlePt = "Manual do usuário SCADIVO — Português (Brasil)",
+                titleEn = "SCADIVO user manual — Portuguese (Brazil)",
+                titleEs = "Manual de usuario SCADIVO — portugués (Brasil)",
+                officialUrl = manualUrl, sha256 = new string('b', 64), published = true,
+                notesPt = "Manual do usuário; aplicável a todos os ambientes.",
+                notesEn = "User manual; applies to all environments.",
+                notesEs = "Manual de usuario; aplicable a todos los entornos."
+            });
+            var manualId = manual.GetProperty("id").GetGuid();
+            var visibleManual = (await ordinaryMember.Get("/downloads")).EnumerateArray()
+                .Single(item => item.GetProperty("id").GetGuid() == manualId);
+            Assert.Equal("documentation", visibleManual.GetProperty("category").GetString());
+            Assert.Equal("", visibleManual.GetProperty("platform").GetString());
+            Assert.Equal("Manual do usuário SCADIVO — Português (Brasil)", visibleManual.GetProperty("titlePt").GetString());
+            Assert.False(visibleManual.TryGetProperty("officialUrl", out _));
+            Assert.Equal(HttpStatusCode.Conflict, (await staff.Raw("/admin/downloads", HttpMethod.Post, new
+            {
+                version, category = "documentation", platform = "", published = false
+            })).StatusCode);
+
             await staff.Send($"/admin/accounts/{otherId}/administration", HttpMethod.Put, new { administrator = false });
             Assert.Equal(HttpStatusCode.Unauthorized, (await delegatedStaff.Client.GetAsync("api/admin/overview")).StatusCode);
             await owner.Send($"/admin/accounts/{memberId}/administration", HttpMethod.Put, new { administrator = false });

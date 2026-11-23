@@ -5,6 +5,7 @@ namespace Scadivo.Portal;
 
 public static class PortalDownloadCatalog
 {
+    public static readonly string[] Categories = ["software", "documentation"];
     public static readonly string[] Platforms = ["windows-x64", "linux-x64", "linux-arm64", "docker"];
     public static bool ValidVersion(string? value) => value is not null && Regex.IsMatch(value, @"\A[A-Za-z0-9][A-Za-z0-9._+-]{0,79}\z");
     public static bool ValidHash(string? value) => value is not null && Regex.IsMatch(value, @"\A[a-fA-F0-9]{64}\z");
@@ -26,7 +27,9 @@ public static class PortalDownloadCatalog
     }
 
     public static bool Ready(DownloadRelease release) =>
-        ValidVersion(release.Version) && Platforms.Contains(release.Platform) &&
+        Categories.Contains(release.Category) && ValidVersion(release.Version) &&
+        (release.Category == "documentation" ? string.IsNullOrEmpty(release.Platform) : Platforms.Contains(release.Platform)) &&
+        !string.IsNullOrWhiteSpace(release.TitlePt) && !string.IsNullOrWhiteSpace(release.TitleEn) && !string.IsNullOrWhiteSpace(release.TitleEs) &&
         IsOfficialUrl(release.OfficialUrl) && ValidHash(release.Sha256) &&
         !string.IsNullOrWhiteSpace(release.NotesPt) && !string.IsNullOrWhiteSpace(release.NotesEn) && !string.IsNullOrWhiteSpace(release.NotesEs);
 }

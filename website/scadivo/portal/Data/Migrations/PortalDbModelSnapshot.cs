@@ -160,8 +160,32 @@ namespace Scadivo.Portal.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasDefaultValue("software");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TitleEn")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("TitleEs")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("TitlePt")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasDefaultValue("");
 
                     b.Property<string>("NotesEn")
                         .IsRequired()
@@ -197,7 +221,7 @@ namespace Scadivo.Portal.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Version", "Platform")
+                    b.HasIndex("Version", "Platform", "Category")
                         .IsUnique();
 
                     b.ToTable("Releases");

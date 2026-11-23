@@ -41,8 +41,8 @@ const portalIndicators = (() => {
         }))),
       panel(tr('Downloads iniciados por versão', 'Download starts by version', 'Descargas iniciadas por versión'),
         p(tr('Contagem por item do catálogo no período selecionado, no momento do redirecionamento.', 'Counts by catalog item in the selected period, recorded when the download redirects.', 'Conteo por elemento del catálogo en el periodo seleccionado, registrado al redirigir.')),
-        downloads.length ? table([tr('Plataforma', 'Platform', 'Plataforma'), tr('Versão', 'Version', 'Versión'), tr('Iniciados', 'Starts', 'Iniciadas')],
-          downloads.map(row => [row.platform, row.version, number(row.count)]))
+        downloads.length ? table([tr('Categoria', 'Category', 'Categoría'), tr('Plataforma', 'Platform', 'Plataforma'), tr('Versão', 'Version', 'Versión'), tr('Iniciados', 'Starts', 'Iniciadas')],
+          downloads.map(row => [row.category === 'documentation' ? tr('Documentação', 'Documentation', 'Documentación') : tr('Software', 'Software', 'Software'), row.platform || tr('Todos os ambientes', 'All environments', 'Todos los entornos'), row.version, number(row.count)]))
           : p(tr('Nenhum item no catálogo.', 'No catalog entries.', 'No hay elementos en el catálogo.'))),
       panel(tr('Perfil do público', 'Audience profile', 'Perfil del público'),
         p(tr(`${number(profiles.total)} contas ativas e confirmadas com perfil preenchido. Esta distribuição é atual, independente do período.`,

@@ -101,6 +101,14 @@ public static class JwtAuthenticationConfiguration
                         if (!string.Equals(provider, JwtTokenIssuer.LocalIdentityProvider, StringComparison.Ordinal))
                             return;
 
+                        // A signed session ID identifies one login, even for concurrent logins by the same account.
+                        if (Guid.TryParse(context.SecurityToken.Id, out var sessionId) &&
+                            jwt.GetValue<bool>($"RevokedSessionIds:{sessionId:N}"))
+                        {
+                            context.Fail("Local identity session has been revoked.");
+                            return;
+                        }
+
                         var store = context.HttpContext.RequestServices.GetService<ILocalIdentityStore>();
                         if (store is null)
                         {

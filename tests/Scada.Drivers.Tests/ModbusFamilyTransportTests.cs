@@ -270,6 +270,8 @@ public sealed class ModbusFamilyTransportTests
             clientIdleTimeout: TimeSpan.FromSeconds(2));
 
         await driver.StartAsync();
+        Assert.DoesNotContain("lastClientIp", driver.GetCommunicationDiagnostics().ProtocolDetails!.Keys);
+        var started = DateTimeOffset.UtcNow;
         await driver.WriteAsync(serverPoint.Point.Tag.Id, 77);
 
         var readPdu = ReadRequest(10, 1);
@@ -290,6 +292,9 @@ public sealed class ModbusFamilyTransportTests
         Assert.Equal((short)42, Convert.ToInt16(sample!.Value));
 
         await driver.StopAsync();
+        var details = driver.GetCommunicationDiagnostics().ProtocolDetails!;
+        Assert.Equal("127.0.0.1", details["lastClientIp"]);
+        Assert.InRange(DateTimeOffset.Parse(details["lastClientConnectedAtUtc"], System.Globalization.CultureInfo.InvariantCulture), started, DateTimeOffset.UtcNow);
 
         using var rebound = new TcpListener(IPAddress.Loopback, port);
         rebound.Start();

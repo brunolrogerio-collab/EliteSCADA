@@ -771,6 +771,7 @@ function resolutionForMode(
 
 function intervalOptions() {
   return [
+    { value: 1000, label: '1 s' }, { value: 5000, label: '5 s' }, { value: 15000, label: '15 s' }, { value: 30000, label: '30 s' },
     { value: 60000, label: '1 min' }, { value: 300000, label: '5 min' }, { value: 900000, label: '15 min' },
     { value: 1800000, label: '30 min' }, { value: 3600000, label: '1 h' }
   ];

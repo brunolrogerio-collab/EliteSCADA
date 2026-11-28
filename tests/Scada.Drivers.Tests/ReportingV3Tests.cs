@@ -329,6 +329,53 @@ public sealed class ReportingV3Tests
         }
     }
 
+    [Fact]
+    public async Task WideObservationReportProjectsFiftyThousandRowsAcrossBoundedReadWindows()
+    {
+        var tag = Guid.NewGuid();
+        var start = DateTimeOffset.UnixEpoch.AddDays(100);
+        var history = new WindowedObservationHistory(tag, start);
+        var service = new ReportV3ExecutionService(new ReportExecutionService(new RejectHistoricalQueryService()),
+            new InMemoryDataQueryEngineeringRegistry(), history);
+        var report = Report() with
+        {
+            TableLayout = ReportTableLayout.Wide,
+            Variables = [new ReportVariableEngineeringDto(tag, "Lab.Level", "Level", "Double", "m")],
+            Resolution = new ReportDataResolutionEngineeringDto(ReportDataResolutionMode.SampledFixedStep, 1000,
+                MaximumGapMilliseconds: 15000, LatestObserved: true)
+        };
+        var result = await service.ExecuteAsync(new(report, TimeRange:
+            new ReportRuntimeTimeRange(HistoricalTimeRangeKind.Absolute, FromUtc: start, ToUtc: start.AddSeconds(49999))));
+        var table = Assert.Single(result.Queries);
+        Assert.Equal(50000, table.Rows.Count);
+        Assert.Equal(50000, table.NumericRows!.Count);
+        Assert.Equal("49999 m", table.Rows[^1].Cells["Level"].Value);
+        Assert.True(history.Calls > 1);
+        Assert.Equal(start, table.FromUtc);
+        Assert.Equal(start.AddSeconds(49999), table.ToUtc);
+    }
+
+    private sealed class WindowedObservationHistory(Guid tag, DateTimeOffset start) : ITransientDataQueryExecutionService
+    {
+        public int Calls { get; private set; }
+        public Task<DataQueryExecutionResponse> ExecuteTransientAsync(DataQueryEngineeringDto definition,
+            DataQueryExecutionRequest? request = null, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            var from = definition.Query.Range.FromUtc!.Value;
+            var to = definition.Query.Range.ToUtc!.Value;
+            var count = (int)(to - from).TotalSeconds + 1;
+            Assert.InRange(count, 1, 2049);
+            var rows = Enumerable.Range(0, count).Select(i => new DataQueryExecutionRow(new HistoricalQueryRow(
+                new Dictionary<string, HistoricalQueryValue> {
+                    ["tag.id"] = HistoricalQueryValue.FromGuid(tag), ["timestamp"] = HistoricalQueryValue.FromDateTime(from.AddSeconds(i)),
+                    ["value"] = HistoricalQueryValue.FromDouble((from - start).TotalSeconds + i), ["quality"] = HistoricalQueryValue.FromEnum("Good")
+                }))).ToArray();
+            return Task.FromResult(new DataQueryExecutionResponse(1, Guid.NewGuid(), definition.Key, definition.Query.Dataset,
+                HistorianRetrievalMode.SampledFixedStep, [], rows, from, to, null, count));
+        }
+    }
+
     private sealed class RejectHistoricalQueryService : IHistoricalQueryService
     {
         public Task<HistoricalQueryResponse> QueryAsync(

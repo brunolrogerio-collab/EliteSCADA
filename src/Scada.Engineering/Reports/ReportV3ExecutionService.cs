@@ -115,6 +115,15 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
             var budget = Math.Min(_policy.MaximumRowsPerQuery, _policy.MaximumTotalRows - totalRows);
             var series = wide ? Math.Max(1, report.Variables?.Select(v => v.TagId).Distinct().Count() ?? 1) : 1;
             var pointLimit = (int)Math.Min(1000000L, (long)budget * series);
+            if (wide && report.Resolution is { LatestObserved: true, IntervalMilliseconds: > 0 } observed &&
+                (definition.ParameterBindings?.Count ?? 0) == 0)
+            {
+                var table = await ReadObservedWindowsAsync(report, reportQuery.Key, definition, executionParameters,
+                    observed.IntervalMilliseconds.Value, series, budget, cancellationToken);
+                totalRows += table.Rows.Count;
+                queryResults.Add(table);
+                continue;
+            }
             var rows = new List<HistoricalQueryRow>();
             var provenance = new List<DataQueryExecutionProvenance?>();
             DataQueryExecutionResponse response;
@@ -148,6 +157,44 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
             parameters,
             queryResults,
             DateTimeOffset.UtcNow);
+    }
+
+    // Project each group of time instants before reading the next one. The historian applies
+    // the same lookback at every boundary, including a sample just before the next window.
+    private async Task<ReportQueryExecutionResult> ReadObservedWindowsAsync(
+        ReportEngineeringDto report, string queryKey, DataQueryEngineeringDto definition,
+        IReadOnlyDictionary<string, DataQueryParameterValue> parameters, int stepMs, int series, int budget,
+        CancellationToken cancellationToken)
+    {
+        HistoricalResolvedRange range;
+        try { range = HistoricalQueryValidator.ResolveRange(definition.Query.Range, DateTimeOffset.UtcNow); }
+        catch (ArgumentException ex) { throw new HistoricalQueryValidationException(ex.Message); }
+        var step = TimeSpan.FromMilliseconds(stepMs).Ticks;
+        var count = (range.ToUtc - range.FromUtc).Ticks / step + 1;
+        if (count > budget || count * series > 1000000)
+            throw new ReportExecutionLimitException($"The requested observation grid exceeds the report budget of {budget} rows or 1000000 cells.");
+        var windowSize = Math.Max(2, 2048 / series);
+        var rows = new List<HistoricalQueryRow>((int)count);
+        var numbers = new List<HistoricalQueryRow>((int)count);
+        IReadOnlyList<HistoricalColumn> columns = [];
+        for (var first = 0; first < count;)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var length = (int)Math.Min(windowSize, count - first);
+            if (count - first - length == 1) length++; // Keep an inclusive final interval with a valid duration.
+            var end = first + length == count ? range.ToUtc : range.FromUtc.AddTicks((first + length - 1) * step);
+            var query = definition.Query with { Range = HistoricalTimeRange.Absolute(range.FromUtc.AddTicks(first * step), end) };
+            var page = await _dataQueries.ExecuteTransientAsync(definition with { Query = query },
+                new DataQueryExecutionRequest(parameters) { ReportResultLimit = length * series }, cancellationToken);
+            var table = Project(report, new ReportQueryExecutionResult(queryKey, page.DatasetKey, page.Columns,
+                page.Rows.Select(row => row.Data).ToArray(), page.FromUtc, page.ToUtc, RetrievalName(page.RetrievalMode)));
+            columns = table.Columns;
+            rows.AddRange(table.Rows);
+            if (table.NumericRows is not null) numbers.AddRange(table.NumericRows);
+            first += length;
+        }
+        return new ReportQueryExecutionResult(queryKey, definition.Query.Dataset, columns, rows, range.FromUtc, range.ToUtc,
+            RetrievalName(HistorianRetrievalMode.SampledFixedStep)) { NumericRows = numbers };
     }
 
     private DataQueryEngineeringDto ResolveDefinition(

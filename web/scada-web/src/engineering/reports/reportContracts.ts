@@ -247,6 +247,7 @@ export type ReportDataResolutionEngineeringDto = Readonly<{
   bucketMilliseconds?: number | null;
   maximumGapMilliseconds?: number | null;
   bucketAlignment?: string;
+  latestObserved?: boolean;
 }>;
 
 export type ReportRuntimeTimeRange = Readonly<{

@@ -261,7 +261,8 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
             return new HistorianRetrievalEngineeringDto(
                 HistorianRetrievalMode.SampledFixedStep,
                 StepMilliseconds: RequirePositive(resolution.IntervalMilliseconds, "Report fixed interval"),
-                MaximumGapMilliseconds: RequirePositive(resolution.MaximumGapMilliseconds, "Report maximum gap"));
+                MaximumGapMilliseconds: RequirePositive(resolution.MaximumGapMilliseconds, "Report maximum gap"))
+                { LatestObserved = resolution.LatestObserved };
 
         return new HistorianRetrievalEngineeringDto(
             HistorianRetrievalMode.Aggregate,
@@ -299,6 +300,17 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
             .ThenBy(variable => variable.Path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
+        if (report.Metadata?.GetValueOrDefault("hideEventIds") == "true" && query.Dataset == "alarm.events")
+        {
+            var columns = query.Columns.Where(c => c.Field is not ("alarm.id" or "tag.id")).ToArray();
+            return query with
+            {
+                Columns = columns,
+                Rows = query.Rows.Select(r => new HistoricalQueryRow(columns.ToDictionary(
+                    c => c.Field, c => r.Cells.GetValueOrDefault(c.Field) ?? HistoricalQueryValue.Null()))).ToArray()
+            };
+        }
+
         if (variables.Length == 0 ||
             !string.Equals(query.Dataset, HistoricalDatasets.HistorianSamples, StringComparison.Ordinal))
             return query;
@@ -310,7 +322,8 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
                     [new ReportEngineeringProblem(
                         "REPORT_WIDE_RAW_UNSUPPORTED",
                         "Wide table projection requires fixed-interval or aggregate retrieval; raw asynchronous samples remain Long.")]);
-            return ProjectWide(query, variables);
+            var wide = ProjectWide(query, variables);
+            return report.Resolution?.LatestObserved == true ? ObservedReportTable.Format(report, wide, variables) : wide;
         }
 
         return ProjectLong(query, variables);
@@ -428,7 +441,7 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
                Guid.TryParse(value.Value, out tagId);
     }
 
-    private static string? DisplayUnit(ReportVariableEngineeringDto variable) => variable.UnitMode switch
+    internal static string? DisplayUnit(ReportVariableEngineeringDto variable) => variable.UnitMode switch
     {
         ReportUnitMode.Hidden => null,
         ReportUnitMode.LabelOverride => string.IsNullOrWhiteSpace(variable.UnitLabel) ? null : variable.UnitLabel,

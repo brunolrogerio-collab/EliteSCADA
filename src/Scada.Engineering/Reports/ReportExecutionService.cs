@@ -35,7 +35,11 @@ public sealed record ReportQueryExecutionResult(
     DateTimeOffset FromUtc,
     DateTimeOffset ToUtc,
     string RetrievalMode = "raw",
-    IReadOnlyList<Scada.Engineering.DataQueries.DataQueryExecutionProvenance?>? Provenance = null);
+    IReadOnlyList<Scada.Engineering.DataQueries.DataQueryExecutionProvenance?>? Provenance = null)
+{
+    // Native precision for spreadsheet export of formatted observation cells.
+    [JsonIgnore] public IReadOnlyList<HistoricalQueryRow>? NumericRows { get; init; }
+}
 
 public sealed record ReportExecutionResult(
     Guid? ReportId,

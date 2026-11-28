@@ -236,6 +236,10 @@ public sealed class DataQueryExecutionService : IDataQueryExecutionService, ITra
                         RequireTarget(retrieval, range),
                         RequirePositive(retrieval.MaximumGapMilliseconds, "MaximumGapMilliseconds"),
                         cancellationToken),
+                HistorianRetrievalMode.SampledFixedStep when retrieval.LatestObserved =>
+                    await provider.QueryObservedGridAsync(execution,
+                        RequirePositive(retrieval.StepMilliseconds, "StepMilliseconds"),
+                        RequirePositive(retrieval.MaximumGapMilliseconds, "MaximumGapMilliseconds"), cancellationToken),
                 HistorianRetrievalMode.SampledFixedStep =>
                     await provider.QuerySampledFixedStepAsync(
                         execution,

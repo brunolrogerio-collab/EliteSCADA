@@ -274,7 +274,8 @@ public sealed record ReportDataResolutionEngineeringDto(
     ReportAggregateFunction? AggregateFunction = null,
     int? BucketMilliseconds = null,
     int? MaximumGapMilliseconds = 300000,
-    string BucketAlignment = "utcDuration");
+    string BucketAlignment = "utcDuration",
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool LatestObserved = false);
 
 public sealed record ReportRuntimeTimeRange(
     HistoricalTimeRangeKind Kind,

@@ -113,20 +113,32 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalRetrie
         return Result(query, points);
     }
 
-    public async Task<HistoricalRetrievalResult> QuerySampledFixedStepAsync(
-        HistoricalQueryExecution query,
-        int stepMilliseconds,
-        int maximumGapMilliseconds,
-        CancellationToken cancellationToken = default)
+    public Task<HistoricalRetrievalResult> QuerySampledFixedStepAsync(
+        HistoricalQueryExecution query, int stepMilliseconds, int maximumGapMilliseconds,
+        CancellationToken cancellationToken = default) =>
+        SampleGridAsync(query, stepMilliseconds, maximumGapMilliseconds, false, cancellationToken);
+
+    public Task<HistoricalRetrievalResult> QueryObservedGridAsync(
+        HistoricalQueryExecution query, int stepMilliseconds, int maximumAgeMilliseconds,
+        CancellationToken cancellationToken = default) =>
+        SampleGridAsync(query, stepMilliseconds, maximumAgeMilliseconds, true, cancellationToken);
+
+    private async Task<HistoricalRetrievalResult> SampleGridAsync(
+        HistoricalQueryExecution query, int stepMilliseconds, int maximumGapMilliseconds,
+        bool latestObserved, CancellationToken cancellationToken)
     {
         ValidateRetrievalQuery(query);
         ValidatePositive(stepMilliseconds, nameof(stepMilliseconds));
         ValidatePositive(maximumGapMilliseconds, nameof(maximumGapMilliseconds));
 
-        var rows = await LoadSourceRowsAsync(query, cancellationToken);
-        var tagIds = ResolveCandidateTagIds(query, rows).ToArray();
         var step = TimeSpan.FromMilliseconds(stepMilliseconds);
         var maxGap = TimeSpan.FromMilliseconds(maximumGapMilliseconds);
+        var from = query.Range.FromUtc;
+        var readQuery = latestObserved
+            ? query with { Range = query.Range with { FromUtc = from - TimeSpan.FromTicks(Math.Min(from.UtcTicks, maxGap.Ticks)) } }
+            : query;
+        var rows = await LoadSourceRowsAsync(readQuery, cancellationToken);
+        var tagIds = ResolveCandidateTagIds(query, rows).ToArray();
         var gridCount = checked(((query.Range.ToUtc.UtcTicks - query.Range.FromUtc.UtcTicks) / step.Ticks) + 1L);
         if (gridCount <= 0 || gridCount > int.MaxValue)
             throw new HistoricalQueryValidationException("SampledFixedStep grid is outside the supported bounded range.");
@@ -146,11 +158,33 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalRetrie
             byTag.TryGetValue(tagId, out var samples);
             samples ??= Array.Empty<SampleRow>();
             var seriesType = ResolveSeriesType(samples);
+            var last = -1;
 
             for (long n = 0; n < gridCount; n++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var timestamp = query.Range.FromUtc + TimeSpan.FromTicks(checked(n * step.Ticks));
+                if (latestObserved)
+                {
+                    while (last + 1 < samples.Length && samples[last + 1].Timestamp <= timestamp) last++;
+                    if (last < 0 || timestamp - samples[last].Timestamp > maxGap)
+                        points.Add(GapPoint(tagId, timestamp, seriesType, "no-recent-observation"));
+                    else
+                    {
+                        var sample = samples[last];
+                        var measured = ToMeasuredPoint(sample);
+                        points.Add(measured with
+                        {
+                            TimestampUtc = timestamp,
+                            Provenance = measured.Provenance with
+                            {
+                                Kind = sample.Timestamp == timestamp ? HistoricalRetrievalProvenanceKind.Measured : HistoricalRetrievalProvenanceKind.Held
+                            }
+                        });
+                    }
+                    continue;
+                }
+
                 var exact = samples
                     .Where(x => x.Timestamp == timestamp)
                     .OrderByDescending(x => x.SampleId)

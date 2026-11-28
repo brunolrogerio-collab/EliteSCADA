@@ -536,7 +536,7 @@ public sealed class ReportArtifactRenderer
                     EscapeCsv(row.Cells.TryGetValue(field, out var value) ? value.Value ?? string.Empty : string.Empty))));
         }
         return new ReportArtifact(
-            new UTF8Encoding(true).GetBytes(sb.ToString()),
+            [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(sb.ToString())],
             "text/csv; charset=utf-8",
             SafeName(snapshot.Report.Name) + ".csv");
     }
@@ -555,10 +555,16 @@ public sealed class ReportArtifactRenderer
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/></Relationships>");
             WriteZip(archive, "xl/workbook.xml", Workbook(snapshot.Result.Queries));
             WriteZip(archive, "xl/_rels/workbook.xml.rels", WorkbookRelationships(snapshot.Result.Queries.Count));
-            WriteZip(archive, "xl/styles.xml", StylesXml);
+            var formats = snapshot.Report.Resolution?.LatestObserved == true
+                ? (snapshot.Report.Variables ?? []).Where(v => v.Visible).ToDictionary(
+                    ObservedReportTable.Label, ObservedReportTable.ExcelFormat)
+                : new Dictionary<string, string>();
+            var uniqueFormats = formats.Values.Distinct().ToList();
+            WriteZip(archive, "xl/styles.xml", BuildStyles(uniqueFormats));
+            var styles = formats.ToDictionary(pair => pair.Key, pair => uniqueFormats.IndexOf(pair.Value) + 2);
             var index = 1;
             foreach (var query in snapshot.Result.Queries)
-                WriteZip(archive, $"xl/worksheets/sheet{index++}.xml", Worksheet(query));
+                WriteZip(archive, $"xl/worksheets/sheet{index++}.xml", Worksheet(query, styles));
         }
         return new ReportArtifact(
             stream.ToArray(),
@@ -813,7 +819,7 @@ public sealed class ReportArtifactRenderer
     private static void DrawPdfText(List<string> commands, string? text, double x, double yTop, double size, string alignment)
     {
         var safe = PdfEscape(text);
-        var estimatedWidth = safe.Length * size * 0.5;
+        var estimatedWidth = (text?.Length ?? 0) * size * 0.5;
         var drawX = alignment switch
         {
             "right" => x - estimatedWidth,
@@ -868,7 +874,7 @@ public sealed class ReportArtifactRenderer
         const int fontObject = 3;
         objects.Add(Array.Empty<byte>());
         objects.Add(Array.Empty<byte>());
-        objects.Add(Ascii("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"));
+        objects.Add(Ascii("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"));
 
         foreach (var page in pages)
         {
@@ -907,19 +913,61 @@ public sealed class ReportArtifactRenderer
         return output.ToArray();
     }
 
-    private static string Worksheet(ReportQueryExecutionResult query)
+    private static string BuildStyles(IReadOnlyList<string> formats)
     {
-        var sb = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
+        var root = System.Xml.Linq.XElement.Parse(StylesXml);
+        var ns = root.Name.Namespace;
+        var cellFormats = root.Element(ns + "cellXfs")!;
+        var numbers = new System.Xml.Linq.XElement(ns + "numFmts", new System.Xml.Linq.XAttribute("count", formats.Count + 1));
+        root.AddFirst(numbers);
+        numbers.Add(new System.Xml.Linq.XElement(ns + "numFmt", new System.Xml.Linq.XAttribute("numFmtId", 164),
+            new System.Xml.Linq.XAttribute("formatCode", "yyyy-mm-dd hh:mm:ss.000")));
+        cellFormats.Elements().ElementAt(1).SetAttributeValue("numFmtId", 164);
+        for (var i = 0; i < formats.Count; i++)
+        {
+            numbers.Add(new System.Xml.Linq.XElement(ns + "numFmt", new System.Xml.Linq.XAttribute("numFmtId", 165 + i),
+                new System.Xml.Linq.XAttribute("formatCode", formats[i])));
+            cellFormats.Add(new System.Xml.Linq.XElement(ns + "xf", new System.Xml.Linq.XAttribute("numFmtId", 165 + i),
+                new System.Xml.Linq.XAttribute("applyNumberFormat", 1)));
+        }
+        cellFormats.SetAttributeValue("count", formats.Count + 2);
+        root.Add(new System.Xml.Linq.XElement(ns + "cellStyles", new System.Xml.Linq.XAttribute("count", 1),
+            new System.Xml.Linq.XElement(ns + "cellStyle", new System.Xml.Linq.XAttribute("name", "Normal"),
+                new System.Xml.Linq.XAttribute("xfId", 0), new System.Xml.Linq.XAttribute("builtinId", 0))));
+        return root.ToString();
+    }
+
+    private static string Worksheet(ReportQueryExecutionResult query, IReadOnlyDictionary<string, int> styles)
+    {
+        var sb = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">");
+        if (query.Columns.Count > 0)
+        {
+            sb.Append("<cols>");
+            for (var i = 0; i < query.Columns.Count; i++)
+            {
+                var field = query.Columns[i].Field;
+                var width = field switch { "timestamp" => 24, "message" => 65, "tag.path" => 36, _ => Math.Clamp(field.Length + 4, 16, 45) };
+                sb.Append($"<col min=\"{i + 1}\" max=\"{i + 1}\" width=\"{width}\" customWidth=\"1\"/>");
+            }
+            sb.Append("</cols>");
+        }
+        sb.Append("<sheetData>");
         var rowNumber = 1;
         sb.Append($"<row r=\"{rowNumber++}\">");
         foreach (var column in query.Columns)
             sb.Append(InlineCell(column.Field));
         sb.Append("</row>");
-        foreach (var row in query.Rows)
+        for (var i = 0; i < query.Rows.Count; i++)
         {
+            var row = query.Rows[i];
             sb.Append($"<row r=\"{rowNumber++}\">");
             foreach (var column in query.Columns)
-                sb.Append(Cell(row.Cells.TryGetValue(column.Field, out var value) ? value : HistoricalQueryValue.Null()));
+            {
+                if (query.NumericRows is { } numeric && numeric[i].Cells.TryGetValue(column.Field, out var native)
+                    && styles.TryGetValue(column.Field, out var style))
+                    sb.Append($"<c s=\"{style}\"><v>{XmlEscape(native.Value!)}</v></c>");
+                else sb.Append(Cell(row.Cells.GetValueOrDefault(column.Field) ?? HistoricalQueryValue.Null()));
+            }
             sb.Append("</row>");
         }
         sb.Append("</sheetData></worksheet>");
@@ -987,9 +1035,22 @@ public sealed class ReportArtifactRenderer
             : text;
     }
 
-    private static string PdfEscape(string? value) =>
-        (value ?? string.Empty).Replace("\\", "\\\\").Replace("(", "\\(").Replace(")", "\\)")
-            .Select(ch => ch <= 127 ? ch : '?').Aggregate(new StringBuilder(), (sb, ch) => sb.Append(ch)).ToString();
+    private static readonly Encoding PdfTextEncoding = CodePagesEncodingProvider.Instance.GetEncoding(1252)!;
+
+    private static string PdfEscape(string? value)
+    {
+        var escaped = new StringBuilder();
+        foreach (var b in PdfTextEncoding.GetBytes(value ?? ""))
+        {
+            if (b is < 32 or > 126) escaped.Append('\\').Append(Convert.ToString(b, 8).PadLeft(3, '0'));
+            else
+            {
+                if (b is (byte)'(' or (byte)')' or (byte)'\\') escaped.Append('\\');
+                escaped.Append((char)b);
+            }
+        }
+        return escaped.ToString();
+    }
 
     private static string XmlEscape(string value) =>
         System.Security.SecurityElement.Escape(value) ?? string.Empty;

@@ -113,26 +113,38 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalRetrie
         return Result(query, points);
     }
 
-    public async Task<HistoricalRetrievalResult> QuerySampledFixedStepAsync(
-        HistoricalQueryExecution query,
-        int stepMilliseconds,
-        int maximumGapMilliseconds,
-        CancellationToken cancellationToken = default)
+    public Task<HistoricalRetrievalResult> QuerySampledFixedStepAsync(
+        HistoricalQueryExecution query, int stepMilliseconds, int maximumGapMilliseconds,
+        CancellationToken cancellationToken = default) =>
+        SampleGridAsync(query, stepMilliseconds, maximumGapMilliseconds, false, cancellationToken);
+
+    public Task<HistoricalRetrievalResult> QueryObservedGridAsync(
+        HistoricalQueryExecution query, int stepMilliseconds, int maximumAgeMilliseconds,
+        CancellationToken cancellationToken = default) =>
+        SampleGridAsync(query, stepMilliseconds, maximumAgeMilliseconds, true, cancellationToken);
+
+    private async Task<HistoricalRetrievalResult> SampleGridAsync(
+        HistoricalQueryExecution query, int stepMilliseconds, int maximumGapMilliseconds,
+        bool latestObserved, CancellationToken cancellationToken)
     {
         ValidateRetrievalQuery(query);
         ValidatePositive(stepMilliseconds, nameof(stepMilliseconds));
         ValidatePositive(maximumGapMilliseconds, nameof(maximumGapMilliseconds));
 
-        var rows = await LoadSourceRowsAsync(query, cancellationToken);
-        var tagIds = ResolveCandidateTagIds(query, rows).ToArray();
         var step = TimeSpan.FromMilliseconds(stepMilliseconds);
         var maxGap = TimeSpan.FromMilliseconds(maximumGapMilliseconds);
+        var from = query.Range.FromUtc;
+        var readQuery = latestObserved
+            ? query with { Range = query.Range with { FromUtc = from - TimeSpan.FromTicks(Math.Min(from.UtcTicks, maxGap.Ticks)) } }
+            : query;
+        var rows = await LoadSourceRowsAsync(readQuery, cancellationToken);
+        var tagIds = ResolveCandidateTagIds(query, rows).ToArray();
         var gridCount = checked(((query.Range.ToUtc.UtcTicks - query.Range.FromUtc.UtcTicks) / step.Ticks) + 1L);
         if (gridCount <= 0 || gridCount > int.MaxValue)
             throw new HistoricalQueryValidationException("SampledFixedStep grid is outside the supported bounded range.");
-        if (checked(gridCount * Math.Max(1, tagIds.LongLength)) > query.PageSize)
+        if (checked(gridCount * Math.Max(1, tagIds.LongLength)) > query.ResultLimit)
             throw new HistoricalQueryValidationException(
-                $"SampledFixedStep would return more than the validated result limit {query.PageSize}; increase StepMilliseconds or narrow the range.");
+                $"SampledFixedStep would return more than the validated result limit {query.ResultLimit}; increase StepMilliseconds or narrow the range.");
 
         var byTag = rows
             .GroupBy(x => x.TagId)
@@ -146,34 +158,47 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalRetrie
             byTag.TryGetValue(tagId, out var samples);
             samples ??= Array.Empty<SampleRow>();
             var seriesType = ResolveSeriesType(samples);
+            var last = -1;
 
             for (long n = 0; n < gridCount; n++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var timestamp = query.Range.FromUtc + TimeSpan.FromTicks(checked(n * step.Ticks));
-                var exact = samples
-                    .Where(x => x.Timestamp == timestamp)
-                    .OrderByDescending(x => x.SampleId)
-                    .FirstOrDefault();
+                while (last + 1 < samples.Length && samples[last + 1].Timestamp <= timestamp) last++;
+                if (latestObserved)
+                {
+                    if (last < 0 || timestamp - samples[last].Timestamp > maxGap)
+                        points.Add(GapPoint(tagId, timestamp, seriesType, "no-recent-observation"));
+                    else
+                    {
+                        var sample = samples[last];
+                        var measured = ToMeasuredPoint(sample);
+                        points.Add(measured with
+                        {
+                            TimestampUtc = timestamp,
+                            Provenance = measured.Provenance with
+                            {
+                                Kind = sample.Timestamp == timestamp ? HistoricalRetrievalProvenanceKind.Measured : HistoricalRetrievalProvenanceKind.Held
+                            }
+                        });
+                    }
+                    continue;
+                }
+
+                var exact = last >= 0 && samples[last].Timestamp == timestamp ? samples[last] : null;
                 if (exact is not null)
                 {
                     points.Add(ToMeasuredPoint(exact));
                     continue;
                 }
 
-                var previous = samples
-                    .Where(x => x.Timestamp < timestamp)
-                    .OrderByDescending(x => x.Timestamp)
-                    .ThenByDescending(x => x.SampleId)
-                    .FirstOrDefault();
+                var previous = last >= 0 ? samples[last] : null;
 
                 if (seriesType.HasValue && IsNumeric(seriesType.Value))
                 {
-                    var next = samples
-                        .Where(x => x.Timestamp > timestamp)
-                        .OrderBy(x => x.Timestamp)
-                        .ThenByDescending(x => x.SampleId)
-                        .FirstOrDefault();
+                    var nextIndex = last + 1;
+                    while (nextIndex + 1 < samples.Length && samples[nextIndex + 1].Timestamp == samples[nextIndex].Timestamp) nextIndex++;
+                    var next = nextIndex < samples.Length ? samples[nextIndex] : null;
                     points.Add(InterpolateOrGap(tagId, timestamp, previous, next, maxGap));
                     continue;
                 }
@@ -210,9 +235,9 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalRetrie
             .ThenBy(g => g.Key.TagId)
             .ToArray();
 
-        if (groups.Length > query.PageSize)
+        if (groups.Length > query.ResultLimit)
             throw new HistoricalQueryValidationException(
-                $"Aggregate would return {groups.Length} buckets, exceeding the validated result limit {query.PageSize}; increase BucketMilliseconds or narrow the range.");
+                $"Aggregate would return {groups.Length} buckets, exceeding the validated result limit {query.ResultLimit}; increase BucketMilliseconds or narrow the range.");
 
         var points = new List<HistoricalRetrievalPoint>(groups.Length);
         foreach (var group in groups)
@@ -369,13 +394,13 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalRetrie
             ORDER BY tag_id
             LIMIT @fetch_limit;
             """);
-        command.Parameters.AddWithValue("fetch_limit", NpgsqlDbType.Integer, query.PageSize + 1);
+        command.Parameters.AddWithValue("fetch_limit", NpgsqlDbType.Integer, query.ResultLimit + 1);
         command.CommandText = sql.ToString();
 
         var rows = await ReadRowsAsync(command, cancellationToken);
-        if (rows.Count > query.PageSize)
+        if (rows.Count > query.ResultLimit)
             throw new HistoricalQueryValidationException(
-                $"Point retrieval exceeds the validated result limit {query.PageSize}; narrow the TAG selection.");
+                $"Point retrieval exceeds the validated result limit {query.ResultLimit}; narrow the TAG selection.");
         return rows;
     }
 
@@ -400,14 +425,15 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalRetrie
             sql.Append(" AND ").Append(BuildFilter(filter, tags, command, ref parameterIndex));
 
         AppendSearch(query, tags, sql, command);
+        var sourceLimit = query.ReportResultLimit.HasValue ? Math.Max(MaximumRetrievalSourceSamples, Math.Min(1000000, query.ResultLimit * 4)) : MaximumRetrievalSourceSamples;
         sql.Append(" ORDER BY tag_id ASC, ts ASC, sample_id ASC LIMIT @source_limit;");
-        command.Parameters.AddWithValue("source_limit", NpgsqlDbType.Integer, MaximumRetrievalSourceSamples + 1);
+        command.Parameters.AddWithValue("source_limit", NpgsqlDbType.Integer, sourceLimit + 1);
         command.CommandText = sql.ToString();
 
         var rows = await ReadRowsAsync(command, cancellationToken);
-        if (rows.Count > MaximumRetrievalSourceSamples)
+        if (rows.Count > sourceLimit)
             throw new HistoricalQueryValidationException(
-                $"Historical retrieval source selection exceeds {MaximumRetrievalSourceSamples} persisted samples; narrow the range/TAG selection or increase sampling/aggregation resolution.");
+                $"Historical retrieval source selection exceeds {sourceLimit} persisted samples; narrow the range/TAG selection or increase sampling/aggregation resolution.");
         return rows;
     }
 
@@ -678,7 +704,7 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalRetrie
             throw new ArgumentException("Timescale historian retrieval received the wrong dataset.", nameof(query));
         if (query.After is not null)
             throw new HistoricalQueryValidationException("Historian retrieval modes do not accept raw-query cursors.");
-        if (query.PageSize < 1 || query.PageSize > HistoricalQueryValidator.MaximumPageSize)
+        if (query.PageSize < 1 || query.PageSize > HistoricalQueryValidator.MaximumPageSize || query.ReportResultLimit is < 1 or > 1000000)
             throw new HistoricalQueryValidationException("Historian retrieval result limit is invalid.");
     }
 
@@ -699,8 +725,8 @@ public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalRetrie
 
     private static void EnsureResultBound(HistoricalQueryExecution query, int count)
     {
-        if (count > query.PageSize)
+        if (count > query.ResultLimit)
             throw new HistoricalQueryValidationException(
-                $"Historical retrieval would return {count} series, exceeding the validated result limit {query.PageSize}.");
+                $"Historical retrieval would return {count} series, exceeding the validated result limit {query.ResultLimit}.");
     }
 }

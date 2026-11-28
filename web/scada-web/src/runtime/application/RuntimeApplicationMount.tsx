@@ -58,13 +58,15 @@ type RuntimeStationWindowReference = Readonly<{
 }>;
 
 export type RuntimeApplicationMountProps = {
+  reportContent?: React.ReactNode;
   showHistoryNavigation?: boolean;
   showFullscreenControl?: boolean;
 };
 
 export function RuntimeApplicationMount({
   showHistoryNavigation = false,
-  showFullscreenControl = false
+  showFullscreenControl = false,
+  reportContent
 }: RuntimeApplicationMountProps = {}) {
   const locale = useAppShellLocale();
   const text = appShellText(locale);
@@ -235,13 +237,14 @@ export function RuntimeApplicationMount({
     </main>;
   }
   return <RuntimeTagSessionRequiredContext.Provider value={session.admissionSupported}>
-    <EngineeringRuntimeApplication projection={projection} locale={locale} showHistoryNavigation={showHistoryNavigation} showFullscreenControl={showFullscreenControl} />
+    <EngineeringRuntimeApplication reportContent={reportContent} projection={projection} locale={locale} showHistoryNavigation={showHistoryNavigation} showFullscreenControl={showFullscreenControl} />
   </RuntimeTagSessionRequiredContext.Provider>;
 }
 
 function EngineeringRuntimeApplication(props: {
   projection: RuntimeApplicationProjection;
   locale: ReturnType<typeof useAppShellLocale>;
+  reportContent?: React.ReactNode;
   showHistoryNavigation: boolean;
   showFullscreenControl: boolean;
 }) {
@@ -251,11 +254,13 @@ function EngineeringRuntimeApplication(props: {
 function EngineeringRuntimeApplicationContent({
   projection,
   locale,
+  reportContent,
   showHistoryNavigation,
   showFullscreenControl
 }: {
   projection: RuntimeApplicationProjection;
   locale: ReturnType<typeof useAppShellLocale>;
+  reportContent?: React.ReactNode;
   showHistoryNavigation: boolean;
   showFullscreenControl: boolean;
 }) {
@@ -547,12 +552,13 @@ function EngineeringRuntimeApplicationContent({
 
   const runtimeToolbar = <div className="runtime-operator-toolbar" role="toolbar" aria-label={text.runtime}>
     {header?.overviewVisible !== false && <RuntimeOperatorTool
-      label={text.runtimeOverview} icon="overview" active={!historyOpen && !alarmsOpen && !windowToolsOpen} onClick={showOverview}
+      label={text.runtimeOverview} icon="overview" active={!reportContent && !historyOpen && !alarmsOpen && !windowToolsOpen} onClick={reportContent ? () => window.location.assign('/') : showOverview}
     />}
     {showHistoryNavigation && header?.historyVisible !== false ? <RuntimeOperatorTool
       label={text.runtimeHistory} icon="history" active={historyOpen} expanded={historyOpen}
       controls="runtime-history-overlay" onClick={toggleHistory}
     /> : null}
+    {showHistoryNavigation && !stationFixed && <RuntimeOperatorTool icon="reports" active={Boolean(reportContent)} label={locale === 'pt-BR' ? 'Relatórios' : locale === 'es' ? 'Informes' : 'Reports'} onClick={() => window.location.assign('/runtime/reports')}/>}
     {header?.alarmsVisible !== false && <RuntimeOperatorTool
       label={text.alarms} icon="alarms" active={alarmsOpen} expanded={alarmsOpen}
       controls="runtime-alarm-overlay" disabled={playback.mode === 'historicalPlayback'} onClick={toggleAlarms}
@@ -568,6 +574,7 @@ function EngineeringRuntimeApplicationContent({
       className={`runtime-operator-tool runtime-operator-tool--custom${link.visualAssetId ? ' runtime-operator-tool--custom-image' : ''}`}
       data-testid="runtime-custom-screen-link"
       title={link.label} aria-label={link.label} onClick={() => {
+        if (reportContent) { window.location.assign('/?screen=' + encodeURIComponent(link.screenKey)); return; }
         setScreenRequest(previous => ({ screenKey: link.screenKey, version: (previous?.version ?? 0) + 1 }));
         showOverview();
       }}>
@@ -575,7 +582,7 @@ function EngineeringRuntimeApplicationContent({
     </button>) : null}
   </div>;
 
-  if (!startup.screenKey) {
+  if (!startup.screenKey && !reportContent) {
     return <main className="shell" data-testid="runtime-engineering-application">
       <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code={startup.diagnosticCode ?? undefined}>
         <strong>{startup.diagnosticCode}</strong>
@@ -607,7 +614,7 @@ function EngineeringRuntimeApplicationContent({
       <div className="runtime-operator-context" style={{ textAlign: header?.titlePosition ?? 'left' }} title={projectTitle}>
         <div className="runtime-operator-context__titles">
           <strong style={projectTitleStyle}>{projectTitle}</strong>
-          {header?.showScreenName && activeScreen ? <span className="runtime-operator-context__screen" style={screenTitleStyle}>{activeScreen.name || activeScreen.key}</span> : null}
+          {header?.showScreenName && (reportContent || activeScreen) ? <span className="runtime-operator-context__screen" style={screenTitleStyle}>{reportContent ? (locale === 'pt-BR' ? 'Relatórios' : locale === 'es' ? 'Informes' : 'Reports') : activeScreen?.name || activeScreen?.key}</span> : null}
           {!compact ? <span className="runtime-operator-context__revision">rev {projection.revision}</span> : null}
         </div>
         {playback.mode === 'historicalPlayback' && playback.atUtc ? <>
@@ -685,7 +692,7 @@ function EngineeringRuntimeApplicationContent({
       <UserSessionMenu locale={locale} includeRuntimeSessionControls runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
     </div>}
 
-    <section className="runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
+    {reportContent ?? <section className="runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
       <RuntimeVisualNavigator
         engineeringPackage={engineeringPackage}
         initialScreenKey={activeScreenKey}
@@ -704,7 +711,7 @@ function EngineeringRuntimeApplicationContent({
         visualAssetUrl={runtimeVisualAssetContentUrl}
         onVisualContextChange={onVisualContextChange}
       />
-    </section>
+    </section>}
 
     {historyOpen ? <aside id="runtime-history-overlay" className="runtime-operator-overlay runtime-operator-overlay--history" aria-label={historyText.title} data-testid="runtime-history-overlay">
       <div className="runtime-operator-overlay-header">
@@ -738,7 +745,7 @@ function EngineeringRuntimeApplicationContent({
   </main>;
 }
 
-type RuntimeOperatorIconName = 'overview' | 'history' | 'alarms' | 'playback' | 'windows' | 'fullscreen' | 'exitFullscreen';
+type RuntimeOperatorIconName = 'reports' | 'overview' | 'history' | 'alarms' | 'playback' | 'windows' | 'fullscreen' | 'exitFullscreen';
 
 function RuntimeOperatorTool({
   label,
@@ -814,6 +821,7 @@ function runtimeHeaderContrastColor(color: string): string {
 }
 
 function RuntimeOperatorIcon({ name }: { name: RuntimeOperatorIconName }) {
+  if (name === 'reports') return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2.5h7l3 3V17H5z M11 3v4h4 M7.5 10h5 M7.5 13h5"/></svg>;
   if (name === 'overview') {
     return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
       <path d="M3.5 9.2 10 3.8l6.5 5.4v6.3a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1Z" />

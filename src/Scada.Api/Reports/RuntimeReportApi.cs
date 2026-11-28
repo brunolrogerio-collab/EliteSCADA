@@ -55,7 +55,13 @@ public sealed record ReportGeneratedSnapshot(
     ReportEngineeringDto Report,
     ReportRuntimeTimeRange? TimeRange,
     ReportExecutionResult Result,
-    DateTimeOffset GeneratedAtUtc);
+    DateTimeOffset GeneratedAtUtc)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyDictionary<Guid, ReportImage> Images { get; init; } = new Dictionary<Guid, ReportImage>();
+}
+
+public sealed record ReportImage(byte[] Content, string MediaType, int Width, int Height);
 
 public sealed class ReportGenerationGate
 {
@@ -86,13 +92,15 @@ public sealed class ReportGeneratedExecutionStore
         string? ownerSubjectId,
         ReportEngineeringDto report,
         ReportRuntimeTimeRange? timeRange,
-        ReportExecutionResult result)
+        ReportExecutionResult result,
+        IReadOnlyDictionary<Guid, ReportImage>? images = null)
     {
         var now = DateTimeOffset.UtcNow;
         lock (_gate)
         {
             Prune(now);
-            if (_items.Count >= MaximumSnapshots)
+            var resultRows = result.Queries.Sum(q => q.Rows.Count);
+            while (_items.Count > 0 && (_items.Count >= MaximumSnapshots || _items.Values.Sum(s => s.Result.Queries.Sum(q => q.Rows.Count)) + resultRows > 100000))
             {
                 var oldest = _items.Values.OrderBy(x => x.GeneratedAtUtc).First();
                 _items.Remove(oldest.ExecutionId);
@@ -103,7 +111,7 @@ public sealed class ReportGeneratedExecutionStore
                 report,
                 timeRange,
                 result,
-                result.GeneratedAtUtc ?? now);
+                result.GeneratedAtUtc ?? now) { Images = images ?? new Dictionary<Guid, ReportImage>() };
             _items[snapshot.ExecutionId] = snapshot;
             return snapshot;
         }
@@ -136,13 +144,17 @@ public sealed class ReportGeneratedExecutionStore
 
 public sealed record AuthorizedRuntimeReport(
     ReportEngineeringDto Report,
-    IReadOnlyCollection<DataQueryEngineeringDto> ResolvedDataQueries);
+    IReadOnlyCollection<DataQueryEngineeringDto> ResolvedDataQueries)
+{
+    public IReadOnlyDictionary<Guid, ReportImage>? Images { get; init; }
+}
 
 public sealed class RuntimeReportCatalog(
     IEngineeringProjectPersistenceService persistence,
     IEngineeringExchangeService exchange,
     ScadaRuntimeFacade runtime,
-    IHistoricalQueryAuthorizer historicalAuthorization)
+    IHistoricalQueryAuthorizer historicalAuthorization,
+    IEngineeringProjectStore? assetStore = null)
 {
     public async Task<IReadOnlyList<ReportEngineeringDto>> ListAuthorizedAsync(
         CancellationToken cancellationToken)
@@ -161,15 +173,42 @@ public sealed class RuntimeReportCatalog(
 
     public async Task<AuthorizedRuntimeReport?> FindAuthorityAsync(
         string key,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool includeImages = false)
     {
+        var descriptor = runtime.Describe();
         var package = await ActivePackageAsync(cancellationToken);
         if (package is null) return null;
         var report = (package.Reports ?? Array.Empty<ReportEngineeringDto>())
             .FirstOrDefault(candidate => candidate.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
-        return report is null
-            ? null
-            : await AuthorizeReportAsync(package, report, cancellationToken);
+        var authority = report is null ? null : await AuthorizeReportAsync(package, report, cancellationToken);
+        if (authority is null || !includeImages) return authority;
+        var assetIds = (report!.Sections ?? []).SelectMany(section => section.Controls ?? [])
+            .Where(control => control.Kind == ReportControlKind.Image && control.AssetId.HasValue)
+            .Select(control => control.AssetId!.Value).Distinct().ToArray();
+        if (assetIds.Length == 0) return authority;
+        var active = runtime.Describe();
+        if (assetStore is null || descriptor.ProjectKey is null || descriptor.Revision is null ||
+            active.ProjectKey != descriptor.ProjectKey || active.Revision != descriptor.Revision)
+            throw new ReportExecutionLimitException("The active image revision is unavailable. Reopen the report.");
+        var payloads = await assetStore.LoadRevisionAssetsAsync(descriptor.ProjectKey, descriptor.Revision.Value, cancellationToken);
+        var images = new Dictionary<Guid, ReportImage>();
+        long totalPixels = 0;
+        foreach (var id in assetIds)
+        {
+            var metadata = package.VisualAssets?.FirstOrDefault(asset => asset.Id == id);
+            var payload = payloads.FirstOrDefault(asset => asset.AssetId == id);
+            if (metadata is null || payload is null || metadata.MediaType is not ("image/png" or "image/jpeg") ||
+                !string.Equals(metadata.Sha256, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(payload.Content)), StringComparison.OrdinalIgnoreCase))
+                throw new ReportExecutionLimitException("A referenced report image is missing or is not an approved PNG or JPEG in this revision.");
+            using var input = new MemoryStream(payload.Content, false);
+            var info = StbImageSharp.ImageInfo.FromStream(input);
+            if (info is null || info.Value.Width <= 0 || info.Value.Height <= 0 ||
+                (totalPixels += (long)info.Value.Width * info.Value.Height) > 16000000)
+                throw new ReportExecutionLimitException("Invalid report image or report images exceed 16 megapixels in total.");
+            images[id] = new ReportImage(payload.Content, metadata.MediaType, info.Value.Width, info.Value.Height);
+        }
+        return authority with { Images = images };
     }
 
     public async Task<ReportEngineeringDto?> FindAuthorizedAsync(
@@ -322,7 +361,9 @@ public static class RuntimeReportApi
         {
             var access = await RuntimeViewAsync(context, runtime, security, ct);
             if (access is not null) return access;
-            var authority = await catalog.FindAuthorityAsync(key, ct);
+            AuthorizedRuntimeReport? authority;
+            try { authority = await catalog.FindAuthorityAsync(key, ct, includeImages: true); }
+            catch (ReportExecutionLimitException ex) { return Results.BadRequest(new ReportExecutionApiError("report_image", ex.Message)); }
             if (authority is null)
                 return Results.NotFound(new ReportExecutionApiError("report_not_found", "Report was not found or is not authorized."));
             var report = authority.Report;
@@ -330,7 +371,7 @@ public static class RuntimeReportApi
             try
             {
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                timeout.CancelAfter(TimeSpan.FromSeconds(30));
+                timeout.CancelAfter(TimeSpan.FromSeconds(120));
                 using var generationLease = await generationGate.EnterAsync(timeout.Token);
                 var result = await execution.ExecuteAsync(
                     new ReportExecutionRequest(
@@ -340,7 +381,7 @@ public static class RuntimeReportApi
                         authority.ResolvedDataQueries),
                     timeout.Token);
                 var owner = security.AuthenticationEnabled ? security.GetPrincipal(context).SubjectId : null;
-                var snapshot = store.Add(owner, report, request.TimeRange, result);
+                var snapshot = store.Add(owner, report, request.TimeRange, result, authority.Images);
                 return Results.Ok(new RuntimeReportGenerationResponse(
                     snapshot.ExecutionId,
                     report.Key,
@@ -396,6 +437,27 @@ public static class RuntimeReportApi
             if (dataAccess != HistoricalAuthorizationOutcome.Allowed)
                 return Results.Json(new ReportExecutionApiError("forbidden", "Forbidden."), statusCode: StatusCodes.Status403Forbidden);
             return Results.Ok(snapshot);
+        });
+
+        app.MapGet(ExecutionRoute + "/images/{assetId:guid}", async (
+            Guid executionId, Guid assetId,
+            HttpContext context,
+            ReportGeneratedExecutionStore store,
+            RuntimeReportCatalog catalog,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            CancellationToken ct) =>
+        {
+            var access = await RuntimeViewAsync(context, runtime, security, ct);
+            if (access is not null) return access;
+            var owner = security.AuthenticationEnabled ? security.GetPrincipal(context).SubjectId : null;
+            if (!store.TryGet(executionId, owner, out var snapshot) || snapshot is null)
+                return Results.NotFound(new ReportExecutionApiError("execution_not_found", "Generated report snapshot was not found or expired."));
+            var dataAccess = await catalog.AuthorizeResultAsync(snapshot.Result, ct);
+            if (dataAccess == HistoricalAuthorizationOutcome.Unauthenticated) return Results.Unauthorized();
+            if (dataAccess != HistoricalAuthorizationOutcome.Allowed)
+                return Results.Json(new ReportExecutionApiError("forbidden", "Forbidden."), statusCode: StatusCodes.Status403Forbidden);
+            return snapshot.Images.TryGetValue(assetId, out var image) ? Results.File(image.Content, image.MediaType) : Results.NotFound();
         });
 
         app.MapGet(ExportRoute, async (
@@ -502,9 +564,9 @@ public sealed record ReportArtifact(byte[] Content, string ContentType, string F
 
 public sealed class ReportArtifactRenderer
 {
-    public const int MaximumOutputBytes = 16 * 1024 * 1024;
-    public const int MaximumCells = 250000;
-    public const int MaximumPdfPages = 500;
+    public const int MaximumOutputBytes = 64 * 1024 * 1024;
+    public const int MaximumCells = 1000000;
+    public const int MaximumPdfPages = 50000;
 
     public ReportArtifact? Render(ReportGeneratedSnapshot snapshot, string format)
     {
@@ -536,7 +598,7 @@ public sealed class ReportArtifactRenderer
                     EscapeCsv(row.Cells.TryGetValue(field, out var value) ? value.Value ?? string.Empty : string.Empty))));
         }
         return new ReportArtifact(
-            new UTF8Encoding(true).GetBytes(sb.ToString()),
+            [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(sb.ToString())],
             "text/csv; charset=utf-8",
             SafeName(snapshot.Report.Name) + ".csv");
     }
@@ -550,15 +612,22 @@ public sealed class ReportArtifactRenderer
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, true))
         {
-            WriteZip(archive, "[Content_Types].xml", ContentTypes(snapshot.Result.Queries.Count));
+            WriteZip(archive, "[Content_Types].xml", ContentTypes(snapshot.Result.Queries.Count, snapshot.Images.Count > 0));
             WriteZip(archive, "_rels/.rels",
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/></Relationships>");
             WriteZip(archive, "xl/workbook.xml", Workbook(snapshot.Result.Queries));
             WriteZip(archive, "xl/_rels/workbook.xml.rels", WorkbookRelationships(snapshot.Result.Queries.Count));
-            WriteZip(archive, "xl/styles.xml", StylesXml);
+            var formats = snapshot.Report.Resolution?.LatestObserved == true
+                ? (snapshot.Report.Variables ?? []).Where(v => v.Visible).ToDictionary(
+                    ObservedReportTable.Label, ObservedReportTable.ExcelFormat)
+                : new Dictionary<string, string>();
+            var uniqueFormats = formats.Values.Distinct().ToList();
+            WriteZip(archive, "xl/styles.xml", BuildStyles(uniqueFormats));
+            var styles = formats.ToDictionary(pair => pair.Key, pair => uniqueFormats.IndexOf(pair.Value) + 2);
+            if (snapshot.Images.Count > 0) WriteWorkbookImages(archive, snapshot.Images, snapshot.Result.Queries.Count);
             var index = 1;
             foreach (var query in snapshot.Result.Queries)
-                WriteZip(archive, $"xl/worksheets/sheet{index++}.xml", Worksheet(query));
+                WriteZip(archive, $"xl/worksheets/sheet{index++}.xml", Worksheet(query, styles, snapshot.Report.Page ?? new(), snapshot.Images.Count));
         }
         return new ReportArtifact(
             stream.ToArray(),
@@ -573,7 +642,7 @@ public sealed class ReportArtifactRenderer
         if (pages.Count > MaximumPdfPages)
             throw new ReportExecutionLimitException($"PDF export exceeds the maximum page count ({MaximumPdfPages}).");
 
-        var bytes = SimplePdf(pages, page.WidthPoints, page.HeightPoints);
+        var bytes = SimplePdf(pages, page.WidthPoints, page.HeightPoints, snapshot.Images);
         return new ReportArtifact(bytes, "application/pdf", SafeName(snapshot.Report.Name) + ".pdf");
     }
 
@@ -594,8 +663,9 @@ public sealed class ReportArtifactRenderer
             : portraitMillimeters;
         var left = Mm(page?.MarginLeftMillimeters ?? 10);
         var right = Mm(page?.MarginRightMillimeters ?? 10);
-        var top = Mm(page?.MarginTopMillimeters ?? 10);
-        var bottom = Mm(page?.MarginBottomMillimeters ?? 10);
+        var numberBand = page?.ShowPageNumbers != false ? (page?.PageNumberFontSizePoints ?? 8) + Mm(3) : 0;
+        var top = Math.Max(Mm(page?.MarginTopMillimeters ?? 10), page?.PageNumberPosition == "header" ? numberBand : 0);
+        var bottom = Math.Max(Mm(page?.MarginBottomMillimeters ?? 10), page?.PageNumberPosition != "header" ? numberBand : 0);
         return new PdfGeometry(
             Mm(size.Width),
             Mm(size.Height),
@@ -618,7 +688,7 @@ public sealed class ReportArtifactRenderer
         var groupFooters = sections.Where(section => section.Kind == ReportSectionKind.GroupFooter).ToArray();
 
         if (details.Length == 0)
-            return [BuildFallbackPdfPage(snapshot, page)];
+            return BuildFallbackPdfPages(snapshot, page);
 
         var primary = snapshot.Result.Queries.FirstOrDefault();
         var rows = primary?.Rows ?? Array.Empty<HistoricalQueryRow>();
@@ -690,7 +760,7 @@ public sealed class ReportArtifactRenderer
             }
 
             if (report.Page?.ShowPageNumbers != false)
-                DrawPdfText(commands, $"{pageIndex + 1} / {totalPages}", page.WidthPoints / 2 - 10, page.HeightPoints - Mm(5), 8, "center");
+                AddPageNumber(commands, report.Page ?? new(), page, pageIndex + 1, totalPages);
 
             output.Add(new PdfPageSpec(commands));
         }
@@ -698,29 +768,46 @@ public sealed class ReportArtifactRenderer
         return output;
     }
 
-    private static PdfPageSpec BuildFallbackPdfPage(ReportGeneratedSnapshot snapshot, PdfGeometry page)
+    private static void AddPageNumber(List<string> commands, ReportPageEngineeringDto settings, PdfGeometry page, int current, int total)
     {
-        var commands = new List<string>();
-        var y = page.ContentTopPoints;
-        DrawPdfText(commands, snapshot.Report.Name, page.ContentLeftPoints, y, 14, "left");
-        y += 18;
-        DrawPdfText(commands, $"Generated At: {snapshot.GeneratedAtUtc:O}", page.ContentLeftPoints, y, 8, "left");
-        y += 14;
+        var alignment = settings.PageNumberAlignment;
+        var x = page.ContentLeftPoints + (alignment switch { "right" => page.ContentWidthPoints, "center" => page.ContentWidthPoints / 2, _ => 0 });
+        var y = settings.PageNumberPosition == "header" ? Mm(2) + settings.PageNumberFontSizePoints : page.HeightPoints - Mm(2);
+        DrawPdfText(commands, settings.ShowPageCount ? $"{current} / {total}" : current.ToString(CultureInfo.InvariantCulture),
+            x, y, settings.PageNumberFontSizePoints, alignment, settings.PageNumberFontFamily);
+    }
+
+    private static IReadOnlyList<PdfPageSpec> BuildFallbackPdfPages(ReportGeneratedSnapshot snapshot, PdfGeometry page)
+    {
+        var pages = new List<PdfPageSpec>();
+        var settings = snapshot.Report.Page ?? new();
         foreach (var query in snapshot.Result.Queries)
         {
-            DrawPdfText(commands, $"{query.QueryKey} | {query.FromUtc:O} - {query.ToUtc:O} | {query.RetrievalMode}", page.ContentLeftPoints, y, 8, "left");
-            y += 12;
-            var fields = query.Columns.Take(8).Select(column => column.Field).ToArray();
-            DrawPdfText(commands, string.Join(" | ", fields), page.ContentLeftPoints, y, 7, "left");
-            y += 10;
-            foreach (var row in query.Rows.Take(45))
+            var fields = query.Columns.Select(column => column.Field).ToArray();
+            var lineWidth = (int)(page.ContentWidthPoints / 4);
+            var perColumn = Math.Max(1, lineWidth / Math.Max(1, fields.Length) - 2);
+            var perPage = Math.Max(1, (int)((page.ContentHeightPoints - 48) / 10));
+            for (var offset = 0; offset < Math.Max(1, query.Rows.Count); offset += perPage)
             {
-                DrawPdfText(commands, string.Join(" | ", fields.Select(field => Truncate(PdfCell(row, field), 18))), page.ContentLeftPoints, y, 7, "left");
-                y += 9;
-                if (y > page.ContentTopPoints + page.ContentHeightPoints - 10) break;
+                var y = page.ContentTopPoints + 14;
+                var commands = new List<string>();
+                DrawPdfText(commands, snapshot.Report.Name, page.ContentLeftPoints, y, 14, "left");
+                DrawPdfText(commands, $"{query.QueryKey} | {query.FromUtc:O} - {query.ToUtc:O}", page.ContentLeftPoints, y += 14, 8, "left");
+                DrawPdfText(commands, string.Join(" | ", fields.Select(f => Truncate(f, perColumn))), page.ContentLeftPoints, y += 10, 7, "left");
+                foreach (var row in query.Rows.Skip(offset).Take(perPage))
+                    DrawPdfText(commands, string.Join(" | ", fields.Select(f => Truncate(PdfCell(row, f), perColumn))), page.ContentLeftPoints, y += 10, 7, "left");
+                pages.Add(new PdfPageSpec(commands));
             }
         }
-        return new PdfPageSpec(commands);
+        if (pages.Count == 0) pages.Add(new PdfPageSpec([ ]));
+        if (settings.ShowPageNumbers)
+            for (int i = 0; i < pages.Count; i++)
+            {
+                var numbered = pages[i].Commands.ToList();
+                AddPageNumber(numbered, settings, page, i + 1, pages.Count);
+                pages[i] = new PdfPageSpec(numbered);
+            }
+        return pages;
     }
 
     private static double RenderPdfSection(
@@ -757,18 +844,20 @@ public sealed class ReportArtifactRenderer
                     DrawPdfChart(commands, snapshot, control, x, y, width, height);
                     break;
                 case ReportControlKind.Image:
-                    // Active-revision image bytes are not stored inside the report snapshot.
-                    // Draw a deterministic bounded placeholder rather than reading Working
-                    // Engineering or an arbitrary filesystem path.
-                    DrawPdfRectangle(commands, x, y, width, height, Math.Max(0.5, border));
-                    DrawPdfText(commands, control.Text ?? "Image", x + 2, y + Math.Min(height - 2, 10), 7, "left");
+                    if (control.AssetId is { } id && snapshot.Images.TryGetValue(id, out var image))
+                    {
+                        var scale = Math.Min(width / image.Width, height / image.Height);
+                        var w = image.Width * scale;
+                        var h = image.Height * scale;
+                        commands.Add(FormattableString.Invariant($"q {w:0.###} 0 0 {-h:0.###} {x + (width-w)/2:0.###} {y + (height+h)/2:0.###} cm /Im{id:N} Do Q"));
+                    }
                     break;
                 default:
                     var text = control.Kind is ReportControlKind.DataField or ReportControlKind.BooleanState or ReportControlKind.Barcode
                         ? PdfCell(row, control.Field)
                         : control.Text ?? control.Key;
                     var size = Math.Clamp(control.Style?.FontSizePoints ?? 9, 5, 72);
-                    DrawPdfText(commands, Truncate(text, Math.Max(8, (int)(width / Math.Max(3, size * 0.45)))), x, y + Math.Min(height - 1, size + 1), size, PdfAlignment(control.Style?.TextAlignment));
+                    DrawPdfText(commands, Truncate(text, Math.Max(8, (int)(width / Math.Max(3, size * 0.45)))), x + (control.Style?.TextAlignment switch { ReportTextAlignment.Center => width/2, ReportTextAlignment.Right => width, _ => 0 }), y + Math.Min(height - 1, size + 1), size, PdfAlignment(control.Style?.TextAlignment), control.Style?.FontFamily);
                     if (border > 0)
                         DrawPdfRectangle(commands, x, y, width, height, border);
                     break;
@@ -810,17 +899,18 @@ public sealed class ReportArtifactRenderer
         commands.Add(sb.ToString());
     }
 
-    private static void DrawPdfText(List<string> commands, string? text, double x, double yTop, double size, string alignment)
+    private static void DrawPdfText(List<string> commands, string? text, double x, double yTop, double size, string alignment, string? family = null)
     {
+        var font = family switch { "Times New Roman" => "F2", "Courier New" => "F3", _ => "F1" };
         var safe = PdfEscape(text);
-        var estimatedWidth = safe.Length * size * 0.5;
+        var estimatedWidth = (text?.Length ?? 0) * size * 0.5;
         var drawX = alignment switch
         {
             "right" => x - estimatedWidth,
             "center" => x - estimatedWidth / 2,
             _ => x
         };
-        commands.Add(FormattableString.Invariant($"BT /F1 {size:0.###} Tf 1 0 0 -1 {drawX:0.###} {yTop:0.###} Tm ({safe}) Tj ET"));
+        commands.Add(FormattableString.Invariant($"BT /{font} {size:0.###} Tf 1 0 0 -1 {drawX:0.###} {yTop:0.###} Tm ({safe}) Tj ET"));
     }
 
     private static void DrawPdfLine(List<string> commands, double x1, double y1Top, double x2, double y2Top, double width) =>
@@ -859,16 +949,37 @@ public sealed class ReportArtifactRenderer
         return value.Value ?? string.Empty;
     }
 
+    private static byte[] CompressedStream(string attributes, byte[] bytes)
+    {
+        using var output = new MemoryStream();
+        using (var compressed = new ZLibStream(output, CompressionLevel.Fastest, true)) compressed.Write(bytes);
+        return [.. Ascii($"<< {attributes} /Filter /FlateDecode /Length {output.Length} >>\nstream\n"), .. output.ToArray(), .. Ascii("\nendstream")];
+    }
+
     private static double Mm(double value) => value * 72d / 25.4d;
 
-    private static byte[] SimplePdf(IReadOnlyList<PdfPageSpec> pages, double width, double height)
+    private static byte[] SimplePdf(IReadOnlyList<PdfPageSpec> pages, double width, double height, IReadOnlyDictionary<Guid, ReportImage> images)
     {
         var objects = new List<byte[]>();
         var pageObjects = new List<int>();
         const int fontObject = 3;
         objects.Add(Array.Empty<byte>());
         objects.Add(Array.Empty<byte>());
-        objects.Add(Ascii("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"));
+        objects.Add(Ascii("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"));
+
+        objects.Add(Ascii("<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman /Encoding /WinAnsiEncoding >>"));
+        objects.Add(Ascii("<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>"));
+        var imageResources = new StringBuilder();
+        foreach (var (id, image) in images)
+        {
+            var rgba = StbImageSharp.ImageResult.FromMemory(image.Content, StbImageSharp.ColorComponents.RedGreenBlueAlpha).Data;
+            var rgb = new byte[checked(image.Width * image.Height * 3)];
+            for (int i = 0, j = 0; i < rgba.Length; i += 4)
+                for (int channel = 0; channel < 3; channel++)
+                    rgb[j++] = (byte)((rgba[i + channel] * rgba[i + 3] + 255 * (255 - rgba[i + 3]) + 127) / 255);
+            imageResources.Append($" /Im{id:N} {objects.Count + 1} 0 R");
+            objects.Add(CompressedStream($"/Type /XObject /Subtype /Image /Width {image.Width} /Height {image.Height} /ColorSpace /DeviceRGB /BitsPerComponent 8", rgb));
+        }
 
         foreach (var page in pages)
         {
@@ -877,10 +988,10 @@ public sealed class ReportArtifactRenderer
                               "\nQ";
             var contentBytes = Ascii(transformed);
             var contentNumber = objects.Count + 1;
-            objects.Add(Ascii($"<< /Length {contentBytes.Length} >>\nstream\n{Encoding.ASCII.GetString(contentBytes)}\nendstream"));
+            objects.Add(contentBytes.Length < 2048 ? Ascii($"<< /Length {contentBytes.Length} >>\nstream\n{Encoding.ASCII.GetString(contentBytes)}\nendstream") : CompressedStream("", contentBytes));
             var pageNumber = objects.Count + 1;
             objects.Add(Ascii(FormattableString.Invariant(
-                $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width:0.###} {height:0.###}] /Resources << /Font << /F1 {fontObject} 0 R >> >> /Contents {contentNumber} 0 R >>")));
+                $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width:0.###} {height:0.###}] /Resources << /Font << /F1 {fontObject} 0 R /F2 4 0 R /F3 5 0 R >> /XObject <<{imageResources} >> >> /Contents {contentNumber} 0 R >>")));
             pageObjects.Add(pageNumber);
         }
 
@@ -907,22 +1018,107 @@ public sealed class ReportArtifactRenderer
         return output.ToArray();
     }
 
-    private static string Worksheet(ReportQueryExecutionResult query)
+    private static string BuildStyles(IReadOnlyList<string> formats)
     {
-        var sb = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
+        var root = System.Xml.Linq.XElement.Parse(StylesXml);
+        var ns = root.Name.Namespace;
+        var cellFormats = root.Element(ns + "cellXfs")!;
+        var numbers = new System.Xml.Linq.XElement(ns + "numFmts", new System.Xml.Linq.XAttribute("count", formats.Count + 1));
+        root.AddFirst(numbers);
+        numbers.Add(new System.Xml.Linq.XElement(ns + "numFmt", new System.Xml.Linq.XAttribute("numFmtId", 164),
+            new System.Xml.Linq.XAttribute("formatCode", "yyyy-mm-dd hh:mm:ss.000")));
+        cellFormats.Elements().ElementAt(1).SetAttributeValue("numFmtId", 164);
+        for (var i = 0; i < formats.Count; i++)
+        {
+            numbers.Add(new System.Xml.Linq.XElement(ns + "numFmt", new System.Xml.Linq.XAttribute("numFmtId", 165 + i),
+                new System.Xml.Linq.XAttribute("formatCode", formats[i])));
+            cellFormats.Add(new System.Xml.Linq.XElement(ns + "xf", new System.Xml.Linq.XAttribute("numFmtId", 165 + i),
+                new System.Xml.Linq.XAttribute("applyNumberFormat", 1)));
+        }
+        cellFormats.SetAttributeValue("count", formats.Count + 2);
+        root.Add(new System.Xml.Linq.XElement(ns + "cellStyles", new System.Xml.Linq.XAttribute("count", 1),
+            new System.Xml.Linq.XElement(ns + "cellStyle", new System.Xml.Linq.XAttribute("name", "Normal"),
+                new System.Xml.Linq.XAttribute("xfId", 0), new System.Xml.Linq.XAttribute("builtinId", 0))));
+        return root.ToString();
+    }
+
+    private static void WriteWorkbookImages(ZipArchive book, IReadOnlyDictionary<Guid, ReportImage> images, int sheetCount)
+    {
+        const string spreadsheet = "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing";
+        const string drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
+        const string relations = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+        const string package = "http://schemas.openxmlformats.org/package/2006/relationships";
+        var anchors = new StringBuilder($"<xdr:wsDr xmlns:xdr=\"{spreadsheet}\" xmlns:a=\"{drawing}\" xmlns:r=\"{relations}\">");
+        var links = new StringBuilder($"<Relationships xmlns=\"{package}\">");
+        var row = 0;
+        foreach (var (id, image) in images)
+        {
+            var name = id.ToString("N") + (image.MediaType == "image/png" ? ".png" : ".jpeg");
+            using (var stream = book.CreateEntry("xl/media/" + name, CompressionLevel.NoCompression).Open()) stream.Write(image.Content);
+            var scale = Math.Min(200d / image.Width, 60d / image.Height);
+            var width = (long)(image.Width * scale * 9525);
+            var height = (long)(image.Height * scale * 9525);
+            var index = row + 1;
+            links.Append($"<Relationship Id=\"rId{index}\" Type=\"{relations}/image\" Target=\"../media/{name}\"/>");
+            anchors.Append($"""
+                <xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:ext cx="{width}" cy="{height}"/>
+                <xdr:pic><xdr:nvPicPr><xdr:cNvPr id="{index}" name="Image {index}"/><xdr:cNvPicPr/></xdr:nvPicPr>
+                <xdr:blipFill><a:blip r:embed="rId{index}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
+                <xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>
+                """);
+            row++;
+        }
+        WriteZip(book, "xl/drawings/report.xml", anchors.Append("</xdr:wsDr>").ToString());
+        WriteZip(book, "xl/drawings/_rels/report.xml.rels", links.Append("</Relationships>").ToString());
+        for (var i = 1; i <= sheetCount; i++)
+            WriteZip(book, $"xl/worksheets/_rels/sheet{i}.xml.rels", $"<Relationships xmlns=\"{package}\"><Relationship Id=\"rId1\" Type=\"{relations}/drawing\" Target=\"../drawings/report.xml\"/></Relationships>");
+    }
+
+    private static string Worksheet(ReportQueryExecutionResult query, IReadOnlyDictionary<string, int> styles, ReportPageEngineeringDto page, int imageCount)
+    {
+        var sb = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">");
+        if (query.Columns.Count > 0)
+        {
+            sb.Append("<cols>");
+            for (var i = 0; i < query.Columns.Count; i++)
+            {
+                var field = query.Columns[i].Field;
+                var width = field switch { "timestamp" => 24, "message" => 65, "tag.path" => 36, _ => Math.Clamp(field.Length + 4, 16, 45) };
+                sb.Append($"<col min=\"{i + 1}\" max=\"{i + 1}\" width=\"{width}\" customWidth=\"1\"/>");
+            }
+            sb.Append("</cols>");
+        }
+        sb.Append("<sheetData>");
         var rowNumber = 1;
+        for (var i = 0; i < imageCount; i++) sb.Append($"<row r=\"{rowNumber++}\" ht=\"48\" customHeight=\"1\"/>");
         sb.Append($"<row r=\"{rowNumber++}\">");
         foreach (var column in query.Columns)
             sb.Append(InlineCell(column.Field));
         sb.Append("</row>");
-        foreach (var row in query.Rows)
+        for (var i = 0; i < query.Rows.Count; i++)
         {
+            var row = query.Rows[i];
             sb.Append($"<row r=\"{rowNumber++}\">");
             foreach (var column in query.Columns)
-                sb.Append(Cell(row.Cells.TryGetValue(column.Field, out var value) ? value : HistoricalQueryValue.Null()));
+            {
+                if (query.NumericRows is { } numeric && numeric[i].Cells.TryGetValue(column.Field, out var native)
+                    && styles.TryGetValue(column.Field, out var style))
+                    sb.Append($"<c s=\"{style}\"><v>{XmlEscape(native.Value!)}</v></c>");
+                else sb.Append(Cell(row.Cells.GetValueOrDefault(column.Field) ?? HistoricalQueryValue.Null()));
+            }
             sb.Append("</row>");
         }
-        sb.Append("</sheetData></worksheet>");
+        sb.Append("</sheetData>");
+        sb.Append($"<pageSetup orientation=\"{(page.Orientation == ReportPageOrientation.Landscape ? "landscape" : "portrait")}\"/>");
+        if (page.ShowPageNumbers)
+        {
+            var tag = page.PageNumberPosition == "header" ? "oddHeader" : "oddFooter";
+            var align = page.PageNumberAlignment switch { "left" => "&L", "right" => "&R", _ => "&C" };
+            var number = align + "&\"" + page.PageNumberFontFamily + ",Regular\"&" + Math.Round(page.PageNumberFontSizePoints).ToString(CultureInfo.InvariantCulture) + " &P" + (page.ShowPageCount ? " / &N" : "");
+            sb.Append($"<headerFooter><{tag}>{XmlEscape(number)}</{tag}></headerFooter>");
+        }
+        if (imageCount > 0) sb.Append("<drawing xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"rId1\"/>");
+        sb.Append("</worksheet>");
         return sb.ToString();
     }
 
@@ -961,13 +1157,13 @@ public sealed class ReportArtifactRenderer
                rels + $"<Relationship Id=\"rId{actual + 1}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/></Relationships>";
     }
 
-    private static string ContentTypes(int count)
+    private static string ContentTypes(int count, bool hasImages)
     {
         var actual = Math.Max(1, count);
         var sheets = string.Concat(Enumerable.Range(1, actual)
             .Select(i => $"<Override PartName=\"/xl/worksheets/sheet{i}.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>"));
         return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/><Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/>" +
-               sheets + "</Types>";
+               sheets + (hasImages ? "<Default Extension=\"png\" ContentType=\"image/png\"/><Default Extension=\"jpeg\" ContentType=\"image/jpeg\"/><Override PartName=\"/xl/drawings/report.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawing+xml\"/>" : "") + "</Types>";
     }
 
     private const string StylesXml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts><fills count=\"1\"><fill><patternFill patternType=\"none\"/></fill></fills><borders count=\"1\"><border/></borders><cellStyleXfs count=\"1\"><xf/></cellStyleXfs><cellXfs count=\"2\"><xf numFmtId=\"0\"/><xf numFmtId=\"14\" applyNumberFormat=\"1\"/></cellXfs></styleSheet>";
@@ -987,9 +1183,22 @@ public sealed class ReportArtifactRenderer
             : text;
     }
 
-    private static string PdfEscape(string? value) =>
-        (value ?? string.Empty).Replace("\\", "\\\\").Replace("(", "\\(").Replace(")", "\\)")
-            .Select(ch => ch <= 127 ? ch : '?').Aggregate(new StringBuilder(), (sb, ch) => sb.Append(ch)).ToString();
+    private static readonly Encoding PdfTextEncoding = CodePagesEncodingProvider.Instance.GetEncoding(1252)!;
+
+    private static string PdfEscape(string? value)
+    {
+        var escaped = new StringBuilder();
+        foreach (var b in PdfTextEncoding.GetBytes(value ?? ""))
+        {
+            if (b is < 32 or > 126) escaped.Append('\\').Append(Convert.ToString(b, 8).PadLeft(3, '0'));
+            else
+            {
+                if (b is (byte)'(' or (byte)')' or (byte)'\\') escaped.Append('\\');
+                escaped.Append((char)b);
+            }
+        }
+        return escaped.ToString();
+    }
 
     private static string XmlEscape(string value) =>
         System.Security.SecurityElement.Escape(value) ?? string.Empty;

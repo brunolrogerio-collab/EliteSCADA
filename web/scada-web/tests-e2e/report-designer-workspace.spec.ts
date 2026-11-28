@@ -142,6 +142,25 @@ test('Report Designer creates, previews and applies one canonical report', async
   await expect(tableLayout.locator('option[value="wide"]')).toHaveJSProperty('disabled', true);
 
   await designer.getByLabel('Nome').fill('Pump history');
+  await page.setViewportSize({ width: 1680, height: 960 });
+  const canvas = designer.locator('.report-designer-canvas-wrap');
+  const beforeCollapse = (await canvas.boundingBox())!.width;
+  for (const panel of ['list', 'left', 'right']) {
+    const toggle = designer.getByTestId(`report-panel-${panel}-toggle`);
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(designer.locator(`#report-panel-${panel}`)).toBeHidden();
+  }
+  expect((await canvas.boundingBox())!.width).toBeGreaterThan(beforeCollapse + 400);
+  await expect(designer.getByLabel('Nome')).toHaveValue('Pump history');
+  await page.setViewportSize({ width: 720, height: 900 });
+  for (const panel of ['right', 'left', 'list']) {
+    const toggle = designer.getByTestId(`report-panel-${panel}-toggle`);
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
   await designer.getByRole('button', { name: /Detail/ }).click();
   await designer.getByRole('button', { name: '+ Campo', exact: true }).click();
 

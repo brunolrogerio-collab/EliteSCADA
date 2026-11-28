@@ -6,9 +6,9 @@ using Scada.Engineering.Contracts;
 namespace Scada.Engineering.Reports;
 
 public sealed record ReportExecutionPolicy(
-    int MaximumRowsPerQuery = 5000,
-    int MaximumTotalRows = 10000,
-    int MaximumPagesPerQuery = 50)
+    int MaximumRowsPerQuery = 50000,
+    int MaximumTotalRows = 50000,
+    int MaximumPagesPerQuery = 1000)
 {
     public void Validate()
     {
@@ -35,7 +35,11 @@ public sealed record ReportQueryExecutionResult(
     DateTimeOffset FromUtc,
     DateTimeOffset ToUtc,
     string RetrievalMode = "raw",
-    IReadOnlyList<Scada.Engineering.DataQueries.DataQueryExecutionProvenance?>? Provenance = null);
+    IReadOnlyList<Scada.Engineering.DataQueries.DataQueryExecutionProvenance?>? Provenance = null)
+{
+    // Native precision for spreadsheet export of formatted observation cells.
+    [JsonIgnore] public IReadOnlyList<HistoricalQueryRow>? NumericRows { get; init; }
+}
 
 public sealed record ReportExecutionResult(
     Guid? ReportId,
@@ -111,7 +115,7 @@ public sealed class ReportExecutionService : IReportExecutionService
             DateTimeOffset? resolvedToUtc = null;
             string? cursor = null;
             var pages = 0;
-            var pageSize = query.Page?.Size ?? HistoricalQueryValidator.DefaultPageSize;
+            var pageSize = HistoricalQueryValidator.MaximumPageSize;
 
             do
             {

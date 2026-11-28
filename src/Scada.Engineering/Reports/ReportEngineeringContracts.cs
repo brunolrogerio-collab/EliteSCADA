@@ -161,7 +161,12 @@ public sealed record ReportPageEngineeringDto(
     double MarginRightMillimeters = 10,
     double MarginBottomMillimeters = 10,
     double MarginLeftMillimeters = 10,
-    bool ShowPageNumbers = true);
+    bool ShowPageNumbers = true,
+    string PageNumberPosition = "footer",
+    string PageNumberAlignment = "center",
+    string PageNumberFontFamily = "Arial",
+    double PageNumberFontSizePoints = 8,
+    bool ShowPageCount = true);
 
 public sealed record ReportControlStyleEngineeringDto(
     string? FontFamily = null,
@@ -274,7 +279,8 @@ public sealed record ReportDataResolutionEngineeringDto(
     ReportAggregateFunction? AggregateFunction = null,
     int? BucketMilliseconds = null,
     int? MaximumGapMilliseconds = 300000,
-    string BucketAlignment = "utcDuration");
+    string BucketAlignment = "utcDuration",
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool LatestObserved = false);
 
 public sealed record ReportRuntimeTimeRange(
     HistoricalTimeRangeKind Kind,

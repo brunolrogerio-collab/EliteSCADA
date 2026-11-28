@@ -157,6 +157,59 @@ public sealed class TimescaleHistoricalRetrievalProviderTests
     }
 
     [Fact]
+    public async Task ObservedGrid_UsesInclusiveLookbackAndDoesNotSkipBadOrUseFutureValues()
+    {
+        var connection = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connection)) return;
+        var registry = new InMemoryTagRegistry();
+        var tag = Register(registry, "Observed", TagDataType.Double);
+        await using var provider = new TimescaleHistoricalQueryProvider(connection, registry);
+        var start = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.AddMinutes(-5).ToUnixTimeSeconds());
+        var range = new HistoricalResolvedRange(start, start.AddSeconds(60));
+        await EnsureProviderReadyAsync(provider, range, tag.Id);
+        await InsertAsync(connection,
+            (tag.Id, start.AddSeconds(-15), TagQuality.Good, "12.4", TagDataType.Double),
+            (tag.Id, start.AddSeconds(12), TagQuality.Good, "52", TagDataType.Double),
+            (tag.Id, start.AddSeconds(14), TagQuality.Bad, "80", TagDataType.Double),
+            (tag.Id, start.AddSeconds(61), TagQuality.Good, "90", TagDataType.Double));
+        var grid = await provider.QueryObservedGridAsync(Execution(range, [tag.Id], pageSize: 10), 20000, 15000);
+        Assert.Equal(4, grid.Points.Count);
+        Assert.Equal("12.4", grid.Points[0].Value.Value);
+        Assert.Equal(start.AddSeconds(-15), Assert.Single(grid.Points[0].Provenance.SourceTimestampsUtc));
+        Assert.Equal(TagQuality.Bad, grid.Points[1].Quality);
+        Assert.All(grid.Points.Skip(2), p => Assert.Equal(HistoricalRetrievalProvenanceKind.Gap, p.Provenance.Kind));
+    }
+
+    [Fact]
+    public async Task ReportReadsFiftyThousandObservedInstantsWithoutIncreasingTheInteractiveLimit()
+    {
+        var connection = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connection)) return;
+        var registry = new InMemoryTagRegistry();
+        var tag = Register(registry, "ReportLoad", TagDataType.Double);
+        await using var provider = new TimescaleHistoricalQueryProvider(connection, registry);
+        var start = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.AddDays(-1).ToUnixTimeSeconds());
+        var range = new HistoricalResolvedRange(start, start.AddSeconds(49999));
+        await EnsureProviderReadyAsync(provider, range, tag.Id);
+        await using var db = NpgsqlDataSource.Create(connection);
+        await using var insert = db.CreateCommand("""
+            INSERT INTO elitescada.tag_history(tag_id, ts, quality, source, value, data_type)
+            SELECT @tag, @start + n * interval '1 second', @good, 'report-load', to_jsonb(n), @type
+            FROM generate_series(0,49999) n
+            """);
+        insert.Parameters.AddWithValue("tag", tag.Id);
+        insert.Parameters.AddWithValue("start", start);
+        insert.Parameters.AddWithValue("good", (int)TagQuality.Good);
+        insert.Parameters.AddWithValue("type", (short)TagDataType.Double);
+        await insert.ExecuteNonQueryAsync();
+        var page = Execution(range, [tag.Id], pageSize: 200);
+        await Assert.ThrowsAsync<HistoricalQueryValidationException>(() => provider.QueryObservedGridAsync(page, 1000, 15000));
+        var result = await provider.QueryObservedGridAsync(page with { ReportResultLimit = 50000 }, 1000, 15000);
+        Assert.Equal(50000, result.Points.Count);
+        Assert.Equal("49999", result.Points[^1].Value.Value);
+    }
+
+    [Fact]
     public async Task Provider_RetrievalHonorsCancellation()
     {
         var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");

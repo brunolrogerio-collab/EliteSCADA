@@ -536,3 +536,8 @@
 
 .asset-process-intelligence > .eng-section-header .eng-section-meta { flex-wrap: wrap; min-width: 0; max-width: 100%; white-space: normal; }
 .asset-process-intelligence > .eng-section-header .eng-section-meta :is(strong, span) { white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+
+.asset-process-intelligence__filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.asset-process-intelligence__filters label { display: grid; gap: 4px; flex: 1 1 15rem; min-width: 0; }
+.asset-process-intelligence__filters select, .asset-process-intelligence__filters input { width: 100%; min-width: 0; }
+.asset-process-intelligence__filters > span { align-self: center; }

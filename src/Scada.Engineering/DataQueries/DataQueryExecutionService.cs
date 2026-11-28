@@ -7,7 +7,11 @@ namespace Scada.Engineering.DataQueries;
 
 public sealed record DataQueryExecutionRequest(
     IReadOnlyDictionary<string, DataQueryParameterValue>? Parameters = null,
-    HistoricalPageRequest? Page = null);
+    HistoricalPageRequest? Page = null)
+{
+    // Set only by the report service, after applying its output budget.
+    internal int? ReportResultLimit { get; init; }
+}
 
 public sealed record DataQueryExecutionProvenance(
     string Kind,
@@ -206,7 +210,7 @@ public sealed class DataQueryExecutionService : IDataQueryExecutionService, ITra
             validated.Search,
             validated.Sort,
             validated.PageSize,
-            null);
+            null) { ReportResultLimit = request.ReportResultLimit };
 
         HistoricalRetrievalResult result;
         try
@@ -236,6 +240,10 @@ public sealed class DataQueryExecutionService : IDataQueryExecutionService, ITra
                         RequireTarget(retrieval, range),
                         RequirePositive(retrieval.MaximumGapMilliseconds, "MaximumGapMilliseconds"),
                         cancellationToken),
+                HistorianRetrievalMode.SampledFixedStep when retrieval.LatestObserved =>
+                    await provider.QueryObservedGridAsync(execution,
+                        RequirePositive(retrieval.StepMilliseconds, "StepMilliseconds"),
+                        RequirePositive(retrieval.MaximumGapMilliseconds, "MaximumGapMilliseconds"), cancellationToken),
                 HistorianRetrievalMode.SampledFixedStep =>
                     await provider.QuerySampledFixedStepAsync(
                         execution,
@@ -272,7 +280,7 @@ public sealed class DataQueryExecutionService : IDataQueryExecutionService, ITra
                 ex);
         }
 
-        if (result.Points.Count > validated.PageSize)
+        if (result.Points.Count > execution.ResultLimit)
             throw new HistoricalQueryProviderException(
                 "Historical retrieval provider exceeded the validated result limit.");
 
@@ -294,7 +302,7 @@ public sealed class DataQueryExecutionService : IDataQueryExecutionService, ITra
             result.Range.FromUtc,
             result.Range.ToUtc,
             null,
-            validated.PageSize);
+            execution.ResultLimit);
     }
 
     private static void ValidateAggregateDefinition(

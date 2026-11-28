@@ -16,3 +16,8 @@
 .report-center__heading h1{margin:0;font-size:18px}
 .report-center__heading{margin-bottom:10px}
 @media print{.report-viewer__table{display:none}.report-generated-page{box-shadow:none;page-break-after:always}}
+
+.report-viewer__pagination input[type=number] { width: 5.5rem; }
+.report-generated-page { background: white; color: #15212b; }
+.report-viewer__table { background: var(--app-surface); color: var(--app-text-primary); }
+.runtime-operator-application > :is(.report-viewer,.report-center) { width:100%; min-height:0; overflow:auto; box-sizing:border-box; align-self:stretch; }

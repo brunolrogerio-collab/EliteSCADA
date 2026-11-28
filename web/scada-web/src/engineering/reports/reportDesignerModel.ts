@@ -201,14 +201,16 @@ export function updateReportControl(
 export function addReportControl(
   report: ReportEngineeringDto,
   sectionKey: string,
-  kind: Extract<ReportControlKind, 'label' | 'dataField'>
+  kind: Extract<ReportControlKind, 'label' | 'dataField' | 'image'>
 ): ReportEngineeringDto {
   const query = report.queries?.[0];
-  const base = kind === 'label' ? 'label' : 'field';
+  const base = kind === 'dataField' ? 'field' : kind;
   const existingKeys = (report.sections ?? []).flatMap(section => (section.controls ?? []).map(control => control.key));
   const key = `${base}-${nextAvailableNumber(existingKeys, `${base}-`)}`;
   const field = defaultFieldForDataset(query?.query.datasetKey);
-  const control: ReportControlEngineeringDto = kind === 'label'
+  const control: ReportControlEngineeringDto = kind === 'image'
+    ? { key, kind, xMillimeters: 0, yMillimeters: 0, widthMillimeters: 24, heightMillimeters: 8 }
+    : kind === 'label'
     ? {
         key,
         kind,

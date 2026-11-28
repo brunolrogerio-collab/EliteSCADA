@@ -171,7 +171,7 @@ export function RuntimeReportCenter({ locale }: { locale: Locale }) {
     />;
   }
 
-  return <main className="shell report-center">
+  return <section className="shell report-center">
     <header className="report-center__heading">
       <div><h1>{t.title}</h1><a href="/help?topic=reports.runtime-output">{locale === 'pt-BR' ? 'Ajuda para gerar e exportar' : locale === 'es' ? 'Ayuda para generar y exportar' : 'Help generating and exporting'}</a></div>
       <input aria-label={t.search} placeholder={t.search} value={filter} onChange={e => setFilter(e.target.value)} />
@@ -228,7 +228,7 @@ export function RuntimeReportCenter({ locale }: { locale: Locale }) {
         </> : <p>{locale === 'pt-BR' ? 'Selecione um relatório.' : locale === 'es' ? 'Seleccione un informe.' : 'Select a report.'}</p>}
       </section>
     </div>
-  </main>;
+  </section>;
 }
 
 function ReportViewer({ locale, t, report, generation, page, setPage, zoom, setZoom, onBack, onRegenerate }: {
@@ -245,7 +245,7 @@ function ReportViewer({ locale, t, report, generation, page, setPage, zoom, setZ
   const visibleRows = rows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
   const exportUrl = (format: string) => `/api/runtime/reports/executions/${generation.executionId}/export/${format}`;
 
-  return <main className="shell report-viewer">
+  return <section className="shell report-viewer">
     <header className="report-viewer__toolbar">
       <button onClick={onBack} aria-label={t.back}>← {t.back}</button>
       <strong>{report.name}</strong>
@@ -265,6 +265,7 @@ function ReportViewer({ locale, t, report, generation, page, setPage, zoom, setZ
     <nav className="report-viewer__pagination" aria-label={t.page}>
       <button aria-label={t.previous} disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>‹</button>
       <span>{t.page} {currentPage} / {pages}</span>
+      {pages > 10 && <label><input aria-label={t.page} type="number" min={1} max={pages} value={currentPage} onChange={e => setPage(Math.min(pages, Math.max(1, Number(e.target.value) || 1)))}/></label>}
       <button aria-label={t.next} disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>›</button>
       <button aria-label={t.fitPage} title={t.fitPage} onClick={() => setZoom(80)}>▣</button>
       <button aria-label={t.fitWidth} title={t.fitWidth} onClick={() => setZoom(100)}>↔</button>
@@ -289,7 +290,7 @@ function ReportViewer({ locale, t, report, generation, page, setPage, zoom, setZ
         </table>
       </details>
     </div>
-  </main>;
+  </section>;
 }
 
 function GeneratedReportPage({ report, generation, query, rows, allRows, rowOffset, locale, page, pages }: {
@@ -304,10 +305,11 @@ function GeneratedReportPage({ report, generation, query, rows, allRows, rowOffs
   pages: number;
 }) {
   const dimensions = pageDimensions(report);
+  const [top, bottom] = verticalReportMargins(report.page);
   const pageStyle: React.CSSProperties = {
     width: `${dimensions.width}mm`,
     minHeight: `${dimensions.height}mm`,
-    padding: `${report.page?.marginTopMillimeters ?? 10}mm ${report.page?.marginRightMillimeters ?? 10}mm ${report.page?.marginBottomMillimeters ?? 10}mm ${report.page?.marginLeftMillimeters ?? 10}mm`
+    padding: `${top}mm ${report.page?.marginRightMillimeters ?? 10}mm ${bottom}mm ${report.page?.marginLeftMillimeters ?? 10}mm`
   };
   const sections = report.sections ?? [];
   const header = sections.filter(section => section.kind === 'reportHeader' && page === 1);
@@ -346,7 +348,7 @@ function GeneratedReportPage({ report, generation, query, rows, allRows, rowOffs
     </section>}
     {pageFooter.map(section => <RuntimeSection key={section.key} report={report} section={section} generation={generation} locale={locale} />)}
     {footer.map(section => <RuntimeSection key={section.key} report={report} section={section} generation={generation} locale={locale} />)}
-    {report.page?.showPageNumbers !== false && <div className="report-generated-page__number">{page} / {pages}</div>}
+    {report.page?.showPageNumbers !== false && <div className="report-generated-page__number" style={{ top: report.page?.pageNumberPosition === 'header' ? '2mm' : undefined, bottom: report.page?.pageNumberPosition === 'header' ? 'auto' : '2mm', left: (report.page?.marginLeftMillimeters ?? 10) + 'mm', right: (report.page?.marginRightMillimeters ?? 10) + 'mm', textAlign: report.page?.pageNumberAlignment ?? 'center', fontFamily: report.page?.pageNumberFontFamily ?? 'Arial', fontSize: (report.page?.pageNumberFontSizePoints ?? 8) + 'pt' }}>{page}{report.page?.showPageCount !== false && ' / ' + pages}</div>}
   </article>;
 }
 
@@ -386,7 +388,7 @@ function RuntimeControl({ report, control, row, generation, locale }: {
     borderWidth: control.style?.borderWidth ?? undefined
   };
   if (control.kind === 'image' && control.assetId)
-    return <img className="report-runtime-control image" style={style} src={`/api/visual-assets/${encodeURIComponent(control.assetId)}/content`} alt={control.text ?? control.key} />;
+    return <img className="report-runtime-control image" style={style} src={`/api/runtime/reports/executions/${generation.executionId}/images/${control.assetId}`} alt={control.text ?? control.key} />;
   if (control.kind === 'chart')
     return <RuntimeChart style={style} report={report} generation={generation} queryKey={control.queryKey} field={control.field} />;
   if (control.kind === 'line')
@@ -433,10 +435,17 @@ function groupValueChanged(
 
 function rowsPerGeneratedPage(report: ReportEngineeringDto) {
   const dimensions = pageDimensions(report);
-  const verticalMargins = (report.page?.marginTopMillimeters ?? 10) + (report.page?.marginBottomMillimeters ?? 10);
+  const [top, bottom] = verticalReportMargins(report.page);
+  const verticalMargins = top + bottom;
   const fixed = (report.sections ?? []).filter(section => section.kind === 'pageHeader' || section.kind === 'pageFooter').reduce((sum, section) => sum + section.heightMillimeters, 0);
-  const detail = (report.sections ?? []).find(section => section.kind === 'detail')?.heightMillimeters ?? 7;
-  return Math.max(1, Math.min(100, Math.floor((dimensions.height - verticalMargins - fixed - 10) / Math.max(1, detail))));
+  const height = (kind: string) => (report.sections ?? []).filter(s => s.kind === kind).reduce((sum, s) => sum + s.heightMillimeters, 0);
+  const detail = height('detail') || 7;
+  return Math.max(1, Math.floor((dimensions.height - verticalMargins - fixed - Math.max(height('reportHeader'), height('reportFooter'))) / Math.max(1, detail)));
+}
+
+function verticalReportMargins(page: ReportEngineeringDto['page']) {
+  const band = page?.showPageNumbers === false ? 0 : (page?.pageNumberFontSizePoints ?? 8) * 25.4 / 72 + 3;
+  return [Math.max(page?.marginTopMillimeters ?? 10, page?.pageNumberPosition === 'header' ? band : 0), Math.max(page?.marginBottomMillimeters ?? 10, page?.pageNumberPosition !== 'header' ? band : 0)];
 }
 
 function pageDimensions(report: ReportEngineeringDto) {

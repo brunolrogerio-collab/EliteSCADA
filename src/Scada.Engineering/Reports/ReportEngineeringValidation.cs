@@ -71,8 +71,22 @@ public static class ReportEngineeringValidation
         var controlCount = sections.Where(x => x is not null).Sum(x => x.Controls?.Count ?? 0);
         if (controlCount > MaximumControls)
             problems.Add(new("REPORT_CONTROL_LIMIT", $"Report cannot contain more than {MaximumControls} controls."));
+        var observedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (report.Resolution?.LatestObserved == true)
+        {
+            if (report.TableLayout != ReportTableLayout.Wide || report.Resolution.Mode != ReportDataResolutionMode.SampledFixedStep)
+                problems.Add(new("REPORT_OBSERVED_LAYOUT", "Latest observations require a wide fixed-step report."));
+            foreach (var variable in (report.Variables ?? []).Where(v => v is { Visible: true }))
+            {
+                var label = ObservedReportTable.Label(variable);
+                if (string.IsNullOrWhiteSpace(label) || label.Equals("timestamp", StringComparison.OrdinalIgnoreCase) || !observedFields.Add(label))
+                    problems.Add(new("REPORT_OBSERVED_LABEL", "Observed columns require distinct nonempty variable labels."));
+            }
+            try { CultureInfo.GetCultureInfo(report.Metadata?.GetValueOrDefault("numberCulture") ?? ""); }
+            catch (CultureNotFoundException) { problems.Add(new("REPORT_NUMBER_CULTURE", "Unknown report number culture.")); }
+        }
         foreach (var section in sections)
-            ValidateSection(section, queryMap, groupMap, problems);
+            ValidateSection(section, queryMap, groupMap, observedFields, problems);
 
         var aggregates = report.Aggregates ?? Array.Empty<ReportAggregateEngineeringDto>();
         if (aggregates.Count > MaximumAggregates)
@@ -133,6 +147,11 @@ public static class ReportEngineeringValidation
 
     private static void ValidatePage(ReportPageEngineeringDto page, List<ReportEngineeringProblem> problems)
     {
+        if (page.PageNumberPosition is not ("header" or "footer") || page.PageNumberAlignment is not ("left" or "center" or "right"))
+            problems.Add(new("REPORT_PAGE_NUMBER_POSITION", "Choose a page header or footer and a valid alignment."));
+        if (page.PageNumberFontFamily is not ("Arial" or "Courier New" or "Times New Roman"))
+            problems.Add(new("REPORT_PAGE_NUMBER_FONT", "Page numbering requires a supported font."));
+        ValidateFiniteRange(page.PageNumberFontSizePoints, 6, 36, "REPORT_PAGE_NUMBER_SIZE", "Page number font size", problems);
         Required(page.PaperSizeKey, "REPORT_PAGE_SIZE_REQUIRED", "Report paper size key is required.", problems);
         ValidateFiniteRange(page.MarginTopMillimeters, 0, 100, "REPORT_MARGIN_TOP_INVALID", "Top margin", problems);
         ValidateFiniteRange(page.MarginRightMillimeters, 0, 100, "REPORT_MARGIN_RIGHT_INVALID", "Right margin", problems);
@@ -384,6 +403,7 @@ public static class ReportEngineeringValidation
         ReportSectionEngineeringDto? section,
         IReadOnlyDictionary<string, ReportQueryEngineeringDto> queries,
         IReadOnlyDictionary<string, ReportGroupEngineeringDto> groups,
+        IReadOnlySet<string> observedFields,
         List<ReportEngineeringProblem> problems)
     {
         if (section is null)
@@ -405,13 +425,14 @@ public static class ReportEngineeringValidation
         var controls = section.Controls ?? Array.Empty<ReportControlEngineeringDto>();
         AddDuplicateProblems(controls.Where(x => x is not null).Select(x => x.Key), "REPORT_CONTROL_DUPLICATE", $"control in section '{section.Key}'", problems);
         foreach (var control in controls)
-            ValidateControl(section, control, queries, problems);
+            ValidateControl(section, control, queries, observedFields, problems);
     }
 
     private static void ValidateControl(
         ReportSectionEngineeringDto section,
         ReportControlEngineeringDto? control,
         IReadOnlyDictionary<string, ReportQueryEngineeringDto> queries,
+        IReadOnlySet<string> observedFields,
         List<ReportEngineeringProblem> problems)
     {
         if (control is null)
@@ -439,7 +460,8 @@ public static class ReportEngineeringValidation
             }
             if (control.Kind is ReportControlKind.DataField or ReportControlKind.BooleanState)
             {
-                if (string.IsNullOrWhiteSpace(control.Field) || !FieldExists(query.Query.Dataset, control.Field))
+                if (string.IsNullOrWhiteSpace(control.Field) || (!FieldExists(query.Query.Dataset, control.Field) &&
+                    !(query.Query.Dataset == HistoricalDatasets.HistorianSamples && observedFields.Contains(control.Field))))
                     problems.Add(new("REPORT_CONTROL_FIELD_NOT_FOUND", $"Report control '{control.Key}' references field '{control.Field}' not exposed by dataset '{query.Query.Dataset}'."));
             }
         }

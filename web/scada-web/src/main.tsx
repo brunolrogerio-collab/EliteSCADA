@@ -60,11 +60,6 @@ function PublicRuntimeApplication() {
   </div>;
 }
 
-function RuntimeReportsApp() {
-  const locale = useAppShellLocale();
-  return <RuntimeReportCenter locale={locale} />;
-}
-
 function ApplicationSurface() {
   const mobile = useMobileRuntime();
   const locale = useAppShellLocale();
@@ -110,7 +105,7 @@ function ApplicationSurface() {
     Surface = RuntimeHistoricalBrowserApp;
   } else if (path.startsWith('/runtime/reports')) {
     allowed = access.runtime && access.history;
-    Surface = RuntimeReportsApp;
+
   }
 
   if (!allowed) {
@@ -120,9 +115,11 @@ function ApplicationSurface() {
     </main>;
   }
 
-  if (path === '/') return <RuntimeApplicationMount
+  const reports = path.startsWith('/runtime/reports');
+  if (path === '/' || reports) return <RuntimeApplicationMount
+    reportContent={reports ? <RuntimeReportCenter locale={locale} /> : undefined}
     showHistoryNavigation={access.history}
-    showFullscreenControl={privilegedShell}
+    showFullscreenControl={privilegedShell && !mobile}
   />;
   return <Surface />;
 }

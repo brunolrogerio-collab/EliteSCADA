@@ -15,16 +15,23 @@ export function VisualEditorRegionToggle({
   onToggle: () => void;
 }) {
   const label = regionLabel(locale, region, collapsed);
+  return <EditorPanelToggle label={label} expanded={!collapsed} testId={`visual-editor-${region}-toggle`} onToggle={onToggle} />;
+}
+
+export function EditorPanelToggle({ label, expanded, controls, testId, right = false, onToggle }: {
+  label: string; expanded: boolean; controls?: string; testId: string; right?: boolean; onToggle: () => void;
+}) {
   return <button
     type="button"
     className="visual-editor-region-toggle"
-    data-testid={`visual-editor-${region}-toggle`}
+    data-testid={testId}
     aria-label={label}
-    aria-expanded={!collapsed}
+    aria-expanded={expanded}
+    aria-controls={controls}
     title={label}
     onClick={onToggle}
   >
-    <span aria-hidden="true">{collapsed ? '›' : '‹'}</span>
+    <span aria-hidden="true">{expanded === right ? '›' : '‹'}</span>
   </button>;
 }
 

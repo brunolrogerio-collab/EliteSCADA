@@ -114,7 +114,11 @@ public sealed record HistorianRetrievalEngineeringDto(
     int? BucketMilliseconds = null,
     int? MaximumGapMilliseconds = null,
     DataQueryAggregateFunction? AggregateFunction = null,
-    DateTimeOffset? TargetUtc = null);
+    DateTimeOffset? TargetUtc = null)
+{
+    // Transient reporting option. Saved Data Query definitions keep their retrieval contract.
+    [JsonIgnore] public bool LatestObserved { get; init; }
+}
 
 /// <summary>
 /// Saved Engineering definition over the existing protected Historical Query v1 request.

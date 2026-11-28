@@ -94,6 +94,11 @@ public interface IHistoricalRetrievalProvider
         int maximumGapMilliseconds,
         CancellationToken cancellationToken = default);
 
+    Task<HistoricalRetrievalResult> QueryObservedGridAsync(
+        HistoricalQueryExecution query, int stepMilliseconds, int maximumAgeMilliseconds,
+        CancellationToken cancellationToken = default) =>
+        throw new HistoricalQueryValidationException("This historian provider does not support observed grids.");
+
     Task<HistoricalRetrievalResult> QueryAggregateAsync(
         HistoricalQueryExecution query,
         int bucketMilliseconds,

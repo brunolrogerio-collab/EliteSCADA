@@ -65,7 +65,7 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
         }
 
         var projected = result.Queries
-            .Select(query => Project(report, query))
+            .Select(query => usesV3Retrieval ? query : Project(report, query))
             .ToArray();
 
         var totalRows = projected.Sum(query => query.Rows.Count);
@@ -111,29 +111,44 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
                     pair => ToDataQueryValue(pair.Value),
                     StringComparer.OrdinalIgnoreCase);
 
-            var response = await _dataQueries.ExecuteTransientAsync(
-                definition,
-                new DataQueryExecutionRequest(executionParameters),
-                cancellationToken);
-
-            if (response.Rows.Count > _policy.MaximumRowsPerQuery)
-                throw new ReportExecutionLimitException(
-                    $"Report query '{reportQuery.Key}' exceeded the maximum row count ({_policy.MaximumRowsPerQuery}). Reduce the period or increase the interval.");
-
-            totalRows += response.Rows.Count;
-            if (totalRows > _policy.MaximumTotalRows)
-                throw new ReportExecutionLimitException(
-                    $"Report exceeded the maximum total row count ({_policy.MaximumTotalRows}). Reduce the period or increase the interval.");
-
-            queryResults.Add(new ReportQueryExecutionResult(
-                reportQuery.Key,
-                response.DatasetKey,
-                response.Columns,
-                response.Rows.Select(row => row.Data).ToArray(),
-                response.FromUtc,
-                response.ToUtc,
-                RetrievalName(response.RetrievalMode),
-                response.Rows.Select(row => row.Provenance).ToArray()));
+            var wide = report.TableLayout == ReportTableLayout.Wide && definition.HistorianRetrieval?.Mode is HistorianRetrievalMode.SampledFixedStep or HistorianRetrievalMode.Aggregate;
+            var budget = Math.Min(_policy.MaximumRowsPerQuery, _policy.MaximumTotalRows - totalRows);
+            var series = wide ? Math.Max(1, report.Variables?.Select(v => v.TagId).Distinct().Count() ?? 1) : 1;
+            var pointLimit = (int)Math.Min(1000000L, (long)budget * series);
+            if (wide && report.Resolution is { LatestObserved: true, IntervalMilliseconds: > 0 } observed &&
+                (definition.ParameterBindings?.Count ?? 0) == 0)
+            {
+                var table = await ReadObservedWindowsAsync(report, reportQuery.Key, definition, executionParameters,
+                    observed.IntervalMilliseconds.Value, series, budget, cancellationToken);
+                totalRows += table.Rows.Count;
+                queryResults.Add(table);
+                continue;
+            }
+            var rows = new List<HistoricalQueryRow>();
+            var provenance = new List<DataQueryExecutionProvenance?>();
+            DataQueryExecutionResponse response;
+            string? cursor = null;
+            var pages = 0;
+            do
+            {
+                if (++pages > _policy.MaximumPagesPerQuery || budget <= 0)
+                    throw new ReportExecutionLimitException($"Report query '{reportQuery.Key}' exceeded its execution budget.");
+                response = await _dataQueries.ExecuteTransientAsync(definition,
+                    new DataQueryExecutionRequest(executionParameters, new HistoricalPageRequest(HistoricalQueryValidator.MaximumPageSize, cursor))
+                    { ReportResultLimit = pointLimit }, cancellationToken);
+                if (rows.Count + response.Rows.Count > pointLimit)
+                    throw new ReportExecutionLimitException($"Report query '{reportQuery.Key}' exceeded its result limit ({pointLimit}).");
+                rows.AddRange(response.Rows.Select(row => row.Data));
+                provenance.AddRange(response.Rows.Select(row => row.Provenance));
+                cursor = response.NextCursor;
+            } while (cursor is not null);
+            var collected = new ReportQueryExecutionResult(reportQuery.Key, response.DatasetKey, response.Columns,
+                rows, response.FromUtc, response.ToUtc, RetrievalName(response.RetrievalMode), provenance);
+            var projected = Project(report, collected);
+            if (projected.Rows.Count > budget)
+                throw new ReportExecutionLimitException($"Report query '{reportQuery.Key}' exceeded the maximum row count ({budget}).");
+            totalRows += projected.Rows.Count;
+            queryResults.Add(projected);
         }
 
         return new ReportExecutionResult(
@@ -142,6 +157,44 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
             parameters,
             queryResults,
             DateTimeOffset.UtcNow);
+    }
+
+    // Project each group of time instants before reading the next one. The historian applies
+    // the same lookback at every boundary, including a sample just before the next window.
+    private async Task<ReportQueryExecutionResult> ReadObservedWindowsAsync(
+        ReportEngineeringDto report, string queryKey, DataQueryEngineeringDto definition,
+        IReadOnlyDictionary<string, DataQueryParameterValue> parameters, int stepMs, int series, int budget,
+        CancellationToken cancellationToken)
+    {
+        HistoricalResolvedRange range;
+        try { range = HistoricalQueryValidator.ResolveRange(definition.Query.Range, DateTimeOffset.UtcNow); }
+        catch (ArgumentException ex) { throw new HistoricalQueryValidationException(ex.Message); }
+        var step = TimeSpan.FromMilliseconds(stepMs).Ticks;
+        var count = (range.ToUtc - range.FromUtc).Ticks / step + 1;
+        if (count > budget || count * series > 1000000)
+            throw new ReportExecutionLimitException($"The requested observation grid exceeds the report budget of {budget} rows or 1000000 cells.");
+        var windowSize = Math.Max(2, 2048 / series);
+        var rows = new List<HistoricalQueryRow>((int)count);
+        var numbers = new List<HistoricalQueryRow>((int)count);
+        IReadOnlyList<HistoricalColumn> columns = [];
+        for (var first = 0; first < count;)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var length = (int)Math.Min(windowSize, count - first);
+            if (count - first - length == 1) length++; // Keep an inclusive final interval with a valid duration.
+            var end = first + length == count ? range.ToUtc : range.FromUtc.AddTicks((first + length - 1) * step);
+            var query = definition.Query with { Range = HistoricalTimeRange.Absolute(range.FromUtc.AddTicks(first * step), end) };
+            var page = await _dataQueries.ExecuteTransientAsync(definition with { Query = query },
+                new DataQueryExecutionRequest(parameters) { ReportResultLimit = length * series }, cancellationToken);
+            var table = Project(report, new ReportQueryExecutionResult(queryKey, page.DatasetKey, page.Columns,
+                page.Rows.Select(row => row.Data).ToArray(), page.FromUtc, page.ToUtc, RetrievalName(page.RetrievalMode)));
+            columns = table.Columns;
+            rows.AddRange(table.Rows);
+            if (table.NumericRows is not null) numbers.AddRange(table.NumericRows);
+            first += length;
+        }
+        return new ReportQueryExecutionResult(queryKey, definition.Query.Dataset, columns, rows, range.FromUtc, range.ToUtc,
+            RetrievalName(HistorianRetrievalMode.SampledFixedStep)) { NumericRows = numbers };
     }
 
     private DataQueryEngineeringDto ResolveDefinition(
@@ -261,7 +314,8 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
             return new HistorianRetrievalEngineeringDto(
                 HistorianRetrievalMode.SampledFixedStep,
                 StepMilliseconds: RequirePositive(resolution.IntervalMilliseconds, "Report fixed interval"),
-                MaximumGapMilliseconds: RequirePositive(resolution.MaximumGapMilliseconds, "Report maximum gap"));
+                MaximumGapMilliseconds: RequirePositive(resolution.MaximumGapMilliseconds, "Report maximum gap"))
+                { LatestObserved = resolution.LatestObserved };
 
         return new HistorianRetrievalEngineeringDto(
             HistorianRetrievalMode.Aggregate,
@@ -299,6 +353,17 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
             .ThenBy(variable => variable.Path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
+        if (report.Metadata?.GetValueOrDefault("hideEventIds") == "true" && query.Dataset == "alarm.events")
+        {
+            var columns = query.Columns.Where(c => c.Field is not ("alarm.id" or "tag.id")).ToArray();
+            return query with
+            {
+                Columns = columns,
+                Rows = query.Rows.Select(r => new HistoricalQueryRow(columns.ToDictionary(
+                    c => c.Field, c => r.Cells.GetValueOrDefault(c.Field) ?? HistoricalQueryValue.Null()))).ToArray()
+            };
+        }
+
         if (variables.Length == 0 ||
             !string.Equals(query.Dataset, HistoricalDatasets.HistorianSamples, StringComparison.Ordinal))
             return query;
@@ -310,7 +375,8 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
                     [new ReportEngineeringProblem(
                         "REPORT_WIDE_RAW_UNSUPPORTED",
                         "Wide table projection requires fixed-interval or aggregate retrieval; raw asynchronous samples remain Long.")]);
-            return ProjectWide(query, variables);
+            var wide = ProjectWide(query, variables);
+            return report.Resolution?.LatestObserved == true ? ObservedReportTable.Format(report, wide, variables) : wide;
         }
 
         return ProjectLong(query, variables);
@@ -428,7 +494,7 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
                Guid.TryParse(value.Value, out tagId);
     }
 
-    private static string? DisplayUnit(ReportVariableEngineeringDto variable) => variable.UnitMode switch
+    internal static string? DisplayUnit(ReportVariableEngineeringDto variable) => variable.UnitMode switch
     {
         ReportUnitMode.Hidden => null,
         ReportUnitMode.LabelOverride => string.IsNullOrWhiteSpace(variable.UnitLabel) ? null : variable.UnitLabel,

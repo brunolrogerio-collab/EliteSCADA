@@ -138,3 +138,11 @@ Un número inesperado pide revisar resolución, función, unidad y alcance del r
 Si los datos parecen antiguos, mire la hora de generación y genere de nuevo. No cambie permisos o unidades a ciegas para intentar corregir una salida.
 
 [Abrir este guia na Ajuda instalada](/help?topic=reports.runtime-output)
+
+## Emitir um relatório a partir de uma tela
+
+Na Engenharia, abra **Relatórios** e selecione ou crie o modelo. Escolha a consulta, o período e as variáveis. Para colocar cada variável em uma coluna com sua unidade, escolha intervalo fixo, última amostra observada e configure a tolerância em segundos. Para alarmes, escolha eventos e marque a opção para ocultar os identificadores.
+
+Para incluir um logo, importe um PNG ou JPEG nos assets visuais do projeto. No relatório, selecione uma seção e clique em **+ Imagem**. Escolha o arquivo nas propriedades e ajuste a posição e as dimensões em milímetros. Use o cabeçalho de página para repetir o logo no PDF. Em **Paginação**, escolha cabeçalho ou rodapé, alinhamento, fonte, tamanho e se deseja o total de páginas. O Excel mantém as células de dados, inclui as imagens no topo da planilha e usa os campos de página na impressão.
+
+No editor de telas, insira o objeto de emissão de relatório e selecione o modelo na lista de suas propriedades. Valide, aplique e publique o projeto pelo fluxo de Engenharia. No Runtime, o operador pode abrir esse objeto na tela ou escolher **Relatórios** na barra, selecionar o período e gerar PDF, Excel ou CSV. O lote de consulta é interno. O relatório admite 50.000 linhas, distribuídas pelas páginas.

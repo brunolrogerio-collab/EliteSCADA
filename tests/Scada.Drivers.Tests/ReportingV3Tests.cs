@@ -108,6 +108,45 @@ public sealed class ReportingV3Tests
     }
 
     [Fact]
+    public void FiftyThousandRowsKeepTheLastValueAndPageDecorationInEveryExport()
+    {
+        const int count = 50000;
+        var id = Guid.NewGuid();
+        var at = DateTimeOffset.UnixEpoch;
+        var report = Report();
+        var logo = new ReportControlEngineeringDto(null, "logo", ReportControlKind.Image, 0, 0, 16, 8, AssetId: id);
+        report = report with {
+            Page = new ReportPageEngineeringDto(PageNumberPosition: "header", PageNumberAlignment: "right",
+                PageNumberFontFamily: "Courier New", PageNumberFontSizePoints: 13),
+            Sections = [new ReportSectionEngineeringDto(null, "heading", ReportSectionKind.PageHeader, 10, Controls: [logo]), ..report.Sections!]
+        };
+        var rows = Enumerable.Range(1, count).Select(i => new HistoricalQueryRow(new Dictionary<string, HistoricalQueryValue>
+            { ["value"] = HistoricalQueryValue.FromString($"row-{i:D5}") })).ToArray();
+        var result = new ReportExecutionResult(null, report.Key, new Dictionary<string, ReportParameterValue>(),
+            [new ReportQueryExecutionResult("main", HistoricalDatasets.HistorianSamples, [Column("value", HistoricalFieldType.String)], rows, at, at)], at);
+        var png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pd0AAAAASUVORK5CYII=");
+        var snapshot = new ReportGeneratedSnapshot(Guid.NewGuid(), null, report, null, result, at) {
+            Images = new Dictionary<Guid, ReportImage> { [id] = new ReportImage(png, "image/png", 1, 1) }
+        };
+        var renderer = new ReportArtifactRenderer();
+        var pdf = renderer.Render(snapshot, "pdf")!.Content;
+        var csv = renderer.Render(snapshot, "csv")!.Content;
+        var xlsx = renderer.Render(snapshot, "xlsx")!.Content;
+        var structure = Encoding.Latin1.GetString(pdf);
+        Assert.Contains("/Subtype /Image", structure);
+        Assert.Contains("/BaseFont /Courier", structure);
+        Assert.Contains("row-50000", structure);
+        Assert.EndsWith("row-50000", Encoding.UTF8.GetString(csv).TrimEnd());
+        using var book = new ZipArchive(new MemoryStream(xlsx));
+        Assert.NotNull(book.GetEntry("xl/media/" + id.ToString("N") + ".png"));
+        using var reader = new StreamReader(book.GetEntry("xl/worksheets/sheet1.xml")!.Open());
+        var xml = reader.ReadToEnd();
+        Assert.Contains("row-50000", xml);
+        Assert.Contains("<oddHeader>", xml);
+        Assert.Contains("&amp;P / &amp;N", xml);
+    }
+
+    [Fact]
     public void GeneratedStore_IsOwnerBound()
     {
         var at = DateTimeOffset.UtcNow;
@@ -287,6 +326,53 @@ public sealed class ReportingV3Tests
                 to,
                 null,
                 request.Page?.Size ?? 100));
+        }
+    }
+
+    [Fact]
+    public async Task WideObservationReportProjectsFiftyThousandRowsAcrossBoundedReadWindows()
+    {
+        var tag = Guid.NewGuid();
+        var start = DateTimeOffset.UnixEpoch.AddDays(100);
+        var history = new WindowedObservationHistory(tag, start);
+        var service = new ReportV3ExecutionService(new ReportExecutionService(new RejectHistoricalQueryService()),
+            new InMemoryDataQueryEngineeringRegistry(), history);
+        var report = Report() with
+        {
+            TableLayout = ReportTableLayout.Wide,
+            Variables = [new ReportVariableEngineeringDto(tag, "Lab.Level", "Level", "Double", "m")],
+            Resolution = new ReportDataResolutionEngineeringDto(ReportDataResolutionMode.SampledFixedStep, 1000,
+                MaximumGapMilliseconds: 15000, LatestObserved: true)
+        };
+        var result = await service.ExecuteAsync(new(report, TimeRange:
+            new ReportRuntimeTimeRange(HistoricalTimeRangeKind.Absolute, FromUtc: start, ToUtc: start.AddSeconds(49999))));
+        var table = Assert.Single(result.Queries);
+        Assert.Equal(50000, table.Rows.Count);
+        Assert.Equal(50000, table.NumericRows!.Count);
+        Assert.Equal("49999 m", table.Rows[^1].Cells["Level"].Value);
+        Assert.True(history.Calls > 1);
+        Assert.Equal(start, table.FromUtc);
+        Assert.Equal(start.AddSeconds(49999), table.ToUtc);
+    }
+
+    private sealed class WindowedObservationHistory(Guid tag, DateTimeOffset start) : ITransientDataQueryExecutionService
+    {
+        public int Calls { get; private set; }
+        public Task<DataQueryExecutionResponse> ExecuteTransientAsync(DataQueryEngineeringDto definition,
+            DataQueryExecutionRequest? request = null, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            var from = definition.Query.Range.FromUtc!.Value;
+            var to = definition.Query.Range.ToUtc!.Value;
+            var count = (int)(to - from).TotalSeconds + 1;
+            Assert.InRange(count, 1, 2049);
+            var rows = Enumerable.Range(0, count).Select(i => new DataQueryExecutionRow(new HistoricalQueryRow(
+                new Dictionary<string, HistoricalQueryValue> {
+                    ["tag.id"] = HistoricalQueryValue.FromGuid(tag), ["timestamp"] = HistoricalQueryValue.FromDateTime(from.AddSeconds(i)),
+                    ["value"] = HistoricalQueryValue.FromDouble((from - start).TotalSeconds + i), ["quality"] = HistoricalQueryValue.FromEnum("Good")
+                }))).ToArray();
+            return Task.FromResult(new DataQueryExecutionResponse(1, Guid.NewGuid(), definition.Key, definition.Query.Dataset,
+                HistorianRetrievalMode.SampledFixedStep, [], rows, from, to, null, count));
         }
     }
 

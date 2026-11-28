@@ -221,6 +221,8 @@ public sealed record HistoricalQueryExecution(
     int PageSize,
     HistoricalQueryPosition? After)
 {
+    public int? ReportResultLimit { get; init; }
+    public int ResultLimit => ReportResultLimit ?? PageSize;
     public HistoricalAlarmViewScope? AlarmView { get; init; }
 }
 

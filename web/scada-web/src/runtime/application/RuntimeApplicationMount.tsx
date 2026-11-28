@@ -582,7 +582,7 @@ function EngineeringRuntimeApplicationContent({
     </button>) : null}
   </div>;
 
-  if (!startup.screenKey) {
+  if (!startup.screenKey && !reportContent) {
     return <main className="shell" data-testid="runtime-engineering-application">
       <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code={startup.diagnosticCode ?? undefined}>
         <strong>{startup.diagnosticCode}</strong>
@@ -614,7 +614,7 @@ function EngineeringRuntimeApplicationContent({
       <div className="runtime-operator-context" style={{ textAlign: header?.titlePosition ?? 'left' }} title={projectTitle}>
         <div className="runtime-operator-context__titles">
           <strong style={projectTitleStyle}>{projectTitle}</strong>
-          {header?.showScreenName && activeScreen ? <span className="runtime-operator-context__screen" style={screenTitleStyle}>{reportContent ? (locale === 'pt-BR' ? 'Relatórios' : locale === 'es' ? 'Informes' : 'Reports') : activeScreen.name || activeScreen.key}</span> : null}
+          {header?.showScreenName && (reportContent || activeScreen) ? <span className="runtime-operator-context__screen" style={screenTitleStyle}>{reportContent ? (locale === 'pt-BR' ? 'Relatórios' : locale === 'es' ? 'Informes' : 'Reports') : activeScreen?.name || activeScreen?.key}</span> : null}
           {!compact ? <span className="runtime-operator-context__revision">rev {projection.revision}</span> : null}
         </div>
         {playback.mode === 'historicalPlayback' && playback.atUtc ? <>

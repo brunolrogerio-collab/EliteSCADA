@@ -684,6 +684,7 @@ test('mobile Runtime can open the Report Center from a stable report link', asyn
   } }));
 
   await page.goto('/runtime/reports?report=process.summary');
+  await expect(page.locator('.runtime-operator-bar')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Process Summary' })).toBeVisible();
 });
 
@@ -745,11 +746,13 @@ test('mounted Runtime Report Center generates one snapshot and exposes viewer/ex
   }));
 
   await page.goto('/runtime/reports?report=process.summary');
+  await expect(page.locator('.runtime-operator-bar')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Relatórios' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Process Summary' })).toBeVisible();
   await expect(page.getByText(/Intervalo fixo · 5 min/)).toBeVisible();
   await page.getByRole('button', { name: 'Gerar relatório' }).click();
 
+  await expect(page.locator('.runtime-operator-bar')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Exportar PDF' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Exportar Excel' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Exportar CSV' })).toBeVisible();

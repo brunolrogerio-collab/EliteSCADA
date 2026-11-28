@@ -264,7 +264,8 @@ function ReportViewer({ locale, t, report, generation, page, setPage, zoom, setZ
     </section>
     <nav className="report-viewer__pagination" aria-label={t.page}>
       <button aria-label={t.previous} disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>‹</button>
-      <label>{t.page} <input aria-label={t.page} type="number" min={1} max={pages} value={currentPage} onChange={e => setPage(Math.min(pages, Math.max(1, Number(e.target.value) || 1)))}/> / {pages}</label>
+      <span>{t.page} {currentPage} / {pages}</span>
+      {pages > 10 && <label><input aria-label={t.page} type="number" min={1} max={pages} value={currentPage} onChange={e => setPage(Math.min(pages, Math.max(1, Number(e.target.value) || 1)))}/></label>}
       <button aria-label={t.next} disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>›</button>
       <button aria-label={t.fitPage} title={t.fitPage} onClick={() => setZoom(80)}>▣</button>
       <button aria-label={t.fitWidth} title={t.fitWidth} onClick={() => setZoom(100)}>↔</button>

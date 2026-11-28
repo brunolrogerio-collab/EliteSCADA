@@ -65,7 +65,7 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
         }
 
         var projected = result.Queries
-            .Select(query => Project(report, query))
+            .Select(query => usesV3Retrieval ? query : Project(report, query))
             .ToArray();
 
         var totalRows = projected.Sum(query => query.Rows.Count);
@@ -111,29 +111,35 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
                     pair => ToDataQueryValue(pair.Value),
                     StringComparer.OrdinalIgnoreCase);
 
-            var response = await _dataQueries.ExecuteTransientAsync(
-                definition,
-                new DataQueryExecutionRequest(executionParameters),
-                cancellationToken);
-
-            if (response.Rows.Count > _policy.MaximumRowsPerQuery)
-                throw new ReportExecutionLimitException(
-                    $"Report query '{reportQuery.Key}' exceeded the maximum row count ({_policy.MaximumRowsPerQuery}). Reduce the period or increase the interval.");
-
-            totalRows += response.Rows.Count;
-            if (totalRows > _policy.MaximumTotalRows)
-                throw new ReportExecutionLimitException(
-                    $"Report exceeded the maximum total row count ({_policy.MaximumTotalRows}). Reduce the period or increase the interval.");
-
-            queryResults.Add(new ReportQueryExecutionResult(
-                reportQuery.Key,
-                response.DatasetKey,
-                response.Columns,
-                response.Rows.Select(row => row.Data).ToArray(),
-                response.FromUtc,
-                response.ToUtc,
-                RetrievalName(response.RetrievalMode),
-                response.Rows.Select(row => row.Provenance).ToArray()));
+            var wide = report.TableLayout == ReportTableLayout.Wide && definition.HistorianRetrieval?.Mode is HistorianRetrievalMode.SampledFixedStep or HistorianRetrievalMode.Aggregate;
+            var budget = Math.Min(_policy.MaximumRowsPerQuery, _policy.MaximumTotalRows - totalRows);
+            var series = wide ? Math.Max(1, report.Variables?.Select(v => v.TagId).Distinct().Count() ?? 1) : 1;
+            var pointLimit = (int)Math.Min(1000000L, (long)budget * series);
+            var rows = new List<HistoricalQueryRow>();
+            var provenance = new List<DataQueryExecutionProvenance?>();
+            DataQueryExecutionResponse response;
+            string? cursor = null;
+            var pages = 0;
+            do
+            {
+                if (++pages > _policy.MaximumPagesPerQuery || budget <= 0)
+                    throw new ReportExecutionLimitException($"Report query '{reportQuery.Key}' exceeded its execution budget.");
+                response = await _dataQueries.ExecuteTransientAsync(definition,
+                    new DataQueryExecutionRequest(executionParameters, new HistoricalPageRequest(HistoricalQueryValidator.MaximumPageSize, cursor))
+                    { ReportResultLimit = pointLimit }, cancellationToken);
+                if (rows.Count + response.Rows.Count > pointLimit)
+                    throw new ReportExecutionLimitException($"Report query '{reportQuery.Key}' exceeded its result limit ({pointLimit}).");
+                rows.AddRange(response.Rows.Select(row => row.Data));
+                provenance.AddRange(response.Rows.Select(row => row.Provenance));
+                cursor = response.NextCursor;
+            } while (cursor is not null);
+            var collected = new ReportQueryExecutionResult(reportQuery.Key, response.DatasetKey, response.Columns,
+                rows, response.FromUtc, response.ToUtc, RetrievalName(response.RetrievalMode), provenance);
+            var projected = Project(report, collected);
+            if (projected.Rows.Count > budget)
+                throw new ReportExecutionLimitException($"Report query '{reportQuery.Key}' exceeded the maximum row count ({budget}).");
+            totalRows += projected.Rows.Count;
+            queryResults.Add(projected);
         }
 
         return new ReportExecutionResult(

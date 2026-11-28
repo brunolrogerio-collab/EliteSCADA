@@ -62,7 +62,7 @@ function PublicRuntimeApplication() {
 
 function RuntimeReportsApp() {
   const locale = useAppShellLocale();
-  return <RuntimeReportCenter locale={locale} />;
+  return <RuntimeApplicationMount showHistoryNavigation reportContent={<RuntimeReportCenter locale={locale} />} />;
 }
 
 function ApplicationSurface() {

@@ -161,7 +161,12 @@ public sealed record ReportPageEngineeringDto(
     double MarginRightMillimeters = 10,
     double MarginBottomMillimeters = 10,
     double MarginLeftMillimeters = 10,
-    bool ShowPageNumbers = true);
+    bool ShowPageNumbers = true,
+    string PageNumberPosition = "footer",
+    string PageNumberAlignment = "center",
+    string PageNumberFontFamily = "Arial",
+    double PageNumberFontSizePoints = 8,
+    bool ShowPageCount = true);
 
 public sealed record ReportControlStyleEngineeringDto(
     string? FontFamily = null,

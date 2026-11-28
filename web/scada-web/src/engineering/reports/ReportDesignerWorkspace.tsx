@@ -57,6 +57,8 @@ const A4_LANDSCAPE_WIDTH_MM = 297;
 
 export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportDesignerWorkspaceProps) {
   const text = useMemo(() => copy(locale), [locale]);
+  const updateMetadata = (key: string, value: string) => updateDraft(current => ({ ...current, metadata: {...current.metadata, [key]: value} }));
+  const updatePage = (patch: Partial<NonNullable<ReportEngineeringDto["page"]>>) => updateDraft(current => ({ ...current, page: { ...current.page, ...patch } }));
   const reports = reportCollection(snapshot.package);
   const [selectedIdentity, setSelectedIdentity] = useState<string>(() =>
     reports[0] ? reportIdentity(reports[0]) : NEW_REPORT_IDENTITY);
@@ -306,6 +308,17 @@ export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportD
           }))}><option value="portrait">{text.portrait}</option><option value="landscape">{text.landscape}</option></select></label>
         </div>
 
+        <fieldset className="report-page-settings">
+          <legend>{text.pagination}</legend>
+          <label><input type="checkbox" checked={draft.page?.showPageNumbers !== false} onChange={e => updatePage({ showPageNumbers: e.target.checked })}/>{text.showPage}</label>
+          {draft.page?.showPageNumbers !== false && <>
+            <label>{text.position}<select value={draft.page?.pageNumberPosition ?? 'footer'} onChange={e => updatePage({ pageNumberPosition: e.target.value as 'header' | 'footer' })}><option value="header">{text.header}</option><option value="footer">{text.footer}</option></select></label>
+            <label>{text.alignment}<select value={draft.page?.pageNumberAlignment ?? 'center'} onChange={e => updatePage({ pageNumberAlignment: e.target.value as 'left' | 'center' | 'right' })}><option value="left">{text.left}</option><option value="center">{text.center}</option><option value="right">{text.right}</option></select></label>
+            <label>{text.font}<select value={draft.page?.pageNumberFontFamily ?? 'Arial'} onChange={e => updatePage({ pageNumberFontFamily: e.target.value })}>{reportFonts.map(font => <option key={font}>{font}</option>)}</select></label>
+            <label>{text.size}<input type="number" min={6} max={36} value={draft.page?.pageNumberFontSizePoints ?? 8} onChange={e => updatePage({ pageNumberFontSizePoints: Number(e.target.value) })}/></label>
+            <label><input type="checkbox" checked={draft.page?.showPageCount !== false} onChange={e => updatePage({ showPageCount: e.target.checked })}/>{text.total}</label>
+          </>}
+        </fieldset>
         <div className="report-designer-toolbar">
           <div className="report-designer-mode">
             <button type="button" className={mode === 'design' ? 'active' : ''} onClick={() => setMode('design')}>{text.design}</button>
@@ -364,11 +377,19 @@ export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportD
                   ...current, resolution: { ...(current.resolution ?? {}), mode: 'aggregate', aggregateFunction: current.resolution?.aggregateFunction ?? 'average', bucketMilliseconds: Number(event.target.value), bucketAlignment: 'utcDuration' }
                 }))}>{bucketOptions().map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
               </> : null}
-              <label><span>{text.tableLayout}</span><select value={draft.tableLayout ?? 'long'} onChange={event => updateDraft(current => ({ ...current, tableLayout: event.target.value as 'long' | 'wide' }))}>
+              <label><span>{text.tableLayout}</span><select disabled={draft.resolution?.latestObserved === true} value={draft.tableLayout ?? 'long'} onChange={event => updateDraft(current => ({ ...current, tableLayout: event.target.value as 'long' | 'wide' }))}>
                 <option value="long">{text.longTable}</option>
                 <option value="wide" disabled={(draft.resolution?.mode ?? 'raw') === 'raw'}>{text.wideTable}</option>
               </select></label>
-              <label><span>{text.pageLimit}</span><input type="number" min="1" max="200" value={primaryQuery?.query.page?.limit ?? 50} onChange={event => updateDraft(current => updatePrimaryPageLimit(current, Number(event.target.value)))}/></label>
+              {draft.resolution?.mode === 'sampledFixedStep' && <>
+                <label><input type="checkbox" checked={draft.resolution.latestObserved === true} onChange={e => updateDraft(current => ({...current, tableLayout: e.target.checked ? 'wide' : current.tableLayout, resolution: {...current.resolution!, latestObserved: e.target.checked}}))}/>{text.observed}</label>
+                {draft.resolution.latestObserved && <>
+                  <label>{text.numberFormat}<select value={draft.metadata?.numberCulture ?? ''} onChange={e => updateMetadata('numberCulture', e.target.value)}><option value="">1234.50</option><option value="pt-BR">Português (Brasil)</option><option value="en-US">English (US)</option><option value="es-ES">Español</option></select></label>
+                  <label>{text.quality}<input value={draft.metadata?.invalidQualityLabel ?? 'Invalid quality'} onChange={e => updateMetadata('invalidQualityLabel', e.target.value)}/></label>
+                </>}
+                {draft.resolution.latestObserved && <label>{text.tolerance}<input type="number" min={0.001} step="any" value={(draft.resolution.maximumGapMilliseconds ?? 15000) / 1000} onChange={e => updateDraft(current => ({...current, resolution: {...current.resolution!, maximumGapMilliseconds: Math.round(Number(e.target.value) * 1000)}}))}/></label>}
+              </>}
+              {primaryQuery?.query.datasetKey === 'alarm.events' && <label><input type="checkbox" checked={draft.metadata?.hideEventIds === 'true'} onChange={e => updateDraft(current => ({...current, metadata: {...current.metadata, hideEventIds: String(e.target.checked)}}))}/>{text.hideIds}</label>}
               <div className="report-preview-actions">
                 <button type="button" className="primary" onClick={() => void executePreview()} disabled={previewing || applying}>{previewing ? text.previewing : text.runPreview}</button>
                 {previewing ? <button type="button" onClick={cancelPreview}>{text.cancel}</button> : null}
@@ -449,8 +470,14 @@ export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportD
                   <span>{section.heightMillimeters} mm · {section.controls?.length ?? 0} {text.controls}</span>
                 </button>)}
               </div>
+              <div className="report-add-controls">{(['pageHeader', 'pageFooter'] as const).filter(kind => !draft.sections?.some(section => section.kind === kind)).map(kind => <button type="button" key={kind} onClick={() => {
+                let key: string = kind;
+                while (draft.sections?.some(section => section.key === key)) key += '-1';
+                updateDraft(current => ({...current, sections: [...(current.sections ?? []), { key, kind, heightMillimeters: 16, controls: [] }]}));
+                setSelectedSectionKey(key); setSelectedControlKey(null);
+              }}>+ {kind === 'pageHeader' ? text.header : text.footer}</button>)}</div>
               {selectedSection ? <label><span>{text.sectionHeight}</span><input type="number" min="0.1" step="0.5" value={selectedSection.heightMillimeters} onChange={event => updateDraft(current => updateReportSection(current, selectedSection.key, section => ({ ...section, heightMillimeters: Number(event.target.value) })))}/></label> : null}
-              {selectedSection ? <div className="report-add-controls"><button type="button" onClick={() => { updateDraft(current => addReportControl(current, selectedSection.key, 'label')); }}>{text.addLabel}</button><button type="button" onClick={() => { updateDraft(current => addReportControl(current, selectedSection.key, 'dataField')); }}>{text.addField}</button></div> : null}
+              {selectedSection ? <div className="report-add-controls"><button type="button" onClick={() => { updateDraft(current => addReportControl(current, selectedSection.key, 'label')); }}>{text.addLabel}</button><button type="button" onClick={() => { updateDraft(current => addReportControl(current, selectedSection.key, 'dataField')); }}>{text.addField}</button><button type="button" onClick={() => updateDraft(current => addReportControl(current, selectedSection.key, 'image'))}>{text.addImage}</button></div> : null}
             </section>
           </aside>
 
@@ -477,6 +504,7 @@ export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportD
               {!selectedControl || !selectedSection ? <div className="report-designer-empty compact"><span>{text.selectControl}</span></div> : <ControlInspector
                 report={draft}
                 section={selectedSection}
+                assets={snapshot.package.visualAssets ?? []}
                 control={selectedControl}
                 text={text}
                 onChange={update => updateDraft(current => updateReportControl(current, selectedSection.key, selectedControl.key, update))}
@@ -500,6 +528,12 @@ export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportD
   </div>;
 }
 
+function PageNumberSample({ report, position }: { report: ReportEngineeringDto; position: 'header' | 'footer' }) {
+  const page = report.page;
+  if (page?.showPageNumbers === false || (page?.pageNumberPosition ?? 'footer') !== position) return null;
+  return <div style={{ textAlign: page?.pageNumberAlignment ?? 'center', font: (page?.pageNumberFontSizePoints ?? 8) + 'pt "' + (page?.pageNumberFontFamily ?? 'Arial') + '"' }}>1{page?.showPageCount !== false && ' / 1'}</div>;
+}
+
 function ReportDesignCanvas({ report, widthMillimeters, selectedSectionKey, selectedControlKey, onSelect, text }: {
   report: ReportEngineeringDto;
   widthMillimeters: number;
@@ -509,6 +543,7 @@ function ReportDesignCanvas({ report, widthMillimeters, selectedSectionKey, sele
   text: ReturnType<typeof copy>;
 }) {
   return <div className="report-page" style={{ width: widthMillimeters * MILLIMETER_SCALE }} data-unit="millimeter">
+    <PageNumberSample report={report} position="header"/>
     {(report.sections ?? []).map(section => <div
       className={`report-section ${selectedSectionKey === section.key ? 'selected' : ''}`}
       key={section.key}
@@ -525,6 +560,7 @@ function ReportDesignCanvas({ report, widthMillimeters, selectedSectionKey, sele
         onClick={event => { event.stopPropagation(); onSelect(section.key, control.key); }}
       />)}
     </div>)}
+    <PageNumberSample report={report} position="footer"/>
   </div>;
 }
 
@@ -535,6 +571,7 @@ function ReportPreviewCanvas({ report, result, widthMillimeters, text }: {
   text: ReturnType<typeof copy>;
 }) {
   return <div className="report-page preview" style={{ width: widthMillimeters * MILLIMETER_SCALE }} data-testid="report-preview-canvas" data-unit="millimeter">
+    <PageNumberSample report={report} position="header"/>
     {(report.sections ?? []).flatMap(section => {
       const query = queryResult(result, section.queryKey);
       const repeats = section.kind === 'detail' ? Math.max(1, query?.rows.length ?? 0) : 1;
@@ -580,7 +617,8 @@ function ReportControlView({ control, row, selected = false, onClick }: {
   return <button type="button" className={`report-control ${selected ? 'selected' : ''}`} style={style} onClick={onClick} data-kind={control.kind} data-x-mm={control.xMillimeters} data-y-mm={control.yMillimeters}>{value}</button>;
 }
 
-function ControlInspector({ report, section, control, text, onChange, onDelete }: {
+function ControlInspector({ report, section, control, assets, text, onChange, onDelete }: {
+  assets: NonNullable<EngineeringPackageView['visualAssets']>;
   report: ReportEngineeringDto;
   section: ReportSectionEngineeringDto;
   control: ReportControlEngineeringDto;
@@ -601,10 +639,15 @@ function ControlInspector({ report, section, control, text, onChange, onDelete }
     {control.kind === 'label' ? <label><span>{text.text}</span><textarea value={control.text ?? ''} onChange={event => onChange(current => ({ ...current, text: event.target.value }))}/></label> : null}
     {control.kind === 'dataField' || control.kind === 'booleanState' ? <>
       <label><span>{text.queryKey}</span><select value={control.queryKey ?? primaryQuery?.key ?? ''} onChange={event => onChange(current => ({ ...current, queryKey: event.target.value }))}>{(report.queries ?? []).map(query => <option key={query.key} value={query.key}>{query.key}</option>)}</select></label>
-      <label><span>{text.field}</span><input className="mono" value={control.field ?? defaultFieldForDataset(dataset)} onChange={event => onChange(current => ({ ...current, field: event.target.value }))}/></label>
+      <label><span>{text.field}</span><input list="report-control-fields" className="mono" value={control.field ?? defaultFieldForDataset(dataset)} onChange={event => onChange(current => ({ ...current, field: event.target.value }))}/></label>
+      <datalist id="report-control-fields">{reportFieldOptions(report).map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</datalist>
       <small>{text.fieldHint}</small>
     </> : null}
-    {control.kind === 'image' ? <label><span>{text.asset}</span><select value={control.assetId ?? ''} onChange={event => onChange(current => ({ ...current, assetId: emptyToNull(event.target.value) }))}><option value="">{text.noAsset}</option></select></label> : null}
+    {control.kind === 'image' ? <label><span>{text.asset}</span><select value={control.assetId ?? ''} onChange={event => onChange(current => ({ ...current, assetId: emptyToNull(event.target.value) }))}><option value="">{text.noAsset}</option>{assets.filter(asset => asset.id && ['image/png', 'image/jpeg'].includes(asset.mediaType)).map(asset => <option key={asset.id!} value={asset.id!}>{asset.name}</option>)}</select></label> : null}
+    {control.kind !== 'image' && <>
+      <label>{text.font}<select value={control.style?.fontFamily ?? 'Arial'} onChange={e => onChange(current => ({...current, style: {...current.style, fontFamily: e.target.value}}))}>{reportFonts.map(font => <option key={font}>{font}</option>)}</select></label>
+      <NumberField label={text.size} min={5} value={control.style?.fontSizePoints ?? 9} onChange={fontSizePoints => onChange(current => ({...current, style: {...current.style, fontSizePoints}}))}/>
+    </>}
     <button type="button" className="danger" onClick={onDelete}>{text.deleteControl}</button>
     <small>{sectionLabel(section.kind, text)} · {section.heightMillimeters} mm</small>
   </div>;
@@ -617,7 +660,7 @@ function reportFieldOptions(report: ReportEngineeringDto) {
         { value: 'timestamp', label: 'Timestamp' },
         { value: 'priority', label: 'Priority' },
         { value: 'state', label: 'State' },
-        { value: 'source', label: 'Source' }
+        { value: 'source', label: 'Source' }, { value: 'message', label: 'Message' }, { value: 'tag.path', label: 'Tag' }
       ]
     : [
         { value: 'timestamp', label: 'Timestamp' },
@@ -626,7 +669,7 @@ function reportFieldOptions(report: ReportEngineeringDto) {
         { value: 'quality', label: 'Quality' }
       ];
   const variables = (report.variables ?? []).filter(item => item.visible !== false).map(item => ({
-    value: `v:${item.tagId}`,
+    value: report.resolution?.latestObserved ? item.displayLabel?.trim() || item.name : `v:${item.tagId}`,
     label: item.displayLabel || item.name
   }));
   return [...base, ...variables];
@@ -773,16 +816,6 @@ function NumberField({ label, value, min = 0, onChange }: { label: string; value
   return <label><span>{label}</span><input type="number" min={min} step="0.5" value={value} onChange={event => onChange(Number(event.target.value))}/></label>;
 }
 
-function updatePrimaryPageLimit(report: ReportEngineeringDto, limit: number): ReportEngineeringDto {
-  const normalized = Math.max(1, Math.min(200, Math.trunc(limit || 1)));
-  return {
-    ...report,
-    queries: (report.queries ?? []).map((query, index) => index === 0
-      ? { ...query, query: { ...query.query, page: { limit: normalized } } }
-      : query)
-  };
-}
-
 function readDefaultPeriod(report: ReportEngineeringDto): string {
   const parameter = report.parameters?.find(item => item.key === 'periodSeconds');
   if (parameter?.defaultValue.type === 'durationSeconds') return parameter.defaultValue.value;
@@ -815,16 +848,21 @@ function sectionLabel(kind: ReportSectionEngineeringDto['kind'], text: ReportCop
   return labels[kind];
 }
 
+const reportFonts = ['Arial', 'Times New Roman', 'Courier New'];
+
 function copy(locale: EngineeringLocale) {
   const pt = {
+    numberFormat: "Formato dos números", quality: "Texto para qualidade inválida", pagination: "Paginação", showPage: "Mostrar página", position: "Posição", header: "Cabeçalho", footer: "Rodapé", alignment: "Alinhamento", left: "Esquerda", center: "Centro", right: "Direita", font: "Fonte", size: "Tamanho (pt)", total: "Incluir total de páginas", addImage: "+ Imagem", observed: "Última amostra observada", tolerance: "Tolerância (s)", hideIds: "Ocultar identificadores de alarmes e tags",
     eyebrow: 'Engineering · Reporting', title: 'Designer de Relatórios', description: 'Configure o relatório, verifique o layout e confira os dados na pré-visualização.',
     authorityTitle: 'Layout do relatório', authorityHint: 'A pré-visualização mantém o layout salvo.', reportList: 'Relatórios', reports: 'Relatórios', newReport: 'Novo', noReports: 'Nenhum relatório salvo.', sections: 'seções', name: 'Nome de exibição', key: 'Identificador', descriptionLabel: 'Descrição', orientation: 'Orientação', portrait: 'Retrato', landscape: 'Paisagem', design: 'Design', previewMode: 'Preview', reset: 'Reverter', validate: 'Validar', validating: 'Validando…', apply: 'Aplicar', applying: 'Aplicando…', validationPassed: 'Validação aprovada', validationFailed: 'Validação encontrou problemas', workspaceChanged: 'O Engineering Workspace mudou durante a validação. Recarregue e valide novamente.', applyConfirm: 'Aplicar este Report Engineering validado ao workspace?', discardConfirm: 'Descartar alterações não aplicadas neste relatório?', error: 'Erro', query: 'Consulta', savedDataQuery: 'Consulta de Dados salva', embeddedQuery: 'Consulta incorporada do relatório', dataset: 'Fonte de dados', defaultPeriod: 'Período padrão', runtimePeriod: 'Período do Preview', resolution: 'Resolução', raw: 'Dados brutos', fixedInterval: 'Intervalo fixo', summary: 'Resumo', interval: 'Intervalo', aggregate: 'Agregação', average: 'Média', minimum: 'Mínimo', maximum: 'Máximo', sum: 'Soma', count: 'Contagem', bucket: 'Agrupar a cada', tableLayout: 'Apresentação', longTable: 'Longa / amostras', wideTable: 'Larga / intervalos', variables: 'Dados do relatório', groupsAndSummaries: 'Grupos e resumos', groupsHint: 'Configure agrupamentos e totais sem script. O agrupamento temporal vem da Resolução acima.', groupField: 'Agrupar por', order: 'Ordem', ascending: 'Crescente', descending: 'Decrescente', addGroup: 'Adicionar grupo', summaryField: 'Campo do resumo', scope: 'Escopo', allRows: 'Todas as linhas', reportScope: 'Relatório inteiro', addSummary: 'Adicionar resumo', variablesHint: 'Selecione as TAGs do projeto. Alterar o rótulo ou a unidade mantém o vínculo com a TAG.', addVariables: 'Adicionar variáveis', visible: 'Mostrar coluna', displayLabel: 'Label de apresentação', unit: 'Unidade', unitAutomatic: 'Automática', unitHidden: 'Ocultar', unitOverride: 'Alterar label', unitLabel: 'Texto da unidade', decimals: 'Casas decimais', numericFormat: 'Formato numérico', formatStandard: 'Padrão', formatFixed: 'Fixo', formatScientific: 'Científico', dateTimeFormat: 'Formato de data/hora', dateTimeLocal: 'Data e hora local', dateOnly: 'Somente data', timeOnly: 'Somente hora', booleanTrue: 'Texto para Verdadeiro', booleanFalse: 'Texto para Falso', moveUp: 'Mover para cima', moveDown: 'Mover para baixo', remove: 'Remover', runtimePeriodInvalid: 'O período do Preview deve ser um número positivo.', pageLimit: 'Linhas por página', runPreview: 'Executar Preview', previewing: 'Executando Preview…', cancel: 'Cancelar', queryHint: 'A consulta permanece Historical Query v1. Este editor não aceita SQL livre.', controls: 'controles', sectionHeight: 'Altura da seção (mm)', addLabel: '+ Label', addField: '+ Campo', contentWidth: 'de largura útil', emptyPreview: 'Consulta sem linhas', emptyPreviewHint: 'Header/footer continuam válidos; Detail não recebeu dados.', inspector: 'Propriedades', selectControl: 'Selecione um controle no layout.', controlKey: 'Identificador do controle', widthMm: 'Largura (mm)', heightMm: 'Altura (mm)', text: 'Texto', queryKey: 'Consulta', field: 'Campo', fieldHint: 'Escolha um campo da fonte de dados selecionada.', asset: 'Visual Asset', noAsset: 'Sem asset', deleteControl: 'Excluir controle', previewSummary: 'Resumo do Preview', previewNotRun: 'O Preview ainda não foi executado.', rows: 'linhas', unauthorized: 'Autenticação necessária para executar o Preview.', forbidden: 'O usuário atual não possui autorização para consultar os dados deste relatório.', reportHeader: 'Report Header', reportFooter: 'Report Footer', pageHeader: 'Page Header', pageFooter: 'Page Footer', groupHeader: 'Group Header', detail: 'Detail', groupFooter: 'Group Footer'
   };
   const en = {
-    ...pt, eyebrow: 'Engineering · Reporting', title: 'Report Designer', description: 'Configure the report, check its layout and preview the data.', authorityTitle: 'Report layout', authorityHint: 'Preview preserves the saved layout.', reportList: 'Reports', reports: 'Reports', newReport: 'New', noReports: 'No saved reports.', sections: 'sections', name: 'Display name', key: 'Identifier', descriptionLabel: 'Description', orientation: 'Orientation', portrait: 'Portrait', landscape: 'Landscape', design: 'Design', previewMode: 'Preview', reset: 'Reset', validate: 'Validate', validating: 'Validating…', apply: 'Apply', applying: 'Applying…', validationPassed: 'Validation passed', validationFailed: 'Validation found problems', workspaceChanged: 'Engineering Workspace changed during validation. Reload and validate again.', applyConfirm: 'Apply this validated Report Engineering to the workspace?', discardConfirm: 'Discard unapplied changes to this report?', error: 'Error', query: 'Query', savedDataQuery: 'Saved Data Query', embeddedQuery: 'Embedded report query', dataset: 'Data source', defaultPeriod: 'Default period', runtimePeriod: 'Preview period', resolution: 'Resolution', raw: 'Raw data', fixedInterval: 'Fixed interval', summary: 'Summary', interval: 'Interval', aggregate: 'Aggregation', average: 'Average', minimum: 'Minimum', maximum: 'Maximum', sum: 'Sum', count: 'Count', bucket: 'Bucket', tableLayout: 'Presentation', longTable: 'Long / samples', wideTable: 'Wide / intervals', variables: 'Report data', groupsAndSummaries: 'Groups and summaries', groupsHint: 'Configure grouping and totals without scripts. Time grouping comes from Resolution above.', groupField: 'Group by', order: 'Order', ascending: 'Ascending', descending: 'Descending', addGroup: 'Add group', summaryField: 'Summary field', scope: 'Scope', allRows: 'All rows', reportScope: 'Whole report', addSummary: 'Add summary', variablesHint: 'Select project TAGs. Changing the label or unit keeps the link to the same TAG.', addVariables: 'Add variables', visible: 'Show column', displayLabel: 'Display label', unit: 'Unit', unitAutomatic: 'Automatic', unitHidden: 'Hidden', unitOverride: 'Label override', unitLabel: 'Unit text', decimals: 'Decimal places', numericFormat: 'Numeric format', formatStandard: 'Standard', formatFixed: 'Fixed', formatScientific: 'Scientific', dateTimeFormat: 'Date/time format', dateTimeLocal: 'Local date and time', dateOnly: 'Date only', timeOnly: 'Time only', booleanTrue: 'True label', booleanFalse: 'False label', moveUp: 'Move up', moveDown: 'Move down', remove: 'Remove', runtimePeriodInvalid: 'Preview period must be a positive number.', pageLimit: 'Rows per page', runPreview: 'Run Preview', previewing: 'Running Preview…', cancel: 'Cancel', queryHint: 'The query remains Historical Query v1. This editor never accepts free-form SQL.', controls: 'controls', sectionHeight: 'Section height (mm)', addLabel: '+ Label', addField: '+ Field', contentWidth: 'content width', emptyPreview: 'Query returned no rows', emptyPreviewHint: 'Header/footer remain valid; Detail received no data.', inspector: 'Properties', selectControl: 'Select a control in the layout.', controlKey: 'Control identifier', widthMm: 'Width (mm)', heightMm: 'Height (mm)', text: 'Text', queryKey: 'Query', field: 'Field', fieldHint: 'Choose a field from the selected data source.', asset: 'Visual Asset', noAsset: 'No asset', deleteControl: 'Delete control', previewSummary: 'Preview summary', previewNotRun: 'Preview has not been executed.', rows: 'rows', unauthorized: 'Authentication is required to execute Preview.', forbidden: 'The current user is not authorized to query this report data.'
+    ...pt,
+    numberFormat: "Number format", quality: "Invalid quality label", pagination: "Pagination", showPage: "Show page number", position: "Position", header: "Header", footer: "Footer", alignment: "Alignment", left: "Left", center: "Center", right: "Right", font: "Font", size: "Size (pt)", total: "Include total pages", addImage: "+ Image", observed: "Last observed sample", tolerance: "Tolerance (s)", hideIds: "Hide alarm and tag identifiers", eyebrow: 'Engineering · Reporting', title: 'Report Designer', description: 'Configure the report, check its layout and preview the data.', authorityTitle: 'Report layout', authorityHint: 'Preview preserves the saved layout.', reportList: 'Reports', reports: 'Reports', newReport: 'New', noReports: 'No saved reports.', sections: 'sections', name: 'Display name', key: 'Identifier', descriptionLabel: 'Description', orientation: 'Orientation', portrait: 'Portrait', landscape: 'Landscape', design: 'Design', previewMode: 'Preview', reset: 'Reset', validate: 'Validate', validating: 'Validating…', apply: 'Apply', applying: 'Applying…', validationPassed: 'Validation passed', validationFailed: 'Validation found problems', workspaceChanged: 'Engineering Workspace changed during validation. Reload and validate again.', applyConfirm: 'Apply this validated Report Engineering to the workspace?', discardConfirm: 'Discard unapplied changes to this report?', error: 'Error', query: 'Query', savedDataQuery: 'Saved Data Query', embeddedQuery: 'Embedded report query', dataset: 'Data source', defaultPeriod: 'Default period', runtimePeriod: 'Preview period', resolution: 'Resolution', raw: 'Raw data', fixedInterval: 'Fixed interval', summary: 'Summary', interval: 'Interval', aggregate: 'Aggregation', average: 'Average', minimum: 'Minimum', maximum: 'Maximum', sum: 'Sum', count: 'Count', bucket: 'Bucket', tableLayout: 'Presentation', longTable: 'Long / samples', wideTable: 'Wide / intervals', variables: 'Report data', groupsAndSummaries: 'Groups and summaries', groupsHint: 'Configure grouping and totals without scripts. Time grouping comes from Resolution above.', groupField: 'Group by', order: 'Order', ascending: 'Ascending', descending: 'Descending', addGroup: 'Add group', summaryField: 'Summary field', scope: 'Scope', allRows: 'All rows', reportScope: 'Whole report', addSummary: 'Add summary', variablesHint: 'Select project TAGs. Changing the label or unit keeps the link to the same TAG.', addVariables: 'Add variables', visible: 'Show column', displayLabel: 'Display label', unit: 'Unit', unitAutomatic: 'Automatic', unitHidden: 'Hidden', unitOverride: 'Label override', unitLabel: 'Unit text', decimals: 'Decimal places', numericFormat: 'Numeric format', formatStandard: 'Standard', formatFixed: 'Fixed', formatScientific: 'Scientific', dateTimeFormat: 'Date/time format', dateTimeLocal: 'Local date and time', dateOnly: 'Date only', timeOnly: 'Time only', booleanTrue: 'True label', booleanFalse: 'False label', moveUp: 'Move up', moveDown: 'Move down', remove: 'Remove', runtimePeriodInvalid: 'Preview period must be a positive number.', pageLimit: 'Rows per page', runPreview: 'Run Preview', previewing: 'Running Preview…', cancel: 'Cancel', queryHint: 'The query remains Historical Query v1. This editor never accepts free-form SQL.', controls: 'controls', sectionHeight: 'Section height (mm)', addLabel: '+ Label', addField: '+ Field', contentWidth: 'content width', emptyPreview: 'Query returned no rows', emptyPreviewHint: 'Header/footer remain valid; Detail received no data.', inspector: 'Properties', selectControl: 'Select a control in the layout.', controlKey: 'Control identifier', widthMm: 'Width (mm)', heightMm: 'Height (mm)', text: 'Text', queryKey: 'Query', field: 'Field', fieldHint: 'Choose a field from the selected data source.', asset: 'Visual Asset', noAsset: 'No asset', deleteControl: 'Delete control', previewSummary: 'Preview summary', previewNotRun: 'Preview has not been executed.', rows: 'rows', unauthorized: 'Authentication is required to execute Preview.', forbidden: 'The current user is not authorized to query this report data.'
   };
   const es = {
-    ...pt, title: 'Diseñador de Informes', description: 'Configure el informe, compruebe el diseño y consulte los datos en la vista previa.', authorityTitle: 'Diseño del informe', authorityHint: 'La vista previa conserva el diseño guardado.', reportList: 'Informes', reports: 'Informes', newReport: 'Nuevo', noReports: 'No hay informes guardados.', sections: 'secciones', name: 'Nombre visible', key: 'Identificador', descriptionLabel: 'Descripción', orientation: 'Orientación', portrait: 'Vertical', landscape: 'Horizontal', design: 'Diseño', reset: 'Revertir', validate: 'Validar', validating: 'Validando…', apply: 'Aplicar', applying: 'Aplicando…', validationPassed: 'Validación aprobada', validationFailed: 'La validación encontró problemas', query: 'Consulta', savedDataQuery: 'Consulta de Datos guardada', embeddedQuery: 'Consulta incorporada del informe', dataset: 'Fuente de datos', defaultPeriod: 'Período predeterminado', runtimePeriod: 'Período del Preview', resolution: 'Resolución', raw: 'Datos brutos', fixedInterval: 'Intervalo fijo', summary: 'Resumen', interval: 'Intervalo', aggregate: 'Agregación', average: 'Promedio', minimum: 'Mínimo', maximum: 'Máximo', sum: 'Suma', count: 'Conteo', bucket: 'Agrupar cada', tableLayout: 'Presentación', longTable: 'Larga / muestras', wideTable: 'Ancha / intervalos', variables: 'Datos del informe', groupsAndSummaries: 'Grupos y resúmenes', groupsHint: 'Configure agrupaciones y totales sin scripts. La agrupación temporal viene de Resolución.', groupField: 'Agrupar por', order: 'Orden', ascending: 'Ascendente', descending: 'Descendente', addGroup: 'Agregar grupo', summaryField: 'Campo del resumen', scope: 'Ámbito', allRows: 'Todas las filas', reportScope: 'Informe completo', addSummary: 'Agregar resumen', variablesHint: 'Seleccione las TAGs del proyecto. Cambiar la etiqueta o la unidad conserva el vínculo con la TAG.', addVariables: 'Agregar variables', visible: 'Mostrar columna', displayLabel: 'Label visible', unit: 'Unidad', unitAutomatic: 'Automática', unitHidden: 'Ocultar', unitOverride: 'Cambiar label', unitLabel: 'Texto de unidad', decimals: 'Decimales', numericFormat: 'Formato numérico', formatStandard: 'Estándar', formatFixed: 'Fijo', formatScientific: 'Científico', dateTimeFormat: 'Formato de fecha/hora', dateTimeLocal: 'Fecha y hora local', dateOnly: 'Solo fecha', timeOnly: 'Solo hora', booleanTrue: 'Texto Verdadero', booleanFalse: 'Texto Falso', moveUp: 'Mover arriba', moveDown: 'Mover abajo', remove: 'Quitar', runtimePeriodInvalid: 'El período del Preview debe ser un número positivo.', pageLimit: 'Filas por página', runPreview: 'Ejecutar Preview', previewing: 'Ejecutando Preview…', cancel: 'Cancelar', queryHint: 'La consulta sigue siendo Historical Query v1. Este editor no acepta SQL libre.', controls: 'controles', sectionHeight: 'Altura de sección (mm)', addLabel: '+ Etiqueta', addField: '+ Campo', contentWidth: 'de ancho útil', emptyPreview: 'La consulta no devolvió filas', emptyPreviewHint: 'Header/footer siguen válidos; Detail no recibió datos.', inspector: 'Propiedades', selectControl: 'Seleccione un control en el layout.', controlKey: 'Identificador del control', widthMm: 'Ancho (mm)', heightMm: 'Alto (mm)', text: 'Texto', queryKey: 'Consulta', field: 'Campo', fieldHint: 'Elija un campo de la fuente de datos seleccionada.', asset: 'Visual Asset', noAsset: 'Sin asset', deleteControl: 'Eliminar control', previewSummary: 'Resumen del Preview', previewNotRun: 'El Preview todavía no fue ejecutado.', rows: 'filas', unauthorized: 'Se requiere autenticación para ejecutar el Preview.', forbidden: 'El usuario actual no está autorizado para consultar los datos de este informe.'
+    ...pt,
+    numberFormat: "Formato numérico", quality: "Texto de calidad inválida", pagination: "Paginación", showPage: "Mostrar página", position: "Posición", header: "Encabezado", footer: "Pie de página", alignment: "Alineación", left: "Izquierda", center: "Centro", right: "Derecha", font: "Fuente", size: "Tamaño (pt)", total: "Incluir el total de páginas", addImage: "+ Imagen", observed: "Última muestra observada", tolerance: "Tolerancia (s)", hideIds: "Ocultar identificadores de alarmas y variables", title: 'Diseñador de Informes', description: 'Configure el informe, compruebe el diseño y consulte los datos en la vista previa.', authorityTitle: 'Diseño del informe', authorityHint: 'La vista previa conserva el diseño guardado.', reportList: 'Informes', reports: 'Informes', newReport: 'Nuevo', noReports: 'No hay informes guardados.', sections: 'secciones', name: 'Nombre visible', key: 'Identificador', descriptionLabel: 'Descripción', orientation: 'Orientación', portrait: 'Vertical', landscape: 'Horizontal', design: 'Diseño', reset: 'Revertir', validate: 'Validar', validating: 'Validando…', apply: 'Aplicar', applying: 'Aplicando…', validationPassed: 'Validación aprobada', validationFailed: 'La validación encontró problemas', query: 'Consulta', savedDataQuery: 'Consulta de Datos guardada', embeddedQuery: 'Consulta incorporada del informe', dataset: 'Fuente de datos', defaultPeriod: 'Período predeterminado', runtimePeriod: 'Período del Preview', resolution: 'Resolución', raw: 'Datos brutos', fixedInterval: 'Intervalo fijo', summary: 'Resumen', interval: 'Intervalo', aggregate: 'Agregación', average: 'Promedio', minimum: 'Mínimo', maximum: 'Máximo', sum: 'Suma', count: 'Conteo', bucket: 'Agrupar cada', tableLayout: 'Presentación', longTable: 'Larga / muestras', wideTable: 'Ancha / intervalos', variables: 'Datos del informe', groupsAndSummaries: 'Grupos y resúmenes', groupsHint: 'Configure agrupaciones y totales sin scripts. La agrupación temporal viene de Resolución.', groupField: 'Agrupar por', order: 'Orden', ascending: 'Ascendente', descending: 'Descendente', addGroup: 'Agregar grupo', summaryField: 'Campo del resumen', scope: 'Ámbito', allRows: 'Todas las filas', reportScope: 'Informe completo', addSummary: 'Agregar resumen', variablesHint: 'Seleccione las TAGs del proyecto. Cambiar la etiqueta o la unidad conserva el vínculo con la TAG.', addVariables: 'Agregar variables', visible: 'Mostrar columna', displayLabel: 'Label visible', unit: 'Unidad', unitAutomatic: 'Automática', unitHidden: 'Ocultar', unitOverride: 'Cambiar label', unitLabel: 'Texto de unidad', decimals: 'Decimales', numericFormat: 'Formato numérico', formatStandard: 'Estándar', formatFixed: 'Fijo', formatScientific: 'Científico', dateTimeFormat: 'Formato de fecha/hora', dateTimeLocal: 'Fecha y hora local', dateOnly: 'Solo fecha', timeOnly: 'Solo hora', booleanTrue: 'Texto Verdadero', booleanFalse: 'Texto Falso', moveUp: 'Mover arriba', moveDown: 'Mover abajo', remove: 'Quitar', runtimePeriodInvalid: 'El período del Preview debe ser un número positivo.', pageLimit: 'Filas por página', runPreview: 'Ejecutar Preview', previewing: 'Ejecutando Preview…', cancel: 'Cancelar', queryHint: 'La consulta sigue siendo Historical Query v1. Este editor no acepta SQL libre.', controls: 'controles', sectionHeight: 'Altura de sección (mm)', addLabel: '+ Etiqueta', addField: '+ Campo', contentWidth: 'de ancho útil', emptyPreview: 'La consulta no devolvió filas', emptyPreviewHint: 'Header/footer siguen válidos; Detail no recibió datos.', inspector: 'Propiedades', selectControl: 'Seleccione un control en el layout.', controlKey: 'Identificador del control', widthMm: 'Ancho (mm)', heightMm: 'Alto (mm)', text: 'Texto', queryKey: 'Consulta', field: 'Campo', fieldHint: 'Elija un campo de la fuente de datos seleccionada.', asset: 'Visual Asset', noAsset: 'Sin asset', deleteControl: 'Eliminar control', previewSummary: 'Resumen del Preview', previewNotRun: 'El Preview todavía no fue ejecutado.', rows: 'filas', unauthorized: 'Se requiere autenticación para ejecutar el Preview.', forbidden: 'El usuario actual no está autorizado para consultar los datos de este informe.'
   };
   return locale === 'en' ? en : locale === 'es' ? es : pt;
 }

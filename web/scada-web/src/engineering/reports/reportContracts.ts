@@ -138,6 +138,11 @@ export type ReportPageEngineeringDto = Readonly<{
   marginBottomMillimeters?: number;
   marginLeftMillimeters?: number;
   showPageNumbers?: boolean;
+  pageNumberPosition?: 'header' | 'footer';
+  pageNumberAlignment?: 'left' | 'center' | 'right';
+  pageNumberFontFamily?: string;
+  pageNumberFontSizePoints?: number;
+  showPageCount?: boolean;
 }>;
 
 export type ReportControlStyleEngineeringDto = Readonly<{

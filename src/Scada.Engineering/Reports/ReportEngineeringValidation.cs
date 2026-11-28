@@ -147,6 +147,11 @@ public static class ReportEngineeringValidation
 
     private static void ValidatePage(ReportPageEngineeringDto page, List<ReportEngineeringProblem> problems)
     {
+        if (page.PageNumberPosition is not ("header" or "footer") || page.PageNumberAlignment is not ("left" or "center" or "right"))
+            problems.Add(new("REPORT_PAGE_NUMBER_POSITION", "Choose a page header or footer and a valid alignment."));
+        if (page.PageNumberFontFamily is not ("Arial" or "Courier New" or "Times New Roman"))
+            problems.Add(new("REPORT_PAGE_NUMBER_FONT", "Page numbering requires a supported font."));
+        ValidateFiniteRange(page.PageNumberFontSizePoints, 6, 36, "REPORT_PAGE_NUMBER_SIZE", "Page number font size", problems);
         Required(page.PaperSizeKey, "REPORT_PAGE_SIZE_REQUIRED", "Report paper size key is required.", problems);
         ValidateFiniteRange(page.MarginTopMillimeters, 0, 100, "REPORT_MARGIN_TOP_INVALID", "Top margin", problems);
         ValidateFiniteRange(page.MarginRightMillimeters, 0, 100, "REPORT_MARGIN_RIGHT_INVALID", "Right margin", problems);

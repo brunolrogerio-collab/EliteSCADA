@@ -148,3 +148,7 @@
   border-color: var(--report-border-soft);
   opacity: 1;
 }
+
+.report-page-settings { display:flex; flex-wrap:wrap; gap:.8rem; align-items:center; border:1px solid var(--eng-border); color:var(--eng-text); }
+.report-page-settings label { display:flex; align-items:center; gap:.4rem; }
+.report-page-settings input[type=number] { width:5rem; }

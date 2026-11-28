@@ -2,6 +2,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+    <PackageReference Include="StbImageSharp" Version="2.30.15" />
     <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
   </ItemGroup>
   <ItemGroup>
@@ -21,53 +22,26 @@
     <EmbeddedResource Include="Runtime/ImportedE3DynamoLibraryData.json" />
     <EmbeddedResource Include="Runtime/HelpExamples/*.py" />
     <EmbeddedResource Include="Runtime/HelpGuides/*.json" />
-    <EmbeddedResource Include="../../assets/sources/**/*.svg;../../assets/sources/**/*.batch.json"
-                      LogicalName="EliteSCADA.StaticArtwork.%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../../assets/sources/**/*.svg;../../assets/sources/**/*.batch.json" LogicalName="EliteSCADA.StaticArtwork.%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
-    <None Update="Runtime/ServerScriptRunner.py"
-          TargetPath="ServerScriptRunner.py"
-          CopyToOutputDirectory="PreserveNewest"
-          CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="../Scada.DriverHost/Sidecars/ZigbeeNative/src/**/*.mjs"
-             Link="sidecars/zigbee-native/src/%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="../Scada.DriverHost/Sidecars/ZigbeeNative/package*.json;../Scada.DriverHost/Sidecars/ZigbeeNative/SBOM.cdx.json;../Scada.DriverHost/Sidecars/ZigbeeNative/THIRD-PARTY-NOTICES.md"
-             Link="sidecars/zigbee-native/%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="../Scada.DriverHost/Sidecars/ZigbeeNative/licenses/**"
-             Link="sidecars/zigbee-native/licenses/%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="../Scada.DriverHost/Sidecars/KnxIp/main.py;../Scada.DriverHost/Sidecars/KnxIp/security.py;../Scada.DriverHost/Sidecars/KnxIp/requirements.lock;../Scada.DriverHost/Sidecars/KnxIp/SBOM.cdx.json;../Scada.DriverHost/Sidecars/KnxIp/THIRD-PARTY-NOTICES.md"
-             Link="sidecars/knx-ip/%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="../Scada.DriverHost/Sidecars/KnxIp/licenses/**"
-             Link="sidecars/knx-ip/licenses/%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/src/**/*.mjs"
-             Link="sidecars/zwave-js/src/%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/scripts/**/*.mjs"
-             Link="sidecars/zwave-js/scripts/%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/package*.json;../Scada.DriverHost/Sidecars/ZWaveJs/SBOM.cdx.json;../Scada.DriverHost/Sidecars/ZWaveJs/THIRD-PARTY-NOTICES.md"
-             Link="sidecars/zwave-js/%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/licenses/**"
-             Link="sidecars/zwave-js/licenses/%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Runtime/ServerScriptRunner.py" TargetPath="ServerScriptRunner.py" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZigbeeNative/src/**/*.mjs" Link="sidecars/zigbee-native/src/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZigbeeNative/package*.json;../Scada.DriverHost/Sidecars/ZigbeeNative/SBOM.cdx.json;../Scada.DriverHost/Sidecars/ZigbeeNative/THIRD-PARTY-NOTICES.md" Link="sidecars/zigbee-native/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZigbeeNative/licenses/**" Link="sidecars/zigbee-native/licenses/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/KnxIp/main.py;../Scada.DriverHost/Sidecars/KnxIp/security.py;../Scada.DriverHost/Sidecars/KnxIp/requirements.lock;../Scada.DriverHost/Sidecars/KnxIp/SBOM.cdx.json;../Scada.DriverHost/Sidecars/KnxIp/THIRD-PARTY-NOTICES.md" Link="sidecars/knx-ip/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/KnxIp/licenses/**" Link="sidecars/knx-ip/licenses/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/src/**/*.mjs" Link="sidecars/zwave-js/src/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/scripts/**/*.mjs" Link="sidecars/zwave-js/scripts/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/package*.json;../Scada.DriverHost/Sidecars/ZWaveJs/SBOM.cdx.json;../Scada.DriverHost/Sidecars/ZWaveJs/THIRD-PARTY-NOTICES.md" Link="sidecars/zwave-js/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/licenses/**" Link="sidecars/zwave-js/licenses/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <Target Name="IncludeEliteScadaDnp3DistributionFiles" AfterTargets="ComputeFilesToPublish"
-          Condition="'$(EliteScadaDnp3HostPath)' != '' or '$(EliteScadaDnp3NoticesPath)' != '' or '$(EliteScadaRequireDnp3NativeHost)' == 'true'">
-    <Error Condition="'$(EliteScadaRequireDnp3NativeHost)' == 'true' and '$(EliteScadaDnp3HostPath)' == ''"
-           Text="EliteScadaRequireDnp3NativeHost=true requires EliteScadaDnp3HostPath." />
-    <Error Condition="'$(EliteScadaRequireDnp3NativeHost)' == 'true' and '$(EliteScadaDnp3NoticesPath)' == ''"
-           Text="EliteScadaRequireDnp3NativeHost=true requires EliteScadaDnp3NoticesPath." />
-    <Error Condition="'$(EliteScadaDnp3HostPath)' != '' and !Exists('$(EliteScadaDnp3HostPath)')"
-           Text="Configured EliteSCADA DNP3 native host does not exist: $(EliteScadaDnp3HostPath)" />
-    <Error Condition="'$(EliteScadaDnp3NoticesPath)' != '' and !Exists('$(EliteScadaDnp3NoticesPath)')"
-           Text="Configured EliteSCADA DNP3 third-party notices do not exist: $(EliteScadaDnp3NoticesPath)" />
+  <Target Name="IncludeEliteScadaDnp3DistributionFiles" AfterTargets="ComputeFilesToPublish" Condition="'$(EliteScadaDnp3HostPath)' != '' or '$(EliteScadaDnp3NoticesPath)' != '' or '$(EliteScadaRequireDnp3NativeHost)' == 'true'">
+    <Error Condition="'$(EliteScadaRequireDnp3NativeHost)' == 'true' and '$(EliteScadaDnp3HostPath)' == ''" Text="EliteScadaRequireDnp3NativeHost=true requires EliteScadaDnp3HostPath." />
+    <Error Condition="'$(EliteScadaRequireDnp3NativeHost)' == 'true' and '$(EliteScadaDnp3NoticesPath)' == ''" Text="EliteScadaRequireDnp3NativeHost=true requires EliteScadaDnp3NoticesPath." />
+    <Error Condition="'$(EliteScadaDnp3HostPath)' != '' and !Exists('$(EliteScadaDnp3HostPath)')" Text="Configured EliteSCADA DNP3 native host does not exist: $(EliteScadaDnp3HostPath)" />
+    <Error Condition="'$(EliteScadaDnp3NoticesPath)' != '' and !Exists('$(EliteScadaDnp3NoticesPath)')" Text="Configured EliteSCADA DNP3 third-party notices do not exist: $(EliteScadaDnp3NoticesPath)" />
     <ItemGroup>
       <ResolvedFileToPublish Include="$(EliteScadaDnp3HostPath)" Condition="'$(EliteScadaDnp3HostPath)' != ''">
         <RelativePath>native/dnp3/EliteScada.Dnp3Host.exe</RelativePath>

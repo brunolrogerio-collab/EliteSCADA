@@ -53,6 +53,8 @@ import { IntelligenceContextEligibilityPanel } from './IntelligenceContextEligib
 import { IntelligenceExperimentalJointPanel } from './IntelligenceExperimentalJointPanel';
 import { AssetProcessIntelligencePerformancePanel } from './AssetProcessIntelligencePerformancePanel';
 import { AssetProcessIntelligenceContextualDeviationPanel } from './AssetProcessIntelligenceContextualDeviationPanel';
+import { intelligenceSubareas, normalizeSearch, unassignedArea } from './intelligenceSubareas';
+import type { EquipmentEngineering, LocationEngineering } from './types';
 import './asset-process-intelligence.css';
 import { IntelligenceDashboardComposer } from './IntelligenceDashboardComposer';
 
@@ -98,6 +100,8 @@ export function AssetProcessIntelligenceWorkspace({
   locale,
   projectName,
   tags: packageTags,
+  packageEquipment,
+  locations,
   screens = [],
   onSaved,
   onPendingChangesChanged,
@@ -106,6 +110,8 @@ export function AssetProcessIntelligenceWorkspace({
   locale: EngineeringLocale;
   projectName?: string;
   tags: TagEngineering[];
+  packageEquipment?: EquipmentEngineering[];
+  locations?: LocationEngineering[];
   screens?: readonly ScreenEngineering[];
   onSaved?: () => Promise<void>;
   onPendingChangesChanged?: (pending: boolean) => void;
@@ -116,6 +122,8 @@ export function AssetProcessIntelligenceWorkspace({
   const canManage = hasWorkspaceCapability(capabilities, 'AssetProcessIntelligenceManage');
   const canUseTrend = hasRuntimeCapability(capabilities, 'TrendUse');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [areaFilter, setAreaFilter] = useState<string | null>(null);
+  const [assetSearch, setAssetSearch] = useState('');
   const [semanticCatalog, setSemanticCatalog] = useState<EngineeringSemanticCatalogResponse | null>(null);
   const [semanticContractVersion, setSemanticContractVersion] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -305,9 +313,8 @@ export function AssetProcessIntelligenceWorkspace({
     !signal.semanticBinding || isSemanticBindingComplete(signal.semanticBinding, semanticCatalog?.semanticCatalogs ?? [])));
   const semanticRoles = (semanticCatalog?.semanticCatalogs ?? []).flatMap(catalog =>
     catalog.roles.map(role => ({ ...role, catalogVersion: catalog.catalogVersion })));
-  const selectedProfile = profiles.find(profile => profile.id === selectedProfileId) ?? null;
   const selectedStage = processStages.find(stage => stage.id === selectedStageId) ?? null;
-  const selectedContextProfile = operatingContextProfiles.find(profile => profile.id === selectedContextProfileId) ?? null;
+
   const tags = useMemo(() => {
     const packageTagsById = new Map(packageTags.filter(tag => tag.id).map(tag => [tag.id!.toLowerCase(), tag]));
     return snapshot?.tags?.length ? snapshot.tags.map(tag => {
@@ -321,6 +328,43 @@ export function AssetProcessIntelligenceWorkspace({
     }) : packageTags;
   }, [snapshot?.tags, packageTags]);
   const equipment = (snapshot?.resources ?? []).filter(resource => resource.kind === 'Equipment');
+  const { rows: areaRows, areas } = useMemo(() =>
+    intelligenceSubareas(snapshot?.resources ?? [], packageEquipment ?? [], locations ?? [], locale),
+    [snapshot?.resources, packageEquipment, locations, locale]);
+  // Open large projects on one station so analysis panels only mount for its equipment.
+  const defaultArea = equipment.length > 12 && areas.length > 1 ? areas[0].key : '';
+  const activeArea = areaFilter === '' || areas.some(area => area.key === areaFilter) ? areaFilter : defaultArea;
+  const search = normalizeSearch(assetSearch);
+  const visibleResources = areaRows.filter(row => (!activeArea || row.key === activeArea) && row.search.includes(search))
+    .map(row => row.resource);
+  const visibleEquipment = visibleResources.filter(row => row.kind === 'Equipment');
+  const visibleIds = new Set(visibleEquipment.map(row => row.scopeId.toLowerCase()));
+  const filtering = Boolean(activeArea || search);
+  const visibleAssignments = filtering ? assignments.filter(item => visibleIds.has(item.equipmentId.toLowerCase())) : assignments;
+  const visibleAssignmentIds = new Set(visibleAssignments.map(item => item.id));
+  const visibleContexts = filtering ? operatingContextProfiles.filter(item => visibleAssignmentIds.has(item.assignmentId)) : operatingContextProfiles;
+  const assignedProfiles = new Set(assignments.map(item => item.profileId));
+  const visibleProfileIds = new Set(visibleAssignments.map(item => item.profileId));
+  const visibleProfiles = filtering ? profiles.filter(item => visibleProfileIds.has(item.id) || !assignedProfiles.has(item.id)) : profiles;
+  const selectedProfile = visibleProfiles.find(item => item.id === selectedProfileId) ?? null;
+  const names = new Set<string>();
+  const repeated = new Set<string>();
+  for (const resource of equipment) {
+    const name = normalizeSearch(resource.name);
+    if (names.has(name)) repeated.add(name);
+    names.add(name);
+  }
+  function equipmentLabel(resource: Resource | undefined) {
+    if (!resource) return copy.missingEquipment;
+    return repeated.has(normalizeSearch(resource.name)) ? `${resource.name} (${resource.path || resource.scopeId})` : resource.name;
+  }
+  const selectedContextProfile = visibleContexts.find(profile => profile.id === selectedContextProfileId) ?? null;
+  function clearFilterTargets() {
+    setAssignmentEquipmentId('');
+    setContextAssignmentId('');
+    setStageAssignmentId('');
+    setDashboardSourceKey('');
+  }
   const tagsById = new Map(tags.filter(tag => tag.id).map(tag => [tag.id!.toLowerCase(), tag]));
   const resourcesByKey = new Map((snapshot?.resources ?? []).map(resource => [scopeKey(resource), resource]));
   const profileById = new Map(profiles.map(profile => [profile.id, profile]));
@@ -392,12 +436,12 @@ export function AssetProcessIntelligenceWorkspace({
   };
 
   const dashboardSourceOptions: DashboardSourceOption[] = [
-    ...assignments.flatMap(assignment => {
+    ...visibleAssignments.flatMap(assignment => {
       const source = createDashboardSourceForAssignment(assignment.id);
       if (!source) return [];
       return [{
         key: `equipment-profile:${assignment.id.toLowerCase()}`,
-        label: `${copy.dashboardEquipmentSource} · ${source.displayName}`,
+        label: `${copy.dashboardEquipmentSource} · ${equipmentLabel(resourcesByKey.get('Equipment:' + assignment.equipmentId.toLowerCase()))} · ${profileById.get(assignment.profileId)?.name ?? copy.missingProfile}`,
         source,
         hasNumericSignal: source.assignments.some(item => item.profile.signals.some(signal => {
           const tag = tagsById.get(signal.tagId.toLowerCase());
@@ -407,7 +451,7 @@ export function AssetProcessIntelligenceWorkspace({
     }),
     ...processStages.flatMap(stage => {
       const source = createDashboardSourceForStage(stage);
-      if (!source) return [];
+      if (!source || (filtering && !source.assignments.every(member => member.scopeId && visibleIds.has(member.scopeId.toLowerCase())))) return [];
       return [{
         key: `process-stage:${stage.id.toLowerCase()}`,
         label: `${copy.dashboardStageSource} · ${source.displayName}`,
@@ -983,6 +1027,14 @@ export function AssetProcessIntelligenceWorkspace({
     {message ? <div className="eng-state-card asset-process-intelligence__message" role="status">{message}</div> : null}
     {loading ? <div className="eng-state-card"><strong>{copy.loading}</strong></div> : null}
     {!loading && snapshot && <>
+      <div className="eng-panel asset-process-intelligence__filters">
+        <label>{copy.subarea}<select value={activeArea ?? ''} onChange={event => { setAreaFilter(event.currentTarget.value); clearFilterTargets(); }}>
+          <option value="">{copy.allAreas}</option>
+          {areas.map(area => <option key={area.key} value={area.key}>{area.key === unassignedArea ? copy.noArea : area.label} ({area.count})</option>)}
+        </select></label>
+        <label>{copy.findAsset}<input type="search" value={assetSearch} onChange={event => { setAssetSearch(event.currentTarget.value); clearFilterTargets(); }}/></label>
+        <span role="status">{copy.equipment}: {visibleEquipment.length} / {equipment.length}</span>
+      </div>
       <section className="eng-panel asset-process-intelligence__authoring-section" aria-labelledby="intelligence-dashboard-heading" data-testid="intelligence-dashboard-generator">
         <div className="asset-process-intelligence__section-heading"><div><h2 id="intelligence-dashboard-heading">{copy.dashboardTitle}</h2><p>{copy.dashboardHint}</p></div></div>
         {!snapshot.licensed ? <p role="note">{copy.dashboardLicenseRequired}</p> : !canEngineer || !canManageAnyEquipment || (selectedDashboardSource && !canManageSource(selectedDashboardSource.source)) ? <p role="note">{copy.dashboardAuthorizationHint}</p> : null}
@@ -1026,9 +1078,9 @@ export function AssetProcessIntelligenceWorkspace({
         <header><div><h2 id="intelligence-scopes-heading">{copy.eligibleScopes}</h2><p>{copy.scopeHint}</p></div>
           <button type="button" className="secondary" onClick={() => void load()}>{copy.refresh}</button>
         </header>
-        {snapshot.resources.length === 0 ? <div className="eng-empty"><strong>{copy.noResources}</strong></div> :
+        {visibleResources.length === 0 ? <div className="eng-empty"><strong>{filtering ? copy.noMatches : copy.noResources}</strong></div> :
           <div className="asset-process-intelligence__list">
-            {snapshot.resources.map(resource => {
+            {visibleResources.map(resource => {
               const key = scopeKey(resource);
               const scope = configured.find(item => scopeKey(item) === key);
               const active = scope?.active === true;
@@ -1080,9 +1132,9 @@ export function AssetProcessIntelligenceWorkspace({
           <div className="asset-process-intelligence__section-heading"><div><h3 id="intelligence-profiles-heading">{copy.profiles}</h3><p>{copy.profilesHint}</p></div>
             <button type="button" className="secondary" disabled={!canEngineer} onClick={createProfile}>{copy.newProfile}</button>
           </div>
-          {profiles.length === 0 ? <div className="eng-empty"><strong>{copy.noProfiles}</strong></div> : <div className="asset-process-intelligence__split">
+          {visibleProfiles.length === 0 ? <div className="eng-empty"><strong>{filtering ? copy.noMatches : copy.noProfiles}</strong></div> : <div className="asset-process-intelligence__split">
             <div className="asset-process-intelligence__choice-list" role="listbox" aria-label={copy.profiles}>
-              {profiles.map(profile => <button type="button" role="option" aria-selected={profile.id === selectedProfileId} key={profile.id} onClick={() => setSelectedProfileId(profile.id)}>
+              {visibleProfiles.map(profile => <button type="button" role="option" aria-selected={profile.id === selectedProfileId} key={profile.id} onClick={() => setSelectedProfileId(profile.id)}>
                 <strong>{profile.name}</strong><small>{profile.signals.length} {copy.signals.toLowerCase()}</small>
               </button>)}
             </div>
@@ -1143,17 +1195,17 @@ export function AssetProcessIntelligenceWorkspace({
 
         <section className="asset-process-intelligence__authoring-section" aria-labelledby="intelligence-assignments-heading">
           <div className="asset-process-intelligence__section-heading"><div><h3 id="intelligence-assignments-heading">{copy.assignments}</h3><p>{copy.assignmentsHint}</p></div></div>
-          {equipment.length === 0 || profiles.length === 0 ? <div className="eng-empty"><strong>{equipment.length === 0 ? copy.noEquipment : copy.noProfiles}</strong></div> : <div className="asset-process-intelligence__assignment-form">
+          {visibleEquipment.length === 0 || profiles.length === 0 ? <div className="eng-empty"><strong>{visibleEquipment.length === 0 ? copy.noEquipment : copy.noProfiles}</strong></div> : <div className="asset-process-intelligence__assignment-form">
             <label>{copy.equipment}<select value={assignmentEquipmentId} disabled={!canEngineer} onChange={event => setAssignmentEquipmentId(event.currentTarget.value)}>
-              <option value="">{copy.chooseEquipment}</option>{equipment.map(item => <option key={item.scopeId} value={item.scopeId}>{item.path ? `${item.path} · ` : ''}{item.name}</option>)}
+              <option value="">{copy.chooseEquipment}</option>{visibleEquipment.map(item => <option key={item.scopeId} value={item.scopeId}>{item.path ? `${item.path} · ` : ''}{item.name}</option>)}
             </select></label>
             <label>{copy.profile}<select value={assignmentProfileId} disabled={!canEngineer} onChange={event => setAssignmentProfileId(event.currentTarget.value)}>
               <option value="">{copy.chooseProfile}</option>{profiles.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select></label>
             <button type="button" className="secondary" disabled={!canEngineer || !assignmentEquipmentId || !assignmentProfileId || assignments.some(item => item.equipmentId === assignmentEquipmentId && item.profileId === assignmentProfileId)} onClick={addAssignment}>{copy.assignProfile}</button>
           </div>}
-          {assignments.length === 0 ? <div className="eng-empty"><strong>{copy.noAssignments}</strong></div> : <div className="asset-process-intelligence__list">
-            {assignments.map(assignment => {
+          {visibleAssignments.length === 0 ? <div className="eng-empty"><strong>{copy.noAssignments}</strong></div> : <div className="asset-process-intelligence__list">
+            {visibleAssignments.map(assignment => {
               const equipmentResource = resourcesByKey.get(`Equipment:${assignment.equipmentId.toLowerCase()}`);
               const profile = profileById.get(assignment.profileId);
               const matchingAssignments = assignments.filter(item =>
@@ -1276,25 +1328,25 @@ export function AssetProcessIntelligenceWorkspace({
 
         <section className="asset-process-intelligence__authoring-section" aria-labelledby="intelligence-context-profiles-heading" data-testid="intelligence-context-profiles">
           <div className="asset-process-intelligence__section-heading"><div><h3 id="intelligence-context-profiles-heading">{copy.contextProfiles}</h3><p>{copy.contextProfilesHint}</p></div></div>
-          {assignments.length === 0 ? <div className="eng-empty"><strong>{copy.noAssignments}</strong></div> : <div className="asset-process-intelligence__assignment-form">
+          {visibleAssignments.length === 0 ? <div className="eng-empty"><strong>{copy.noAssignments}</strong></div> : <div className="asset-process-intelligence__assignment-form">
             <label>{copy.selectedAssignment}<select value={contextAssignmentId} disabled={!canEngineer || !canManageAnyEquipment} onChange={event => setContextAssignmentId(event.currentTarget.value)}>
               <option value="">{copy.chooseAssignment}</option>
-              {assignments.map(assignment => {
+              {visibleAssignments.map(assignment => {
                 const equip = resourcesByKey.get(`Equipment:${assignment.equipmentId.toLowerCase()}`);
                 const profile = profileById.get(assignment.profileId);
-                return <option key={assignment.id} value={assignment.id}>{equip?.name ?? copy.missingEquipment} · {profile?.name ?? copy.missingProfile}</option>;
+                return <option key={assignment.id} value={assignment.id}>{equipmentLabel(equip)} · {profile?.name ?? copy.missingProfile}</option>;
               })}
             </select></label>
             <button type="button" className="secondary" disabled={!canEngineer || !canManageAssignment(contextAssignmentId) || !contextAssignmentId} onClick={createContextProfile}>{copy.newContextProfile}</button>
           </div>}
           {!canEngineer || !canManageAnyEquipment || (selectedContextProfile && !canManageAssignment(selectedContextProfile.assignmentId)) ? <p role="note">{copy.contextAuthorizationHint}</p> : null}
-          {operatingContextProfiles.length === 0 ? <div className="eng-empty"><strong>{copy.noContextProfiles}</strong></div> : <div className="asset-process-intelligence__split">
+          {visibleContexts.length === 0 ? <div className="eng-empty"><strong>{copy.noContextProfiles}</strong></div> : <div className="asset-process-intelligence__split">
             <div className="asset-process-intelligence__choice-list" role="listbox" aria-label={copy.contextProfiles}>
-              {operatingContextProfiles.map(profile => {
+              {visibleContexts.map(profile => {
                 const assignment = assignmentById.get(profile.assignmentId);
                 const equip = assignment ? resourcesByKey.get(`Equipment:${assignment.equipmentId.toLowerCase()}`) : undefined;
                 return <button type="button" role="option" aria-selected={profile.id === selectedContextProfileId} key={profile.id} onClick={() => setSelectedContextProfileId(profile.id)}>
-                  <strong>{profile.displayLabel}</strong><small>{equip?.name ?? copy.missingEquipment}</small>
+                  <strong>{profile.displayLabel}</strong><small>{equipmentLabel(equip)}</small>
                 </button>;
               })}
             </div>
@@ -1399,12 +1451,12 @@ export function AssetProcessIntelligenceWorkspace({
                 })}
               </div>}
               <div className="asset-process-intelligence__assignment-form">
-                <label>{copy.stageAssignment}<select value={stageAssignmentId} disabled={!canEngineer || assignments.length === 0} onChange={event => setStageAssignmentId(event.currentTarget.value)}>
-                  <option value="">{assignments.length ? copy.chooseAssignment : copy.noAssignments}</option>
-                  {assignments.filter(item => !selectedStage.links.some(link => link.assignmentId === item.id)).map(item => {
+                <label>{copy.stageAssignment}<select value={stageAssignmentId} disabled={!canEngineer || visibleAssignments.length === 0} onChange={event => setStageAssignmentId(event.currentTarget.value)}>
+                  <option value="">{visibleAssignments.length ? copy.chooseAssignment : copy.noAssignments}</option>
+                  {visibleAssignments.filter(item => !selectedStage.links.some(link => link.assignmentId === item.id)).map(item => {
                     const equip = resourcesByKey.get(`Equipment:${item.equipmentId.toLowerCase()}`);
                     const profile = profileById.get(item.profileId);
-                    return <option key={item.id} value={item.id}>{equip?.name ?? copy.missingEquipment} · {profile?.name ?? copy.missingProfile}</option>;
+                    return <option key={item.id} value={item.id}>{equipmentLabel(equip)} · {profile?.name ?? copy.missingProfile}</option>;
                   })}
                 </select></label>
                 <button type="button" className="secondary" disabled={!canEngineer || !stageAssignmentId} onClick={addAssignmentToStage}>{copy.addToStage}</button>
@@ -1580,6 +1632,7 @@ function text(locale: EngineeringLocale) {
     stageHint: 'Activate the equipment or area, then open an analysis under its profile assignment. Select the periods and query. Editing profiles or activating a scope does not start continuous analysis.', workingChanges: 'Working changes must be reviewed and published before activation.', openLifecycle: 'Open project lifecycle',
     entitlement: 'Intelligence license', entitled: 'Available', notEntitled: 'Required to activate', project: 'Project', revision: 'Active revision', queue: 'Queue', permits: 'items ready to query',
     currentProject: 'Current application', resourceEquipment: 'Equipment', resourceLocation: 'Location', pathUnavailable: 'No display path', setupNavigation: 'Where do you want to work?', setupHint: 'Start by defining measurements and assigning them to equipment. Add operating conditions or process stages when needed, generate the dashboard, publish and activate the selected equipment.', noProject: 'No active project', eligibleScopes: 'Equipment and locations enabled for analysis', scopeHint: 'Select the Equipment and Locations you want to analyze. Saving changes Working only; publish it before activation.',
+    subarea: 'Subarea', allAreas: 'All subareas', noArea: 'Unassigned', findAsset: 'Find equipment by name or path', noMatches: 'No resources match these filters.',
     noResources: 'No Equipment or Locations are available to select.', refresh: 'Refresh', notConfigured: 'Not selected', configuredActive: 'Configured active', statusPaused: 'Paused', permitArmed: 'Ready to query', recoveryPending: 'Checking the saved activation against the current license, Authority, revision and HA state. Wait or refresh; no action is needed yet.', permitClosed: 'The saved activation could not be recovered. Check the license, active revision and Authority/HA state. If they are correct and you want to run it, select Activate.', noPermit: 'Not activated for queries', activate: 'Activate', pause: 'Pause', working: 'Applying…', saveScopes: 'Save eligible scopes', saving: 'Saving…', saved: 'Eligible scopes saved.', activated: 'Scope activated for the current revision.', paused: 'Scope paused; pending work was cancelled.', authorizationHint: 'Editing the selection requires Engineering permission. Activating or pausing requires Intelligence management permission for the equipment or location.', loading: 'Loading scopes…',
     stage2Title: 'Process configuration', stage2Hint: 'Create reusable measurement profiles from existing TAGs, assign them to Equipment and arrange the process stages. These edits are saved to Working.',
     profiles: 'Reusable profiles', profilesHint: 'A profile can be reused by multiple Equipment assignments.', newProfile: 'New profile', noProfiles: 'No profiles yet. Create one to define static signal references.', defaultProfile: 'Profile', defaultSignal: 'Signal', profileName: 'Display name', signals: 'Signal references', signalsHint: 'Choose existing TAGs and describe what each measurement represents. The optional meaning selection enables analyses that support it.', noSignals: 'No signals in this profile.', signalRole: 'What does this measurement represent?', signalRolePlaceholder: 'e.g. motor current', semanticRole: 'Measurement meaning', noSemanticRole: 'Not specified', chooseQualifier: 'Choose a qualifier', currentBasisLabel: 'Current basis', signalKindLabel: 'Signal kind', frequencyReferenceLabel: 'Frequency reference', pressureReferenceLabel: 'Pressure reference', flowDirectionLabel: 'Flow direction', semanticComplete: 'Controlled annotation complete', semanticIncomplete: 'Incomplete: select every required qualifier before saving', unsupportedSemantic: 'This saved meaning is unavailable', tagReference: 'TAG reference', chooseTag: 'Choose a TAG', noTags: 'No TAGs are available', addSignal: 'Add signal', required: 'Required', optional: 'Optional', missingTag: 'Missing TAG reference', remove: 'Remove', deleteProfile: 'Delete profile and its assignments',
@@ -1595,6 +1648,7 @@ function text(locale: EngineeringLocale) {
     stageHint: 'Active el equipo o área y abra un análisis en su asignación de perfil. Seleccione los períodos y consulte. Editar perfiles o activar un alcance no inicia análisis continuo.', workingChanges: 'Revise y publique los cambios de trabajo antes de activar.', openLifecycle: 'Abrir ciclo del proyecto',
     entitlement: 'Licencia Intelligence', entitled: 'Disponible', notEntitled: 'Necesaria para activar', project: 'Proyecto', revision: 'Revisión activa', queue: 'Cola', permits: 'elementos listos para consultar',
     currentProject: 'Aplicación actual', resourceEquipment: 'Equipo', resourceLocation: 'Ubicación', pathUnavailable: 'Sin ruta de visualización', setupNavigation: '¿Dónde desea trabajar?', setupHint: 'Empiece por definir mediciones y asociarlas a los equipos. Añada condiciones o etapas cuando sea necesario, genere el panel, publique y active los equipos seleccionados.', noProject: 'Sin proyecto activo', eligibleScopes: 'Equipos y ubicaciones habilitados para análisis', scopeHint: 'Seleccione los equipos y ubicaciones que desea analizar. Guardar modifica solo Working; publique antes de activar.',
+    subarea: 'Subárea', allAreas: 'Todas las subáreas', noArea: 'Sin subárea', findAsset: 'Buscar equipo por nombre o ruta', noMatches: 'Ningún recurso coincide con los filtros.',
     noResources: 'No hay equipos o ubicaciones para seleccionar.', refresh: 'Actualizar', notConfigured: 'No seleccionado', configuredActive: 'Activo configurado', statusPaused: 'Pausado', permitArmed: 'Listo para consultar', recoveryPending: 'Comprobando la activación guardada con la licencia, Authority, revisión y HA actuales. Espere o actualice la pantalla; todavía no necesita activarla de nuevo.', permitClosed: 'No se pudo recuperar la activación guardada. Revise la licencia, la revisión activa y el estado de Authority/HA. Si todo está correcto y quiere ejecutarla, seleccione Activar.', noPermit: 'No activado para consultas', activate: 'Activar', pause: 'Pausar', working: 'Aplicando…', saveScopes: 'Guardar alcances', saving: 'Guardando…', saved: 'Alcances guardados.', activated: 'Alcance activado para la revisión actual.', paused: 'Alcance pausado; se canceló el trabajo pendiente.', authorizationHint: 'Su cuenta necesita permiso para editar Ingeniería y administrar Intelligence de este equipo o ubicación.', loading: 'Cargando alcances…',
     stage2Title: 'Configuración de procesos', stage2Hint: 'Cree perfiles reutilizables con TAGs existentes, asígnelos a equipos y ordene las etapas del proceso. Los cambios se guardan en Working.',
     profiles: 'Perfiles reutilizables', profilesHint: 'Un perfil puede reutilizarse en varias asignaciones de equipos.', newProfile: 'Nuevo perfil', noProfiles: 'Aún no hay perfiles. Cree uno para definir referencias estáticas.', defaultProfile: 'Perfil', defaultSignal: 'Señal', profileName: 'Nombre', signals: 'Referencias de señales', signalsHint: 'Elija TAGs existentes y describa qué representa cada medición. El significado opcional habilita los análisis compatibles.', noSignals: 'Este perfil no tiene señales.', signalRole: '¿Qué representa esta medición?', signalRolePlaceholder: 'p. ej. corriente del motor', semanticRole: 'Significado de la medición', noSemanticRole: 'Sin especificar', chooseQualifier: 'Elija un calificador', currentBasisLabel: 'Base de corriente', signalKindLabel: 'Tipo de señal', frequencyReferenceLabel: 'Referencia de frecuencia', pressureReferenceLabel: 'Referencia de presión', flowDirectionLabel: 'Dirección del flujo', semanticComplete: 'Anotación controlada completa', semanticIncomplete: 'Incompleta: seleccione todos los calificadores requeridos antes de guardar', unsupportedSemantic: 'Este significado guardado no está disponible', tagReference: 'Referencia TAG', chooseTag: 'Elija un TAG', noTags: 'No hay TAGs disponibles', addSignal: 'Añadir señal', required: 'Obligatoria', optional: 'Opcional', missingTag: 'Falta la referencia TAG', remove: 'Eliminar', deleteProfile: 'Eliminar perfil y sus asignaciones',
@@ -1610,6 +1664,7 @@ function text(locale: EngineeringLocale) {
     stageHint: 'Ative o equipamento ou área e abra uma análise na associação do perfil. Escolha os períodos e consulte. Editar perfis ou ativar um escopo não inicia análise contínua.', workingChanges: 'Revise e publique as alterações de Working antes de ativar.', openLifecycle: 'Abrir ciclo do projeto',
     entitlement: 'Licença Intelligence', entitled: 'Disponível', notEntitled: 'Necessária para ativar', project: 'Projeto', revision: 'Revisão ativa', queue: 'Fila', permits: 'itens prontos para consultar',
     currentProject: 'Aplicação atual', resourceEquipment: 'Equipamento', resourceLocation: 'Local', pathUnavailable: 'Sem caminho de exibição', setupNavigation: 'Onde deseja trabalhar?', setupHint: 'Comece definindo as medições e associando-as aos equipamentos. Acrescente condições de operação ou etapas quando precisar, gere o painel, publique e ative os equipamentos escolhidos.', noProject: 'Nenhum projeto ativo', eligibleScopes: 'Equipamentos e locais habilitados para análise', scopeHint: 'Selecione os equipamentos e locais que deseja analisar. Salvar altera apenas o Working; publique antes de ativar.',
+    subarea: 'Subárea', allAreas: 'Todas as subáreas', noArea: 'Sem subárea', findAsset: 'Buscar equipamento por nome ou caminho', noMatches: 'Nenhum recurso corresponde aos filtros.',
     noResources: 'Não há equipamentos ou locais disponíveis para selecionar.', refresh: 'Atualizar', notConfigured: 'Não selecionado', configuredActive: 'Ativo na configuração', statusPaused: 'Pausado', permitArmed: 'Pronto para consultar', recoveryPending: 'Conferindo a ativação salva com a licença, Authority, revisão e HA atuais. Aguarde ou atualize a tela; ainda não é preciso ativar de novo.', permitClosed: 'A ativação salva não pôde ser recuperada. Confira a licença, a revisão ativa e o estado da Authority/HA. Se estiver tudo correto e quiser executar, selecione Ativar.', noPermit: 'Ainda não ativado para consultas', activate: 'Ativar', pause: 'Pausar', working: 'Aplicando…', saveScopes: 'Salvar escopos elegíveis', saving: 'Salvando…', saved: 'Escopos elegíveis salvos.', activated: 'Escopo ativado para a revisão atual.', paused: 'Escopo pausado; o trabalho pendente foi cancelado.', authorizationHint: 'Alterar a seleção exige permissão de Engenharia. Ativar ou pausar exige permissão para gerenciar Intelligence no equipamento ou local.', loading: 'Carregando escopos…',
     stage2Title: 'Configuração de processos', stage2Hint: 'Crie perfis reutilizáveis com TAGs já cadastrados, associe-os aos equipamentos e organize as etapas do processo. As edições são salvas no Working.',
     profiles: 'Perfis reutilizáveis', profilesHint: 'Um perfil pode ser reutilizado em várias associações de equipamentos.', newProfile: 'Novo perfil', noProfiles: 'Nenhum perfil ainda. Crie um para definir referências estáticas de sinais.', defaultProfile: 'Perfil', defaultSignal: 'Sinal', profileName: 'Nome de exibição', signals: 'Referências de sinais', signalsHint: 'Escolha TAGs existentes e descreva o que cada medição representa. O significado opcional habilita as análises compatíveis.', noSignals: 'Este perfil não possui sinais.', signalRole: 'O que esta medição representa?', signalRolePlaceholder: 'ex.: corrente elétrica do motor', semanticRole: 'Significado da medição', noSemanticRole: 'Não informado', chooseQualifier: 'Escolha um qualificador', currentBasisLabel: 'Base de corrente', signalKindLabel: 'Tipo do sinal', frequencyReferenceLabel: 'Referência de frequência', pressureReferenceLabel: 'Referência de pressão', flowDirectionLabel: 'Direção do fluxo', semanticComplete: 'Anotação controlada completa', semanticIncomplete: 'Incompleta: selecione todos os qualificadores obrigatórios antes de salvar', unsupportedSemantic: 'Este significado salvo não está disponível', tagReference: 'Referência do TAG', chooseTag: 'Escolha um TAG', noTags: 'Nenhum TAG disponível', addSignal: 'Adicionar sinal', required: 'Obrigatório', optional: 'Opcional', missingTag: 'Referência de TAG ausente', remove: 'Remover', deleteProfile: 'Excluir perfil e associações',

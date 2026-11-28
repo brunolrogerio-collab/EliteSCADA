@@ -40,7 +40,16 @@ import {
   updateReportControl,
   updateReportSection
 } from './reportDesignerModel';
+import { EditorPanelToggle } from '../visual-editor/VisualEditorRegionToggle';
 import './report-designer.css';
+
+type ReportPanel = 'list' | 'left' | 'right';
+const panelPreference = 'scadivo.engineering.reportDesigner.panels.v1';
+function readPanels(): Record<ReportPanel, boolean> {
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem(panelPreference) ?? '{}'); } catch { /* Browser storage is optional. */ }
+  return { list: saved?.list !== false, left: saved?.left !== false, right: saved?.right !== false };
+}
 
 type ReportDesignerWorkspaceProps = {
   snapshot: EngineeringSnapshot;
@@ -57,6 +66,16 @@ const A4_LANDSCAPE_WIDTH_MM = 297;
 
 export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportDesignerWorkspaceProps) {
   const text = useMemo(() => copy(locale), [locale]);
+  const [panels, setPanels] = useState(readPanels);
+  function panelToggle(panel: ReportPanel, name: string) {
+    const action = panels[panel] ? (locale === 'en' ? 'Hide' : 'Ocultar') : (locale === 'en' ? 'Show' : 'Mostrar');
+    return <EditorPanelToggle label={`${action} ${name}`} expanded={panels[panel]} right={panel === 'right'}
+      testId={`report-panel-${panel}-toggle`} controls={`report-panel-${panel}`} onToggle={() => {
+        const next = { ...panels, [panel]: !panels[panel] };
+        setPanels(next);
+        try { localStorage.setItem(panelPreference, JSON.stringify(next)); } catch { /* Keep the session preference. */ }
+      }}/>;
+  }
   const updateMetadata = (key: string, value: string) => updateDraft(current => ({ ...current, metadata: {...current.metadata, [key]: value} }));
   const updatePage = (patch: Partial<NonNullable<ReportEngineeringDto["page"]>>) => updateDraft(current => ({ ...current, page: { ...current.page, ...patch } }));
   const reports = reportCollection(snapshot.package);
@@ -276,24 +295,27 @@ export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportD
       </details>
     </header>
 
-    <div className="report-designer-shell">
+    <div className="report-designer-shell" data-list-open={panels.list} data-left-open={panels.left} data-right-open={panels.right}>
       <aside className="report-designer-list" aria-label={text.reportList}>
-        <header>
-          <strong>{text.reports}</strong>
-          <button type="button" className={isNew ? 'active' : ''} onClick={() => chooseReport(NEW_REPORT_IDENTITY)}>+ {text.newReport}</button>
-        </header>
-        <div className="report-designer-report-list">
-          {reports.map(report => <button
-            type="button"
-            className={matchesReportIdentity(report, selectedIdentity) ? 'selected' : ''}
-            key={reportIdentity(report)}
-            onClick={() => chooseReport(reportIdentity(report))}
-          >
-            <strong>{report.name || report.key}</strong>
-            <code>{report.key}</code>
-            <span>{report.sections?.length ?? 0} {text.sections}</span>
-          </button>)}
-          {reports.length === 0 ? <p>{text.noReports}</p> : null}
+        {panelToggle('list', text.reports)}
+        <div id="report-panel-list" className="report-panel-content" hidden={!panels.list}>
+          <header>
+            <strong>{text.reports}</strong>
+            <button type="button" className={isNew ? 'active' : ''} onClick={() => chooseReport(NEW_REPORT_IDENTITY)}>+ {text.newReport}</button>
+          </header>
+          <div className="report-designer-report-list">
+            {reports.map(report => <button
+              type="button"
+              className={matchesReportIdentity(report, selectedIdentity) ? 'selected' : ''}
+              key={reportIdentity(report)}
+              onClick={() => chooseReport(reportIdentity(report))}
+            >
+              <strong>{report.name || report.key}</strong>
+              <code>{report.key}</code>
+              <span>{report.sections?.length ?? 0} {text.sections}</span>
+            </button>)}
+            {reports.length === 0 ? <p>{text.noReports}</p> : null}
+          </div>
         </div>
       </aside>
 
@@ -336,149 +358,152 @@ export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportD
 
         <div className="report-designer-composition">
           <aside className="report-designer-left">
-            <section className="report-designer-panel" data-testid="report-query-editor">
-              <h2>{text.query}</h2>
-              <label><span>{text.savedDataQuery}</span><select value={primaryQuery?.dataQueryId ?? ''} onChange={event => {
-                const saved = dataQueries.find(item => item.id === event.target.value);
-                updateDraft(current => ({
-                  ...current,
-                  queries: (current.queries ?? []).map((query, index) => index === 0
-                    ? { ...query, dataQueryId: saved?.id ?? null, dataQueryKey: saved?.key ?? null }
-                    : query)
-                }));
-              }}>
-                <option value="">{text.embeddedQuery}</option>
-                {dataQueries.filter(item => Boolean(item.id)).map(item => <option key={item.id!} value={item.id!}>{item.name} · {item.key}</option>)}
-              </select></label>
-              <label><span>{text.dataset}</span><select value={primaryQuery?.query.datasetKey ?? 'historian.samples'} onChange={event => updateDraft(current => updatePrimaryQueryDataset(current, event.target.value as 'historian.samples' | 'alarm.events'))}>
-                <option value="historian.samples">historian.samples</option>
-                <option value="alarm.events">alarm.events</option>
-              </select></label>
-              <DurationEditor label={text.defaultPeriod} seconds={readDefaultPeriod(draft)} locale={locale} onChange={value => updateDraft(current => updateRelativeDuration(current, value))}/>
-              <DurationEditor label={text.runtimePeriod} seconds={runtimePeriodSeconds} locale={locale} onChange={value => { setRuntimePeriodSeconds(String(value)); setExecution(null); setMode('design'); }}/>
-              <label><span>{text.resolution}</span><select value={draft.resolution?.mode ?? 'raw'} onChange={event => updateDraft(current => ({
-                ...current,
-                resolution: resolutionForMode(event.target.value as 'raw' | 'sampledFixedStep' | 'aggregate', current.resolution)
-              }))}>
-                <option value="raw">{text.raw}</option>
-                <option value="sampledFixedStep">{text.fixedInterval}</option>
-                <option value="aggregate">{text.summary}</option>
-              </select></label>
-              {(draft.resolution?.mode ?? 'raw') === 'sampledFixedStep' ? <label><span>{text.interval}</span><select value={draft.resolution?.intervalMilliseconds ?? 300000} onChange={event => updateDraft(current => ({
-                ...current, resolution: { ...(current.resolution ?? {}), mode: 'sampledFixedStep', intervalMilliseconds: Number(event.target.value), maximumGapMilliseconds: current.resolution?.maximumGapMilliseconds ?? 300000, bucketAlignment: 'utcDuration' }
-              }))}>{intervalOptions().map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label> : null}
-              {(draft.resolution?.mode ?? 'raw') === 'aggregate' ? <>
-                <label><span>{text.aggregate}</span><select value={draft.resolution?.aggregateFunction ?? 'average'} onChange={event => updateDraft(current => ({
-                  ...current, resolution: { ...(current.resolution ?? {}), mode: 'aggregate', aggregateFunction: event.target.value as NonNullable<ReportEngineeringDto['resolution']>['aggregateFunction'], bucketMilliseconds: current.resolution?.bucketMilliseconds ?? 3600000, bucketAlignment: 'utcDuration' }
-                }))}>
-                  <option value="average">{text.average}</option><option value="minimum">{text.minimum}</option><option value="maximum">{text.maximum}</option><option value="sum">{text.sum}</option><option value="count">{text.count}</option><option value="first">First</option><option value="last">Last</option>
+            {panelToggle('left', text.query)}
+            <div className="report-panel-content" id="report-panel-left" hidden={!panels.left}>
+              <section className="report-designer-panel" data-testid="report-query-editor">
+                <h2>{text.query}</h2>
+                <label><span>{text.savedDataQuery}</span><select value={primaryQuery?.dataQueryId ?? ''} onChange={event => {
+                  const saved = dataQueries.find(item => item.id === event.target.value);
+                  updateDraft(current => ({
+                    ...current,
+                    queries: (current.queries ?? []).map((query, index) => index === 0
+                      ? { ...query, dataQueryId: saved?.id ?? null, dataQueryKey: saved?.key ?? null }
+                      : query)
+                  }));
+                }}>
+                  <option value="">{text.embeddedQuery}</option>
+                  {dataQueries.filter(item => Boolean(item.id)).map(item => <option key={item.id!} value={item.id!}>{item.name} · {item.key}</option>)}
                 </select></label>
-                <label><span>{text.bucket}</span><select value={draft.resolution?.bucketMilliseconds ?? 3600000} onChange={event => updateDraft(current => ({
-                  ...current, resolution: { ...(current.resolution ?? {}), mode: 'aggregate', aggregateFunction: current.resolution?.aggregateFunction ?? 'average', bucketMilliseconds: Number(event.target.value), bucketAlignment: 'utcDuration' }
-                }))}>{bucketOptions().map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-              </> : null}
-              <label><span>{text.tableLayout}</span><select disabled={draft.resolution?.latestObserved === true} value={draft.tableLayout ?? 'long'} onChange={event => updateDraft(current => ({ ...current, tableLayout: event.target.value as 'long' | 'wide' }))}>
-                <option value="long">{text.longTable}</option>
-                <option value="wide" disabled={(draft.resolution?.mode ?? 'raw') === 'raw'}>{text.wideTable}</option>
-              </select></label>
-              {draft.resolution?.mode === 'sampledFixedStep' && <>
-                <label><input type="checkbox" checked={draft.resolution.latestObserved === true} onChange={e => updateDraft(current => ({...current, tableLayout: e.target.checked ? 'wide' : current.tableLayout, resolution: {...current.resolution!, latestObserved: e.target.checked}}))}/>{text.observed}</label>
-                {draft.resolution.latestObserved && <>
-                  <label>{text.numberFormat}<select value={draft.metadata?.numberCulture ?? ''} onChange={e => updateMetadata('numberCulture', e.target.value)}><option value="">1234.50</option><option value="pt-BR">Português (Brasil)</option><option value="en-US">English (US)</option><option value="es-ES">Español</option></select></label>
-                  <label>{text.quality}<input value={draft.metadata?.invalidQualityLabel ?? 'Invalid quality'} onChange={e => updateMetadata('invalidQualityLabel', e.target.value)}/></label>
-                </>}
-                {draft.resolution.latestObserved && <label>{text.tolerance}<input type="number" min={0.001} step="any" value={(draft.resolution.maximumGapMilliseconds ?? 15000) / 1000} onChange={e => updateDraft(current => ({...current, resolution: {...current.resolution!, maximumGapMilliseconds: Math.round(Number(e.target.value) * 1000)}}))}/></label>}
-              </>}
-              {primaryQuery?.query.datasetKey === 'alarm.events' && <label><input type="checkbox" checked={draft.metadata?.hideEventIds === 'true'} onChange={e => updateDraft(current => ({...current, metadata: {...current.metadata, hideEventIds: String(e.target.checked)}}))}/>{text.hideIds}</label>}
-              <div className="report-preview-actions">
-                <button type="button" className="primary" onClick={() => void executePreview()} disabled={previewing || applying}>{previewing ? text.previewing : text.runPreview}</button>
-                {previewing ? <button type="button" onClick={cancelPreview}>{text.cancel}</button> : null}
-              </div>
-              <small>{text.queryHint}</small>
-            </section>
-
-            <section className="report-designer-panel report-variable-panel" data-testid="report-variable-editor">
-              <h2>{text.variables}</h2>
-              <p>{text.variablesHint}</p>
-              <ProjectReferenceBrowser
-                references={reportReferences}
-                locale={locale}
-                title={text.addVariables}
-                isSelectable={reference => Boolean(reference.tagReference?.tagId)}
-                onSelect={reference => updateDraft(current => addReportVariable(current, reference))}
-              />
-              <div className="report-variable-list">
-                {(draft.variables ?? []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(variable =>
-                  <VariableEditor
-                    key={variable.tagId}
-                    variable={variable}
-                    text={text}
-                    onChange={update => updateDraft(current => updateReportVariable(current, variable.tagId, update))}
-                    onMove={direction => updateDraft(current => moveReportVariable(current, variable.tagId, direction))}
-                    onRemove={() => updateDraft(current => ({ ...current, variables: (current.variables ?? []).filter(item => item.tagId !== variable.tagId) }))}
-                  />)}
-              </div>
-            </section>
-
-            <section className="report-designer-panel" data-testid="report-group-summary-editor">
-              <h2>{text.groupsAndSummaries}</h2>
-              <p>{text.groupsHint}</p>
-              <div className="report-group-list">
-                {(draft.groups ?? []).map(group => <article key={group.key} className="report-group-card">
-                  <strong>{group.key}</strong>
-                  <label><span>{text.groupField}</span><select value={group.field} onChange={event => updateDraft(current => ({
-                    ...current,
-                    groups: (current.groups ?? []).map(item => item.key === group.key ? { ...item, field: event.target.value } : item)
-                  }))}>{reportFieldOptions(draft).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-                  <label><span>{text.order}</span><select value={group.direction ?? 'ascending'} onChange={event => updateDraft(current => ({
-                    ...current,
-                    groups: (current.groups ?? []).map(item => item.key === group.key ? { ...item, direction: event.target.value as 'ascending' | 'descending' } : item)
-                  }))}><option value="ascending">{text.ascending}</option><option value="descending">{text.descending}</option></select></label>
-                  <button type="button" className="danger" onClick={() => updateDraft(current => ({ ...current, groups: (current.groups ?? []).filter(item => item.key !== group.key) }))}>{text.remove}</button>
-                </article>)}
-              </div>
-              <button type="button" onClick={() => updateDraft(current => addReportGroup(current))}>+ {text.addGroup}</button>
-              <div className="report-summary-list">
-                {(draft.aggregates ?? []).map(aggregate => <article key={aggregate.key} className="report-group-card">
-                  <strong>{aggregate.key}</strong>
-                  <label><span>{text.aggregate}</span><select value={aggregate.function} onChange={event => updateDraft(current => ({
-                    ...current,
-                    aggregates: (current.aggregates ?? []).map(item => item.key === aggregate.key ? { ...item, function: event.target.value as typeof item.function } : item)
+                <label><span>{text.dataset}</span><select value={primaryQuery?.query.datasetKey ?? 'historian.samples'} onChange={event => updateDraft(current => updatePrimaryQueryDataset(current, event.target.value as 'historian.samples' | 'alarm.events'))}>
+                  <option value="historian.samples">historian.samples</option>
+                  <option value="alarm.events">alarm.events</option>
+                </select></label>
+                <DurationEditor label={text.defaultPeriod} seconds={readDefaultPeriod(draft)} locale={locale} onChange={value => updateDraft(current => updateRelativeDuration(current, value))}/>
+                <DurationEditor label={text.runtimePeriod} seconds={runtimePeriodSeconds} locale={locale} onChange={value => { setRuntimePeriodSeconds(String(value)); setExecution(null); setMode('design'); }}/>
+                <label><span>{text.resolution}</span><select value={draft.resolution?.mode ?? 'raw'} onChange={event => updateDraft(current => ({
+                  ...current,
+                  resolution: resolutionForMode(event.target.value as 'raw' | 'sampledFixedStep' | 'aggregate', current.resolution)
+                }))}>
+                  <option value="raw">{text.raw}</option>
+                  <option value="sampledFixedStep">{text.fixedInterval}</option>
+                  <option value="aggregate">{text.summary}</option>
+                </select></label>
+                {(draft.resolution?.mode ?? 'raw') === 'sampledFixedStep' ? <label><span>{text.interval}</span><select value={draft.resolution?.intervalMilliseconds ?? 300000} onChange={event => updateDraft(current => ({
+                  ...current, resolution: { ...(current.resolution ?? {}), mode: 'sampledFixedStep', intervalMilliseconds: Number(event.target.value), maximumGapMilliseconds: current.resolution?.maximumGapMilliseconds ?? 300000, bucketAlignment: 'utcDuration' }
+                }))}>{intervalOptions().map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label> : null}
+                {(draft.resolution?.mode ?? 'raw') === 'aggregate' ? <>
+                  <label><span>{text.aggregate}</span><select value={draft.resolution?.aggregateFunction ?? 'average'} onChange={event => updateDraft(current => ({
+                    ...current, resolution: { ...(current.resolution ?? {}), mode: 'aggregate', aggregateFunction: event.target.value as NonNullable<ReportEngineeringDto['resolution']>['aggregateFunction'], bucketMilliseconds: current.resolution?.bucketMilliseconds ?? 3600000, bucketAlignment: 'utcDuration' }
                   }))}>
                     <option value="average">{text.average}</option><option value="minimum">{text.minimum}</option><option value="maximum">{text.maximum}</option><option value="sum">{text.sum}</option><option value="count">{text.count}</option><option value="first">First</option><option value="last">Last</option>
                   </select></label>
-                  <label><span>{text.summaryField}</span><select value={aggregate.field ?? ''} onChange={event => updateDraft(current => ({
-                    ...current,
-                    aggregates: (current.aggregates ?? []).map(item => item.key === aggregate.key ? { ...item, field: event.target.value || null } : item)
-                  }))}><option value="">{text.allRows}</option>{reportFieldOptions(draft).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-                  <label><span>{text.scope}</span><select value={aggregate.groupKey ?? ''} onChange={event => updateDraft(current => ({
-                    ...current,
-                    aggregates: (current.aggregates ?? []).map(item => item.key === aggregate.key ? { ...item, groupKey: event.target.value || null } : item)
-                  }))}><option value="">{text.reportScope}</option>{(draft.groups ?? []).map(group => <option key={group.key} value={group.key}>{group.key}</option>)}</select></label>
-                  <button type="button" className="danger" onClick={() => updateDraft(current => ({ ...current, aggregates: (current.aggregates ?? []).filter(item => item.key !== aggregate.key) }))}>{text.remove}</button>
-                </article>)}
-              </div>
-              <button type="button" onClick={() => updateDraft(current => addReportAggregate(current))}>+ {text.addSummary}</button>
-            </section>
+                  <label><span>{text.bucket}</span><select value={draft.resolution?.bucketMilliseconds ?? 3600000} onChange={event => updateDraft(current => ({
+                    ...current, resolution: { ...(current.resolution ?? {}), mode: 'aggregate', aggregateFunction: current.resolution?.aggregateFunction ?? 'average', bucketMilliseconds: Number(event.target.value), bucketAlignment: 'utcDuration' }
+                  }))}>{bucketOptions().map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+                </> : null}
+                <label><span>{text.tableLayout}</span><select disabled={draft.resolution?.latestObserved === true} value={draft.tableLayout ?? 'long'} onChange={event => updateDraft(current => ({ ...current, tableLayout: event.target.value as 'long' | 'wide' }))}>
+                  <option value="long">{text.longTable}</option>
+                  <option value="wide" disabled={(draft.resolution?.mode ?? 'raw') === 'raw'}>{text.wideTable}</option>
+                </select></label>
+                {draft.resolution?.mode === 'sampledFixedStep' && <>
+                  <label><input type="checkbox" checked={draft.resolution.latestObserved === true} onChange={e => updateDraft(current => ({...current, tableLayout: e.target.checked ? 'wide' : current.tableLayout, resolution: {...current.resolution!, latestObserved: e.target.checked}}))}/>{text.observed}</label>
+                  {draft.resolution.latestObserved && <>
+                    <label>{text.numberFormat}<select value={draft.metadata?.numberCulture ?? ''} onChange={e => updateMetadata('numberCulture', e.target.value)}><option value="">1234.50</option><option value="pt-BR">Português (Brasil)</option><option value="en-US">English (US)</option><option value="es-ES">Español</option></select></label>
+                    <label>{text.quality}<input value={draft.metadata?.invalidQualityLabel ?? 'Invalid quality'} onChange={e => updateMetadata('invalidQualityLabel', e.target.value)}/></label>
+                  </>}
+                  {draft.resolution.latestObserved && <label>{text.tolerance}<input type="number" min={0.001} step="any" value={(draft.resolution.maximumGapMilliseconds ?? 15000) / 1000} onChange={e => updateDraft(current => ({...current, resolution: {...current.resolution!, maximumGapMilliseconds: Math.round(Number(e.target.value) * 1000)}}))}/></label>}
+                </>}
+                {primaryQuery?.query.datasetKey === 'alarm.events' && <label><input type="checkbox" checked={draft.metadata?.hideEventIds === 'true'} onChange={e => updateDraft(current => ({...current, metadata: {...current.metadata, hideEventIds: String(e.target.checked)}}))}/>{text.hideIds}</label>}
+                <div className="report-preview-actions">
+                  <button type="button" className="primary" onClick={() => void executePreview()} disabled={previewing || applying}>{previewing ? text.previewing : text.runPreview}</button>
+                  {previewing ? <button type="button" onClick={cancelPreview}>{text.cancel}</button> : null}
+                </div>
+                <small>{text.queryHint}</small>
+              </section>
 
-            <section className="report-designer-panel">
-              <h2>{text.sections}</h2>
-              <div className="report-section-list">
-                {(draft.sections ?? []).map(section => <button type="button" className={section.key === selectedSectionKey ? 'selected' : ''} key={section.key} onClick={() => { setSelectedSectionKey(section.key); setSelectedControlKey(null); }}>
-                  <strong>{sectionLabel(section.kind, text)}</strong>
-                  <code>{section.key}</code>
-                  <span>{section.heightMillimeters} mm · {section.controls?.length ?? 0} {text.controls}</span>
-                </button>)}
-              </div>
-              <div className="report-add-controls">{(['pageHeader', 'pageFooter'] as const).filter(kind => !draft.sections?.some(section => section.kind === kind)).map(kind => <button type="button" key={kind} onClick={() => {
-                let key: string = kind;
-                while (draft.sections?.some(section => section.key === key)) key += '-1';
-                updateDraft(current => ({...current, sections: [...(current.sections ?? []), { key, kind, heightMillimeters: 16, controls: [] }]}));
-                setSelectedSectionKey(key); setSelectedControlKey(null);
-              }}>+ {kind === 'pageHeader' ? text.header : text.footer}</button>)}</div>
-              {selectedSection ? <label><span>{text.sectionHeight}</span><input type="number" min="0.1" step="0.5" value={selectedSection.heightMillimeters} onChange={event => updateDraft(current => updateReportSection(current, selectedSection.key, section => ({ ...section, heightMillimeters: Number(event.target.value) })))}/></label> : null}
-              {selectedSection ? <div className="report-add-controls"><button type="button" onClick={() => { updateDraft(current => addReportControl(current, selectedSection.key, 'label')); }}>{text.addLabel}</button><button type="button" onClick={() => { updateDraft(current => addReportControl(current, selectedSection.key, 'dataField')); }}>{text.addField}</button><button type="button" onClick={() => updateDraft(current => addReportControl(current, selectedSection.key, 'image'))}>{text.addImage}</button></div> : null}
-            </section>
+              <section className="report-designer-panel report-variable-panel" data-testid="report-variable-editor">
+                <h2>{text.variables}</h2>
+                <p>{text.variablesHint}</p>
+                <ProjectReferenceBrowser
+                  references={reportReferences}
+                  locale={locale}
+                  title={text.addVariables}
+                  isSelectable={reference => Boolean(reference.tagReference?.tagId)}
+                  onSelect={reference => updateDraft(current => addReportVariable(current, reference))}
+                />
+                <div className="report-variable-list">
+                  {(draft.variables ?? []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(variable =>
+                    <VariableEditor
+                      key={variable.tagId}
+                      variable={variable}
+                      text={text}
+                      onChange={update => updateDraft(current => updateReportVariable(current, variable.tagId, update))}
+                      onMove={direction => updateDraft(current => moveReportVariable(current, variable.tagId, direction))}
+                      onRemove={() => updateDraft(current => ({ ...current, variables: (current.variables ?? []).filter(item => item.tagId !== variable.tagId) }))}
+                    />)}
+                </div>
+              </section>
+
+              <section className="report-designer-panel" data-testid="report-group-summary-editor">
+                <h2>{text.groupsAndSummaries}</h2>
+                <p>{text.groupsHint}</p>
+                <div className="report-group-list">
+                  {(draft.groups ?? []).map(group => <article key={group.key} className="report-group-card">
+                    <strong>{group.key}</strong>
+                    <label><span>{text.groupField}</span><select value={group.field} onChange={event => updateDraft(current => ({
+                      ...current,
+                      groups: (current.groups ?? []).map(item => item.key === group.key ? { ...item, field: event.target.value } : item)
+                    }))}>{reportFieldOptions(draft).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                    <label><span>{text.order}</span><select value={group.direction ?? 'ascending'} onChange={event => updateDraft(current => ({
+                      ...current,
+                      groups: (current.groups ?? []).map(item => item.key === group.key ? { ...item, direction: event.target.value as 'ascending' | 'descending' } : item)
+                    }))}><option value="ascending">{text.ascending}</option><option value="descending">{text.descending}</option></select></label>
+                    <button type="button" className="danger" onClick={() => updateDraft(current => ({ ...current, groups: (current.groups ?? []).filter(item => item.key !== group.key) }))}>{text.remove}</button>
+                  </article>)}
+                </div>
+                <button type="button" onClick={() => updateDraft(current => addReportGroup(current))}>+ {text.addGroup}</button>
+                <div className="report-summary-list">
+                  {(draft.aggregates ?? []).map(aggregate => <article key={aggregate.key} className="report-group-card">
+                    <strong>{aggregate.key}</strong>
+                    <label><span>{text.aggregate}</span><select value={aggregate.function} onChange={event => updateDraft(current => ({
+                      ...current,
+                      aggregates: (current.aggregates ?? []).map(item => item.key === aggregate.key ? { ...item, function: event.target.value as typeof item.function } : item)
+                    }))}>
+                      <option value="average">{text.average}</option><option value="minimum">{text.minimum}</option><option value="maximum">{text.maximum}</option><option value="sum">{text.sum}</option><option value="count">{text.count}</option><option value="first">First</option><option value="last">Last</option>
+                    </select></label>
+                    <label><span>{text.summaryField}</span><select value={aggregate.field ?? ''} onChange={event => updateDraft(current => ({
+                      ...current,
+                      aggregates: (current.aggregates ?? []).map(item => item.key === aggregate.key ? { ...item, field: event.target.value || null } : item)
+                    }))}><option value="">{text.allRows}</option>{reportFieldOptions(draft).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                    <label><span>{text.scope}</span><select value={aggregate.groupKey ?? ''} onChange={event => updateDraft(current => ({
+                      ...current,
+                      aggregates: (current.aggregates ?? []).map(item => item.key === aggregate.key ? { ...item, groupKey: event.target.value || null } : item)
+                    }))}><option value="">{text.reportScope}</option>{(draft.groups ?? []).map(group => <option key={group.key} value={group.key}>{group.key}</option>)}</select></label>
+                    <button type="button" className="danger" onClick={() => updateDraft(current => ({ ...current, aggregates: (current.aggregates ?? []).filter(item => item.key !== aggregate.key) }))}>{text.remove}</button>
+                  </article>)}
+                </div>
+                <button type="button" onClick={() => updateDraft(current => addReportAggregate(current))}>+ {text.addSummary}</button>
+              </section>
+
+              <section className="report-designer-panel">
+                <h2>{text.sections}</h2>
+                <div className="report-section-list">
+                  {(draft.sections ?? []).map(section => <button type="button" className={section.key === selectedSectionKey ? 'selected' : ''} key={section.key} onClick={() => { setSelectedSectionKey(section.key); setSelectedControlKey(null); }}>
+                    <strong>{sectionLabel(section.kind, text)}</strong>
+                    <code>{section.key}</code>
+                    <span>{section.heightMillimeters} mm · {section.controls?.length ?? 0} {text.controls}</span>
+                  </button>)}
+                </div>
+                <div className="report-add-controls">{(['pageHeader', 'pageFooter'] as const).filter(kind => !draft.sections?.some(section => section.kind === kind)).map(kind => <button type="button" key={kind} onClick={() => {
+                  let key: string = kind;
+                  while (draft.sections?.some(section => section.key === key)) key += '-1';
+                  updateDraft(current => ({...current, sections: [...(current.sections ?? []), { key, kind, heightMillimeters: 16, controls: [] }]}));
+                  setSelectedSectionKey(key); setSelectedControlKey(null);
+                }}>+ {kind === 'pageHeader' ? text.header : text.footer}</button>)}</div>
+                {selectedSection ? <label><span>{text.sectionHeight}</span><input type="number" min="0.1" step="0.5" value={selectedSection.heightMillimeters} onChange={event => updateDraft(current => updateReportSection(current, selectedSection.key, section => ({ ...section, heightMillimeters: Number(event.target.value) })))}/></label> : null}
+                {selectedSection ? <div className="report-add-controls"><button type="button" onClick={() => { updateDraft(current => addReportControl(current, selectedSection.key, 'label')); }}>{text.addLabel}</button><button type="button" onClick={() => { updateDraft(current => addReportControl(current, selectedSection.key, 'dataField')); }}>{text.addField}</button><button type="button" onClick={() => updateDraft(current => addReportControl(current, selectedSection.key, 'image'))}>{text.addImage}</button></div> : null}
+              </section>
+            </div>
           </aside>
 
           <section className="report-designer-canvas-wrap">
@@ -499,28 +524,31 @@ export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportD
           </section>
 
           <aside className="report-designer-right">
-            <section className="report-designer-panel" data-testid="report-control-inspector">
-              <h2>{text.inspector}</h2>
-              {!selectedControl || !selectedSection ? <div className="report-designer-empty compact"><span>{text.selectControl}</span></div> : <ControlInspector
-                report={draft}
-                section={selectedSection}
-                assets={snapshot.package.visualAssets ?? []}
-                control={selectedControl}
-                text={text}
-                onChange={update => updateDraft(current => updateReportControl(current, selectedSection.key, selectedControl.key, update))}
-                onDelete={() => {
-                  updateDraft(current => removeReportControl(current, selectedSection.key, selectedControl.key));
-                  setSelectedControlKey(null);
-                }}
-              />}
-            </section>
-            <section className="report-designer-panel report-preview-summary">
-              <h2>{text.previewSummary}</h2>
-              {!execution ? <span>{text.previewNotRun}</span> : <>
-                <strong>{executionRows} {text.rows}</strong>
-                {execution.queries.map(query => <div key={query.queryKey}><code>{query.queryKey}</code><span>{query.dataset}</span><small>{formatDate(query.fromUtc, locale)} → {formatDate(query.toUtc, locale)}</small></div>)}
-              </>}
-            </section>
+            {panelToggle('right', text.inspector)}
+            <div className="report-panel-content" id="report-panel-right" hidden={!panels.right}>
+              <section className="report-designer-panel" data-testid="report-control-inspector">
+                <h2>{text.inspector}</h2>
+                {!selectedControl || !selectedSection ? <div className="report-designer-empty compact"><span>{text.selectControl}</span></div> : <ControlInspector
+                  report={draft}
+                  section={selectedSection}
+                  assets={snapshot.package.visualAssets ?? []}
+                  control={selectedControl}
+                  text={text}
+                  onChange={update => updateDraft(current => updateReportControl(current, selectedSection.key, selectedControl.key, update))}
+                  onDelete={() => {
+                    updateDraft(current => removeReportControl(current, selectedSection.key, selectedControl.key));
+                    setSelectedControlKey(null);
+                  }}
+                />}
+              </section>
+              <section className="report-designer-panel report-preview-summary">
+                <h2>{text.previewSummary}</h2>
+                {!execution ? <span>{text.previewNotRun}</span> : <>
+                  <strong>{executionRows} {text.rows}</strong>
+                  {execution.queries.map(query => <div key={query.queryKey}><code>{query.queryKey}</code><span>{query.dataset}</span><small>{formatDate(query.fromUtc, locale)} → {formatDate(query.toUtc, locale)}</small></div>)}
+                </>}
+              </section>
+            </div>
           </aside>
         </div>
       </section>

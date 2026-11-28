@@ -354,7 +354,7 @@ async function mockWorkspace(
   page: import('@playwright/test').Page,
   read: () => Record<string, any>,
   write: (configuration: Record<string, any>) => void,
-  options: { emptyResources?: boolean; hidePaths?: boolean } = {}) {
+  options: { emptyResources?: boolean; hidePaths?: boolean; resources?: { kind: string; scopeId: string; path: string; name: string }[] } = {}) {
   await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
     authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
     authenticationEnabled: true,
@@ -370,7 +370,7 @@ async function mockWorkspace(
       await route.fulfill({ json: { configuration: read(), workspace: {} } });
       return;
     }
-    const resources = options.emptyResources ? [] : [
+    const resources = options.emptyResources ? [] : options.resources ?? [
       { kind: 'Equipment', scopeId: '15000000-0000-0000-0000-000000000301', path: 'Plant.Pump01', name: 'Pump P01' },
       { kind: 'Equipment', scopeId: '15000000-0000-0000-0000-000000000302', path: 'Plant.Pump02', name: 'Pump P02' }
     ];
@@ -526,4 +526,55 @@ test('Engineering section navigation lets the user cancel discarding unsaved Int
   await navigation;
   await expect(page.getByLabel('Nome de exibição', { exact: true })).toHaveValue('Keep my pump draft');
   await expect(page.getByRole('heading', { name: 'Inteligência de Ativos e Processos', exact: true })).toBeVisible();
+});
+
+test('subareas distinguish repeated pump names across 20 stations and keep selections across filters', async ({ page }) => {
+  const stations = Array.from({ length: 20 }, (_, i) => 'EEE' + String(i + 1).padStart(2, '0'));
+  const resources = stations.flatMap(station => ['MB01', 'MB02', 'MB03'].map(name => ({
+    kind: 'Equipment', scopeId: station + '-' + name, name, path: 'Legacy.' + station + '.' + name
+  })));
+  resources.push({ kind: 'Equipment', scopeId: 'orphan', name: 'Portable', path: 'Portable' });
+  const equipment = resources.map(item => ({ id: item.scopeId, name: item.name, path: item.path,
+    locationId: item.scopeId === 'orphan' ? null : item.scopeId.split('-')[0] }));
+  const locations = [{ id: 'district', name: 'Distrito', parentLocationId: null },
+    ...stations.map(id => ({ id, name: id, parentLocationId: 'district' }))];
+  const profiles = stations.map(id => ({ id: 'profile-' + id, key: 'profile-' + id, name: id + ' · Corrente', signals: [] }));
+  const assignments = stations.map(id => ({ id: 'assignment-' + id, equipmentId: id + '-MB01', profileId: 'profile-' + id }));
+  let config: Record<string, any> = { version: 2, scopes: [], profiles, assignments, processStages: [] };
+  let writes = 0;
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/**', route => route.fulfill({ status: 403, json: {} }));
+  await mockWorkspace(page, () => config, next => { writes++; config = { ...config, ...next }; }, { resources });
+  await page.route('**/api/engineering/workspace', route => route.fulfill({ json: {
+    projectKey: 'test', projectName: 'Multi-station fixture', baseRevision: 1, changeVersion: 1, isDirty: false
+  } }));
+  await page.route('**/api/engineering/export/json', route => route.fulfill({ json: { tags: [], equipment, locations, screens: [] } }));
+  await page.goto('/tests-e2e/harness/engineering-shell.html');
+  const area = page.getByRole('combobox', { name: 'Subárea', exact: true });
+  const search = page.getByRole('searchbox');
+  const checkboxes = page.locator('.asset-process-intelligence__scope-panel input[type=checkbox]');
+  await expect(area.locator('option:checked')).toHaveText('Distrito / EEE01 (3)');
+  await expect(checkboxes).toHaveCount(3);
+  const cards = page.locator('article[id^="intelligence-assignment-"]');
+  await expect(cards).toHaveCount(1);
+  await expect(cards.first()).toHaveAttribute('id', 'intelligence-assignment-assignment-EEE01');
+  await page.getByRole('checkbox', { name: /EEE01.MB01/ }).check();
+  await area.selectOption({ label: 'Distrito / EEE20 (3)' });
+  await search.fill('mb01');
+  await expect(cards).toHaveCount(1);
+  await expect(cards.first()).toHaveAttribute('id', 'intelligence-assignment-assignment-EEE20');
+  await expect(checkboxes).toHaveCount(1);
+  await expect(checkboxes.first()).not.toBeChecked();
+  await checkboxes.first().check();
+  await search.fill('missing');
+  await expect(checkboxes).toHaveCount(0);
+  await search.fill('');
+  await area.selectOption({ label: 'Sem subárea (1)' });
+  await expect(page.getByRole('checkbox', { name: /Portable/ })).toBeVisible();
+  await area.selectOption('');
+  await search.fill('mb01');
+  await expect(checkboxes).toHaveCount(20);
+  expect(writes).toBe(0);
+  await page.getByRole('button', { name: 'Salvar escopos elegíveis' }).click();
+  await expect.poll(() => config.scopes.map((row: {scopeId: string}) => row.scopeId).sort()).toEqual(['EEE01-MB01', 'EEE20-MB01']);
 });

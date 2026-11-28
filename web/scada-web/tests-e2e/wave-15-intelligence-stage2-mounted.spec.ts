@@ -538,6 +538,11 @@ test('subareas distinguish repeated pump names across 20 stations and keep selec
     locationId: item.scopeId === 'orphan' ? null : item.scopeId.split('-')[0] }));
   const locations = [{ id: 'district', name: 'Distrito', parentLocationId: null },
     ...stations.map(id => ({ id, name: id, parentLocationId: 'district' }))];
+  locations.push({ id: 'reserve', name: 'Reserva', parentLocationId: 'district' });
+  resources.push(
+    { kind: 'Location', scopeId: 'EEE01', name: 'EEE01', path: 'Distrito.EEE01' },
+    { kind: 'Location', scopeId: 'reserve', name: 'Reserva', path: 'Distrito.Reserva' }
+  );
   const profiles = stations.map(id => ({ id: 'profile-' + id, key: 'profile-' + id, name: id + ' · Corrente', signals: [] }));
   const assignments = stations.map(id => ({ id: 'assignment-' + id, equipmentId: id + '-MB01', profileId: 'profile-' + id }));
   let config: Record<string, any> = { version: 2, scopes: [], profiles, assignments, processStages: [] };
@@ -554,7 +559,8 @@ test('subareas distinguish repeated pump names across 20 stations and keep selec
   const search = page.getByRole('searchbox');
   const checkboxes = page.locator('.asset-process-intelligence__scope-panel input[type=checkbox]');
   await expect(area.locator('option:checked')).toHaveText('Distrito / EEE01 (3)');
-  await expect(checkboxes).toHaveCount(3);
+  await expect(checkboxes).toHaveCount(4);
+  await expect(area.getByRole('option', { name: 'Distrito / Reserva (0)', exact: true })).toHaveCount(1);
   const cards = page.locator('article[id^="intelligence-assignment-"]');
   await expect(cards).toHaveCount(1);
   await expect(cards.first()).toHaveAttribute('id', 'intelligence-assignment-assignment-EEE01');

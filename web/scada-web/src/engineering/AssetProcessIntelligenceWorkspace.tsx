@@ -1030,7 +1030,7 @@ export function AssetProcessIntelligenceWorkspace({
       <div className="eng-panel asset-process-intelligence__filters">
         <label>{copy.subarea}<select value={activeArea ?? ''} onChange={event => { setAreaFilter(event.currentTarget.value); clearFilterTargets(); }}>
           <option value="">{copy.allAreas}</option>
-          {areas.map(area => <option key={area.key} value={area.key}>{area.key === unassignedArea ? copy.noArea : area.label} ({area.count})</option>)}
+          {areas.map(area => <option key={area.key} value={area.key}>{area.key === unassignedArea ? copy.noArea : area.label} ({area.equipmentCount})</option>)}
         </select></label>
         <label>{copy.findAsset}<input type="search" value={assetSearch} onChange={event => { setAssetSearch(event.currentTarget.value); clearFilterTargets(); }}/></label>
         <span role="status">{copy.equipment}: {visibleEquipment.length} / {equipment.length}</span>

@@ -8,7 +8,7 @@ export function intelligenceSubareas<R extends Resource>(
 ) {
   const equipmentById = new Map(equipment.map(item => [item.id?.toLowerCase(), item]));
   const locationsById = new Map(locations.map(item => [item.id?.toLowerCase(), item]));
-  const groups = new Map<string, { key: string; label: string; count: number }>();
+  const groups = new Map<string, { key: string; label: string; equipmentCount: number }>();
   const rows = resources.map(resource => {
     const id = resource.scopeId.toLowerCase();
     const locationId = resource.kind === 'Location' ? id : equipmentById.get(id)?.locationId?.toLowerCase();
@@ -33,8 +33,8 @@ export function intelligenceSubareas<R extends Resource>(
         key = 'path:' + label.toLowerCase();
       }
     }
-    const group = groups.get(key) ?? { key, label, count: 0 };
-    group.count++;
+    const group = groups.get(key) ?? { key, label, equipmentCount: 0 };
+    if (resource.kind === 'Equipment') group.equipmentCount++;
     groups.set(key, group);
     return { resource, key, search: normalizeSearch([label, resource.name, resource.path].join(' ')) };
   });

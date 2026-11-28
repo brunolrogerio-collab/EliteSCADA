@@ -48,6 +48,8 @@ public sealed class ModbusTcpServerDriver :
     private long _lastOperationDurationTicks;
     private long _totalOperationDurationTicks;
     private string? _lastError;
+    private IPAddress? _lastClientAddress;
+    private DateTimeOffset _lastClientConnectedAt;
     private DateTimeOffset? _lastSuccessfulCommunicationAt;
     private DateTimeOffset? _lastFailedCommunicationAt;
     private CommunicationDriverOperationalState _communicationState = CommunicationDriverOperationalState.Stopped;
@@ -215,6 +217,25 @@ public sealed class ModbusTcpServerDriver :
         lock (_diagnosticsGate)
         {
             var average = _operationCount == 0 ? (TimeSpan?)null : TimeSpan.FromTicks(_totalOperationDurationTicks / _operationCount);
+            var details = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["bindEndpoint"] = BindEndpoint,
+                ["listening"] = (_listener is not null).ToString(),
+                ["connectedClients"] = Volatile.Read(ref _connectedClients).ToString(CultureInfo.InvariantCulture),
+                ["maxClients"] = _maxClients.ToString(CultureInfo.InvariantCulture),
+                ["readRequests"] = _readRequests.ToString(CultureInfo.InvariantCulture),
+                ["writeRequests"] = _writeRequests.ToString(CultureInfo.InvariantCulture),
+                ["rejectedWrites"] = _rejectedWrites.ToString(CultureInfo.InvariantCulture),
+                ["outOfRangeRequests"] = _outOfRangeRequests.ToString(CultureInfo.InvariantCulture),
+                ["protocolExceptions"] = _protocolExceptions.ToString(CultureInfo.InvariantCulture),
+                ["registerCount"] = _map.RegisterCount.ToString(CultureInfo.InvariantCulture),
+                ["tagCount"] = _map.TagCount.ToString(CultureInfo.InvariantCulture)
+            };
+            if (_lastClientAddress is not null)
+            {
+                details["lastClientIp"] = _lastClientAddress.ToString();
+                details["lastClientConnectedAtUtc"] = _lastClientConnectedAt.ToString("O", CultureInfo.InvariantCulture);
+            }
             return new CommunicationDriverDiagnosticSnapshot(
                 DriverId,
                 Name,
@@ -248,20 +269,7 @@ public sealed class ModbusTcpServerDriver :
                     ReadOperations: _readRequests,
                     WriteOperations: _writeRequests,
                     UpdatesPublished: _updatesPublished),
-                new Dictionary<string, string>(StringComparer.Ordinal)
-                {
-                    ["bindEndpoint"] = BindEndpoint,
-                    ["listening"] = (_listener is not null).ToString(),
-                    ["connectedClients"] = Volatile.Read(ref _connectedClients).ToString(CultureInfo.InvariantCulture),
-                    ["maxClients"] = _maxClients.ToString(CultureInfo.InvariantCulture),
-                    ["readRequests"] = _readRequests.ToString(CultureInfo.InvariantCulture),
-                    ["writeRequests"] = _writeRequests.ToString(CultureInfo.InvariantCulture),
-                    ["rejectedWrites"] = _rejectedWrites.ToString(CultureInfo.InvariantCulture),
-                    ["outOfRangeRequests"] = _outOfRangeRequests.ToString(CultureInfo.InvariantCulture),
-                    ["protocolExceptions"] = _protocolExceptions.ToString(CultureInfo.InvariantCulture),
-                    ["registerCount"] = _map.RegisterCount.ToString(CultureInfo.InvariantCulture),
-                    ["tagCount"] = _map.TagCount.ToString(CultureInfo.InvariantCulture)
-                });
+                details);
         }
     }
 
@@ -305,9 +313,17 @@ public sealed class ModbusTcpServerDriver :
         {
             client.NoDelay = true;
             Interlocked.Increment(ref _connectedClients);
-            lock (_diagnosticsGate) _connections++;
             try
             {
+                lock (_diagnosticsGate)
+                {
+                    _connections++;
+                    if (client.Client.RemoteEndPoint is IPEndPoint peer)
+                    {
+                        _lastClientAddress = peer.Address.IsIPv4MappedToIPv6 ? peer.Address.MapToIPv4() : peer.Address;
+                        _lastClientConnectedAt = DateTimeOffset.UtcNow;
+                    }
+                }
                 var stream = client.GetStream();
                 if (!_externalEffectAuthority())
                     return;
